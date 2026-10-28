@@ -146,6 +146,9 @@ async function loadHW(force) {
   if (!state.hw || force) {
     state.hw = await api("/api/hw");
     $("#hostname").textContent = state.hw.host && state.hw.host.hostname || "";
+    // The environment can limit the GPUs bernie uses (spec §7.7): say so.
+    const note = $("#gpunote");
+    if (note) note.textContent = state.hw.restriction ? "· " + state.hw.restriction : "";
   }
   return state.hw;
 }

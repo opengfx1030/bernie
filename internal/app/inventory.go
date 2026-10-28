@@ -16,23 +16,31 @@ import (
 type HWReport struct {
 	Host host.Info `json:"host"`
 	GPUs []gpu.GPU `json:"gpus"`
+	// Restriction says that the environment limits the GPUs bernie uses
+	// (spec §7.7). It is empty when nothing is restricted.
+	Restriction string `json:"restriction,omitempty"`
 	// GPUErr is why GPUs is empty when the KFD topology could not be read.
 	// It is not part of the document: the front end decides what to do.
 	GPUErr error `json:"-"`
 }
 
 // HW probes the host and its GPUs. A GPU list that cannot be read is not an
-// error: the report has no GPUs and GPUErr says why.
+// error: the report has no GPUs and GPUErr says why. Only the GPUs the
+// environment leaves visible are listed (spec §7.7).
 func HW(ctx context.Context) (HWReport, error) {
 	h, err := host.Probe(ctx, root)
 	if err != nil {
 		return HWReport{}, err
 	}
-	gpus, gerr := gpu.List(root)
+	vis, gerr := gpu.Visible(root)
+	if gpu.Restricted(gerr) {
+		return HWReport{}, gerr // the restriction names a GPU this host does not have
+	}
+	gpus := vis.GPUs
 	if gpus == nil {
 		gpus = []gpu.GPU{}
 	}
-	return HWReport{Host: h, GPUs: gpus, GPUErr: gerr}, nil
+	return HWReport{Host: h, GPUs: gpus, Restriction: vis.Restriction.Note(), GPUErr: gerr}, nil
 }
 
 // TopoOptions select the `topo` variant.

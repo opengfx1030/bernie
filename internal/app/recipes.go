@@ -9,10 +9,21 @@ import (
 )
 
 // RecipeList is the `recipe list --json` document: every loaded recipe with
-// its fit to this host. all includes the recipes that do not fit.
-func RecipeList(all bool) recipe.Listing {
-	gpus, _ := gpu.List(root) // no GPU data gives fit "unknown"
-	return recipe.List(recipe.Load(), gpus, hostRAM(), all)
+// its fit to this host. all includes the recipes that do not fit. Only the
+// GPUs the environment leaves visible count for the fit (spec §7.7).
+func RecipeList(all bool) (recipe.Listing, error) {
+	vis, err := gpu.Visible(root)
+	if gpu.Restricted(err) {
+		return recipe.Listing{}, err // the restriction names a GPU this host does not have
+	}
+	return recipe.List(recipe.Load(), vis.GPUs, hostRAM(), all), nil
+}
+
+// Restriction returns the one line that says the environment limits the
+// GPUs bernie uses (spec §7.7). It is empty when nothing is restricted.
+func Restriction() string {
+	r, _ := gpu.EnvRestriction()
+	return r.Note()
 }
 
 func hostRAM() uint64 {

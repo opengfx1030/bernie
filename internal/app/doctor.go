@@ -34,8 +34,8 @@ func Doctor(ctx context.Context, categories []string, venv string) (doctor.Repor
 		HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(set),
 	}
 	if len(categories) == 0 || slices.Contains(categories, "topo.p2p") {
-		gpus, _ := gpu.List(root)
-		env, _ := recipeEnv(set, "", gpus)
+		vis, _ := gpu.Visible(root)
+		env, _ := recipeEnv(set, "", vis.GPUs)
 		opts.RecipeEnv = env
 	}
 	return doctor.Run(ctx, opts), nil

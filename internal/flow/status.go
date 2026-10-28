@@ -15,14 +15,17 @@ import (
 
 // Summary is a compact, human-sized view of one host (spec §3.1).
 type Summary struct {
-	Host     host.Info             `json:"host"`
-	GPUs     []gpu.GPU             `json:"gpus"`
-	Doctor   map[doctor.Status]int `json:"doctor"`
-	Problems []doctor.Check        `json:"problems"` // fail and warn checks
-	Best     string                `json:"best_recipe"`
-	Fits     []string              `json:"fitting_recipes"`
-	Runs     []Run                 `json:"runs"`
-	Next     []string              `json:"next"`
+	Host host.Info `json:"host"`
+	GPUs []gpu.GPU `json:"gpus"`
+	// Restriction says that the environment limits the GPUs bernie uses
+	// (spec §7.7). It is empty when nothing is restricted.
+	Restriction string                `json:"restriction,omitempty"`
+	Doctor      map[doctor.Status]int `json:"doctor"`
+	Problems    []doctor.Check        `json:"problems"` // fail and warn checks
+	Best        string                `json:"best_recipe"`
+	Fits        []string              `json:"fitting_recipes"`
+	Runs        []Run                 `json:"runs"`
+	Next        []string              `json:"next"`
 }
 
 // Snapshot probes the host and returns the status document. It changes
@@ -33,7 +36,11 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 		return nil, err
 	}
 	h, _ := host.Probe(ctx, "/")
-	gpus, _ := gpu.List("/")
+	vis, err := gpu.Visible("/")
+	if gpu.Restricted(err) {
+		return nil, err // the restriction names a GPU this host does not have
+	}
+	gpus := vis.GPUs
 	rep := doctor.Run(ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(venv), HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(recipe.Load())})
 	var listing recipe.Listing
 	if gpus != nil {
@@ -41,7 +48,7 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 	}
 	runs, _ := Runs(ctx)
 
-	s := &Summary{Host: h, GPUs: gpus, Doctor: rep.Summary, Runs: runs,
+	s := &Summary{Host: h, GPUs: gpus, Restriction: vis.Restriction.Note(), Doctor: rep.Summary, Runs: runs,
 		Problems: []doctor.Check{}, Fits: []string{}}
 	if s.GPUs == nil {
 		s.GPUs = []gpu.GPU{}

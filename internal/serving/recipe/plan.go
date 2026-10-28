@@ -70,9 +70,12 @@ type Plan struct {
 	GPUs            []int     `json:"gpus"`
 	HIPDevices      string    `json:"hip_devices"`
 	GPUSelectReason string    `json:"gpu_select_reason"`
-	Image           string    `json:"image,omitempty"`
-	ShmSize         string    `json:"shm_size,omitempty"`
-	Pull            bool      `json:"pull"`
+	// Restriction says that the environment limits the GPUs bernie uses
+	// (spec §7.7). It is empty when nothing is restricted.
+	Restriction string `json:"restriction,omitempty"`
+	Image       string `json:"image,omitempty"`
+	ShmSize     string `json:"shm_size,omitempty"`
+	Pull        bool   `json:"pull"`
 	// TunableOpProfile is the selected profile; TunableOpRows its host
 	// directory (empty: no rows, or the per-user fallback).
 	TunableOpProfile string   `json:"tunableop_profile,omitempty"`
@@ -96,6 +99,9 @@ type PlanOptions struct {
 	GPUs       []gpu.GPU
 	Topo       *topo.Topology
 	TunedMoE   func(gfx string) (string, error)
+	// Restriction is the note of the GPU restriction of the environment
+	// (spec §7.7). It is empty when nothing is restricted.
+	Restriction string
 }
 
 // Modes returns the modes a recipe supports: host always, container when it
@@ -130,16 +136,17 @@ func BuildPlan(r *Recipe, o PlanOptions) (*Plan, error) {
 	interp := func(s string) string { return interpolate(s, vals) }
 
 	p := &Plan{
-		Recipe:     r.ID,
-		Name:       o.Name,
-		Mode:       mode,
-		Entrypoint: r.Entrypoint,
-		Model:      interp(r.Model.Source),
-		ServedName: interp(r.Model.ServedName),
-		Env:        map[string]string{},
-		GPUs:       []int{},
-		PathInputs: []string{},
-		Warnings:   []string{},
+		Recipe:      r.ID,
+		Name:        o.Name,
+		Mode:        mode,
+		Entrypoint:  r.Entrypoint,
+		Model:       interp(r.Model.Source),
+		ServedName:  interp(r.Model.ServedName),
+		Env:         map[string]string{},
+		GPUs:        []int{},
+		PathInputs:  []string{},
+		Warnings:    []string{},
+		Restriction: o.Restriction,
 	}
 	if p.Name == "" {
 		p.Name = r.ID

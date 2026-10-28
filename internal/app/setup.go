@@ -31,9 +31,9 @@ func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error) {
 	if err != nil {
 		return nil, err
 	}
-	gpus, _ := gpu.List(root)
+	vis, _ := gpu.Visible(root)
 	var archs []string
-	for _, g := range gpus {
+	for _, g := range vis.GPUs {
 		archs = append(archs, g.GFX)
 	}
 	return setup.Plan(ctx, h, rocm.Probe(ctx, root), setup.Options{

@@ -28,8 +28,16 @@ func init() {
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		l := app.RecipeList(*all)
-		return c.Emit(l, func(w io.Writer) { printRecipeList(w, l, *all) })
+		l, err := app.RecipeList(*all)
+		if err != nil {
+			return err
+		}
+		return c.Emit(l, func(w io.Writer) {
+			if note := app.Restriction(); note != "" {
+				fmt.Fprintln(w, note)
+			}
+			printRecipeList(w, l, *all)
+		})
 	}
 
 	show := &cli.Command{Name: "show", Summary: "The merged recipe (after extends)", Usage: "<id>"}
@@ -216,6 +224,9 @@ func printPlan(w io.Writer, p *recipe.Plan) {
 		fmt.Fprintf(w, "# gpus:      %s (%s)\n", p.HIPDevices, p.GPUSelectReason)
 	} else {
 		fmt.Fprintf(w, "# gpus:      %s\n", p.GPUSelectReason)
+	}
+	if p.Restriction != "" {
+		fmt.Fprintf(w, "# limited:   %s\n", p.Restriction)
 	}
 	switch {
 	case p.TunableOpProfile != "":

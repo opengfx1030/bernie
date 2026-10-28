@@ -51,6 +51,9 @@ func printHW(w io.Writer, r app.HWReport) {
 	}
 	tw.Flush()
 	fmt.Fprintln(w)
+	if r.Restriction != "" {
+		fmt.Fprintln(w, r.Restriction)
+	}
 	if len(r.GPUs) == 0 {
 		fmt.Fprintln(w, "no GPUs (KFD topology empty or missing)")
 		return

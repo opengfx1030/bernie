@@ -49,6 +49,9 @@ func printStatus(w io.Writer, s *flow.Summary) {
 		}
 		fmt.Fprintf(w, "gpus    %s\n", strings.Join(parts, "; "))
 	}
+	if s.Restriction != "" {
+		fmt.Fprintf(w, "%s\n", s.Restriction)
+	}
 	d := s.Doctor
 	fmt.Fprintf(w, "doctor  %d ok, %d warn, %d fail, %d skip\n", d[doctor.OK], d[doctor.Warn], d[doctor.Fail], d[doctor.Skip])
 	for _, ch := range s.Problems {

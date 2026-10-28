@@ -346,3 +346,14 @@ new architecture:
 `bernie doctor` reads the validated architectures from the recipes
 (`gpu.supported.<gfx>`). A new `validated` recipe makes the architecture
 `ok`. No other file lists it.
+
+## 14. The visible GPUs
+
+`HIP_VISIBLE_DEVICES` and `ROCR_VISIBLE_DEVICES` limit the GPUs bernie
+uses. When one of them is set in the environment, the fit of a recipe, the
+GPU selection and the plan see only the GPUs it names (spec §7.7). A recipe
+that needs four GPUs does not fit a host where the environment leaves one
+GPU visible, and the plan of a one-GPU recipe picks the visible GPU.
+
+The value is a comma list of HIP indices. A UUID is not a list of indices:
+bernie ignores it and says so.
