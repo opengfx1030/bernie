@@ -101,22 +101,25 @@ func TestSetKeyAndRoundTrip(t *testing.T) {
 }
 
 func TestResolveVenv(t *testing.T) {
-	home, _ := os.UserHomeDir()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("BERNIE_DATA_DIR", filepath.Join(home, "data"))
 	tests := []struct {
-		name, flag, envVenv, cfg, virtualEnv, want string
+		name, flag, envVenv, cfg, virtualEnv, want, source string
 	}{
-		{"flag first", "/flag", "/env", "/cfg", "/active", "/flag"},
-		{"then BERNIE_VENV", "", "/env", "/cfg", "/active", "/env"},
-		{"then config", "", "", "~/cfg", "/active", filepath.Join(home, "cfg")},
-		{"then VIRTUAL_ENV", "", "", "", "/active", "/active"},
-		{"none", "", "", "", "", ""},
+		{"flag first", "/flag", "/env", "/cfg", "/active", "/flag", VenvSourceFlag},
+		{"then BERNIE_VENV", "", "/env", "/cfg", "/active", "/env", VenvSourceBernieEnv},
+		{"then config", "", "", "~/cfg", "/active", filepath.Join(home, "cfg"), VenvSourceConfig},
+		{"then VIRTUAL_ENV", "", "", "", "/active", "/active", VenvSourceVirtualEnv},
+		{"none", "", "", "", "", "", VenvSourceNone},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("BERNIE_VENV", tt.envVenv)
 			t.Setenv("VIRTUAL_ENV", tt.virtualEnv)
-			if got := (Config{Venv: tt.cfg}).ResolveVenv(tt.flag); got != tt.want {
-				t.Errorf("got %q, want %q", got, tt.want)
+			got := (Config{Venv: tt.cfg}).ResolveVenvInfo(tt.flag)
+			if got.Path != tt.want || got.Source != tt.source {
+				t.Errorf("got %+v, want path %q from %q", got, tt.want, tt.source)
 			}
 		})
 	}

@@ -56,6 +56,17 @@ func init() {
 var statusMark = map[doctor.Status]string{doctor.OK: "ok  ", doctor.Warn: "WARN", doctor.Fail: "FAIL", doctor.Skip: "skip"}
 
 func printDoctor(w io.Writer, r doctor.Report) {
+	if r.Venv != nil {
+		if r.Venv.Path != "" {
+			fmt.Fprintf(w, "venv %s (from %s)\n", r.Venv.Path, r.Venv.Source)
+		} else {
+			fmt.Fprintf(w, "venv none (from %s)\n", r.Venv.Source)
+		}
+		if len(r.Venv.Candidates) > 0 {
+			fmt.Fprintf(w, "  candidates: %s\n", strings.Join(r.Venv.Candidates, ", "))
+			fmt.Fprintln(w, "  choose one: bernie config set venv DIR")
+		}
+	}
 	cat := ""
 	for _, ch := range r.Checks {
 		if ch.Category != cat {

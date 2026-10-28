@@ -29,6 +29,8 @@ type Summary struct {
 	// serving model (spec §11). It is the same document the dashboard and
 	// the MCP server read.
 	Onboarding *onboarding.Document `json:"onboarding,omitempty"`
+	// Venv is the host-mode venv and where it came from (spec §6.2).
+	Venv *doctor.VenvInfo `json:"venv,omitempty"`
 }
 
 // Snapshot probes the host and returns the status document. It changes
@@ -44,6 +46,7 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 		Doctor: f.Doctor.Summary, Problems: []doctor.Check{},
 		Best: f.Best, Fits: f.Fits, Runs: runs,
 		Onboarding: onboarding.Build(f),
+		Venv:       f.Doctor.Venv,
 	}
 	if s.GPUs == nil {
 		s.GPUs = []gpu.GPU{}

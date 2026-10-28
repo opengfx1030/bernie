@@ -13,14 +13,28 @@ import (
 func pythonChecks(in inputs) []Check {
 	const cat = "python"
 	if in.venv == "" {
+		if len(in.venvCandidates) > 0 {
+			detail := "several venv candidates: " + strings.Join(in.venvCandidates, ", ") +
+				"; choose one with bernie config set venv DIR"
+			return []Check{check(cat, "venv", Skip, "Python venv", detail).with("bernie config set venv DIR", docHostVenv)}
+		}
 		return []Check{check(cat, "venv", Skip, "Python venv", "no venv: pass --venv DIR or set venv in the config").with("", docHostVenv)}
 	}
 	v := in.venvRep
 	setupFix := "bernie setup apply --mode host"
-	if v.Python == "" && v.Torch == "" {
-		return []Check{check(cat, "venv", Fail, "Python venv", v.Err).with(setupFix, docHostVenv)}
+	source := in.venvSource
+	if source == "" {
+		source = "unknown"
 	}
-	var out []Check
+	if v.Python == "" && v.Torch == "" {
+		detail := v.Err
+		if detail != "" {
+			detail += "; "
+		}
+		detail += "venv " + in.venv + " (from " + source + ")"
+		return []Check{check(cat, "venv", Fail, "Python venv", detail).with(setupFix, docHostVenv)}
+	}
+	out := []Check{check(cat, "venv", OK, "Python venv", in.venv+" (from "+source+")")}
 	if strings.HasPrefix(v.Python, "3.12") {
 		out = append(out, check(cat, "version", OK, "Python version", v.Python+" in "+in.venv))
 	} else {

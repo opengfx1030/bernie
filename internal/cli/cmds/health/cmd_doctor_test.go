@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/opengfx1030/bernie/internal/cli"
+	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/flow"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,6 +84,26 @@ func TestDoctorLogFile(t *testing.T) {
 
 	if _, _, err := logDoctor(t, false, filepath.Join(dir, "missing.log"), ""); err == nil {
 		t.Error("missing file: no error")
+	}
+}
+
+func TestPrintDoctorVenvSource(t *testing.T) {
+	var buf bytes.Buffer
+	printDoctor(&buf, doctor.Report{Venv: &doctor.VenvInfo{
+		Path: "/v", Source: "config", Candidates: []string{"/one", "/two"},
+	}})
+	for _, want := range []string{"venv /v (from config)", "candidates: /one, /two", "bernie config set venv DIR"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("doctor output lacks %q:\n%s", want, buf.String())
+		}
+	}
+}
+
+func TestPrintStatusVenvSource(t *testing.T) {
+	var buf bytes.Buffer
+	printStatus(&buf, &flow.Summary{Venv: &doctor.VenvInfo{Path: "/v", Source: "$BERNIE_VENV"}})
+	if !strings.Contains(buf.String(), "venv    /v (from $BERNIE_VENV)") {
+		t.Errorf("status output lacks the venv source:\n%s", buf.String())
 	}
 }
 

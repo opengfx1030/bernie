@@ -133,6 +133,14 @@ func TestEvaluateStatuses(t *testing.T) {
 		{"tunableop no match", func(in *inputs) { in.venv = "/v"; in.match = nil }, "tuning.tunableop", Warn, "no registered profile"},
 		{"V620 cap above advice", func(in *inputs) { in.gpus[2].PowerCapW = 250 }, "tuning.power", Warn, "tune power set 180 --gpu 2"},
 		{"no venv skips python", func(*inputs) {}, "python.venv", Skip, "--venv"},
+		{"ambiguous venv candidates", func(in *inputs) {
+			in.venvCandidates = []string{"/one", "/two"}
+		}, "python.venv", Skip, "choose one with bernie config set venv DIR"},
+		{"known venv names its source", func(in *inputs) {
+			in.venv = "/v"
+			in.venvSource = "config"
+			in.venvRep = rocm.VenvReport{Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", DeviceCount: 4, VLLM: "0.31.0", RDNAOps: 68}
+		}, "python.venv", OK, "from config"},
 		{"venv without vllm", func(in *inputs) {
 			in.venv = "/v"
 			in.venvRep = rocm.VenvReport{Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", DeviceCount: 4, Err: "import vllm: No module named 'vllm'"}
@@ -209,6 +217,13 @@ func TestRunEmptyRoot(t *testing.T) {
 	}
 	if c := find(t, r.Checks, "os.kernel"); c.Status != Skip {
 		t.Errorf("os.kernel = %+v, want skip", c)
+	}
+}
+
+func TestRunReportsVenvSource(t *testing.T) {
+	r := Run(context.Background(), Options{Root: t.TempDir(), Categories: []string{"os"}, Venv: "/v", VenvSource: "config"})
+	if r.Venv == nil || r.Venv.Path != "/v" || r.Venv.Source != "config" {
+		t.Fatalf("venv metadata = %+v", r.Venv)
 	}
 }
 
