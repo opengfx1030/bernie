@@ -1,0 +1,21 @@
+Bytes Per Direction 268435456
+Unidirectional copy peak bandwidth GB/s [Local read / Remote write] (GPU-Executor: GFX)
+ SRC+EXE\DST    CPU 00       GPU 00    GPU 01    GPU 02
+  CPU 00  ->     24.50        24.50     24.50     24.50
+
+  GPU 00  ->     24.50          N/A     26.21     12.40
+  GPU 01  ->     24.50        26.08       N/A     12.31
+  GPU 02  ->     24.50        12.55     12.47       N/A
+
+Bidirectional copy peak bandwidth GB/s [Local read / Remote write] (GPU-Executor: GFX)
+     SRC\DST    CPU 00       GPU 00    GPU 01    GPU 02
+  CPU 00  ->     24.50        24.50     24.50     24.50
+  CPU 00 <-      24.50        24.50     24.50     24.50
+
+  GPU 00  ->     24.50          N/A     49.80     23.56
+  GPU 00 <-      24.50          N/A     49.55     23.84
+  GPU 01  ->     24.50        49.55       N/A     23.39
+  GPU 01 <-      24.50        49.80       N/A     23.69
+  GPU 02  ->     24.50        23.84     23.69       N/A
+  GPU 02 <-      24.50        23.56     23.39       N/A
+

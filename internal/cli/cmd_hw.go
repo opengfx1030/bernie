@@ -1,0 +1,86 @@
+package cli
+
+import (
+	"fmt"
+	"io"
+	"text/tabwriter"
+
+	"github.com/opengfx1030/rdnactl/internal/gpu"
+	"github.com/opengfx1030/rdnactl/internal/host"
+)
+
+// hwReport is the `hw --json` document (spec §4.3).
+type hwReport struct {
+	Host host.Info `json:"host"`
+	GPUs []gpu.GPU `json:"gpus"`
+}
+
+func init() {
+	cmd := &Command{Name: "hw", Summary: "Hardware and OS inventory", Usage: ""}
+	cmd.Run = func(c *Context, args []string) error {
+		if _, err := Parse(c.Flags(cmd), args); err != nil {
+			return err
+		}
+		h, err := host.Probe(c.Ctx, "/")
+		if err != nil {
+			return err
+		}
+		gpus, err := gpu.List("/")
+		if err != nil {
+			c.Logf("warning: %v", err)
+		}
+		if gpus == nil {
+			gpus = []gpu.GPU{}
+		}
+		r := hwReport{Host: h, GPUs: gpus}
+		return c.Emit(r, func(w io.Writer) { printHW(w, r) })
+	}
+	Register(cmd)
+}
+
+func printHW(w io.Writer, r hwReport) {
+	h := r.Host
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "host\t%s\n", h.Hostname)
+	fmt.Fprintf(tw, "os\t%s (%s, pkg %s)\n", h.OS.Pretty, h.Kernel, orDash(h.PkgManager))
+	fmt.Fprintf(tw, "cpu\t%s (%d sockets, %d cores, %d threads)\n", h.CPU.Model, h.CPU.Sockets, h.CPU.Cores, h.CPU.Threads)
+	fmt.Fprintf(tw, "ram\t%s\n", gibStr(h.RAMBytes))
+	fmt.Fprintf(tw, "virt\t%s\n", orDash(h.Virtualization))
+	for _, e := range h.Engines {
+		state := "usable"
+		if !e.Usable {
+			state = "not usable"
+		}
+		if e.Rootless {
+			state += ", rootless"
+		}
+		fmt.Fprintf(tw, "engine\t%s %s (%s; compose: %s)\n", e.Name, e.Version, state, orDash(e.Compose))
+	}
+	tw.Flush()
+	fmt.Fprintln(w)
+	if len(r.GPUs) == 0 {
+		fmt.Fprintln(w, "no GPUs (KFD topology empty or missing)")
+		return
+	}
+	tw = tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "IDX\tGFX\tNAME\tPCI\tVRAM\tLINK\tNUMA\tCAP")
+	for _, g := range r.GPUs {
+		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\tgen%d x%d\t%d\t%.0f W\n",
+			g.HIPIndex, g.GFX, g.Name, g.PCI, gibStr(g.VRAMBytes), g.Link.Gen, g.Link.Width, g.NUMANode, g.PowerCapW)
+	}
+	tw.Flush()
+}
+
+func gibStr(b uint64) string {
+	if b == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f GiB", float64(b)/(1<<30))
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}

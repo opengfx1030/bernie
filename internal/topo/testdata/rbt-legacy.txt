@@ -1,0 +1,49 @@
+
+          RocmBandwidthTest Version: 2.6.0
+
+          Launch Command is: rocm-bandwidth-test (rocm_bandwidth -a + rocm_bandwidth -A)
+
+
+          Device: 0,  AMD EPYC 7K62 48-Core Processor
+          Device: 1,  AMD Radeon PRO V620,  GPU-73a1aaaa,  47:0.0
+          Device: 2,  AMD Radeon PRO V620,  GPU-73a1bbbb,  4a:0.0
+          Device: 3,  AMD Radeon PRO V620,  GPU-73a1cccc,  07:0.0
+
+          Inter-Device Access
+
+          D/D       0         1         2         3
+
+          0         1         1         1         1
+
+          1         1         1         1         1
+
+          2         1         1         1         1
+
+          3         1         1         1         1
+
+
+          Unidirectional copy peak bandwidth GB/s
+
+          D/D       0           1           2           3
+
+          0         N/A         24.012      24.020      23.990
+
+          1         24.101      N/A         26.230      13.110
+
+          2         24.090      26.180      N/A         13.050
+
+          3         24.050      13.120      13.070      N/A
+
+
+          Bidirectional copy peak bandwidth GB/s
+
+          D/D       0           1           2           3
+
+          0         N/A         45.100      45.200      44.900
+
+          1         45.100      N/A         50.300      25.900
+
+          2         45.200      50.300      N/A         25.800
+
+          3         44.900      25.900      25.800      N/A
+
