@@ -93,6 +93,16 @@ type PowerResult struct {
 	Watts    float64  `json:"watts"`
 }
 
+// PowerPlan validates a power cap and returns the commands that set it. It
+// writes nothing, as root too.
+func PowerPlan(idx []int, watts float64) ([]string, error) {
+	gpus, err := gpu.List(root)
+	if err != nil {
+		return nil, err
+	}
+	return tuning.PowerCommands(gpus, idx, watts)
+}
+
 // PowerSet sets the power cap of the GPUs idx (all when empty). Without root
 // it writes nothing and returns the exact commands.
 func PowerSet(idx []int, watts float64) (PowerResult, error) {
