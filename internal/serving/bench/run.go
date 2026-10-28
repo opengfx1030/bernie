@@ -106,7 +106,10 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 
 	var nonce [4]byte
 	_, _ = rand.Read(nonce[:])
-	p := prompts{seed: o.Seed, nonce: binary.BigEndian.Uint32(nonce[:]), recall: o.Recall}
+	// A group of kind "check" uses the same pass key machinery as the
+	// suite-wide recall gate. The verdict lands in cell.check, not
+	// cell.recall, so the two stay distinguishable in one result.
+	p := prompts{seed: o.Seed, nonce: binary.BigEndian.Uint32(nonce[:]), recall: o.Recall || o.Check}
 	words, calibrated, err := calibrateCached(ctx, client, o.Model, p, o.InputLen)
 	if err != nil {
 		return nil, err
@@ -135,6 +138,7 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 			OutputLen:    o.OutputLen,
 			Concurrency:  o.Concurrency,
 			Recall:       o.Recall,
+			Check:        o.Check,
 		},
 	}
 
@@ -154,8 +158,8 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 	send := func(ctx context.Context, from time.Time) sample {
 		n := int(seq.Add(1))
 		prompt := p.build(n, words)
-		s := streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen, o.Recall, from)
-		if o.Recall {
+		s := streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen, o.Recall || o.Check, from)
+		if o.Recall || o.Check {
 			s.expect = p.passKey(n)
 		}
 		return s
@@ -197,10 +201,15 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		cell.StreamIncremental = streamIncremental(samples)
 		fmt.Fprintf(progress, "bench: c=%d done in %.1fs: %d ok, %d failed, %.1f output tok/s\n",
 			c, cell.DurationS, cell.Completed, cell.Failed, cell.OutputTokS)
-		if o.Recall {
+		if o.Recall || o.Check {
 			asked, passed := recallVerdict(samples)
-			cell.Recall = &Recall{Asked: asked, Passed: passed, Depth: recallDepth, Method: recallMethod(calibrated)}
-			fmt.Fprintf(progress, "bench: c=%d recall %d/%d passed (%s)\n", c, passed, asked, cell.Recall.Method)
+			if o.Check {
+				cell.Check = &Check{Asked: asked, Passed: passed, Method: recallMethod(calibrated)}
+				fmt.Fprintf(progress, "bench: c=%d check %d/%d passed (%s)\n", c, passed, asked, cell.Check.Method)
+			} else {
+				cell.Recall = &Recall{Asked: asked, Passed: passed, Depth: recallDepth, Method: recallMethod(calibrated)}
+				fmt.Fprintf(progress, "bench: c=%d recall %d/%d passed (%s)\n", c, passed, asked, cell.Recall.Method)
+			}
 			if passed < asked {
 				fmt.Fprintf(progress, "bench: c=%d the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", c)
 			}

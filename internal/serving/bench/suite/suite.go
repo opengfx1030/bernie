@@ -52,6 +52,13 @@ const (
 	SourceToolcall  = "toolcall"
 )
 
+// Types of a check: what a check group asserts.
+const (
+	// CheckTypePasskey asserts that the reply holds the hidden pass key
+	// of the prompt. It is the same machinery as the recall gate.
+	CheckTypePasskey = "passkey"
+)
+
 // Suite is one benchmark suite: the cells a run measures and the
 // thresholds that decide whether two runs agree.
 type Suite struct {
@@ -261,6 +268,9 @@ func (s *Suite) validate() error {
 			if g.Check == nil || g.Check.Type == "" {
 				return fmt.Errorf("the suite %s: the check group %q needs a check type", s.ID, g.Name)
 			}
+			if g.Check.Type != CheckTypePasskey {
+				return fmt.Errorf("the suite %s: the check group %q has the unknown check type %q", s.ID, g.Name, g.Check.Type)
+			}
 		}
 	}
 	return nil
@@ -318,8 +328,30 @@ func (s *Suite) EstS() int {
 	return n
 }
 
-// List returns every built-in suite, sorted by id.
-func List() ([]*Suite, error) {
+// Info is a suite with its digest: the document of `bernie bench suites`
+// and of the MCP tool `bench_suites`. The digest pins the exact suite, so
+// two runs of different suites are never compared.
+type Info struct {
+	*Suite
+	// Digest is the sha256 of the canonical form of the suite.
+	Digest string `json:"digest"`
+}
+
+// List returns every built-in suite with its digest, sorted by id.
+func List() ([]*Info, error) {
+	all, err := loadAll()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*Info, 0, len(all))
+	for _, s := range all {
+		out = append(out, &Info{Suite: s, Digest: s.Digest()})
+	}
+	return out, nil
+}
+
+// loadAll reads every built-in suite, sorted by id.
+func loadAll() ([]*Suite, error) {
 	var out []*Suite
 	err := fs.WalkDir(embedded.FS, "suites", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -348,7 +380,7 @@ func List() ([]*Suite, error) {
 
 // Get returns the built-in suite with this id.
 func Get(id string) (*Suite, error) {
-	all, err := List()
+	all, err := loadAll()
 	if err != nil {
 		return nil, err
 	}

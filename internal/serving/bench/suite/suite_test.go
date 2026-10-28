@@ -18,7 +18,7 @@ func TestBuiltInSuitesLoad(t *testing.T) {
 	if len(all) < 2 {
 		t.Fatalf("the built-in suites are %d, want at least the pr and the smoke suite", len(all))
 	}
-	byID := map[string]*Suite{}
+	byID := map[string]*Info{}
 	for _, s := range all {
 		byID[s.ID] = s
 	}
@@ -54,6 +54,28 @@ func TestBuiltInSuitesLoad(t *testing.T) {
 	}
 	if _, ok := byID["smoke"]; !ok {
 		t.Errorf("the built-in suites %v lack the smoke suite", ids(all))
+	}
+}
+
+// TestTheSuiteListCarriesTheDigest checks that `bench suites` publishes the
+// digest of every suite: the list and the loader must agree, or a result
+// cannot be tied to the suite it used.
+func TestTheSuiteListCarriesTheDigest(t *testing.T) {
+	all, err := List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, info := range all {
+		if info.Digest == "" {
+			t.Errorf("the suite %s has no digest", info.ID)
+		}
+		s, err := Get(info.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Digest != s.Digest() {
+			t.Errorf("the suite %s: the list says %q, the loader %q", info.ID, info.Digest, s.Digest())
+		}
 	}
 }
 
@@ -120,6 +142,18 @@ func TestLoadRejectsBadSuites(t *testing.T) {
 			yaml: "schema: 1\nname: X\ngroups:\n  - name: g\n    input_len: 1\n    output_len: 1\n    concurrency: [1]\n",
 			want: "id",
 		},
+		"check without a type": {
+			yaml: "schema: 1\nid: x\nname: X\ngroups:\n  - name: g\n    kind: check\n    input_len: 1\n    output_len: 1\n    concurrency: [1]\n",
+			want: "check type",
+		},
+		"check with an unknown type": {
+			yaml: "schema: 1\nid: x\nname: X\ngroups:\n  - name: g\n    kind: check\n    input_len: 1\n    output_len: 1\n    concurrency: [1]\n    check:\n      type: oracle\n",
+			want: "check type",
+		},
+		"unknown kind": {
+			yaml: "schema: 1\nid: x\nname: X\ngroups:\n  - name: g\n    kind: vibes\n    input_len: 1\n    output_len: 1\n    concurrency: [1]\n",
+			want: "kind",
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -149,6 +183,18 @@ func TestLoadFillsDefaults(t *testing.T) {
 	}
 }
 
+// TestLoadAcceptsACheckGroup checks that a group of kind "check" loads with
+// its check block.
+func TestLoadAcceptsACheckGroup(t *testing.T) {
+	s, err := Load([]byte("schema: 1\nid: x\nname: X\ngroups:\n  - name: g\n    kind: check\n    input_len: 8\n    output_len: 4\n    concurrency: [1]\n    check:\n      type: passkey\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Groups[0].Kind != KindCheck || s.Groups[0].Check == nil || s.Groups[0].Check.Type != CheckTypePasskey {
+		t.Errorf("the check group is %+v", s.Groups[0])
+	}
+}
+
 // TestGetUnknownSuite checks that an unknown suite is refused with a hint.
 func TestGetUnknownSuite(t *testing.T) {
 	_, err := Get("nope")
@@ -161,7 +207,7 @@ func TestGetUnknownSuite(t *testing.T) {
 }
 
 // ids names the ids of the suites.
-func ids(all []*Suite) []string {
+func ids(all []*Info) []string {
 	out := make([]string, len(all))
 	for i, s := range all {
 		out[i] = s.ID

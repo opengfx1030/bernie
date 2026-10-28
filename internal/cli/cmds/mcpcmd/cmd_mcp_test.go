@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -80,8 +81,16 @@ func TestStdioSession(t *testing.T) {
 		}
 		tools = append(tools, tool.Name)
 	}
-	if len(tools) == 0 || tools[0] != "bench_list" {
-		t.Fatalf("tools/list = %v", tools)
+	if len(tools) == 0 {
+		t.Fatalf("tools/list is empty")
+	}
+	// The catalogue is sorted and holds the bench tools of spec §13.4.
+	slices.Sort(tools)
+	want := []string{"bench_compare", "bench_list", "bench_show", "bench_suites"}
+	for _, w := range want {
+		if !slices.Contains(tools, w) {
+			t.Errorf("tools/list lacks %s: %v", w, tools)
+		}
 	}
 
 	for _, c := range []struct {

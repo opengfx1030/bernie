@@ -176,6 +176,82 @@ func TestRunSuiteTurnsOnTheRecallGate(t *testing.T) {
 	}
 }
 
+// TestRunSuiteRunsACheckGroup checks that a group of kind "check" asserts a
+// declared answer: its verdict lands in cell.check, separate from the
+// suite-wide recall gate, and the workload says what the cells assert.
+func TestRunSuiteRunsACheckGroup(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	fake := vllmtest.New(vllmtest.Config{Model: "fake", TTFT: 2 * ms, ChunkDelay: ms, RecallMode: "correct"})
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+
+	s := &Suite{
+		Schema: Schema, ID: "t", Name: "T", Reps: 1,
+		Compare: Thresholds{Band: DefaultBand, Steady: DefaultSteady},
+		Groups: []Group{{
+			Name: "g", Kind: KindCheck, InputLen: 64, OutputLen: 8,
+			Concurrency: []int{1}, Reps: 1, Source: Source{Kind: SourceSynthetic},
+			Check: &Check{Type: CheckTypePasskey},
+		}},
+	}
+	r, err := Run(context.Background(), s, bench.Options{URL: srv.URL, NumPrompts: 1}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Cells) != 1 {
+		t.Fatalf("the suite measured %d cells, want 1", len(r.Cells))
+	}
+	c := r.Cells[0]
+	if c.Kind != KindCheck {
+		t.Errorf("the cell says it asserts %q, want %q", c.Kind, KindCheck)
+	}
+	if c.Check == nil || c.Check.Asked == 0 || c.Check.Passed != c.Check.Asked {
+		t.Fatalf("the cell has no check verdict: %+v", c.Check)
+	}
+	if c.Recall != nil {
+		t.Error("a check group must not fill the recall field")
+	}
+	if r.Workload.Kind != KindCheck || !r.Workload.Check {
+		t.Errorf("the workload says %+v", r.Workload)
+	}
+}
+
+// TestRunSuiteKeepsTheRecallGateApart checks that a throughput group of a
+// suite with the recall gate holds its verdict in cell.recall and not in
+// cell.check.
+func TestRunSuiteKeepsTheRecallGateApart(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	fake := vllmtest.New(vllmtest.Config{Model: "fake", TTFT: 2 * ms, ChunkDelay: ms, RecallMode: "correct"})
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+
+	s := &Suite{
+		Schema: Schema, ID: "t", Name: "T", Reps: 1, Recall: true,
+		Compare: Thresholds{Band: DefaultBand, Steady: DefaultSteady},
+		Groups: []Group{{
+			Name: "g", Kind: KindThroughput, InputLen: 64, OutputLen: 8,
+			Concurrency: []int{1}, Reps: 1, Source: Source{Kind: SourceSynthetic},
+		}},
+	}
+	r, err := Run(context.Background(), s, bench.Options{URL: srv.URL, NumPrompts: 1}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := r.Cells[0]
+	if c.Recall == nil || c.Recall.Asked == 0 {
+		t.Fatalf("the cell has no recall verdict: %+v", c.Recall)
+	}
+	if c.Check != nil {
+		t.Error("a throughput group must not fill the check field")
+	}
+	if c.Kind != KindThroughput {
+		t.Errorf("the cell says it asserts %q", c.Kind)
+	}
+	if r.Workload.Kind != KindThroughput || r.Workload.Check {
+		t.Errorf("the workload says %+v", r.Workload)
+	}
+}
+
 // TestRunSuiteReportsTheMeasurementGates checks the gates of a cell: a
 // reply that repeats one word is degenerate, and a stream that arrives in
 // one chunk has no decode window.

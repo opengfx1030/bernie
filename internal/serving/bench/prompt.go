@@ -206,6 +206,20 @@ type Recall struct {
 	Method string `json:"method"`
 }
 
+// Check is the declared-answer verdict of one cell. A group of kind "check"
+// asserts that the reply holds the answer the suite declared. The verdict
+// uses the same pass key machinery as the recall gate, but it lives in its
+// own field so the two kinds stay distinguishable in one result.
+type Check struct {
+	// Asked is the number of replies that carried an answer.
+	Asked int `json:"asked"`
+	// Passed is the number of replies that contained their answer.
+	Passed int `json:"passed"`
+	// Method is how the prompt length was measured: "tokenize" when the
+	// server has /tokenize, "estimate" when it does not.
+	Method string `json:"method"`
+}
+
 // passKey returns the hidden fact of request seq: six digits taken from the
 // run nonce and the request number. The mapping is a bijection over the
 // six-digit space, so two requests of a run never share a key and a key

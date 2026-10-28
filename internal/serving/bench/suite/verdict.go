@@ -156,10 +156,15 @@ func (v *Verdict) invalid(reason string) {
 	v.Reasons = append(v.Reasons, reason)
 }
 
-// recallOK reports whether every reply of a result held its pass key.
+// recallOK reports whether every reply of a result held its pass key. A
+// check group holds its verdict in cell.check, and a failed check is as
+// fatal as a failed recall.
 func recallOK(r *bench.Result) bool {
 	for _, c := range r.Cells {
 		if c.Recall != nil && c.Recall.Passed < c.Recall.Asked {
+			return false
+		}
+		if c.Check != nil && c.Check.Passed < c.Check.Asked {
 			return false
 		}
 	}

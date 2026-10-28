@@ -137,15 +137,21 @@ func printBenchResult(w io.Writer, r *bench.Result) {
 	for _, cl := range r.Cells {
 		printCell(w, &cl)
 		for _, e := range cl.Errors {
-			fmt.Fprintf(w, "c=%d error: %s\n", cl.Concurrency, e)
+			fmt.Fprintf(w, "%s error: %s\n", cellName(&cl), e)
 		}
-		if cl.Recall == nil {
-			continue
+		if cl.Recall != nil {
+			fmt.Fprintf(w, "%s recall %d/%d passed (hidden fact at %d%% of the prompt, %s)\n",
+				cellName(&cl), cl.Recall.Passed, cl.Recall.Asked, int(cl.Recall.Depth*100), recallMethodText(cl.Recall.Method))
+			if cl.Recall.Passed < cl.Recall.Asked {
+				fmt.Fprintf(w, "%s the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", cellName(&cl))
+			}
 		}
-		fmt.Fprintf(w, "c=%d recall %d/%d passed (hidden fact at %d%% of the prompt, %s)\n",
-			cl.Concurrency, cl.Recall.Passed, cl.Recall.Asked, int(cl.Recall.Depth*100), recallMethodText(cl.Recall.Method))
-		if cl.Recall.Passed < cl.Recall.Asked {
-			fmt.Fprintf(w, "c=%d the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", cl.Concurrency)
+		if cl.Check != nil {
+			fmt.Fprintf(w, "%s check %d/%d passed (%s)\n",
+				cellName(&cl), cl.Check.Passed, cl.Check.Asked, recallMethodText(cl.Check.Method))
+			if cl.Check.Passed < cl.Check.Asked {
+				fmt.Fprintf(w, "%s the server did not hold the declared answer: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", cellName(&cl))
+			}
 		}
 	}
 }
@@ -313,15 +319,19 @@ func recallText(r *bench.Recall) string {
 	return fmt.Sprintf("%d/%d passed", r.Passed, r.Asked)
 }
 
-// resultRecall totals the recall of the cells of a result.
+// resultRecall totals the recall of the cells of a result. The verdict of a
+// check group counts too: both say whether the server read the prompt.
 func resultRecall(r *bench.Result) *bench.Recall {
 	var asked, passed int
 	for _, c := range r.Cells {
-		if c.Recall == nil {
-			continue
+		if c.Recall != nil {
+			asked += c.Recall.Asked
+			passed += c.Recall.Passed
 		}
-		asked += c.Recall.Asked
-		passed += c.Recall.Passed
+		if c.Check != nil {
+			asked += c.Check.Asked
+			passed += c.Check.Passed
+		}
 	}
 	if asked == 0 {
 		return nil

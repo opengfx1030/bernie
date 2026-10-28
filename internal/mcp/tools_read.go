@@ -168,7 +168,7 @@ func registerRead(s *Server) {
 	addTool[benchShowIn, *bench.Result](s, ro("bench_show", "One saved benchmark result (bernie bench show)."), nil,
 		func(_ context.Context, _ *call, in benchShowIn) (any, error) { return bench.Get(in.ID) })
 
-	addTool[noIn, []*suite.Suite](s, ro("bench_suites", "The built-in bench suites with their digest and their groups (bernie bench suites)."), nil,
+	addTool[noIn, []*suite.Info](s, ro("bench_suites", "The built-in bench suites with their digest and their groups (bernie bench suites)."), nil,
 		func(_ context.Context, _ *call, _ noIn) (any, error) { return suite.List() })
 
 	addTool[benchCompareIn, *suite.Verdict](s, ro("bench_compare", "The verdict of two saved results: better, same, worse or noisy, per metric and per cell (bernie bench compare)."), nil,

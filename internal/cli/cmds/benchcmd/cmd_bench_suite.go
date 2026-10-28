@@ -46,7 +46,7 @@ func runSuites(c *cli.Context, cmd *cli.Command, args []string) error {
 }
 
 // printSuiteList writes the table of the built-in suites.
-func printSuiteList(w io.Writer, all []*suite.Suite) {
+func printSuiteList(w io.Writer, all []*suite.Info) {
 	if len(all) == 0 {
 		fmt.Fprintln(w, "no bench suites")
 		return
@@ -54,12 +54,12 @@ func printSuiteList(w io.Writer, all []*suite.Suite) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "ID\tNAME\tCELLS\tREPS\tEST\tDIGEST")
 	for _, s := range all {
-		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%s\t%s\n", s.ID, s.Name, s.Cells(), s.Reps, estText(s.EstS()), shortDigest(s.Digest()))
+		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%s\t%s\n", s.ID, s.Name, s.Cells(), s.Reps, estText(s.EstS()), shortDigest(s.Digest))
 	}
 	tw.Flush()
 	for _, s := range all {
 		fmt.Fprintf(w, "\n%s: %s\n", s.ID, s.Description)
-		printSuiteGroups(w, s)
+		printSuiteGroups(w, s.Suite)
 	}
 }
 
