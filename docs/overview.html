@@ -3,75 +3,112 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>rdnactl — visual overview</title>
+<meta name="color-scheme" content="dark light">
+<title>bernie — visual overview</title>
 <style>
-  :root { --bg:#0f1115; --fg:#e6e6e6; --muted:#9aa3ad; --card:#171a21; --border:#2a2f3a; --accent:#e4572e; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
-  @media (prefers-color-scheme: light) { :root { --bg:#fafafa; --fg:#1b1f24; --muted:#57606a; --card:#fff; --border:#d0d7de; } }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
-  header { padding:28px 24px 8px; max-width:1100px; margin:auto; }
+  :root { --bg:#0f1115; --fg:#e6e6e6; --muted:#a3acb6; --card:#171a21; --border:#2f3541; --accent:#ff7a50; --ok:#3fb950; --warn:#d29922; --bad:#ff6b63; --blue:#58a6ff; --dep:#1f3a2a; --by:#3a2a1f; }
+  @media (prefers-color-scheme: light) { :root { --bg:#fafafa; --fg:#1b1f24; --muted:#505962; --card:#fff; --border:#c6ced6; --accent:#b8401c; --ok:#1a7f37; --warn:#8a5a00; --bad:#c62828; --blue:#0b5cad; --dep:#d8f3e0; --by:#fbe6d8; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.55 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  a { color:var(--accent); } :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .skip { position:absolute; left:-999px; } .skip:focus { left:8px; top:8px; background:var(--card); padding:6px 10px; z-index:9; }
+  header, main { max-width:1100px; margin:auto; padding:0 24px; }
+  header { padding-top:28px; } main { padding-bottom:48px; display:grid; gap:20px; }
   h1 { margin:0 0 4px; font-size:28px; } h1 span { color:var(--accent); }
-  h2 { font-size:18px; margin:0 0 12px; }
-  p.lead { color:var(--muted); margin:0; }
-  main { max-width:1100px; margin:auto; padding:8px 24px 48px; display:grid; gap:20px; }
+  h2 { font-size:18px; margin:0 0 6px; } h3 { margin:0 0 6px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  p { margin:6px 0; } .muted { color:var(--muted); }
+  nav.toc { margin:10px 0 18px; display:flex; flex-wrap:wrap; gap:6px 14px; font-size:14px; }
   section { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px; }
-  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-  .step { border:1px solid var(--border); border-radius:8px; padding:10px 12px; cursor:pointer; min-width:120px; }
-  .step.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
-  .step b { display:block; } .step small { color:var(--muted); }
-  .arrow { color:var(--muted); }
-  pre { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; overflow:auto; margin:10px 0 0; font-size:13px; }
-  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
-  .layer { border:1px dashed var(--border); border-radius:8px; padding:10px; margin-bottom:8px; }
-  .layer h3 { margin:0 0 6px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
-  .pkg { display:inline-block; border:1px solid var(--border); border-radius:6px; padding:3px 8px; margin:3px; font:13px ui-monospace, monospace; cursor:pointer; }
-  .pkg:hover, .pkg.active { border-color:var(--accent); }
-  #pkgdesc { color:var(--muted); min-height:3em; }
-  table { border-collapse:collapse; width:100%; font-size:14px; }
-  td, th { border-bottom:1px solid var(--border); padding:6px 8px; text-align:left; }
-  .cls { font-weight:600; } .PIX{color:var(--ok)} .PXB{color:#58a6ff} .PHB{color:var(--warn)} .SYS{color:var(--bad)}
-  .merge { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
-  .merge pre { margin:0; }
-  .merge h4 { margin:0 0 6px; font-size:13px; color:var(--muted); }
-  a { color:var(--accent); }
+  code, pre { font:13px ui-monospace, monospace; } code { background:var(--bg); padding:1px 5px; border-radius:4px; }
+  pre { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; overflow:auto; margin:10px 0 0; }
+  button { font:inherit; color:inherit; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 12px; cursor:pointer; text-align:left; }
+  button:hover, button[aria-pressed="true"] { border-color:var(--accent); } button[aria-pressed="true"] { box-shadow:0 0 0 1px var(--accent) inset; }
+  button small { display:block; color:var(--muted); }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; } .flow .arrow { color:var(--muted); }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+  .layer { border:1px dashed var(--border); border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+  .pkg { font:13px ui-monospace, monospace; padding:3px 8px; margin:3px; }
+  .pkg.dep { background:var(--dep); border-color:var(--ok); } .pkg.by { background:var(--by); border-color:var(--warn); }
+  .legend span { display:inline-block; padding:1px 8px; border-radius:6px; border:1px solid var(--border); margin-right:6px; font-size:13px; }
+  svg { width:100%; height:auto; display:block; } svg text { fill:var(--fg); font:12px system-ui, sans-serif; } svg .m { fill:var(--muted); font-size:11px; }
+  svg .box { fill:var(--card); stroke:var(--border); stroke-width:1.5; } svg .go { stroke:var(--accent); }
+  svg .stop { fill:var(--bg); stroke:var(--bad); stroke-dasharray:4 3; } svg .st text.t { font-weight:600; }
+  svg .ln { stroke:var(--muted); stroke-width:1.5; fill:none; } svg .arr { fill:var(--muted); }
+  table { border-collapse:collapse; width:100%; font-size:14px; } td, th { border-bottom:1px solid var(--border); padding:6px 8px; text-align:left; vertical-align:top; }
+  caption { text-align:left; color:var(--muted); padding-bottom:6px; }
+  .cls { font-weight:600; } .PIX{color:var(--ok)} .PXB{color:var(--blue)} .PHB{color:var(--warn)} .SYS{color:var(--bad)}
+  .stages { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; }
+  .stages > div { border:1px solid var(--border); border-radius:8px; padding:8px 10px; } .stages b { display:block; }
+  .merge { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px; margin-top:10px; } .merge pre { margin:0; } .merge h4 { margin:0 0 6px; font-size:13px; color:var(--muted); }
+  input[type=search] { font:inherit; width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--fg); margin:8px 0; }
+  details { border-top:1px solid var(--border); padding:6px 0; } summary { cursor:pointer; font-weight:600; }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header>
-  <h1><span>rdnactl</span> — vLLM on AMD ROCm, one binary</h1>
-  <p class="lead">Check the host, install the stack, launch a recipe, tune, benchmark, watch. Every step is a CLI command with <code>--json</code>; the dashboard is a view over the same code.</p>
+  <h1><span>bernie</span> — vLLM on AMD ROCm, one binary</h1>
+  <p class="muted">Check the host, install the stack, launch a recipe, tune, benchmark, watch. Every step is a CLI command with <code>--json</code>. The dashboard is a view over the same code. This page is a tour. The contract is <a href="spec.md">spec.md</a>.</p>
+  <nav class="toc" aria-label="Sections"><a href="#path">The path</a><a href="#up">What up does</a><a href="#layers">Code layers</a><a href="#recipe">Recipe to launch</a><a href="#runs">Life of a run</a><a href="#arch">Data per GPU arch</a><a href="#change">Where do I change X</a><a href="#topo">PCIe classes</a></nav>
 </header>
-<main>
-  <section>
-    <h2>The path from bare metal to tokens (click a step)</h2>
-    <div class="flow" id="flow"></div>
-    <pre id="flowcmd"></pre>
+<main id="main">
+  <section id="path" aria-labelledby="h-path">
+    <h2 id="h-path">The path from bare metal to tokens</h2>
+    <p class="muted">Pick a step to see its commands.</p>
+    <div class="flow" id="flow" role="group" aria-label="Steps"></div>
+    <pre id="flowcmd" aria-live="polite"></pre>
   </section>
 
-  <section class="grid2">
-    <div>
-      <h2>Code layers (click a package)</h2>
-      <div class="layer"><h3>Front ends</h3><span class="pkg">cli</span><span class="pkg">dashboard</span></div>
-      <div class="layer"><h3>Domain</h3><span class="pkg">doctor</span><span class="pkg">setup</span><span class="pkg">recipe</span><span class="pkg">runner</span><span class="pkg">tuning</span><span class="pkg">bench</span><span class="pkg">vllm</span><span class="pkg">host</span><span class="pkg">gpu</span><span class="pkg">rocm</span><span class="pkg">topo</span></div>
-      <div class="layer"><h3>Base</h3><span class="pkg">paths</span><span class="pkg">execx</span><span class="pkg">config</span></div>
-      <div class="layer"><h3>Embedded data</h3><span class="pkg">recipes/</span><span class="pkg">tunableop/</span><span class="pkg">web/</span></div>
-      <p id="pkgdesc">Front ends format. Domain packages decide. Base packages touch the OS. Data ships inside the binary.</p>
-    </div>
-    <div>
-      <h2>PCIe link classes (<code>rdnactl topo</code>)</h2>
-      <table>
-        <tr><th>Class</th><th>Path between two GPUs</th><th>For TP</th></tr>
-        <tr><td class="cls PIX">PIX</td><td>Same PCIe switch</td><td>Best. Put a TP group here.</td></tr>
-        <tr><td class="cls PXB">PXB</td><td>Several switches, no root complex</td><td>Good.</td></tr>
-        <tr><td class="cls PHB">PHB</td><td>Through one root complex</td><td>Slower all-reduce.</td></tr>
-        <tr><td class="cls SYS">SYS</td><td>Across root complexes / sockets</td><td>Avoid for TP; check P2P.</td></tr>
-      </table>
-      <p style="color:var(--muted)">When a recipe does not pin <code>HIP_VISIBLE_DEVICES</code>, rdnactl picks GPUs of the right arch that share a switch.</p>
+  <section id="up" aria-labelledby="h-up">
+    <h2 id="h-up">What <code>bernie up</code> does</h2>
+    <p class="muted">Seven steps. Dashed boxes are the places where <code>up</code> stops and tells you what to do. It exits with code 3 then.</p>
+    <svg viewBox="0 0 900 200" role="img" aria-labelledby="up-t up-d">
+      <title id="up-t">Steps of bernie up</title>
+      <desc id="up-d">Doctor on gpu and kernel checks, pick the best recipe, plan setup, confirm once, apply non-root setup steps, serve and wait for health, start the dashboard. Failed checks, no fitting recipe, a pending root step and a declined confirmation stop the run.</desc>
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="arr"/></marker></defs>
+      <g class="ln" marker-end="url(#ah)"><path d="M118 40H140" marker-end="url(#ah)"/><path d="M258 40H280" marker-end="url(#ah)"/><path d="M398 40H420" marker-end="url(#ah)"/><path d="M538 40H560" marker-end="url(#ah)"/><path d="M678 40H700" marker-end="url(#ah)"/><path d="M818 40H840" marker-end="url(#ah)"/></g>
+      <g class="ln" stroke-dasharray="4 3"><path d="M63 62V118"/><path d="M203 62V118"/><path d="M343 62V118"/><path d="M483 62V118"/></g>
+      <g><rect class="box" x="8" y="18" width="110" height="44" rx="8"/><text x="63" y="38" text-anchor="middle">1 doctor</text><text class="m" x="63" y="53" text-anchor="middle">gpu, kernel</text>
+      <rect class="box" x="148" y="18" width="110" height="44" rx="8"/><text x="203" y="38" text-anchor="middle">2 recipe</text><text class="m" x="203" y="53" text-anchor="middle">best that fits</text>
+      <rect class="box" x="288" y="18" width="110" height="44" rx="8"/><text x="343" y="38" text-anchor="middle">3 setup plan</text><text class="m" x="343" y="53" text-anchor="middle">mode, GPU archs</text>
+      <rect class="box" x="428" y="18" width="110" height="44" rx="8"/><text x="483" y="38" text-anchor="middle">4 confirm</text><text class="m" x="483" y="53" text-anchor="middle">once, --yes skips</text>
+      <rect class="box" x="568" y="18" width="110" height="44" rx="8"/><text x="623" y="38" text-anchor="middle">5 setup apply</text><text class="m" x="623" y="53" text-anchor="middle">non-root steps</text>
+      <rect class="box go" x="708" y="18" width="110" height="44" rx="8"/><text x="763" y="38" text-anchor="middle">6 serve</text><text class="m" x="763" y="53" text-anchor="middle">wait for /health</text>
+      <rect class="box" x="848" y="18" width="48" height="44" rx="8"/><text x="872" y="44" text-anchor="middle">7 dash</text></g>
+      <g><rect class="stop" x="8" y="120" width="110" height="50" rx="8"/><text x="63" y="142" text-anchor="middle">a check failed</text><text class="m" x="63" y="157" text-anchor="middle">print the fixes</text>
+      <rect class="stop" x="148" y="120" width="110" height="50" rx="8"/><text x="203" y="142" text-anchor="middle">none fits, or</text><text class="m" x="203" y="157" text-anchor="middle">input missing</text>
+      <rect class="stop" x="288" y="120" width="110" height="50" rx="8"/><text x="343" y="142" text-anchor="middle">root step due</text><text class="m" x="343" y="157" text-anchor="middle">print the commands</text>
+      <rect class="stop" x="428" y="120" width="110" height="50" rx="8"/><text x="483" y="142" text-anchor="middle">declined, or</text><text class="m" x="483" y="157" text-anchor="middle">no --yes, no tty</text></g>
+    </svg>
+  </section>
+
+  <section id="layers" aria-labelledby="h-layers">
+    <h2 id="h-layers">Code layers</h2>
+    <p class="muted">Pick a package. <span class="legend"><span style="background:var(--dep)">it imports</span><span style="background:var(--by)">imported by</span></span></p>
+    <div class="grid2">
+      <div id="pkgs">
+        <div class="layer"><h3>Front ends</h3><button class="pkg" data-id="cli">cli</button><button class="pkg" data-id="dashboard">dashboard</button></div>
+        <div class="layer"><h3>Product chains</h3><button class="pkg" data-id="flow">flow</button></div>
+        <div class="layer"><h3>Domain, top level</h3><button class="pkg" data-id="doctor">doctor</button><button class="pkg" data-id="setup">setup</button><button class="pkg" data-id="logdoc">logdoc</button></div>
+        <div class="layer"><h3>internal/serving</h3><button class="pkg" data-id="runner">runner</button><button class="pkg" data-id="recipe">recipe</button><button class="pkg" data-id="tuning">tuning</button><button class="pkg" data-id="bench">bench</button><button class="pkg" data-id="vllm">vllm</button></div>
+        <div class="layer"><h3>internal/machine</h3><button class="pkg" data-id="topo">topo</button><button class="pkg" data-id="gpu">gpu</button><button class="pkg" data-id="host">host</button><button class="pkg" data-id="rocm">rocm</button></div>
+        <div class="layer"><h3>internal/support</h3><button class="pkg" data-id="config">config</button><button class="pkg" data-id="paths">paths</button><button class="pkg" data-id="execx">execx</button></div>
+        <div class="layer"><h3>Embedded data</h3><button class="pkg" data-id="devices">gpu/devices/</button><button class="pkg" data-id="recipes">recipes/</button><button class="pkg" data-id="tunable">tunableop/, tuned-moe/</button><button class="pkg" data-id="catalog">logdoc catalog</button><button class="pkg" data-id="web">web/</button></div>
+      </div>
+      <div><h3>Selected</h3><p id="pkgdesc" aria-live="polite">Front ends format. Domain packages decide. Support packages touch the OS. Data ships inside the binary. Nothing imports upward. <code>gpu</code> imports no bernie package.</p><p class="muted">Full graph and rules: <a href="architecture.md#1-layers">architecture.md §1</a>. API: <a href="packages.md">packages.md</a>.</p></div>
     </div>
   </section>
 
-  <section>
-    <h2>How a recipe becomes a launch</h2>
+  <section id="recipe" aria-labelledby="h-recipe">
+    <h2 id="h-recipe">How a recipe becomes a launch</h2>
+    <div class="stages" role="list">
+      <div role="listitem"><b>1 Load</b>Built-in, config dir, <code>$BERNIE_RECIPES</code>, validate paths. Walks folders. Unique id per layer. A later layer replaces an earlier one.</div>
+      <div role="listitem"><b>2 Resolve</b>Merge <code>extends</code>: depth first, left to right, then the file.</div>
+      <div role="listitem"><b>3 Override</b>Config <code>set</code>, then <code>--set</code>. Then validate.</div>
+      <div role="listitem"><b>4 Plan</b>Fill inputs, render env and args, select GPUs: arch, count, one PCIe switch.</div>
+      <div role="listitem"><b>5 Host</b>ROCm paths, tuned-MoE folder of the arch, TunableOp profile (rocBLAS hash + arch). Or container mounts.</div>
+      <div role="listitem"><b>6 Command</b>Host: venv python. Container: <code>engine run image</code>, or a compose file.</div>
+    </div>
     <div class="merge">
       <div><h4>_base.yaml (fragment)</h4><pre>env:
   VLLM_ROCM_USE_AITER: "0"
@@ -87,7 +124,7 @@ args:
   enable-prefix-caching: true</pre></div>
       <div><h4>--set overrides</h4><pre>--set args.max-model-len=32768
 --set env.GPU_MAX_HW_QUEUES=4</pre></div>
-      <div><h4>plan (rdnactl recipe plan)</h4><pre>export GPU_MAX_HW_QUEUES=4
+      <div><h4>plan (bernie recipe plan)</h4><pre>export GPU_MAX_HW_QUEUES=4
 export HIP_VISIBLE_DEVICES=2,3,4,5
 vllm serve org/Qwen3.8-27B-AWQ \
   --attention-backend RDNA_ATTN \
@@ -96,61 +133,142 @@ vllm serve org/Qwen3.8-27B-AWQ \
   --max-model-len 32768 \
   --tensor-parallel-size 4</pre></div>
     </div>
-    <p style="color:var(--muted)">Maps merge, lists replace, <code>null</code> deletes. Full rules: <a href="spec.md">spec.md §7</a> and <a href="recipes.md">recipes.md</a>.</p>
+    <p class="muted">Maps merge, lists replace, <code>null</code> deletes. Rules: <a href="spec.md#7-recipes">spec §7</a>, <a href="recipes.md">recipes.md</a>, flow: <a href="architecture.md#32-from-recipe-to-command">architecture §3.2</a>.</p>
+  </section>
+
+  <section id="runs" aria-labelledby="h-runs">
+    <h2 id="h-runs">Life of a run</h2>
+    <p class="muted">Only <code>run.json</code> is stored. <code>bernie ps</code> derives the state from the process (or container) and <code>/health</code>. <code>exited</code> covers a normal stop and a failure: run <code>bernie doctor --run NAME</code> to tell.</p>
+    <svg viewBox="0 0 780 210" role="img" aria-labelledby="st-t st-d">
+      <title id="st-t">States of a run</title>
+      <desc id="st-d">planned becomes starting when Start writes run.json. starting becomes running when health answers. running returns to starting when health stops answering. starting and running become exited when the process or container is gone. exited returns to starting when serve reuses the name.</desc>
+      <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="arr"/></marker></defs>
+      <g class="ln" marker-end="url(#ah2)"><path d="M130 85H200"/><path d="M310 75H420"/><path d="M420 95H310"/><path d="M255 112V150H695V112"/><path d="M530 85H640"/><path d="M695 62V30H255V62"/></g>
+      <g class="st"><rect class="box" x="20" y="62" width="110" height="46" rx="8"/><text class="t" x="75" y="90" text-anchor="middle">planned</text>
+      <rect class="box" x="200" y="62" width="110" height="46" rx="8"/><text class="t" x="255" y="90" text-anchor="middle">starting</text>
+      <rect class="box go" x="420" y="62" width="110" height="46" rx="8"/><text class="t" x="475" y="90" text-anchor="middle">running</text>
+      <rect class="box" x="640" y="62" width="110" height="46" rx="8"/><text class="t" x="695" y="90" text-anchor="middle">exited</text></g>
+      <text class="m" x="165" y="76" text-anchor="middle">Start</text><text class="m" x="365" y="70" text-anchor="middle">/health 200</text><text class="m" x="365" y="108" text-anchor="middle">/health silent</text>
+      <text class="m" x="585" y="78" text-anchor="middle">stop, crash</text><text class="m" x="450" y="166" text-anchor="middle">process or container gone</text><text class="m" x="480" y="24" text-anchor="middle">serve with the same name</text>
+      <text class="m" x="75" y="125" text-anchor="middle">no record yet</text>
+    </svg>
+  </section>
+
+  <section id="arch" aria-labelledby="h-arch">
+    <h2 id="h-arch">Data keyed by GPU architecture</h2>
+    <p class="muted">Four kinds of data depend on the GPU. A new architecture adds files. It never edits another architecture's files. Nothing lists them: readers walk the embedded folders.</p>
+    <table>
+      <caption>One folder tree per kind</caption>
+      <tr><th scope="col">Data</th><th scope="col">Where</th><th scope="col">Read by</th></tr>
+      <tr><td>Device facts</td><td><code>internal/machine/gpu/devices/&lt;generation&gt;.yaml</code></td><td><code>gpu.Lookup</code>, <code>LookupArch</code>, <code>CodeTargets</code> → gpu, doctor, setup</td></tr>
+      <tr><td>TunableOp rows</td><td><code>tunableop/&lt;arch&gt;/&lt;profile&gt;/profile.json</code> + rows</td><td><code>tuning.Profiles</code>, <code>Select</code> → runner, doctor</td></tr>
+      <tr><td>Tuned MoE configs</td><td><code>tuned-moe/&lt;arch&gt;/E=….json</code></td><td><code>tuning.MaterializeTunedMoE</code> → plan</td></tr>
+      <tr><td>Recipes</td><td><code>recipes/&lt;family&gt;/</code>, <code>recipes/_fragments/arch/</code></td><td><code>recipe.Load</code>, <code>CheckFit</code> → up, list, plan</td></tr>
+    </table>
+    <h3 style="margin-top:14px">Add a GPU generation (data only)</h3>
+    <details><summary>1 Device table</summary>Copy the closest file in <code>internal/machine/gpu/devices/</code> to <code>&lt;generation&gt;.yaml</code>. Fill arches and PCI ids. List the sources in the header. Run <code>go test ./internal/machine/gpu/</code>.</details>
+    <details><summary>2 Fixture</summary>Capture a host with <code>scripts/capture-fixture.sh</code>, or make a <code>-synthetic</code> one with a <code>SYNTHETIC</code> file. Add a gpu test.</details>
+    <details><summary>3 Recipes</summary>List the arch in <code>requires.arch</code>. Put arch-only settings in <code>recipes/_fragments/arch/</code>. Use <code>experimental</code> until a real benchmark exists. Run <code>go test ./recipes/...</code>.</details>
+    <details><summary>4 Tuning data (optional)</summary><code>tunableop/&lt;arch&gt;/&lt;profile&gt;/</code> and <code>tuned-moe/&lt;arch&gt;/</code>. Run <code>go test ./internal/serving/tuning/</code>.</details>
+    <details><summary>5 Check on the host</summary><code>make check</code>, then <code>bernie doctor</code>: <code>gpu.supported.&lt;gfx&gt;</code> is <code>ok</code> once a validated recipe lists the arch. Steps: <a href="extending.md#2-how-to-add-a-new-gpu-generation">extending.md §2</a>.</details>
+  </section>
+
+  <section id="change" aria-labelledby="h-change">
+    <h2 id="h-change">Where do I change X</h2>
+    <label for="q" class="muted">Filter</label>
+    <input id="q" type="search" placeholder="command, doctor, recipe, device, dashboard…" autocomplete="off">
+    <table id="chg">
+      <caption>Exact files and the test to run. Full table: <a href="extending.md#1-where-do-i-change-x">extending.md §1</a></caption>
+      <thead><tr><th scope="col">Add</th><th scope="col">Files</th><th scope="col">Test</th></tr></thead>
+      <tbody>
+        <tr><td>A command</td><td><code>internal/cli/cmds/&lt;family&gt;/cmd_&lt;name&gt;.go</code> + spec §3</td><td><code>go test ./internal/cli/...</code></td></tr>
+        <tr><td>A doctor check</td><td><code>internal/doctor/checks_&lt;category&gt;.go</code> + spec §5.2</td><td><code>go test ./internal/doctor/</code></td></tr>
+        <tr><td>A known-failure rule</td><td><code>internal/logdoc/catalog.yaml</code></td><td><code>go test ./internal/logdoc/</code></td></tr>
+        <tr><td>A setup step</td><td><code>internal/setup/steps_*.go</code>, list in <code>setup.go</code></td><td><code>go test ./internal/setup/</code></td></tr>
+        <tr><td>A recipe</td><td><code>recipes/&lt;family&gt;/&lt;id&gt;.yaml</code></td><td><code>go test ./recipes/...</code></td></tr>
+        <tr><td>A tuning profile</td><td><code>tunableop/&lt;arch&gt;/&lt;profile&gt;/</code> with <code>profile.json</code></td><td><code>go test ./internal/serving/tuning/</code></td></tr>
+        <tr><td>A device (PCI id)</td><td><code>internal/machine/gpu/devices/&lt;generation&gt;.yaml</code></td><td><code>go test ./internal/machine/gpu/</code></td></tr>
+        <tr><td>A dashboard endpoint</td><td><code>dashboard/dashboard.go</code>, <code>api.go</code>, <code>web/app.js</code> + spec §11</td><td><code>go test ./dashboard/</code></td></tr>
+        <tr><td>A host fixture</td><td><code>internal/support/fixture/testdata/</code> (<code>-synthetic</code> + <code>SYNTHETIC</code> if not captured)</td><td><code>go test ./internal/machine/...</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="topo" aria-labelledby="h-topo">
+    <h2 id="h-topo">PCIe link classes (<code>bernie topo</code>)</h2>
+    <table>
+      <caption>Class of the path between two GPUs</caption>
+      <tr><th scope="col">Class</th><th scope="col">Path</th><th scope="col">For TP</th></tr>
+      <tr><td class="cls PIX">PIX</td><td>Same PCIe switch</td><td>Best. Put a TP group here.</td></tr>
+      <tr><td class="cls PXB">PXB</td><td>Several switches, no root complex</td><td>Good.</td></tr>
+      <tr><td class="cls PHB">PHB</td><td>Through one root complex</td><td>Slower all-reduce.</td></tr>
+      <tr><td class="cls SYS">SYS</td><td>Across root complexes or sockets</td><td>Avoid for TP; check P2P.</td></tr>
+    </table>
+    <p class="muted">When a recipe does not pin <code>HIP_VISIBLE_DEVICES</code>, bernie picks GPUs of the right arch that share a switch.</p>
   </section>
 
   <section>
     <h2>Read next</h2>
-    <p><a href="../README.md">README</a> · <a href="spec.md">Specification</a> · <a href="architecture.md">Architecture</a> · <a href="recipes.md">Recipes</a> · <a href="../CONTRIBUTING.md">Contributing</a> · <a href="https://blivioniag.github.io/gfx1030-wiki/">gfx1030 wiki</a></p>
+    <p><a href="../README.md">README</a> · <a href="spec.md">Specification</a> · <a href="architecture.md">Architecture</a> · <a href="packages.md">Packages</a> · <a href="extending.md">Where to change what</a> · <a href="recipes.md">Recipes</a> · <a href="install.md">Install</a> · <a href="../CONTRIBUTING.md">Contributing</a> · <a href="https://blivioniag.github.io/gfx1030-wiki/">gfx1030 wiki</a></p>
   </section>
 </main>
 <script>
 const steps = [
-  ["rdnactl", "just run it", "rdnactl        # status: GPUs, problems, best recipe, next command\nrdnactl up     # every step below, one confirmation, stops at root steps"],
-  ["doctor", "what is missing", "rdnactl doctor\n# fail = blocks a launch, warn = costs speed, each with the fix for your distro\nrdnactl doctor --json | jq '.checks[] | select(.status==\"fail\")'"],
-  ["hw / topo", "GPUs and PCIe", "rdnactl hw\nrdnactl topo --bandwidth"],
-  ["setup", "install the stack", "rdnactl setup plan --mode container\nrdnactl setup apply --mode container   # root steps are printed, never run"],
-  ["recipe", "pick and preview", "rdnactl recipe list\nrdnactl recipe plan flashnext-mtp2 --set PLE_QUANT_DIR=/data/ples_int4"],
-  ["serve", "start vLLM", "rdnactl serve flashnext-mtp2 --set PLE_QUANT_DIR=/data/ples_int4\nrdnactl ps\nrdnactl logs -f"],
-  ["tune", "TunableOp, power", "rdnactl tune tunableop status\nrdnactl tune power set 180"],
-  ["bench", "measure", "rdnactl bench --input-len 16384 --output-len 1024 --concurrency 1,8"],
-  ["dash", "watch", "rdnactl dash --listen 0.0.0.0:7860   # token printed at start"],
+  ["bernie", "just run it", "bernie        # status: GPUs, problems, best recipe, next command\nbernie up     # every step below, one confirmation, stops at root steps"],
+  ["doctor", "what is missing", "bernie doctor\n# fail = blocks a launch, warn = costs speed, each with the fix for your distro\nbernie doctor --json | jq '.checks[] | select(.status==\"fail\")'\nbernie doctor --run NAME   # explain a failed start from its log"],
+  ["hw / topo", "GPUs and PCIe", "bernie hw\nbernie topo --bandwidth"],
+  ["setup", "install the stack", "bernie setup plan --mode container\nbernie setup apply --mode container   # root steps are printed, never run"],
+  ["recipe", "pick and preview", "bernie recipe list\nbernie recipe plan flashnext-mtp2 --set PLE_QUANT_DIR=/data/ples_int4"],
+  ["serve", "start vLLM", "bernie serve flashnext-mtp2 --set PLE_QUANT_DIR=/data/ples_int4\nbernie ps\nbernie logs -f"],
+  ["tune", "TunableOp, power", "bernie tune tunableop status\nbernie tune power set 180"],
+  ["bench", "measure", "bernie bench --input-len 16384 --output-len 1024 --concurrency 1,8"],
+  ["dash", "watch", "bernie dash --listen 0.0.0.0:7860   # token printed at start"],
 ];
 const flow = document.getElementById("flow"), cmd = document.getElementById("flowcmd");
 steps.forEach(([name, sub, text], i) => {
-  if (i) flow.insertAdjacentHTML("beforeend", '<span class="arrow">→</span>');
-  const el = document.createElement("div");
-  el.className = "step"; el.innerHTML = `<b>${name}</b><small>${sub}</small>`;
-  el.onclick = () => { document.querySelectorAll(".step").forEach(s => s.classList.remove("active")); el.classList.add("active"); cmd.textContent = text; };
-  flow.appendChild(el);
-  if (!i) el.click();
+  if (i) flow.insertAdjacentHTML("beforeend", '<span class="arrow" aria-hidden="true">→</span>');
+  const b = document.createElement("button");
+  b.innerHTML = `<b>${name}</b><small>${sub}</small>`; b.setAttribute("aria-pressed", "false");
+  b.onclick = () => { flow.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true"); cmd.textContent = text; };
+  flow.appendChild(b);
+  if (!i) b.click();
 });
-const desc = {
-  cli: "Router and one cmd_<name>.go per command. Parses flags, calls a domain package, prints text or --json.",
-  dashboard: "net/http server, token auth, SSE telemetry. Calls the same domain packages as the CLI.",
-  doctor: "Builds checks from host, gpu, rocm, topo and tuning. Status ok/warn/fail/skip with a fix.",
-  setup: "Ordered install steps per mode and package manager. Runs non-root steps only.",
-  recipe: "Loads YAML, resolves extends, applies --set, checks fit, selects GPUs, renders the plan.",
-  runner: "Starts the plan as a host process or a container. Run records, logs, stop.",
-  tuning: "TunableOp profiles keyed by rocBLAS sha256; GPU power cap.",
-  bench: "Streaming OpenAI benchmark: TTFT, ITL, tok/s per concurrency. Saves results.",
-  vllm: "Client for /health, /v1/models, /tokenize, /metrics.",
-  host: "Distro, package manager, CPU, RAM, groups, container engines.",
-  gpu: "GPUs from KFD + DRM sysfs; telemetry samples.",
-  rocm: "ROCm installs, tools, libraries; venv probe (torch, vllm, fork ops).",
-  topo: "PCIe tree, link classes, P2P, bandwidth.",
-  paths: "XDG config/state/data/cache. Never /tmp.",
-  execx: "External commands with timeouts.",
-  config: "~/.config/rdnactl/config.yaml defaults.",
-  "recipes/": "Built-in recipes and _fragments, embedded in the binary.",
-  "tunableop/": "TunableOp rows per rocBLAS build, embedded.",
-  "web/": "Dashboard HTML/CSS/JS, no build step, embedded.",
+// id: [description, imports...]. Imports come from `go list` of the repo.
+const pk = {
+  cli: ["internal/cli and cli/cmds/<family>: one cmd_<name>.go per command. Parses flags, calls a package, prints text or --json.", "flow","doctor","setup","logdoc","dashboard","recipe","runner","tuning","bench","gpu","host","rocm","topo","config","paths","execx"],
+  dashboard: ["HTTP API, SSE telemetry, token auth, embedded web/. Calls the same packages as the matching command.", "doctor","recipe","runner","bench","vllm","gpu","host","topo","config","web"],
+  flow: ["The two product chains: status snapshot and up. Never prints, never starts the dashboard.", "doctor","setup","recipe","runner","gpu","host","rocm","config"],
+  doctor: ["Check registry, one checks_<category>.go per category. Status ok, warn, fail, skip, with a fix.", "gpu","host","rocm","tuning"],
+  setup: ["Ordered install steps per mode and package manager. Applies non-root steps only.", "gpu","host","rocm","execx","paths"],
+  logdoc: ["Known-failure catalog (embedded YAML) and a streaming log scanner.", "catalog"],
+  runner: ["Prepare (recipe id to ready plan), Start, List, Stop, Logs, Compose. Host process or container.", "recipe","tuning","gpu","host","rocm","topo","config","paths"],
+  recipe: ["Load layers, resolve extends, apply --set, validate, fit, select GPUs, build the plan.", "gpu","topo","paths","recipes"],
+  tuning: ["TunableOp profiles keyed by rocBLAS hash and arch, tuned-MoE folders, GPU power cap.", "gpu","paths","tunable"],
+  bench: ["Streaming OpenAI benchmark: TTFT, ITL, tok/s per concurrency. Saves results.", "gpu","vllm","paths"],
+  vllm: ["Client for /health, /v1/models, /tokenize, /metrics.", ],
+  topo: ["PCIe tree, link classes, P2P matrix, bandwidth.", "gpu","rocm","execx"],
+  gpu: ["GPUs from KFD and DRM sysfs, telemetry, and the device tables. Imports no bernie package.", "devices"],
+  host: ["Distro, package manager, CPU, RAM, groups, container engines.", "execx"],
+  rocm: ["ROCm installs, tools, libraries, venv probe (torch, vllm, fork ops).", "execx"],
+  config: ["<config>/config.yaml defaults.", "paths"],
+  paths: ["XDG config, state, data, cache. Never /tmp."],
+  execx: ["External commands, always with a timeout."],
+  devices: ["One YAML file per GPU generation: arches, PCI ids, HSA override, BF16, power advice."],
+  recipes: ["Built-in recipes by family and fragments by concern."],
+  tunable: ["TunableOp rows per arch and rocBLAS build; tuned fused-MoE configs per arch."],
+  catalog: ["Rules: id, severity, regex, cause, fix, doc."],
+  web: ["Dashboard HTML, CSS, JS. No build step."],
 };
-document.querySelectorAll(".pkg").forEach(p => p.onclick = () => {
-  document.querySelectorAll(".pkg").forEach(x => x.classList.remove("active"));
-  p.classList.add("active");
-  document.getElementById("pkgdesc").textContent = desc[p.textContent] || "";
-});
+const pkgs = document.querySelectorAll(".pkg"), desc = document.getElementById("pkgdesc");
+pkgs.forEach(p => { p.setAttribute("aria-pressed", "false"); p.onclick = () => {
+  const [text, ...deps] = pk[p.dataset.id];
+  pkgs.forEach(x => { const id = x.dataset.id; x.className = "pkg" + (deps.includes(id) ? " dep" : "") + (id !== p.dataset.id && pk[id].slice(1).includes(p.dataset.id) ? " by" : ""); x.setAttribute("aria-pressed", String(x === p)); });
+  desc.textContent = `${p.textContent}: ${text} Imports: ${deps.length ? deps.map(d => document.querySelector(`[data-id=${d}]`).textContent).join(", ") : "nothing"}.`;
+}; });
+document.getElementById("q").oninput = e => {
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll("#chg tbody tr").forEach(r => r.hidden = !r.textContent.toLowerCase().includes(q));
+};
 </script>
 </body>
 </html>
