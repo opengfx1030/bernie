@@ -4,8 +4,8 @@
 "use strict";
 
 /** METRIC_HELP says in one sentence how the prefill and the decode numbers
- *  of a cell are measured. */
-const METRIC_HELP = "The prefill rate counts the queueing of the cell; the decode rate counts the time in which at least one request was decoding.";
+ *  of a cell are measured, and what the columns of the latencies hold. */
+const METRIC_HELP = "The prefill rate counts the queueing of the cell; the decode rate counts the time in which at least one request was decoding. The latencies are the median, the 95th percentile and the worst case over the answered requests; the REQUESTS column says how many answered. A number that came from repetitions carries their spread.";
 
 /** VERDICTS are the four verdicts of a comparison: the icon, the word and the
  *  token of the colour. The word always carries the meaning. */
@@ -16,21 +16,21 @@ const VERDICTS = {
   noisy: { icon: "!", word: "noisy", tone: "warn" },
 };
 
-/** NO_VERDICT is the sentence of a metric that cannot be judged. */
-const NO_VERDICT = "the repetitions disagree, so this metric has no verdict";
-
 /** METRIC_COLS are the columns of the table of the cells. The unit of every
- *  number sits in the head of its column. */
+ *  number sits in the head of its column. Every distribution shows the
+ *  median, the 95th percentile and the worst case; the mean stays in the
+ *  JSON. */
 const METRIC_COLS = [
   { key: "cell", label: "CELL", left: true },
   { key: "conc", label: "CONC", left: true },
-  { key: "prefill_req", label: "PREFILL REQ", unit: "tok/s" },
-  { key: "prefill_cell", label: "PREFILL CELL", unit: "tok/s" },
-  { key: "decode_req", label: "DECODE REQ", unit: "tok/s" },
-  { key: "decode_cell", label: "DECODE CELL", unit: "tok/s" },
-  { key: "ttft", label: "TTFT S", unit: "s", span: 3 },
-  { key: "itl", label: "ITL MS", unit: "ms", span: 3 },
-  { key: "out", label: "OUT TOK/S", unit: "tok/s" },
+  { key: "prefill_req", label: "PREFILL REQ", unit: "tok/s", sub: "p50" },
+  { key: "prefill_cell", label: "PREFILL CELL", unit: "tok/s", sub: "agg" },
+  { key: "decode_req", label: "DECODE REQ", unit: "tok/s", sub: "p50" },
+  { key: "decode_cell", label: "DECODE CELL", unit: "tok/s", sub: "agg" },
+  { key: "ttft", label: "TTFT", unit: "s", span: 3 },
+  { key: "itl", label: "ITL", unit: "ms", span: 3 },
+  { key: "out", label: "OUT", unit: "tok/s", sub: "agg" },
+  { key: "requests", label: "REQUESTS", unit: "answered" },
   { key: "server", label: "SERVER", unit: "s / ms" },
   { key: "flags", label: "FLAGS", left: true },
 ];
@@ -76,6 +76,22 @@ function benchDigits(unit) {
   return unit === "s" ? 3 : 1;
 }
 
+/** SPREAD_STEADY is how close the repetitions of one cell must agree, from
+ *  spec §10.2: the min/max ratio of a metric over the repetitions. Below it,
+ *  the repetitions disagree and the number says little. */
+const SPREAD_STEADY = 0.95;
+
+/** benchSpreadText writes how much the repetitions of a cell disagree: the
+ *  share between the slowest and the fastest repetition, with the number of
+ *  repetitions. It is empty when the repetitions agree. */
+function benchSpreadText(c, metric) {
+  if (!metric) return null;
+  const s = (c.spread || {})[metric];
+  if (!s || s >= SPREAD_STEADY) return null;
+  const reps = (c.reps || []).length;
+  return "±" + benchNum((1 - s) * 100, 1) + " %" + (reps ? " · " + reps + " reps" : "");
+}
+
 /** cellLens names the lens of a cell: the prompt and the answer lengths. */
 function cellLens(c) {
   const parts = [];
@@ -100,13 +116,13 @@ function cellFlags(c) {
   if (c.stream_incremental === false) add("the server buffered the whole answer", "warn");
   if (c.incomplete) add("a request was lost", "serious");
   for (const v of Object.values(c.spread || {})) {
-    if (v > 1.05) { add("the repetitions disagree", "warn"); break; }
+    if (v < SPREAD_STEADY) { add("the repetitions disagree", "warn"); break; }
   }
   return out;
 }
 
-/** metricHead is the head of the table of the cells: the names of the groups
- *  and the names of the distribution under the two groups that have one. */
+/** metricHead is the head of the table of the cells: the names of the groups,
+ *  the unit of every number and the name of the statistic under it. */
 function metricHead(withServer) {
   const cols = METRIC_COLS.filter((c) => c.key !== "server" || withServer);
   const top = h("tr", cols.map((c) => h("th", {
@@ -115,40 +131,52 @@ function metricHead(withServer) {
   const bottom = [];
   for (const c of cols) {
     if (c.span && c.span > 1) {
-      for (const w of ["mean", "p50", "p95"]) bottom.push(h("th", { class: "num" }, w));
+      for (const w of ["p50", "p95", "max"]) bottom.push(h("th", { class: "num" }, w));
     } else {
-      bottom.push(h("th", { class: c.left ? "" : "num" }, ""));
+      bottom.push(h("th", { class: c.left ? "" : "num" }, c.sub || ""));
     }
   }
   return h("thead", top, h("tr", bottom));
 }
 
 /** cellRow is one row of the table of the cells: the five groups of numbers,
- *  the server numbers and the flags, in words. */
-function cellRow(c, withServer) {
+ *  the server numbers and the flags, in words. The row of the cell that the
+ *  headline names is marked, so the number of the headline can be found. */
+function cellRow(c, withServer, mark) {
   const flags = cellFlags(c);
   const side = c.server_side
-    ? (c.server_side.ttft_s ? benchDist(c.server_side.ttft_s, "p50", 3) + " s" : "–") +
-      " / " + (c.server_side.itl_ms ? benchDist(c.server_side.itl_ms, "p50", 1) + " ms" : "–")
+    ? (c.server_side.ttft_s ? benchDist(c.server_side.ttft_s, "p50", 3) + " s" : "\u2013") +
+      " / " + (c.server_side.itl_ms ? benchDist(c.server_side.itl_ms, "p50", 1) + " ms" : "\u2013")
     : "the server does not publish its metrics";
-  return h("tr",
-    h("td", h("span.bench-cell", c.group || "–"), h("small.bench-lens", cellLens(c))),
-    h("td", c.concurrency + " × " + c.num_prompts),
-    h("td.num", benchRate(c.prefill, "mean", 1)),
-    h("td.num", benchRate(c.prefill, "agg", 1)),
-    h("td.num", benchRate(c.decode, "mean", 1)),
-    h("td.num", benchRate(c.decode, "agg", 1)),
-    h("td.num", benchDist(c.ttft_s, "mean", 3)),
-    h("td.num", benchDist(c.ttft_s, "p50", 3)),
-    h("td.num", benchDist(c.ttft_s, "p95", 3)),
-    h("td.num", benchDist(c.itl_ms, "mean", 1)),
-    h("td.num", benchDist(c.itl_ms, "p50", 1)),
-    h("td.num", benchDist(c.itl_ms, "p95", 1)),
-    h("td.num", c.output_tok_s ? benchNum(c.output_tok_s, 1) : "–"),
+  const number = (value, digits, metric) => {
+    const spread = benchSpreadText(c, metric);
+    return h("td.num", benchNum(value, digits), spread ? h("small.bench-spread", spread) : null);
+  };
+  const row = h("tr",
+    h("td", h("span.bench-cell", c.group || "–"), h("small.bench-lens", cellLens(c)),
+      mark && mark.group === c.group && mark.concurrency === c.concurrency
+        ? h("span.bench-headline-tag", "the headline") : null),
+    h("td", c.concurrency + " \u00d7 " + c.num_prompts),
+    h("td.num", benchRate(c.prefill, "p50", 1)),
+    number((c.prefill || {}).agg_tok_s, 1, "prefill.agg_tok_s"),
+    h("td.num", benchRate(c.decode, "p50", 1)),
+    number((c.decode || {}).agg_tok_s, 1, "decode.agg_tok_s"),
+    number((c.ttft_s || {}).p50, 3, "ttft_s.p50"),
+    number((c.ttft_s || {}).p95, 3, null),
+    number((c.ttft_s || {}).max, 3, null),
+    number((c.itl_ms || {}).p50, 1, "itl_ms.p50"),
+    number((c.itl_ms || {}).p95, 1, null),
+    number((c.itl_ms || {}).max, 1, null),
+    number(c.output_tok_s, 1, "output_tok_s"),
+    h("td.num", c.completed ? String(c.completed) : "\u2013"),
     withServer ? h("td.num.small", side) : null,
     h("td", flags.length
       ? flags.map((f) => h("span.bench-flag." + f.tone, f.text))
       : h("span.muted", "no flag")));
+  if (mark && mark.group === c.group && mark.concurrency === c.concurrency) {
+    row.classList.add("is-headline");
+  }
+  return row;
 }
 
 /** metricTable is the table of the metrics of one cell: the five groups of
@@ -160,13 +188,14 @@ function metricTable(cell) {
     h("tbody", list.map((c) => cellRow(c, withServer)))));
 }
 
-/** cellsTable is the table of the cells of a result. */
-function cellsTable(cells) {
+/** cellsTable is the table of the cells of a result. The mark is the cell the
+ *  headline names, so the reader can find the number of the headline. */
+function cellsTable(cells, mark) {
   const list = cells || [];
   if (!list.length) return emptyState("No result yet.", "Run a suite above to fill this table.");
   const withServer = list.some((c) => c.server_side);
   return h("div.scroll", h("table.bench-table", metricHead(withServer),
-    h("tbody", list.map((c) => cellRow(c, withServer)))));
+    h("tbody", list.map((c) => cellRow(c, withServer, mark)))));
 }
 
 /** verdictChip is the icon and the word of a verdict. The colour never
@@ -177,152 +206,24 @@ function verdictChip(v) {
   return h("span.pill.verdict." + d.tone, d.icon + " " + d.word);
 }
 
-/** compareGroups picks, for every group of the comparison, the cell with the
- *  lowest concurrency: it is the cleanest measurement of the group. */
-function compareGroups(cmp) {
-  const out = [];
-  for (const m of COMPARE_METRICS) {
-    let best = null;
-    for (const cell of (cmp && cmp.cells) || []) {
-      const mv = (cell.metrics || []).find((x) => x.metric === m.metric);
-      if (!mv) continue;
-      if (!best || (cell.concurrency || 0) < (best.cell.concurrency || 0)) {
-        best = { cell: cell, m: mv };
-      }
-    }
-    if (!best) continue;
-    out.push({
-      metric: m.metric, label: m.label, unit: m.unit,
-      base: best.m.base, cand: best.m.cand, verdict: best.m.verdict,
-      higher: best.m.higher_is_better,
-      cell: (best.cell.group || "") + " at " + best.cell.concurrency,
-    });
-  }
-  return out;
+/** verdictChip is the icon and the word of a verdict, with the band the
+ *  verdict used when there is one. The colour never carries the meaning
+ *  alone. */
+function verdictChip(v, extra) {
+  const d = VERDICTS[v];
+  if (!d) return h("span.pill.verdict.skip", "–");
+  return h("span.pill.verdict." + d.tone, d.icon + " " + d.word + (extra ? ", " + extra : ""));
 }
 
-/** svgEl builds one element of an SVG drawing. */
-function svgEl(name, attrs, text) {
-  const el = document.createElementNS("http://www.w3.org/2000/svg", name);
-  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
-  if (text != null) el.textContent = text;
-  return el;
-}
-
-/** barCompare draws the five metric groups of two runs: the baseline in the
- *  first series colour, the candidate in the second, the value on every bar
- *  and the verdict of every group. */
+/** barCompare draws the comparison of two runs: one block per cell, the five
+ *  metric groups of that cell in each block, the bars indexed to the
+ *  baseline and the numbers of every cell in a table under the chart. */
 function barCompare(cmp) {
-  const groups = compareGroups(cmp);
-  if (!groups.length) return emptyState("Pick two results to compare.");
-  const rowH = 52, labelW = 104, valueW = 92, width = 640;
-  const plotL = labelW, plotR = width - valueW - 118;
-  const plotW = Math.max(60, plotR - plotL);
-  const height = 12 + groups.length * rowH;
-  const svg = svgEl("svg", {
-    class: "bench-bars", viewBox: "0 0 " + width + " " + height,
-    role: "img", "aria-label": "The five metric groups of the two runs",
-  });
-  const noVerdict = [];
-  groups.forEach((g, i) => {
-    const top = 8 + i * rowH;
-    const max = Math.max(g.base || 0, g.cand || 0, 0.0001);
-    const digits = benchDigits(g.unit);
-    svg.appendChild(svgEl("text", { class: "bar-label", x: 0, y: top + 12 }, g.label));
-    svg.appendChild(svgEl("text", { class: "bar-sub", x: 0, y: top + 26 }, g.cell));
-    [["base", g.base, "s1", top + 2], ["cand", g.cand, "s2", top + 22]].forEach(([who, value, cls, y]) => {
-      const w = value > 0 ? Math.max(2, (value / max) * (plotW - 60)) : 0;
-      if (w > 0) {
-        svg.appendChild(svgEl("rect", {
-          class: "bar-rect " + cls, x: plotL, y: y, width: w, height: 12, rx: 6,
-        }));
-      } else {
-        svg.appendChild(svgEl("line", {
-          class: "bar-missing", x1: plotL, x2: plotL + 40, y1: y + 6, y2: y + 6,
-        }));
-      }
-      svg.appendChild(svgEl("text", {
-        class: "bar-value", x: plotL + w + 8, y: y + 10,
-      }, benchNum(value, digits) + " " + g.unit));
-      void who;
-    });
-    const d = VERDICTS[g.verdict];
-    const text = d ? d.icon + " " + d.word : "– no verdict";
-    const cw = 14 + text.length * 6.2;
-    const cx = width - cw - 4;
-    svg.appendChild(svgEl("rect", {
-      class: "chip-bg " + (d ? d.tone : "skip"), x: cx, y: top + 4, width: cw, height: 20, rx: 999,
-    }));
-    svg.appendChild(svgEl("text", {
-      class: "chip-text " + (d ? d.tone : "skip"), x: cx + cw / 2, y: top + 18, "text-anchor": "middle",
-    }, text));
-    if (!d) noVerdict.push(g.label);
-  });
-  const legend = h("div.bench-legend",
-    h("span", h("i.key.s1"), "baseline"),
-    h("span", h("i.key.s2"), "candidate"));
-  const note = noVerdict.length
-    ? h("p.small.muted", NO_VERDICT + ": " + noVerdict.join(", ") + ".")
-    : null;
-  return h("div.bench-compare", legend, svg, note);
+  return compareChart(cmp);
 }
 
-/** ladderPoints picks the cells of a ladder: one per prompt length, the one
- *  with the lowest concurrency. */
-function ladderPoints(cells) {
-  const best = new Map();
-  for (const c of cells || []) {
-    if (!c.input_len) continue;
-    const key = c.input_len;
-    const old = best.get(key);
-    if (!old || (c.concurrency || 0) < (old.concurrency || 0)) best.set(key, c);
-  }
-  return Array.from(best.values()).sort((a, b) => a.input_len - b.input_len);
-}
-
-/** lengthCurve draws the prefill speed and the time to first token against
- *  the prompt length. The x axis is logarithmic. It returns null when the
- *  result has no ladder. */
+/** lengthCurve draws the prefill speed and the time to the first token
+ *  against the prompt length, as two charts that share the log x-axis. */
 function lengthCurve(cells) {
-  const points = ladderPoints(cells);
-  if (points.length < 2) return null;
-  const width = 640, height = 260, left = 64, right = 64, top = 26, bottom = 44;
-  const plotW = width - left - right, plotH = height - top - bottom;
-  const lens = points.map((p) => p.input_len);
-  const minL = Math.min(...lens), maxL = Math.max(...lens);
-  const logMin = Math.log(minL), logSpan = Math.log(maxL) - logMin || 1;
-  const prefill = points.map((p) => (p.prefill && p.prefill.agg_tok_s) || 0);
-  const ttft = points.map((p) => (p.ttft_s && p.ttft_s.p50) || 0);
-  const maxP = Math.max(...prefill, 1), maxT = Math.max(...ttft, 0.001);
-  const x = (len) => left + plotW * ((Math.log(len) - logMin) / logSpan);
-  const yP = (v) => top + plotH - (plotH * v) / maxP;
-  const yT = (v) => top + plotH - (plotH * v) / maxT;
-  const svg = svgEl("svg", {
-    class: "bench-curve", viewBox: "0 0 " + width + " " + height,
-    role: "img", "aria-label": "The prefill speed and the time to first token against the prompt length",
-  });
-  svg.appendChild(svgEl("line", { class: "axis", x1: left, y1: top, x2: left, y2: top + plotH }));
-  svg.appendChild(svgEl("line", { class: "axis", x1: left, y1: top + plotH, x2: left + plotW, y2: top + plotH }));
-  svg.appendChild(svgEl("text", { class: "axis-label", x: 0, y: top + 8 }, "prefill " + benchNum(maxP, 0) + " tok/s"));
-  svg.appendChild(svgEl("text", { class: "axis-label", x: width, y: top + 8, "text-anchor": "end" }, "TTFT " + benchNum(maxT, 2) + " s"));
-  const line = (values, y) => values.map((v, i) => x(lens[i]) + "," + y(v)).join(" ");
-  svg.appendChild(svgEl("polyline", { class: "curve-line s1", points: line(prefill, yP) }));
-  svg.appendChild(svgEl("polyline", { class: "curve-line s2", points: line(ttft, yT) }));
-  points.forEach((p, i) => {
-    svg.appendChild(svgEl("circle", { class: "curve-dot s1", cx: x(p.input_len), cy: yP(prefill[i]), r: 4 }));
-    svg.appendChild(svgEl("circle", { class: "curve-dot s2", cx: x(p.input_len), cy: yT(ttft[i]), r: 4 }));
-    svg.appendChild(svgEl("text", {
-      class: "axis-label", x: x(p.input_len), y: top + plotH + 18, "text-anchor": "middle",
-    }, String(p.input_len)));
-    svg.appendChild(svgEl("text", {
-      class: "point-label", x: x(p.input_len), y: yP(prefill[i]) - 9, "text-anchor": "middle",
-    }, benchNum(prefill[i], 0)));
-    svg.appendChild(svgEl("text", {
-      class: "point-label s2", x: x(p.input_len), y: yT(ttft[i]) + 16, "text-anchor": "middle",
-    }, benchNum(ttft[i], 2) + " s"));
-  });
-  const legend = h("div.bench-legend",
-    h("span", h("i.key.s1"), "prefill tok/s (left)"),
-    h("span", h("i.key.s2"), "TTFT p50 s (right)"));
-  return h("div.bench-curve-wrap", svg, legend);
+  return curveSmallMultiples(cells);
 }

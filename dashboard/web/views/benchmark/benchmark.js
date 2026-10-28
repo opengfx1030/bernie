@@ -52,38 +52,62 @@ function benchCards(fp) {
   return found ? n : null;
 }
 
+/** benchCellName names a cell: the group of the suite and the concurrency of
+ *  the cell. Every number of the headline and the lede belongs to one cell. */
+function benchCellName(c) {
+  return (c.group || "–") + " at concurrency " + (c.concurrency || 0);
+}
+
+/** benchBestCell picks the cell of a result with the highest output rate.
+ *  It is the cell the headline and the lede name. */
+function benchBestCell(cells) {
+  let best = null;
+  for (const c of cells || []) {
+    const v = c.output_tok_s;
+    if (v && (!best || v > best.output_tok_s)) best = c;
+  }
+  return best;
+}
+
 /** benchHeadline writes the state headline of the tab: what the last
- *  benchmark reached and what it measured. */
+ *  benchmark reached and what it measured. The cell the numbers belong to is
+ *  named, so the number can be found in the table below. */
 function benchHeadline(head, results) {
   const last = results && results[0];
   if (!last) {
     setHead(head, "Nothing has been measured yet.",
       "A benchmark measures the tokens per second of a running server. Run one below and this page fills with its numbers.");
-    return;
+    return null;
   }
   const cells = last.cells || [];
-  const out = benchBest(cells, (c) => c.output_tok_s);
-  const prefill = benchBest(cells, (c) => (c.prefill || {}).agg_tok_s);
-  const decode = benchBest(cells, (c) => (c.decode || {}).agg_tok_s);
+  const best = benchBestCell(cells);
   const cards = benchCards(last.fingerprint);
-  const title = out
-    ? "The last benchmark reached " + benchNum(out, 1) + " tok/s."
+  const cellName = best ? benchCellName(best) : "the table";
+  const title = best
+    ? "The last benchmark reached " + benchNum(best.output_tok_s, 1) + " tok/s in the cell " + cellName + "."
     : "The last benchmark has no output rate.";
-  const lede = "The " + benchSuiteOf(last) + " suite measured " + cells.length + " cells" +
-    (cards ? " on " + cards + " cards" : "") + ". The prefill was " + benchNum(prefill, 0) +
-    " tok/s and the decode " + benchNum(decode, 1) + " tok/s.";
+  const lede = best
+    ? "The " + benchSuiteOf(last) + " suite measured " + cells.length + " cells" +
+      (cards ? " on " + cards + " cards" : "") + ". In the cell " + cellName +
+      " the prefill was " + benchNum((best.prefill || {}).agg_tok_s, 0) + " tok/s and the decode " +
+      benchNum((best.decode || {}).agg_tok_s, 1) + " tok/s."
+    : "The " + benchSuiteOf(last) + " suite has no cell to show yet.";
   setHead(head, title, lede);
+  return best;
 }
 
 /** benchResultBody is the content of the result card: the table of the cells
- *  and the sentence that says how the numbers are measured. */
-function benchResultBody(r) {
+ *  and the sentence that says how the numbers are measured. The mark is the
+ *  cell the headline names, so its row is tagged and the caption says which
+ *  row it is. */
+function benchResultBody(r, mark) {
   if (!r) return emptyState("No result yet.", "Run a suite above to fill this table.");
   return h("div",
     h("p.bench-result-title", "Result " + r.id),
     h("p.small.muted", benchSuiteLine(r)),
     h("p.small.muted", METRIC_HELP),
-    cellsTable(r.cells));
+    cellsTable(r.cells, mark),
+    mark ? h("p.bench-headline-note.small.muted", "The headline is the cell " + benchCellName(mark) + ".") : null);
 }
 
 /** benchCopy puts a text on the clipboard. The shell owns the control; the
@@ -252,10 +276,10 @@ async function viewBenchmark(root) {
     try {
       const list = await benchResults();
       benchState.results = list;
-      benchHeadline(head, list);
+      const headline = benchHeadline(head, list);
       const pick = pickId ? list.find((r) => r.id === pickId) : (list[0] || null);
       benchState.result = pick || null;
-      put(resultCard, benchResultBody(pick));
+      put(resultCard, benchResultBody(pick, pick === list[0] ? headline : null));
       const curve = pick ? lengthCurve(pick.cells) : null;
       put(curveCard, curve || emptyState("This suite has no ladder.",
         "Run the long-context suite to see the curve."));
