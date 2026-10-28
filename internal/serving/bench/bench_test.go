@@ -292,7 +292,7 @@ func TestStore(t *testing.T) {
 		t.Fatalf("empty List = %v, %v", rs, err)
 	}
 	t0 := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
-	newer := &Result{ID: "20261028T130000Z-bbbbbb", Time: t0.Add(time.Hour), Model: "m2", Cells: []Cell{{Concurrency: 8, OutputTokS: 99.5}}}
+	newer := &Result{ID: "20261028T130000Z-bbbbbb", Time: t0.Add(time.Hour), Model: "m2", Cells: []Cell{{Concurrency: 8, Measurement: Measurement{OutputTokS: 99.5}}}}
 	older := &Result{ID: "20261028T120000Z-aaaaaa", Time: t0, Model: "m1"}
 	for _, r := range []*Result{newer, older} {
 		path, err := Save(r)

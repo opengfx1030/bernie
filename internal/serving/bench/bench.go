@@ -4,21 +4,8 @@
 package bench
 
 import (
-	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/binary"
-	"encoding/hex"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"sync"
-	"sync/atomic"
 	"time"
-
-	"github.com/opengfx1030/bernie/internal/serving/vllm"
-	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // Defaults of spec §10.
@@ -49,17 +36,15 @@ type Options struct {
 	// Recall turns on the pass key check: every prompt hides a short
 	// random fact and the reply must contain it.
 	Recall bool `json:"recall"`
+	// Suite is the name of the suite that shaped this run. Empty for a
+	// plain run.
+	Suite string `json:"suite,omitempty"`
+	// Reps is the number of repetitions per cell of a suite run.
+	Reps int `json:"reps,omitempty"`
 }
 
-// Cell is the result for one concurrency level. The flat latency fields are
-// milliseconds; the new groups carry the same numbers in the units of spec
-// §10: seconds for the time to first token, milliseconds for the
-// inter-token latency.
-type Cell struct {
-	Concurrency int `json:"concurrency"`
-	NumPrompts  int `json:"num_prompts"`
-	Completed   int `json:"completed"`
-	Failed      int `json:"failed"`
+// Measurement holds the numbers of a cell or of one repetition of it.
+type Measurement struct {
 	// Prefill is the prefill speed of the cell: the rate of the whole cell
 	// and the distribution of the rates of its requests.
 	Prefill *Rate `json:"prefill,omitempty"`
@@ -97,10 +82,47 @@ type Cell struct {
 	// TokensPerChunk is completion tokens per streamed chunk; above 1 with
 	// speculative decoding (MTP).
 	TokensPerChunk float64 `json:"tokens_per_chunk"`
-	// Recall is the pass key check of the cell. It is nil when the check
-	// did not run.
-	Recall *Recall  `json:"recall,omitempty"`
-	Errors []string `json:"errors,omitempty"` // distinct error samples
+	// Recall is the pass key check. It is nil when the check did not run.
+	Recall *Recall `json:"recall,omitempty"`
+	// WarmupFailed counts the warm-up requests that failed.
+	WarmupFailed int      `json:"warmup_failed,omitempty"`
+	Errors       []string `json:"errors,omitempty"` // distinct error samples
+}
+
+// Cell is the result for one concurrency level. The flat latency fields are
+// milliseconds; the new groups carry the same numbers in the units of spec
+// §10: seconds for the time to first token, milliseconds for the
+// inter-token latency.
+type Cell struct {
+	Concurrency int `json:"concurrency"`
+	NumPrompts  int `json:"num_prompts"`
+	Completed   int `json:"completed"`
+	Failed      int `json:"failed"`
+	// Measurement holds the numbers of the cell.
+	Measurement
+	// Group is the suite group of the cell. InputLen and OutputLen are
+	// the lens of that group.
+	Group     string `json:"group,omitempty"`
+	InputLen  int    `json:"input_len,omitempty"`
+	OutputLen int    `json:"output_len,omitempty"`
+	// Reps holds one entry per repetition, so a reader can recompute the
+	// numbers of the cell.
+	Reps []Rep `json:"reps,omitempty"`
+	// Spread is the min/max ratio of the metrics over the repetitions.
+	Spread map[string]float64 `json:"spread,omitempty"`
+	// Incomplete marks a cell that lost a warm-up or a repetition. Its
+	// numbers stay visible, but no verdict is issued for it.
+	Incomplete bool `json:"incomplete,omitempty"`
+}
+
+// Rep is one repetition of a cell: the numbers it measured, without the
+// repetitions themselves.
+type Rep struct {
+	NumPrompts int `json:"num_prompts"`
+	Completed  int `json:"completed"`
+	Failed     int `json:"failed"`
+	// Measurement holds the numbers of the repetition.
+	Measurement
 }
 
 // Workload says what a benchmark asked the server to do. Two results with
@@ -112,12 +134,26 @@ type Workload struct {
 	// CorpusSHA256 is the hash of the word list the prompts are built from.
 	CorpusSHA256 string `json:"corpus_sha256"`
 	// InputLen and OutputLen are the prompt and output token counts.
-	InputLen  int `json:"input_len"`
-	OutputLen int `json:"output_len"`
+	// They are zero for a suite run: the lens of a suite run is per cell.
+	InputLen  int `json:"input_len,omitempty"`
+	OutputLen int `json:"output_len,omitempty"`
 	// Concurrency are the levels of the cells.
 	Concurrency []int `json:"concurrency"`
 	// Recall tells whether the pass key check ran.
 	Recall bool `json:"recall"`
+	// SuiteID and SuiteDigest name the suite that shaped the workload.
+	// Two results of different suites cannot be compared.
+	SuiteID     string `json:"suite_id,omitempty"`
+	SuiteDigest string `json:"suite_digest,omitempty"`
+	// Kind is what the cells assert: "throughput" or "check".
+	Kind string `json:"kind,omitempty"`
+}
+
+// SuiteRef names the suite that produced a result.
+type SuiteRef struct {
+	ID      string `json:"id"`
+	Digest  string `json:"digest"`
+	Version int    `json:"version"`
 }
 
 // Result is one saved benchmark.
@@ -136,7 +172,10 @@ type Result struct {
 	// Workload is what the benchmark asked for. It is nil in results
 	// saved before the field existed.
 	Workload *Workload `json:"workload,omitempty"`
-	Cells    []Cell    `json:"cells"`
+	// Suite names the suite that produced the result. It is nil for a
+	// plain run.
+	Suite *SuiteRef `json:"suite,omitempty"`
+	Cells []Cell    `json:"cells"`
 }
 
 // Completed is the number of successful measured requests over all cells.
@@ -185,175 +224,4 @@ func cellPrompts(o Options, concurrency int) int {
 		return o.NumPrompts
 	}
 	return max(4, 2*concurrency)
-}
-
-// Run benchmarks the server. Empty URL resolves with DefaultURL, empty Model
-// to the first id of /v1/models. Progress lines go to progress (may be nil).
-// Run returns an error only when the benchmark cannot start or ctx ends;
-// failed requests are counted in the cells.
-func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
-	if progress == nil {
-		progress = io.Discard
-	}
-	o, err := Normalize(o)
-	if err != nil {
-		return nil, err
-	}
-	if o.URL == "" {
-		o.URL = DefaultURL()
-	}
-	client := vllm.New(o.URL)
-	o.URL = client.BaseURL()
-	if err := client.Health(ctx); err != nil && !errors.Is(err, vllm.ErrUnsupported) {
-		return nil, fmt.Errorf("server %s not ready: %w", o.URL, err)
-	}
-	if o.Model == "" {
-		ids, err := client.Models(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("list models: %w", err)
-		}
-		if len(ids) == 0 {
-			return nil, fmt.Errorf("server %s serves no models", o.URL)
-		}
-		o.Model = ids[0]
-	}
-
-	var nonce [4]byte
-	_, _ = rand.Read(nonce[:])
-	p := prompts{seed: o.Seed, nonce: binary.BigEndian.Uint32(nonce[:]), recall: o.Recall}
-	words, calibrated, err := calibrateCached(ctx, client, o.Model, p, o.InputLen)
-	if err != nil {
-		return nil, err
-	}
-	how := "calibrated with /tokenize"
-	if !calibrated {
-		how = "estimated, server has no /tokenize"
-	}
-	fmt.Fprintf(progress, "bench: %s model %s, prompt %d words for %d tokens (%s)\n", o.URL, o.Model, words, o.InputLen, how)
-
-	now := time.Now().UTC()
-	res := &Result{
-		ID:          newID(now, o, p.nonce),
-		Tag:         o.Tag,
-		URL:         o.URL,
-		Model:       o.Model,
-		Time:        now,
-		Options:     o,
-		Fingerprint: fingerprint(paths.State(), o.URL),
-		PromptWords: words,
-		Calibrated:  calibrated,
-		Workload: &Workload{
-			ProtocolID:   ProtocolID,
-			CorpusSHA256: corpusHash(),
-			InputLen:     o.InputLen,
-			OutputLen:    o.OutputLen,
-			Concurrency:  o.Concurrency,
-			Recall:       o.Recall,
-		},
-	}
-
-	maxC := 1
-	for _, c := range o.Concurrency {
-		maxC = max(maxC, c, o.Warmup)
-	}
-	hc := &http.Client{Transport: &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		MaxIdleConns:        maxC,
-		MaxIdleConnsPerHost: maxC,
-		IdleConnTimeout:     90 * time.Second,
-	}}
-	defer hc.CloseIdleConnections()
-
-	var seq atomic.Int64
-	send := func(ctx context.Context, from time.Time) sample {
-		n := int(seq.Add(1))
-		prompt := p.build(n, words)
-		s := streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen, o.Recall, from)
-		if o.Recall {
-			s.expect = p.passKey(n)
-		}
-		return s
-	}
-
-	for _, c := range o.Concurrency {
-		n := cellPrompts(o, c)
-		if o.Warmup > 0 {
-			fmt.Fprintf(progress, "bench: c=%d warmup %d request(s)\n", c, o.Warmup)
-			warm := runPool(ctx, o.Warmup, o.Warmup, time.Now(), send)
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			for _, s := range warm {
-				if s.err != nil {
-					fmt.Fprintf(progress, "bench: c=%d warmup failed: %v\n", c, s.err)
-					break
-				}
-			}
-		}
-		fmt.Fprintf(progress, "bench: c=%d running %d requests\n", c, n)
-		before := serverMetrics(ctx, client)
-		start := time.Now()
-		samples := runPool(ctx, c, n, start, send)
-		wall := time.Since(start)
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		after := serverMetrics(ctx, client)
-		cell := aggregate(c, samples, wall)
-		cell.ServerSide = serverSide(before, after)
-		fmt.Fprintf(progress, "bench: c=%d done in %.1fs: %d ok, %d failed, %.1f output tok/s\n",
-			c, cell.DurationS, cell.Completed, cell.Failed, cell.OutputTokS)
-		if o.Recall {
-			asked, passed := recallVerdict(samples)
-			cell.Recall = &Recall{Asked: asked, Passed: passed, Depth: recallDepth, Method: recallMethod(calibrated)}
-			fmt.Fprintf(progress, "bench: c=%d recall %d/%d passed (%s)\n", c, passed, asked, cell.Recall.Method)
-			if passed < asked {
-				fmt.Fprintf(progress, "bench: c=%d the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", c)
-			}
-		}
-		res.Cells = append(res.Cells, cell)
-	}
-	return res, nil
-}
-
-// serverMetrics reads the metrics of the server. It returns nil when the
-// server has no /metrics endpoint: the cross-check with the server is
-// optional.
-func serverMetrics(ctx context.Context, c *vllm.Client) map[string]float64 {
-	m, err := c.Metrics(ctx)
-	if err != nil {
-		return nil
-	}
-	return m
-}
-
-// runPool sends n requests with at most workers in flight and returns the
-// samples in request order. from is the start of the cell: every sample
-// keeps its times relative to it.
-func runPool(ctx context.Context, workers, n int, from time.Time, send func(context.Context, time.Time) sample) []sample {
-	out := make([]sample, n)
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	for range min(workers, n) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				out[i] = send(ctx, from)
-			}
-		}()
-	}
-	for i := range n {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
-	return out
-}
-
-// newID is the UTC timestamp plus a short hash, e.g. 20261028T153012Z-1a2b3c.
-func newID(t time.Time, o Options, nonce uint32) string {
-	h := sha256.New()
-	fmt.Fprintf(h, "%d|%s|%s|%d", t.UnixNano(), o.URL, o.Model, nonce)
-	return t.Format("20060102T150405Z") + "-" + hex.EncodeToString(h.Sum(nil))[:6]
 }

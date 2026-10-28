@@ -1,0 +1,40 @@
+# The pull request suite: the fixed cells a change must pass on the
+# reference box. The server must run with prefix caching off, otherwise a
+# long prompt comes from the cache and the cell measures nothing.
+# See docs/spec.md §10.
+schema: 1
+id: pr
+name: Pull request suite
+description: >-
+  The cells a pull request must pass: a short prompt and a long prompt,
+  each at three concurrency levels.
+reps: 3
+warmup: 1
+seed: 1234
+recall: true
+request_timeout_s: 3600
+cooldown_s: 5
+size_tolerance_percent: 2
+defaults:
+  requests: 0
+compare:
+  # A change of at most 2 % is noise, not a regression.
+  band: 0.02
+  # The repetitions of one arm must agree within 5 %.
+  steady: 0.95
+groups:
+  - name: 1k
+    kind: throughput
+    input_len: 1024
+    output_len: 512
+    concurrency: [1, 4, 8]
+    reps: 3
+    est_s: 60
+  - name: 16k
+    kind: throughput
+    input_len: 16384
+    output_len: 1024
+    concurrency: [1, 4, 8]
+    # The long group runs twice: it is the expensive one.
+    reps: 2
+    est_s: 300

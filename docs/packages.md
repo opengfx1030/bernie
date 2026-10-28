@@ -201,7 +201,12 @@ func (c *Client) Metrics(ctx) (map[string]float64, error)   // flattened Prometh
 // bench
 func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error)
 func Save(r *Result) (string, error); func List() ([]Result, error); func Get(id string) (*Result, error)
-func Compare(a, b *Result) (*Comparison, error)   // ErrWorkloadDiffers: the workloads differ
+// bench/suite
+func Load(data []byte) (*Suite, error)          // strict YAML: unknown keys are refused
+func List() ([]*Suite, error); func Get(id string) (*Suite, error)
+func (s *Suite) Digest() string                 // sha256 of the canonical suite
+func Run(ctx context.Context, s *Suite, o bench.Options, progress io.Writer) (*bench.Result, error)
+func Compare(a, b *bench.Result) (*Comparison, error)   // ErrWorkloadDiffers: the workloads differ
 ```
 
 ## app
@@ -226,6 +231,7 @@ func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error)
 func SetupPending(steps []setup.Step, only []string) []setup.Step
 func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) ([]setup.Step, error)
 func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Result, string, error) // ErrAllFailed, *SaveError
+func BenchSuite(ctx context.Context, name string, o bench.Options, progress io.Writer) (*bench.Result, string, error)
 func BenchList() ([]bench.Result, error)                                // never null
 func Stop(ctx context.Context, name string) (StopResult, error)
 func Onboarding(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) // the checklist

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/opengfx1030/bernie/internal/serving/bench"
+	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 )
 
 // ErrAllFailed means every measured request of a benchmark failed. Bench
@@ -34,6 +35,34 @@ func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Res
 	}
 	defer benchMu.Unlock()
 	r, err := bench.Run(ctx, o, progress)
+	if err != nil {
+		return nil, "", err
+	}
+	if r.Completed() == 0 {
+		return r, "", ErrAllFailed
+	}
+	path, err := bench.Save(r)
+	if err != nil {
+		return r, "", &SaveError{err}
+	}
+	return r, path, nil
+}
+
+// BenchSuite runs a named suite and saves the result under <state>/bench.
+// The suite decides the cells, the repetitions, the warm-up and the recall
+// gate; the options only point the run at a server. It returns the result
+// and the file it was saved to. A second concurrent call returns
+// ErrBenchBusy.
+func BenchSuite(ctx context.Context, name string, o bench.Options, progress io.Writer) (*bench.Result, string, error) {
+	if !benchMu.TryLock() {
+		return nil, "", ErrBenchBusy
+	}
+	defer benchMu.Unlock()
+	s, err := suite.Get(name)
+	if err != nil {
+		return nil, "", err
+	}
+	r, err := suite.Run(ctx, s, o, progress)
 	if err != nil {
 		return nil, "", err
 	}

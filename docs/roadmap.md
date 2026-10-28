@@ -30,6 +30,13 @@ Each item has a spec section and one test that proves it.
 
 ## Shipped
 
+- **Bench suites.** A suite is data: `bench/suites/*.yaml` holds the cells,
+  the repetitions and the thresholds of a run. The loader is strict, and
+  the digest of the suite pins the cells of a result. `bernie bench
+  suites` lists them, `bernie bench --suite pr` runs the fixed pull
+  request cells, and every cell keeps its group, its lens, its repetitions
+  and the spread of its metrics. Spec
+  [§10.2](spec.md#102-suites).
 - **ECC check.** The doctor check `gpu.ecc.<hip index>` reads the RAS
   counters of every card: `ok` when ECC is on and the card counted no
   memory error, `warn` when ECC is off on a card that has it or when the

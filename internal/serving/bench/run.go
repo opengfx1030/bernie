@@ -1,0 +1,194 @@
+package bench
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/opengfx1030/bernie/internal/serving/vllm"
+	"github.com/opengfx1030/bernie/internal/support/paths"
+)
+
+// serverMetrics reads the metrics of the server. It returns nil when the
+// server has no /metrics endpoint: the cross-check with the server is
+// optional.
+func serverMetrics(ctx context.Context, c *vllm.Client) map[string]float64 {
+	m, err := c.Metrics(ctx)
+	if err != nil {
+		return nil
+	}
+	return m
+}
+
+// runPool sends n requests with at most workers in flight and returns the
+// samples in request order. from is the start of the cell: every sample
+// keeps its times relative to it.
+func runPool(ctx context.Context, workers, n int, from time.Time, send func(context.Context, time.Time) sample) []sample {
+	out := make([]sample, n)
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for range min(workers, n) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				out[i] = send(ctx, from)
+			}
+		}()
+	}
+	for i := range n {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+	return out
+}
+
+// newID is the UTC timestamp plus a short hash, e.g. 20261028T153012Z-1a2b3c.
+func newID(t time.Time, o Options, nonce uint32) string {
+	h := sha256.New()
+	fmt.Fprintf(h, "%d|%s|%s|%d", t.UnixNano(), o.URL, o.Model, nonce)
+	return t.Format("20060102T150405Z") + "-" + hex.EncodeToString(h.Sum(nil))[:6]
+}
+
+// Run benchmarks the server. Empty URL resolves with DefaultURL, empty Model
+// to the first id of /v1/models. Progress lines go to progress (may be nil).
+// Run returns an error only when the benchmark cannot start or ctx ends;
+// failed requests are counted in the cells.
+func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
+	if progress == nil {
+		progress = io.Discard
+	}
+	o, err := Normalize(o)
+	if err != nil {
+		return nil, err
+	}
+	if o.URL == "" {
+		o.URL = DefaultURL()
+	}
+	client := vllm.New(o.URL)
+	o.URL = client.BaseURL()
+	if err := client.Health(ctx); err != nil && !errors.Is(err, vllm.ErrUnsupported) {
+		return nil, fmt.Errorf("server %s not ready: %w", o.URL, err)
+	}
+	if o.Model == "" {
+		ids, err := client.Models(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("list models: %w", err)
+		}
+		if len(ids) == 0 {
+			return nil, fmt.Errorf("server %s serves no models", o.URL)
+		}
+		o.Model = ids[0]
+	}
+
+	var nonce [4]byte
+	_, _ = rand.Read(nonce[:])
+	p := prompts{seed: o.Seed, nonce: binary.BigEndian.Uint32(nonce[:]), recall: o.Recall}
+	words, calibrated, err := calibrateCached(ctx, client, o.Model, p, o.InputLen)
+	if err != nil {
+		return nil, err
+	}
+	how := "calibrated with /tokenize"
+	if !calibrated {
+		how = "estimated, server has no /tokenize"
+	}
+	fmt.Fprintf(progress, "bench: %s model %s, prompt %d words for %d tokens (%s)\n", o.URL, o.Model, words, o.InputLen, how)
+
+	now := time.Now().UTC()
+	res := &Result{
+		ID:          newID(now, o, p.nonce),
+		Tag:         o.Tag,
+		URL:         o.URL,
+		Model:       o.Model,
+		Time:        now,
+		Options:     o,
+		Fingerprint: fingerprint(paths.State(), o.URL),
+		PromptWords: words,
+		Calibrated:  calibrated,
+		Workload: &Workload{
+			ProtocolID:   ProtocolID,
+			CorpusSHA256: corpusHash(),
+			InputLen:     o.InputLen,
+			OutputLen:    o.OutputLen,
+			Concurrency:  o.Concurrency,
+			Recall:       o.Recall,
+		},
+	}
+
+	maxC := 1
+	for _, c := range o.Concurrency {
+		maxC = max(maxC, c, o.Warmup)
+	}
+	hc := &http.Client{Transport: &http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
+		MaxIdleConns:        maxC,
+		MaxIdleConnsPerHost: maxC,
+		IdleConnTimeout:     90 * time.Second,
+	}}
+	defer hc.CloseIdleConnections()
+
+	var seq atomic.Int64
+	send := func(ctx context.Context, from time.Time) sample {
+		n := int(seq.Add(1))
+		prompt := p.build(n, words)
+		s := streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen, o.Recall, from)
+		if o.Recall {
+			s.expect = p.passKey(n)
+		}
+		return s
+	}
+
+	for _, c := range o.Concurrency {
+		n := cellPrompts(o, c)
+		warmFailed := 0
+		if o.Warmup > 0 {
+			fmt.Fprintf(progress, "bench: c=%d warmup %d request(s)\n", c, o.Warmup)
+			warm := runPool(ctx, o.Warmup, o.Warmup, time.Now(), send)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			for _, s := range warm {
+				if s.err != nil {
+					warmFailed++
+					if warmFailed == 1 {
+						fmt.Fprintf(progress, "bench: c=%d warmup failed: %v\n", c, s.err)
+					}
+				}
+			}
+		}
+		fmt.Fprintf(progress, "bench: c=%d running %d requests\n", c, n)
+		before := serverMetrics(ctx, client)
+		start := time.Now()
+		samples := runPool(ctx, c, n, start, send)
+		wall := time.Since(start)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		after := serverMetrics(ctx, client)
+		cell := aggregate(c, samples, wall)
+		cell.ServerSide = serverSide(before, after)
+		cell.WarmupFailed = warmFailed
+		fmt.Fprintf(progress, "bench: c=%d done in %.1fs: %d ok, %d failed, %.1f output tok/s\n",
+			c, cell.DurationS, cell.Completed, cell.Failed, cell.OutputTokS)
+		if o.Recall {
+			asked, passed := recallVerdict(samples)
+			cell.Recall = &Recall{Asked: asked, Passed: passed, Depth: recallDepth, Method: recallMethod(calibrated)}
+			fmt.Fprintf(progress, "bench: c=%d recall %d/%d passed (%s)\n", c, passed, asked, cell.Recall.Method)
+			if passed < asked {
+				fmt.Fprintf(progress, "bench: c=%d the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", c)
+			}
+		}
+		res.Cells = append(res.Cells, cell)
+	}
+	return res, nil
+}

@@ -1,0 +1,28 @@
+# The smoke suite: one short cell. It proves that the server answers and
+# that the bench works. It says nothing about speed. See docs/spec.md §10.
+schema: 1
+id: smoke
+name: Smoke suite
+description: >-
+  One short cell at one concurrency level. It checks that the server
+  answers; it does not measure a speed.
+reps: 1
+warmup: 1
+seed: 1234
+recall: false
+request_timeout_s: 600
+cooldown_s: 0
+size_tolerance_percent: 2
+defaults:
+  requests: 2
+compare:
+  band: 0.05
+  steady: 0.95
+groups:
+  - name: short
+    kind: throughput
+    input_len: 512
+    output_len: 128
+    concurrency: [1]
+    reps: 1
+    est_s: 10

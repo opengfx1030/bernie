@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/support/execx"
@@ -59,8 +58,7 @@ func (c Config) ResolveVenvInfo(flag string) VenvResolution {
 
 // conventionalVenvs returns the valid vLLM venvs in the short list of
 // conventional locations. A candidate needs bin/python and a Python that can
-// find the vllm module. The probes run in parallel: a Python with a large
-// site-packages directory takes seconds to start.
+// find the vllm module.
 func conventionalVenvs() []string {
 	home, _ := os.UserHomeDir()
 	patterns := []string{filepath.Join(paths.Data(), "venv")}
@@ -70,7 +68,7 @@ func conventionalVenvs() []string {
 			filepath.Join(home, "Apps", "vllm", "venv*"))
 	}
 	seen := map[string]bool{}
-	var cands []string
+	var out []string
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(pattern)
 		for _, dir := range matches {
@@ -79,29 +77,10 @@ func conventionalVenvs() []string {
 			if real, err := filepath.EvalSymlinks(dir); err == nil {
 				key = real
 			}
-			if seen[key] || !venvHasPython(dir) {
+			if seen[key] || !venvHasPython(dir) || !venvCanImportVLLM(dir) {
 				continue
 			}
 			seen[key] = true
-			cands = append(cands, dir)
-		}
-	}
-	ok := make([]bool, len(cands))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 4)
-	for i, dir := range cands {
-		wg.Add(1)
-		go func(i int, dir string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			ok[i] = venvCanImportVLLM(dir)
-		}(i, dir)
-	}
-	wg.Wait()
-	var out []string
-	for i, dir := range cands {
-		if ok[i] {
 			out = append(out, dir)
 		}
 	}
@@ -119,6 +98,6 @@ func venvHasPython(venv string) bool {
 var venvCanImportVLLM = func(venv string) bool {
 	py := filepath.Join(venv, "bin", "python")
 	const script = `import importlib.util; raise SystemExit(0 if importlib.util.find_spec("vllm") else 1)`
-	res, err := execx.Run(context.Background(), 10*time.Second, py, "-I", "-c", script)
+	res, err := execx.Run(context.Background(), 3*time.Second, py, "-I", "-c", script)
 	return err == nil && res.OK()
 }
