@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,47 +75,6 @@ func FindTool(root, name string) string {
 	return installTool(root, FindInstalls(root), name)
 }
 
-// FindInstalls lists ROCm trees: /opt/rocm*, /opt/rocm*/core-* (TheRock
-// layout) and a distro install in /usr. Trees reached through several
-// symlinks are reported once, by their resolved path.
-func FindInstalls(root string) []Install {
-	var cands []string
-	for _, pat := range []string{"opt/rocm*", "opt/rocm*/core-*"} {
-		m, _ := filepath.Glob(filepath.Join(root, pat))
-		cands = append(cands, m...)
-	}
-	seen := map[string]bool{}
-	out := []Install{}
-	for _, c := range cands {
-		rel := "/" + strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(c, filepath.Clean(root))), "/")
-		real := resolveIn(root, rel)
-		dir := filepath.Join(root, real)
-		if seen[real] || !isDir(dir) || !isROCmTree(dir) {
-			continue
-		}
-		seen[real] = true
-		kind := "opt"
-		if strings.HasPrefix(filepath.Base(real), "core-") {
-			kind = "therock"
-		}
-		out = append(out, Install{Root: real, Version: treeVersion(dir), Kind: kind})
-	}
-	if v, ok := distroInstall(root); ok {
-		out = append(out, Install{Root: "/usr", Version: v, Kind: "distro"})
-	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Root < out[j].Root })
-	return out
-}
-
-func isROCmTree(dir string) bool {
-	for _, marker := range []string{".info/version", "bin/rocminfo", "bin/hipcc", "lib/libamdhip64.so"} {
-		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
-			return true
-		}
-	}
-	return false
-}
-
 var versionDirRe = regexp.MustCompile(`(\d+\.\d+(?:\.\d+)?)$`)
 
 // treeVersion reads .info/version, then rocm_version.h, then the dir name.
@@ -170,19 +128,6 @@ func distroInstall(root string) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-// installTool finds a tool in the install bin dirs (newest version first).
-func installTool(root string, installs []Install, name string) string {
-	sorted := append([]Install(nil), installs...)
-	sort.SliceStable(sorted, func(i, j int) bool { return CompareVersions(sorted[i].Version, sorted[j].Version) > 0 })
-	for _, in := range sorted {
-		p := filepath.Join(root, in.Root, "bin", name)
-		if isFile(p) {
-			return p
-		}
-	}
-	return ""
 }
 
 var hipVersionRe = regexp.MustCompile(`HIP version:\s*([0-9][0-9.]*)`)

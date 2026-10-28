@@ -7,6 +7,9 @@ type Install struct {
 	Root    string `json:"root"`
 	Version string `json:"version"`
 	Kind    string `json:"kind"` // opt | therock | distro | wheel
+	// Nested holds the trees inside this install (a TheRock tree under a
+	// package install). They are part of the same install, not extra ones.
+	Nested []Install `json:"nested,omitempty"`
 }
 
 // Report is the host-level ROCm probe.
