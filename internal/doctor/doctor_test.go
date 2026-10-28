@@ -1,0 +1,183 @@
+package doctor
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/opengfx1030/rdnactl/internal/fixture"
+	"github.com/opengfx1030/rdnactl/internal/gpu"
+	"github.com/opengfx1030/rdnactl/internal/host"
+	"github.com/opengfx1030/rdnactl/internal/rocm"
+	"github.com/opengfx1030/rdnactl/internal/tuning"
+)
+
+func find(t *testing.T, checks []Check, id string) Check {
+	t.Helper()
+	for _, c := range checks {
+		if c.ID == id {
+			return c
+		}
+	}
+	t.Fatalf("check %s missing; have %v", id, ids(checks))
+	return Check{}
+}
+
+func ids(checks []Check) []string {
+	var s []string
+	for _, c := range checks {
+		s = append(s, c.ID)
+	}
+	return s
+}
+
+func v620s(n int, capW float64) []gpu.GPU {
+	var g []gpu.GPU
+	for i := range n {
+		g = append(g, gpu.GPU{HIPIndex: i, GFX: "gfx1030", DeviceID: "0x73a1", PowerCapW: capW, Link: gpu.Link{Gen: 4, Width: 16}})
+	}
+	return g
+}
+
+// base is a healthy par1-like host; cases mutate it.
+func base() inputs {
+	return inputs{
+		root: "/",
+		host: host.Info{
+			OS: host.OSRelease{ID: "fedora", VersionID: "43", Pretty: "Fedora Linux 43"}, PkgManager: "dnf",
+			Kernel: "7.1.7", Cmdline: "ro iommu=pt", RAMBytes: 512 * gib, ShmBytes: 64 * gib, SELinux: "enforcing",
+			User:    host.User{Name: "op", Groups: []string{"op", "video", "render"}},
+			Engines: []host.Engine{{Name: "docker", Version: "29.8.1", Usable: true, Compose: "docker compose"}},
+		},
+		gpus: v620s(4, 180),
+		rocm: rocm.Report{
+			Installs: []rocm.Install{{Root: "/opt/rocm-7.14.0", Version: "7.14.0", Kind: "opt"}},
+			Tools:    map[string]string{"rocminfo": "/usr/bin/rocminfo", "hipcc": "/usr/bin/hipcc", "amd-smi": "/usr/bin/amd-smi"},
+			Agents:   []string{"gfx1030", "gfx1030", "gfx1030", "gfx1030"},
+		},
+		rocblas: "/opt/rocm/lib/librocblas.so.5",
+		libSHA:  "f30bb442e9b5a3c479f6aa60c4d0d0740f67db2957fc0a5c416253e1bf320262",
+		match:   &tuning.Profile{Name: "rocm7.14-rocblas5.5", ROCBLAS: "5.5"},
+		hfCache: "/data/hf", hfFree: 500 * gib,
+		amdgpu:  true,
+		devices: devices{kfdExists: true, kfdRW: true, render: []string{"/dev/dri/renderD128"}, renderRW: true},
+	}
+}
+
+func TestEvaluateStatuses(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*inputs)
+		id     string
+		status Status
+		detail string // substring of detail or fix
+	}{
+		{"healthy host", func(*inputs) {}, "gpu.count", OK, "4× gfx1030"},
+		{"two installs warn", func(in *inputs) {
+			in.rocm.Installs = append(in.rocm.Installs, rocm.Install{Root: "/opt/rocm-7.2.0", Version: "7.2.0", Kind: "opt"})
+		}, "rocm.installs", Warn, "2 installs"},
+		{"no install, no alternative", func(in *inputs) {
+			in.rocm.Installs = nil
+			in.host.Engines = nil
+		}, "rocm.installs", Fail, "sudo dnf install -y rocm rocm-hip-runtime-devel"},
+		{"no install but container works", func(in *inputs) { in.rocm.Installs = nil }, "rocm.installs", Warn, "container mode"},
+		{"RCCL deadlock range multi-GPU", func(in *inputs) {
+			in.rocm.Installs[0].Version = "7.2.1"
+		}, "rocm.version", Warn, "deadlock"},
+		{"deadlock range from venv torch", func(in *inputs) {
+			in.venvRep.Torch = "2.10.0+rocm7.13.0"
+		}, "rocm.version", Warn, "venv torch ROCm 7.13.0"},
+		{"7.2.0 is safe", func(in *inputs) { in.rocm.Installs[0].Version = "7.2.0" }, "rocm.version", OK, ""},
+		{"rocminfo partial", func(in *inputs) { in.rocm.Agents = in.rocm.Agents[:2] }, "rocm.rocminfo", Warn, "2 of 4"},
+		{"rocminfo missing skip", func(in *inputs) { delete(in.rocm.Tools, "rocminfo") }, "rocm.rocminfo", Skip, "sudo dnf install -y rocminfo"},
+		{"groups missing but world-rw devices", func(in *inputs) { in.host.User.Groups = []string{"op", "video"} }, "gpu.groups", Warn, "render"},
+		{"groups missing and kfd denied", func(in *inputs) {
+			in.host.User.Groups = []string{"op"}
+			in.devices.kfdRW = false
+		}, "gpu.groups", Fail, "usermod -aG video,render"},
+		{"no kfd", func(in *inputs) { in.devices = devices{} }, "gpu.kfd", Fail, "modprobe amdgpu"},
+		{"gfx1031 override advice", func(in *inputs) { in.gpus[0].GFX = "gfx1031" }, "gpu.arch.gfx1031", Warn, "HSA_OVERRIDE_GFX_VERSION=10.3.0"},
+		{"igpu mixed", func(in *inputs) { in.gpus = append(in.gpus, gpu.GPU{HIPIndex: 4, GFX: "gfx1036"}) }, "gpu.igpu", Warn, "HIP_VISIBLE_DEVICES=0,1,2,3"},
+		{"iommu=pt missing on apt", func(in *inputs) {
+			in.host.Cmdline = "ro quiet"
+			in.host.PkgManager = "apt"
+		}, "kernel.iommu", Warn, "update-grub"},
+		{"iommu=pt missing on dnf", func(in *inputs) { in.host.Cmdline = "ro quiet" }, "kernel.iommu", Warn, `grubby --update-kernel=ALL --args="iommu=pt"`},
+		{"slow link", func(in *inputs) { in.gpus[1].Link = gpu.Link{Gen: 3, Width: 4} }, "kernel.pcie", Warn, "GPU 1 gen3 x4"},
+		{"no engine is skip, not fail", func(in *inputs) { in.host.Engines = nil }, "container.engine", Skip, "host mode works"},
+		{"daemon denied", func(in *inputs) { in.host.Engines[0].Usable = false }, "container.daemon", Warn, "usermod -aG docker"},
+		{"podman without compose", func(in *inputs) {
+			in.host.Engines = []host.Engine{{Name: "podman", Usable: true, Rootless: true}}
+		}, "container.compose", Warn, "podman-compose"},
+		{"small shm", func(in *inputs) { in.host.ShmBytes = 2 * gib }, "resources.shm", Warn, "2.0 GiB"},
+		{"tiny disk", func(in *inputs) { in.hfFree = 5 * gib }, "resources.disk", Fail, "5 GiB"},
+		{"tunableop match", func(*inputs) {}, "tuning.tunableop", OK, "rocm7.14-rocblas5.5"},
+		{"tunableop no match", func(in *inputs) { in.match = nil }, "tuning.tunableop", Warn, "no registered profile"},
+		{"V620 cap above advice", func(in *inputs) { in.gpus[2].PowerCapW = 250 }, "tuning.power", Warn, "tune power set 180 --gpu 2"},
+		{"no venv skips python", func(*inputs) {}, "python.venv", Skip, "--venv"},
+		{"venv without vllm", func(in *inputs) {
+			in.venv = "/v"
+			in.venvRep = rocm.VenvReport{Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", DeviceCount: 4, Err: "import vllm: No module named 'vllm'"}
+		}, "python.vllm", Fail, "No module named"},
+		{"venv sees fewer GPUs", func(in *inputs) {
+			in.venv = "/v"
+			in.venvRep = rocm.VenvReport{Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", DeviceCount: 2, VLLM: "0.31.0", RDNAOps: 68}
+		}, "python.gpus", Warn, "torch sees 2, KFD has 4"},
+		{"CUDA torch", func(in *inputs) {
+			in.venv = "/v"
+			in.venvRep = rocm.VenvReport{Python: "3.12.13", Torch: "2.12.0+cu128", DeviceCount: 0}
+		}, "python.torch_hip", Fail, "not a ROCm build"},
+		{"upstream vllm without fork ops", func(in *inputs) {
+			in.venv = "/v"
+			in.venvRep = rocm.VenvReport{Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14", DeviceCount: 4, VLLM: "0.31.0", RDNAOps: 0}
+		}, "python.rdna_ops", Warn, "need > 10"},
+	}
+	for _, c := range cases {
+		in := base()
+		c.mutate(&in)
+		got := find(t, evaluate(in), c.id)
+		if got.Status != c.status || !strings.Contains(got.Detail+" | "+got.Fix, c.detail) {
+			t.Errorf("%s: %s = %s %q fix=%q, want %s containing %q", c.name, c.id, got.Status, got.Detail, got.Fix, c.status, c.detail)
+		}
+	}
+}
+
+func TestHealthyHostHasNoFailures(t *testing.T) {
+	r := newReport(evaluate(base()))
+	if r.Failed() {
+		for _, c := range r.Checks {
+			if c.Status == Fail {
+				t.Errorf("unexpected fail: %+v", c)
+			}
+		}
+	}
+	total := 0
+	for _, n := range r.Summary {
+		total += n
+	}
+	if total != len(r.Checks) {
+		t.Errorf("summary %v does not add up to %d checks", r.Summary, len(r.Checks))
+	}
+}
+
+func TestRunFixtureCategories(t *testing.T) {
+	root := fixture.Root(t, "par1-cs25")
+	r := Run(context.Background(), Options{Root: root, Categories: []string{"gpu", "kernel"}})
+	for _, c := range r.Checks {
+		if c.Category != "gpu" && c.Category != "kernel" {
+			t.Errorf("category filter leaked %s", c.ID)
+		}
+	}
+	if c := find(t, r.Checks, "gpu.count"); c.Status != OK || !strings.Contains(c.Detail, "2× gfx1100, 8× gfx1030") {
+		t.Errorf("gpu.count = %+v", c)
+	}
+	if c := find(t, r.Checks, "kernel.amdgpu"); c.Status != OK {
+		t.Errorf("kernel.amdgpu = %+v", c)
+	}
+	if c := find(t, r.Checks, "kernel.iommu"); c.Status != OK {
+		t.Errorf("kernel.iommu = %+v", c)
+	}
+	if c := find(t, r.Checks, "kernel.pcie"); c.Status != OK || c.Detail != "10× gen4 x16" {
+		t.Errorf("kernel.pcie = %+v", c)
+	}
+}
