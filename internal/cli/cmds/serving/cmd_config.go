@@ -1,7 +1,8 @@
-package cli
+package serving
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"text/tabwriter"
 
@@ -9,11 +10,11 @@ import (
 )
 
 func init() {
-	cmd := &Command{Name: "config", Summary: "Show or change user defaults (config.yaml)"}
+	cmd := &cli.Command{Name: "config", Summary: "Show or change user defaults (config.yaml)"}
 
-	show := &Command{Name: "show", Summary: "Show the config file"}
-	show.Run = func(c *Context, args []string) error {
-		if _, err := Parse(c.Flags(show), args); err != nil {
+	show := &cli.Command{Name: "show", Summary: "Show the config file"}
+	show.Run = func(c *cli.Context, args []string) error {
+		if _, err := cli.Parse(c.Flags(show), args); err != nil {
 			return err
 		}
 		cfg, err := config.Load()
@@ -34,22 +35,22 @@ func init() {
 		})
 	}
 
-	set := &Command{Name: "set", Summary: "Set one key (venv, mode, engine, hf_home, set)",
+	set := &cli.Command{Name: "set", Summary: "Set one key (venv, mode, engine, hf_home, set)",
 		Usage: "<KEY> <VALUE>   (set: KEY=VALUE adds or replaces an override, -KEY removes it, \"\" clears)"}
-	set.Run = func(c *Context, args []string) error {
-		pos, err := Parse(c.Flags(set), args)
+	set.Run = func(c *cli.Context, args []string) error {
+		pos, err := cli.Parse(c.Flags(set), args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 2 {
-			return Usagef("config set needs KEY and VALUE")
+			return cli.Usagef("config set needs KEY and VALUE")
 		}
 		cfg, err := config.Load()
 		if err != nil {
 			return err
 		}
 		if err := cfg.SetKey(pos[0], pos[1]); err != nil {
-			return Usagef("%v", err)
+			return cli.Usagef("%v", err)
 		}
 		if err := config.Save(cfg); err != nil {
 			return err
@@ -62,6 +63,6 @@ func init() {
 		})
 	}
 
-	cmd.Subs = []*Command{show, set}
-	Register(cmd)
+	cmd.Subs = []*cli.Command{show, set}
+	cli.Register(cmd)
 }

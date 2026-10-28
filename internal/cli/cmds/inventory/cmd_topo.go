@@ -1,7 +1,8 @@
-package cli
+package inventory
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"strings"
 	"text/tabwriter"
@@ -12,12 +13,12 @@ import (
 )
 
 func init() {
-	cmd := &Command{Name: "topo", Summary: "PCIe tree, P2P matrix and link classes", Usage: "[--bandwidth] [--venv DIR]"}
-	cmd.Run = func(c *Context, args []string) error {
+	cmd := &cli.Command{Name: "topo", Summary: "PCIe tree, P2P matrix and link classes", Usage: "[--bandwidth] [--venv DIR]"}
+	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
 		bw := fs.Bool("bandwidth", false, "measure GPU-to-GPU copy bandwidth (runs GPU copies)")
 		venvFlag := fs.String("venv", "", "venv for the torch peer-copy probe (when rocm-bandwidth-test is missing)")
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		gpus, err := gpu.List("/")
@@ -40,14 +41,14 @@ func init() {
 		}
 		return c.Emit(t, func(w io.Writer) { printTopo(w, t) })
 	}
-	Register(cmd)
+	cli.Register(cmd)
 }
 
 func printTopo(w io.Writer, t topo.Topology) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "IDX\tPCI\tROOT\tROOT PORT\tSWITCH")
 	for _, n := range t.Nodes {
-		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\n", n.HIPIndex, n.PCI, n.Root, orDash(n.RootPort), orDash(n.Switch))
+		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\n", n.HIPIndex, n.PCI, n.Root, cli.OrDash(n.RootPort), cli.OrDash(n.Switch))
 	}
 	tw.Flush()
 

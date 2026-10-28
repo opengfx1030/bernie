@@ -1,7 +1,8 @@
-package cli
+package dashcmd
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"os"
 
@@ -9,21 +10,21 @@ import (
 )
 
 func init() {
-	cmd := &Command{
+	cmd := &cli.Command{
 		Name:    "dash",
 		Summary: "Start the web dashboard",
 		Usage:   "[--listen ADDR] [--token T]",
 	}
-	cmd.Run = func(c *Context, args []string) error {
+	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
 		listen := fs.String("listen", dashboard.DefaultListen, "listen address; a non-loopback address requires the token")
 		token := fs.String("token", "", "access token (default $RDNACTL_DASH_TOKEN; random when the address is not loopback)")
-		pos, err := Parse(fs, args)
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) > 0 {
-			return Usagef("unexpected argument %q", pos[0])
+			return cli.Usagef("unexpected argument %q", pos[0])
 		}
 		if *token == "" {
 			*token = os.Getenv("RDNACTL_DASH_TOKEN")
@@ -46,5 +47,5 @@ func init() {
 			},
 		})
 	}
-	Register(cmd)
+	cli.Register(cmd)
 }

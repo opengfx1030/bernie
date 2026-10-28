@@ -1,7 +1,8 @@
-package cli
+package health
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"strings"
 	"text/tabwriter"
@@ -11,11 +12,11 @@ import (
 )
 
 func init() {
-	cmd := &Command{Name: "status", Summary: "Overview of this host and the next command to type", Usage: "[--venv DIR]"}
-	cmd.Run = func(c *Context, args []string) error {
+	cmd := &cli.Command{Name: "status", Summary: "Overview of this host and the next command to type", Usage: "[--venv DIR]"}
+	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
 		venv := fs.String("venv", "", "host-mode venv (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		s, err := flow.Snapshot(c.Ctx, *venv)
@@ -24,12 +25,12 @@ func init() {
 		}
 		return c.Emit(s, func(w io.Writer) { printStatus(w, s) })
 	}
-	Register(cmd)
+	cli.Register(cmd)
 }
 
 func printStatus(w io.Writer, s *flow.Summary) {
 	h := s.Host
-	fmt.Fprintf(w, "host    %s, %s, %d GiB RAM\n", orDash(h.OS.Pretty), orDash(h.Kernel), h.RAMBytes>>30)
+	fmt.Fprintf(w, "host    %s, %s, %d GiB RAM\n", cli.OrDash(h.OS.Pretty), cli.OrDash(h.Kernel), h.RAMBytes>>30)
 	if len(s.GPUs) == 0 {
 		fmt.Fprintln(w, "gpus    none found")
 	} else {

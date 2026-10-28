@@ -39,8 +39,8 @@ Requirements: Go 1.23 or later. No other toolchain. No CGO.
 2. **Layers.** Follow the import graph in `docs/architecture.md` §1. Domain
    packages return structs and never print. `internal/cli` and `dashboard`
    only parse input and format output.
-3. **One file per command.** Add a command as `internal/cli/cmd_<name>.go`
-   with `cli.Register` in `init()`. Do not edit `cli.go` for a new command.
+3. **One file per command.** Add a command as `internal/cli/cmds/<family>/cmd_<name>.go`
+   with `cli.Register` in `init()`. Do not edit `cli.go` for a new command (a new family package is blank-imported in `cmd/rdnactl/main.go`).
 4. **`--json` is an API.** Every command supports it. Never put progress or
    logs on stdout. Keep JSON field names stable (snake_case).
 5. **Read-only by default.** Inspection commands never change the host.

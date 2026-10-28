@@ -1,7 +1,8 @@
-package cli
+package benchcmd
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"strconv"
 	"strings"
@@ -11,16 +12,16 @@ import (
 )
 
 func init() {
-	cmd := &Command{
+	cmd := &cli.Command{
 		Name:    "bench",
 		Summary: "Benchmark an OpenAI-compatible server and save the result",
 		Usage:   "[--url U] [--model M] [--input-len N] [--output-len N] [--concurrency 1,8] [--num-prompts N] [--warmup N] [--seed N] [--tag T]",
 	}
-	cmd.Run = func(c *Context, args []string) error { return runBench(c, cmd, args) }
+	cmd.Run = func(c *cli.Context, args []string) error { return runBench(c, cmd, args) }
 
-	list := &Command{Name: "list", Summary: "List saved bench results"}
-	list.Run = func(c *Context, args []string) error {
-		if _, err := Parse(c.Flags(list), args); err != nil {
+	list := &cli.Command{Name: "list", Summary: "List saved bench results"}
+	list.Run = func(c *cli.Context, args []string) error {
+		if _, err := cli.Parse(c.Flags(list), args); err != nil {
 			return err
 		}
 		rs, err := bench.List()
@@ -33,14 +34,14 @@ func init() {
 		return c.Emit(rs, func(w io.Writer) { printBenchList(w, rs) })
 	}
 
-	show := &Command{Name: "show", Summary: "Show a saved bench result", Usage: "<id>"}
-	show.Run = func(c *Context, args []string) error {
-		pos, err := Parse(c.Flags(show), args)
+	show := &cli.Command{Name: "show", Summary: "Show a saved bench result", Usage: "<id>"}
+	show.Run = func(c *cli.Context, args []string) error {
+		pos, err := cli.Parse(c.Flags(show), args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
-			return Usagef("bench show needs exactly one result id")
+			return cli.Usagef("bench show needs exactly one result id")
 		}
 		r, err := bench.Get(pos[0])
 		if err != nil {
@@ -49,11 +50,11 @@ func init() {
 		return c.Emit(r, func(w io.Writer) { printBenchResult(w, r) })
 	}
 
-	cmd.Subs = []*Command{list, show}
-	Register(cmd)
+	cmd.Subs = []*cli.Command{list, show}
+	cli.Register(cmd)
 }
 
-func runBench(c *Context, cmd *Command, args []string) error {
+func runBench(c *cli.Context, cmd *cli.Command, args []string) error {
 	fs := c.Flags(cmd)
 	var o bench.Options
 	var conc string
@@ -66,25 +67,25 @@ func runBench(c *Context, cmd *Command, args []string) error {
 	fs.IntVar(&o.Warmup, "warmup", bench.DefaultWarmup, "requests sent and discarded before each cell")
 	fs.Int64Var(&o.Seed, "seed", 0, "prompt seed")
 	fs.StringVar(&o.Tag, "tag", "", "free label stored with the result")
-	pos, err := Parse(fs, args)
+	pos, err := cli.Parse(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(pos) > 0 {
-		return Usagef("unexpected argument %q (subcommands: list, show)", pos[0])
+		return cli.Usagef("unexpected argument %q (subcommands: list, show)", pos[0])
 	}
 	for _, f := range strings.Split(conc, ",") {
 		n, err := strconv.Atoi(strings.TrimSpace(f))
 		if err != nil || n < 1 {
-			return Usagef("--concurrency: %q is not a positive integer", f)
+			return cli.Usagef("--concurrency: %q is not a positive integer", f)
 		}
 		o.Concurrency = append(o.Concurrency, n)
 	}
 	if o.InputLen < 1 || o.OutputLen < 1 {
-		return Usagef("--input-len and --output-len must be positive")
+		return cli.Usagef("--input-len and --output-len must be positive")
 	}
 	if o.NumPrompts < 0 || o.Warmup < 0 {
-		return Usagef("--num-prompts and --warmup must not be negative")
+		return cli.Usagef("--num-prompts and --warmup must not be negative")
 	}
 
 	r, err := bench.Run(c.Ctx, o, c.Err)

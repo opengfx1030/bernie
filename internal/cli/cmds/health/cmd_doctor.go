@@ -1,9 +1,10 @@
-package cli
+package health
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,29 +21,29 @@ import (
 )
 
 func init() {
-	cmd := &Command{Name: "doctor", Summary: "Run all host checks (exit 3 if one fails)", Usage: "[--category C]... [--venv DIR] | --log FILE|- | --run NAME"}
-	cmd.Run = func(c *Context, args []string) error {
+	cmd := &cli.Command{Name: "doctor", Summary: "Run all host checks (exit 3 if one fails)", Usage: "[--category C]... [--venv DIR] | --log FILE|- | --run NAME"}
+	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
-		var cats MultiFlag
+		var cats cli.MultiFlag
 		fs.Var(&cats, "category", "limit to a category: "+strings.Join(doctor.Categories, ", ")+" (repeatable)")
 		venvFlag := fs.String("venv", "", "venv for the python checks (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
 		logFlag := fs.String("log", "", "match a vLLM log file against the known-failure catalog instead of running host checks (- reads stdin)")
 		runFlag := fs.String("run", "", "like --log, for the log of the run NAME")
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		if *logFlag != "" || *runFlag != "" {
 			if *logFlag != "" && *runFlag != "" {
-				return Usagef("--log and --run are mutually exclusive")
+				return cli.Usagef("--log and --run are mutually exclusive")
 			}
 			if len(cats) > 0 || *venvFlag != "" {
-				return Usagef("--category and --venv apply to host checks, not to --log or --run")
+				return cli.Usagef("--category and --venv apply to host checks, not to --log or --run")
 			}
 			return doctorLog(c, *logFlag, *runFlag)
 		}
 		for _, cat := range cats {
 			if !slices.Contains(doctor.Categories, cat) {
-				return Usagef("unknown category %q (have %s)", cat, strings.Join(doctor.Categories, ", "))
+				return cli.Usagef("unknown category %q (have %s)", cat, strings.Join(doctor.Categories, ", "))
 			}
 		}
 		cfg, err := config.Load()
@@ -54,11 +55,11 @@ func init() {
 			return err
 		}
 		if r.Failed() {
-			return ChecksFailed("%d checks failed", r.Summary[doctor.Fail])
+			return cli.ChecksFailed("%d checks failed", r.Summary[doctor.Fail])
 		}
 		return nil
 	}
-	Register(cmd)
+	cli.Register(cmd)
 }
 
 var statusMark = map[doctor.Status]string{doctor.OK: "ok  ", doctor.Warn: "WARN", doctor.Fail: "FAIL", doctor.Skip: "skip"}
@@ -98,7 +99,7 @@ type logReport struct {
 
 // doctorLog scans one log (a file, stdin or a run's log) and prints the
 // matched rules. It fails with exit code 3 when any rule matches.
-func doctorLog(c *Context, file, run string) error {
+func doctorLog(c *cli.Context, file, run string) error {
 	rules, err := logdoc.Load()
 	if err != nil {
 		return err
@@ -131,7 +132,7 @@ func doctorLog(c *Context, file, run string) error {
 		return err
 	}
 	if len(matches) > 0 {
-		return ChecksFailed("%d known failure(s) in %s", len(matches), src)
+		return cli.ChecksFailed("%d known failure(s) in %s", len(matches), src)
 	}
 	return nil
 }
@@ -139,7 +140,7 @@ func doctorLog(c *Context, file, run string) error {
 // scanRunLog scans the log of a run. A host run's log is the file named by the
 // "log" field of run.json (serve.log in the run directory when the field is
 // empty or the file is gone). A container run's log comes from the engine.
-func scanRunLog(c *Context, rules []logdoc.Rule, name string) ([]logdoc.Match, error) {
+func scanRunLog(c *cli.Context, rules []logdoc.Rule, name string) ([]logdoc.Match, error) {
 	dir := filepath.Join(paths.State(), "runs", name)
 	b, err := os.ReadFile(filepath.Join(dir, "run.json"))
 	if err != nil {

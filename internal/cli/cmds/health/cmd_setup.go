@@ -1,9 +1,10 @@
-package cli
+package health
 
 import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"os"
 	"slices"
@@ -31,7 +32,7 @@ func addSetupFlags(fs *flag.FlagSet) setupFlags {
 }
 
 // buildPlan probes the host and returns the setup steps.
-func buildPlan(c *Context, f setupFlags) ([]setup.Step, error) {
+func buildPlan(c *cli.Context, f setupFlags) ([]setup.Step, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
@@ -41,7 +42,7 @@ func buildPlan(c *Context, f setupFlags) ([]setup.Step, error) {
 		mode = cfg.Mode
 	}
 	if mode != "" && mode != "host" && mode != "container" {
-		return nil, Usagef("--mode must be host or container, not %q", mode)
+		return nil, cli.Usagef("--mode must be host or container, not %q", mode)
 	}
 	h, err := host.Probe(c.Ctx, "/")
 	if err != nil {
@@ -60,13 +61,13 @@ func buildPlan(c *Context, f setupFlags) ([]setup.Step, error) {
 }
 
 func init() {
-	cmd := &Command{Name: "setup", Summary: "Install plan for this host and non-root apply"}
+	cmd := &cli.Command{Name: "setup", Summary: "Install plan for this host and non-root apply"}
 
-	plan := &Command{Name: "plan", Summary: "Ordered install steps for this host", Usage: "[--mode M] [--venv DIR] [--image I] [--model REPO]"}
-	plan.Run = func(c *Context, args []string) error {
+	plan := &cli.Command{Name: "plan", Summary: "Ordered install steps for this host", Usage: "[--mode M] [--venv DIR] [--image I] [--model REPO]"}
+	plan.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(plan)
 		f := addSetupFlags(fs)
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		steps, err := buildPlan(c, f)
@@ -76,14 +77,14 @@ func init() {
 		return c.Emit(steps, func(w io.Writer) { printSteps(w, steps) })
 	}
 
-	apply := &Command{Name: "apply", Summary: "Run the steps that do not need root; print the root steps", Usage: "[--mode M] [--step ID]... [--yes]"}
-	apply.Run = func(c *Context, args []string) error {
+	apply := &cli.Command{Name: "apply", Summary: "Run the steps that do not need root; print the root steps", Usage: "[--mode M] [--step ID]... [--yes]"}
+	apply.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(apply)
 		f := addSetupFlags(fs)
-		var only MultiFlag
+		var only cli.MultiFlag
 		fs.Var(&only, "step", "run only this step (repeatable)")
 		yes := fs.Bool("yes", false, "do not ask for confirmation")
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		steps, err := buildPlan(c, f)
@@ -109,8 +110,8 @@ func init() {
 		return c.Emit(after, func(w io.Writer) { printSteps(w, after) })
 	}
 
-	cmd.Subs = []*Command{plan, apply}
-	Register(cmd)
+	cmd.Subs = []*cli.Command{plan, apply}
+	cli.Register(cmd)
 }
 
 // pending lists the selected non-root steps that are not done.
