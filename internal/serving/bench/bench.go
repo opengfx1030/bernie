@@ -27,6 +27,9 @@ const (
 	DefaultOutputLen = 512
 	DefaultWarmup    = 1
 	FallbackURL      = "http://127.0.0.1:8000"
+	// ProtocolID names the shape of a benchmark: its prompt, its request
+	// and its metrics. It changes when the measurement changes.
+	ProtocolID = "bernie-bench-1"
 )
 
 // Options are the bench flags. Zero values take the spec defaults in Run,
@@ -43,6 +46,9 @@ type Options struct {
 	// max(4, 2 × concurrency) for each cell.
 	NumPrompts int   `json:"num_prompts"`
 	Seed       int64 `json:"seed"`
+	// Recall turns on the pass key check: every prompt hides a short
+	// random fact and the reply must contain it.
+	Recall bool `json:"recall"`
 }
 
 // Cell is the result for one concurrency level. Latencies are milliseconds.
@@ -68,8 +74,28 @@ type Cell struct {
 	MeanOutputTokens float64 `json:"mean_output_tokens"`
 	// TokensPerChunk is completion tokens per streamed chunk; above 1 with
 	// speculative decoding (MTP).
-	TokensPerChunk float64  `json:"tokens_per_chunk"`
-	Errors         []string `json:"errors,omitempty"` // distinct error samples
+	TokensPerChunk float64 `json:"tokens_per_chunk"`
+	// Recall is the pass key check of the cell. It is nil when the check
+	// did not run.
+	Recall *Recall  `json:"recall,omitempty"`
+	Errors []string `json:"errors,omitempty"` // distinct error samples
+}
+
+// Workload says what a benchmark asked the server to do. Two results with
+// the same workload can be compared; results with different workloads
+// cannot.
+type Workload struct {
+	// ProtocolID names the shape of the measurement.
+	ProtocolID string `json:"protocol_id"`
+	// CorpusSHA256 is the hash of the word list the prompts are built from.
+	CorpusSHA256 string `json:"corpus_sha256"`
+	// InputLen and OutputLen are the prompt and output token counts.
+	InputLen  int `json:"input_len"`
+	OutputLen int `json:"output_len"`
+	// Concurrency are the levels of the cells.
+	Concurrency []int `json:"concurrency"`
+	// Recall tells whether the pass key check ran.
+	Recall bool `json:"recall"`
 }
 
 // Result is one saved benchmark.
@@ -83,9 +109,12 @@ type Result struct {
 	Fingerprint map[string]string `json:"fingerprint"`
 	// PromptWords is the corpus word count per prompt; Calibrated tells
 	// whether /tokenize set it (else it is an estimate).
-	PromptWords int    `json:"prompt_words"`
-	Calibrated  bool   `json:"calibrated"`
-	Cells       []Cell `json:"cells"`
+	PromptWords int  `json:"prompt_words"`
+	Calibrated  bool `json:"calibrated"`
+	// Workload is what the benchmark asked for. It is nil in results
+	// saved before the field existed.
+	Workload *Workload `json:"workload,omitempty"`
+	Cells    []Cell    `json:"cells"`
 }
 
 // Completed is the number of successful measured requests over all cells.
@@ -169,7 +198,7 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 
 	var nonce [4]byte
 	_, _ = rand.Read(nonce[:])
-	p := prompts{seed: o.Seed, nonce: binary.BigEndian.Uint32(nonce[:])}
+	p := prompts{seed: o.Seed, nonce: binary.BigEndian.Uint32(nonce[:]), recall: o.Recall}
 	words, calibrated, err := calibrateCached(ctx, client, o.Model, p, o.InputLen)
 	if err != nil {
 		return nil, err
@@ -191,6 +220,14 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		Fingerprint: fingerprint(paths.State(), o.URL),
 		PromptWords: words,
 		Calibrated:  calibrated,
+		Workload: &Workload{
+			ProtocolID:   ProtocolID,
+			CorpusSHA256: corpusHash(),
+			InputLen:     o.InputLen,
+			OutputLen:    o.OutputLen,
+			Concurrency:  o.Concurrency,
+			Recall:       o.Recall,
+		},
 	}
 
 	maxC := 1
@@ -207,8 +244,13 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 
 	var seq atomic.Int64
 	send := func(ctx context.Context) sample {
-		prompt := p.build(int(seq.Add(1)), words)
-		return streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen)
+		n := int(seq.Add(1))
+		prompt := p.build(n, words)
+		s := streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen, o.Recall)
+		if o.Recall {
+			s.expect = p.passKey(n)
+		}
+		return s
 	}
 
 	for _, c := range o.Concurrency {
@@ -236,6 +278,14 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		cell := aggregate(c, samples, wall)
 		fmt.Fprintf(progress, "bench: c=%d done in %.1fs: %d ok, %d failed, %.1f output tok/s\n",
 			c, cell.DurationS, cell.Completed, cell.Failed, cell.OutputTokS)
+		if o.Recall {
+			asked, passed := recallVerdict(samples)
+			cell.Recall = &Recall{Asked: asked, Passed: passed, Depth: recallDepth, Method: recallMethod(calibrated)}
+			fmt.Fprintf(progress, "bench: c=%d recall %d/%d passed (%s)\n", c, passed, asked, cell.Recall.Method)
+			if passed < asked {
+				fmt.Fprintf(progress, "bench: c=%d the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", c)
+			}
+		}
 		res.Cells = append(res.Cells, cell)
 	}
 	return res, nil

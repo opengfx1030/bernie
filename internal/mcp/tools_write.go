@@ -48,6 +48,7 @@ type benchRunIn struct {
 	Warmup      *int   `json:"warmup,omitempty" jsonschema:"requests sent and discarded before each cell (default 1)"`
 	Seed        int64  `json:"seed,omitempty" jsonschema:"prompt seed"`
 	Tag         string `json:"tag,omitempty" jsonschema:"free label stored with the result"`
+	Recall      bool   `json:"recall,omitempty" jsonschema:"hide a short random fact in every prompt and check that the reply holds it (default off)"`
 	confirmToken
 }
 
@@ -100,7 +101,7 @@ func registerWrite(s *Server) {
 		func(sc *jsonschema.Schema) { launchSchema(sc); tokenSchema(sc) }, s.serve)
 	addTool[stopIn, Outcome[app.StopResult]](s, w("stop", "Stop a run (bernie stop NAME).", true, true, false),
 		func(sc *jsonschema.Schema) { patternOf("name")(sc); tokenSchema(sc) }, s.stop)
-	addTool[benchRunIn, Outcome[bench.Result]](s, w("bench_run", "Benchmark a loopback OpenAI-compatible server and save the result (bernie bench). One benchmark at a time; progress per phase.", false, false, true),
+	addTool[benchRunIn, Outcome[bench.Result]](s, w("bench_run", "Benchmark a loopback OpenAI-compatible server and save the result (bernie bench). One benchmark at a time; progress per phase. With recall, every prompt hides a short random fact and the reply is checked for it.", false, false, true),
 		func(sc *jsonschema.Schema) {
 			for _, n := range []string{"input_len", "output_len", "warmup"} {
 				prop(sc, n).Minimum = jsonschema.Ptr(0.0)
@@ -174,7 +175,7 @@ func (s *Server) stop(ctx context.Context, c *call, in stopIn) (any, error) {
 
 func (s *Server) benchRun(_ context.Context, c *call, in benchRunIn) (any, error) {
 	o := bench.Options{URL: in.URL, Model: in.Model, Tag: in.Tag, InputLen: in.InputLen, OutputLen: in.OutputLen,
-		Concurrency: in.Concurrency, NumPrompts: in.NumPrompts, Seed: in.Seed, Warmup: bench.DefaultWarmup}
+		Concurrency: in.Concurrency, NumPrompts: in.NumPrompts, Seed: in.Seed, Recall: in.Recall, Warmup: bench.DefaultWarmup}
 	if in.Warmup != nil {
 		o.Warmup = *in.Warmup
 	}

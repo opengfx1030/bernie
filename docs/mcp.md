@@ -82,6 +82,11 @@ A token works once, expires after five minutes, and fits only the same tool,
 arguments and plan. A changed argument or an expired token needs a new plan
 call. One host-changing operation runs at a time.
 
+`bench_run` takes the flags of `bernie bench`: `url`, `model`, `input_len`,
+`output_len`, `concurrency`, `num_prompts`, `warmup`, `seed`, `tag` and
+`recall`. With `recall`, every prompt hides a short random fact and the
+reply is checked for it; the result holds the verdict of every cell.
+
 bernie never runs `sudo`. A step that needs root (a package install, a power
 cap as a normal user) comes back as a command for you to run.
 

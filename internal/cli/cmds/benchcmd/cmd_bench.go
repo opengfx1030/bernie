@@ -17,7 +17,7 @@ func init() {
 	cmd := &cli.Command{
 		Name:    "bench",
 		Summary: "Benchmark an OpenAI-compatible server and save the result",
-		Usage:   "[--url U] [--model M] [--input-len N] [--output-len N] [--concurrency 1,8] [--num-prompts N] [--warmup N] [--seed N] [--tag T]",
+		Usage:   "[--url U] [--model M] [--input-len N] [--output-len N] [--concurrency 1,8] [--num-prompts N] [--warmup N] [--seed N] [--tag T] [--recall]",
 	}
 	cmd.Run = func(c *cli.Context, args []string) error { return runBench(c, cmd, args) }
 
@@ -49,7 +49,31 @@ func init() {
 		return c.Emit(r, func(w io.Writer) { printBenchResult(w, r) })
 	}
 
-	cmd.Subs = []*cli.Command{list, show}
+	compare := &cli.Command{Name: "compare", Summary: "Compare two saved bench results", Usage: "<id-a> <id-b>"}
+	compare.Run = func(c *cli.Context, args []string) error {
+		pos, err := cli.Parse(c.Flags(compare), args)
+		if err != nil {
+			return err
+		}
+		if len(pos) != 2 {
+			return cli.Usagef("bench compare needs exactly two result ids")
+		}
+		a, err := bench.Get(pos[0])
+		if err != nil {
+			return err
+		}
+		b, err := bench.Get(pos[1])
+		if err != nil {
+			return err
+		}
+		cmp, err := bench.Compare(a, b)
+		if err != nil {
+			return err
+		}
+		return c.Emit(cmp, func(w io.Writer) { printComparison(w, cmp) })
+	}
+
+	cmd.Subs = []*cli.Command{list, show, compare}
 	cli.Register(cmd)
 }
 
@@ -66,12 +90,13 @@ func runBench(c *cli.Context, cmd *cli.Command, args []string) error {
 	fs.IntVar(&o.Warmup, "warmup", bench.DefaultWarmup, "requests sent and discarded before each cell")
 	fs.Int64Var(&o.Seed, "seed", 0, "prompt seed")
 	fs.StringVar(&o.Tag, "tag", "", "free label stored with the result")
+	fs.BoolVar(&o.Recall, "recall", false, "hide a short random fact in every prompt and check the reply")
 	pos, err := cli.Parse(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(pos) > 0 {
-		return cli.Usagef("unexpected argument %q (subcommands: list, show)", pos[0])
+		return cli.Usagef("unexpected argument %q (subcommands: list, show, compare)", pos[0])
 	}
 	for _, f := range strings.Split(conc, ",") {
 		n, err := strconv.Atoi(strings.TrimSpace(f))
@@ -126,6 +151,89 @@ func printBenchResult(w io.Writer, r *bench.Result) {
 			fmt.Fprintf(w, "c=%d error: %s\n", cl.Concurrency, e)
 		}
 	}
+	for _, cl := range r.Cells {
+		if cl.Recall == nil {
+			continue
+		}
+		fmt.Fprintf(w, "c=%d recall %d/%d passed (hidden fact at %d%% of the prompt, %s)\n",
+			cl.Concurrency, cl.Recall.Passed, cl.Recall.Asked, int(cl.Recall.Depth*100), recallMethodText(cl.Recall.Method))
+		if cl.Recall.Passed < cl.Recall.Asked {
+			fmt.Fprintf(w, "c=%d the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", cl.Concurrency)
+		}
+	}
+}
+
+// recallMethodText names how the prompt length was measured, in words.
+func recallMethodText(method string) string {
+	if method == "tokenize" {
+		return "prompt sized with /tokenize"
+	}
+	return "prompt length estimated, the server has no /tokenize"
+}
+
+// recallText names the verdict of a cell in words.
+func recallText(r *bench.Recall) string {
+	if r == nil {
+		return "–"
+	}
+	return fmt.Sprintf("%d/%d passed", r.Passed, r.Asked)
+}
+
+// resultRecall totals the recall of the cells of a result.
+func resultRecall(r *bench.Result) *bench.Recall {
+	var asked, passed int
+	for _, c := range r.Cells {
+		if c.Recall == nil {
+			continue
+		}
+		asked += c.Recall.Asked
+		passed += c.Recall.Passed
+	}
+	if asked == 0 {
+		return nil
+	}
+	return &bench.Recall{Asked: asked, Passed: passed}
+}
+
+// printComparison puts two results of the same workload side by side.
+func printComparison(w io.Writer, cmp *bench.Comparison) {
+	fmt.Fprintf(w, "%s  %s  %s\n", cmp.A.ID, cmp.A.Model, cmp.A.URL)
+	fmt.Fprintf(w, "%s  %s  %s\n", cmp.B.ID, cmp.B.Model, cmp.B.URL)
+	conc := make([]string, len(cmp.Workload.Concurrency))
+	for i, c := range cmp.Workload.Concurrency {
+		conc[i] = strconv.Itoa(c)
+	}
+	recall := "off"
+	if cmp.Workload.Recall {
+		recall = "on"
+	}
+	fmt.Fprintf(w, "workload: protocol %s, input %d tokens, output %d tokens, concurrency %s, recall %s\n",
+		cmp.Workload.ProtocolID, cmp.Workload.InputLen, cmp.Workload.OutputLen, strings.Join(conc, ","), recall)
+	fmt.Fprintln(w)
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', tabwriter.AlignRight)
+	fmt.Fprintln(tw, "c\tresult\tok/fail\toutput tok/s\tdecode tok/s\tprefill tok/s\tTTFT p50 ms\tITL p50 ms\trecall\t")
+	for _, cl := range cmp.A.Cells {
+		other := cellOf(cmp.B, cl.Concurrency)
+		fmt.Fprintf(tw, "%d\t%s\t%d/%d\t%.1f\t%.1f\t%.0f\t%.1f\t%.2f\t%s\t\n",
+			cl.Concurrency, cmp.A.ID, cl.Completed, cl.Failed, cl.OutputTokS, cl.DecodeTokS, cl.PrefillTokS,
+			cl.TTFTP50, cl.ITLP50, recallText(cl.Recall))
+		if other != nil {
+			fmt.Fprintf(tw, "%d\t%s\t%d/%d\t%.1f\t%.1f\t%.0f\t%.1f\t%.2f\t%s\t\n",
+				other.Concurrency, cmp.B.ID, other.Completed, other.Failed, other.OutputTokS, other.DecodeTokS,
+				other.PrefillTokS, other.TTFTP50, other.ITLP50, recallText(other.Recall))
+		}
+	}
+	tw.Flush()
+}
+
+// cellOf returns the cell of a result with this concurrency.
+func cellOf(r *bench.Result, concurrency int) *bench.Cell {
+	for i := range r.Cells {
+		if r.Cells[i].Concurrency == concurrency {
+			return &r.Cells[i]
+		}
+	}
+	return nil
 }
 
 func fingerprintLine(fp map[string]string) string {
@@ -144,7 +252,7 @@ func printBenchList(w io.Writer, rs []bench.Result) {
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "ID\tTIME\tMODEL\tIN/OUT\tCONCURRENCY\tBEST OUT TOK/S\tTAG")
+	fmt.Fprintln(tw, "ID\tTIME\tMODEL\tIN/OUT\tCONCURRENCY\tBEST OUT TOK/S\tRECALL\tTAG")
 	for _, r := range rs {
 		cs := make([]string, len(r.Cells))
 		best := 0.0
@@ -152,8 +260,9 @@ func printBenchList(w io.Writer, rs []bench.Result) {
 			cs[i] = strconv.Itoa(cl.Concurrency)
 			best = max(best, cl.OutputTokS)
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%d/%d\t%s\t%.1f\t%s\n", r.ID, r.Time.Local().Format("2006-01-02 15:04"),
-			r.Model, r.Options.InputLen, r.Options.OutputLen, strings.Join(cs, ","), best, r.Tag)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%d/%d\t%s\t%.1f\t%s\t%s\n", r.ID, r.Time.Local().Format("2006-01-02 15:04"),
+			r.Model, r.Options.InputLen, r.Options.OutputLen, strings.Join(cs, ","), best,
+			recallText(resultRecall(&r)), r.Tag)
 	}
 	tw.Flush()
 }

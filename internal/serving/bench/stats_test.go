@@ -199,7 +199,7 @@ func TestReadStream(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		s := readStream(strings.NewReader(tt.body), time.Now())
+		s := readStream(strings.NewReader(tt.body), time.Now(), false)
 		if tt.wantErr != "" {
 			if s.err == nil || !strings.Contains(s.err.Error(), tt.wantErr) {
 				t.Errorf("%s: err %v, want %q", tt.name, s.err, tt.wantErr)
