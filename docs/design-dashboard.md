@@ -238,12 +238,12 @@ redesigning anything.
 | Ghost button | transparent with a 1 px border and an 8 px radius | the same | same |
 | Segmented control | a 9 px radius track, 3 px of padding, a raised active segment | the same; it holds the host/container mode and the history window | same |
 | Status pill | an icon, a word and a colour | the same; the word always carries the meaning | same |
-| KPI tile | a 30 px 900 number with its unit, a sub-line, a 34 px sparkline | the same | same |
-| Hero number | a 64 px 900 number in the key colour with a 44 px sparkline | the same; it carries the output speed of the live run | same |
-| Meter | a 6–8 px track, a 4 px radius, a coloured fill, 400 ms | the same | same |
-| Donut ring | an 84 px SVG ring with the number in the middle and a caption under it | the same | same |
-| Area chart | an inline SVG, grid lines, axis labels, a five-minute window | the same, with a window the reader picks (5 min, 15 min, 1 h) | adapted (bernie feature) |
-| Matrix | 2 px gaps, 6 px radius cells, one colour per class | the same; the classes of the PCIe links use `--series-1..4` | same |
+| KPI tile | a 30 px 900 number with its unit, a sub-line, a 34 px sparkline | the same; the eight tiles of the fleet, in `web/views/dashboard/gpus.js` | same (done) |
+| Hero number | a 64 px 900 number in the key colour with a 44 px sparkline | the same; it carries the output speed of the live run | same (done) |
+| Meter | a 6–8 px track, a 4 px radius, a coloured fill, 400 ms | the same; the memory and the power of every card, with the tick of the cap | same (done) |
+| Donut ring | an 84 px SVG ring with the number in the middle and a caption under it | the same; the load of every card | same (done) |
+| Area chart | an inline SVG, grid lines, axis labels, a five-minute window | the same, with a window the reader picks (5 min, 15 min, 1 h) | adapted (bernie feature, done) |
+| Matrix | 2 px gaps, 6 px radius cells, one colour per class | the same; the classes of the PCIe links use `--series-1..4` | same (done) |
 | Bar chart | SVG bars for the comparison of two runs | the same; the five metric groups of spec §10.1 are the groups | same (done) |
 | Log viewer | 12.5 px mono on near-black, 340 px tall, `pre-wrap` | the same | same |
 | Progress bar | a 10 px track, a 6 px radius, the key colour, and one plain sentence under it | the same | same (done) |
@@ -252,8 +252,8 @@ redesigning anything.
 | Tooltip | a small mark that opens a fixed panel with `role="tooltip"` | the same, and it opens on focus as well | adapted (accessibility) |
 | Banner | the third surface with a 3 px bar on the left, dismissible | the same; it carries the stale and the offline notice | same |
 | Copy on every command | one copy button per command, per endpoint and per snippet | the same | same |
-| One primary action per view | one filled button, everything else a ghost | the same | same |
-| Empty states that teach | what the thing is, then what to do | the same | same |
+| One primary action per view | one filled button, everything else a ghost | the same; the Try it box of the run card is the filled button | same (done) |
+| Empty states that teach | what the thing is, then what to do | the same; the run card and the power caps teach | same (done) |
 | Chat view | a transcript with a meta line per message | deferred, see §10 | deferred |
 | Fleet view | a list of other boxes | out of scope: bernie is one host | out of scope |
 
