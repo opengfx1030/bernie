@@ -484,10 +484,10 @@ function classicGpuCard(g, m) {
   const hot = (g.temp || 0) >= 95;
   const used = m.live || m.starting;
   const tail = (typeof state !== "undefined" && state.hist && state.hist["busy" + g.index]) || [];
-  return h("div.gpu-card" + (used ? "" : ".idle"),
+  return h("div.gpu-card",
     h("div.gpu-top",
       h("div", h("div.gpu-name", "GPU " + g.index), h("div.muted.small-t", g.name || "")),
-      used ? h("span.pill.ok", "In use") : h("span.pill.idle", "Not in use")),
+      used ? h("span.pill.ok", "In use") : h("span.pill.idle", "No run")),
     h("div.gpu-mid",
       h("div.ring-wrap",
         classicRing(g.util, "var(--series-1)"),
