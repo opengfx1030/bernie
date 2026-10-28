@@ -11,9 +11,13 @@ import (
 // Hub runs one sampler goroutine for all telemetry subscribers. The sampler
 // starts with the first subscriber and stops when the last one leaves, so an
 // idle dashboard reads no sysfs and polls no vLLM server.
+//
+// The hub also owns the ring buffer of the samples of the last minutes: the
+// sampler fills it and GET /api/gpus/history reads it.
 type Hub struct {
 	interval time.Duration
 	sample   func(ctx context.Context) []byte // one JSON document
+	history  *History
 
 	mu     sync.Mutex
 	subs   map[chan []byte]struct{}
@@ -23,8 +27,11 @@ type Hub struct {
 
 // NewHub returns a shared telemetry hub.
 func NewHub(interval time.Duration, sample func(context.Context) []byte) *Hub {
-	return &Hub{interval: interval, sample: sample, subs: map[chan []byte]struct{}{}}
+	return &Hub{interval: interval, sample: sample, history: NewHistory(), subs: map[chan []byte]struct{}{}}
 }
+
+// History returns the ring buffer of the samples of the last minutes.
+func (h *Hub) History() *History { return h.history }
 
 // Subscribe returns a channel of samples and a function that unsubscribes.
 // The channel holds one value; a slow reader skips samples, it never blocks
