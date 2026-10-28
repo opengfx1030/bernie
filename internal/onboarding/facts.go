@@ -31,21 +31,23 @@ type Options struct {
 // Facts is the state of the host, gathered once. The steps are derived from
 // it, so every front end sees the same state.
 type Facts struct {
-	Host        host.Info
-	GPUs        []gpu.GPU
-	Restriction string // the note of the active GPU restriction (spec §7.7)
-	Doctor      doctor.Report
-	Recipes     recipe.Listing
-	Fits        []string // the recipes that fit this host
-	Best        string   // the best fitting recipe
-	Recipe      string   // the recipe to serve (the named one, else the best)
-	Mode        string   // host | container
-	Setup       []setup.Step
-	Venv        string
-	HFHome      string
-	Model       string // the model repo of the recipe
-	Runs        []Run
-	Jobs        []Job
+	Host           host.Info
+	GPUs           []gpu.GPU
+	Restriction    string // the note of the active GPU restriction (spec §7.7)
+	Doctor         doctor.Report
+	Recipes        recipe.Listing
+	Fits           []string // the recipes that fit this host
+	Best           string   // the best fitting recipe
+	Recipe         string   // the recipe to serve (the named one, else the best)
+	Mode           string   // host | container
+	Setup          []setup.Step
+	Venv           string
+	VenvSource     string
+	VenvCandidates []string
+	HFHome         string
+	Model          string // the model repo of the recipe
+	Runs           []Run
+	Jobs           []Job
 }
 
 // Run is one run of this host.
@@ -87,9 +89,11 @@ func Gather(ctx context.Context, o Options) (*Facts, error) {
 	if gpus == nil {
 		gpus = []gpu.GPU{}
 	}
+	venv := cfg.ResolveVenvInfo(o.Venv)
 	f := &Facts{
 		Host: h, GPUs: gpus, Restriction: vis.Restriction.Note(),
-		Venv: cfg.ResolveVenv(o.Venv), HFHome: cfg.ResolveHFHome(),
+		Venv: venv.Path, VenvSource: venv.Source, VenvCandidates: venv.Candidates,
+		HFHome: cfg.ResolveHFHome(),
 	}
 	set := recipe.Load()
 	f.Recipes = recipe.List(set, gpus, h.RAMBytes, true)
@@ -107,7 +111,8 @@ func Gather(ctx context.Context, o Options) (*Facts, error) {
 	}
 	f.Mode = mode(h, cfg, o, set, f.Recipe)
 	f.Doctor = doctor.Run(ctx, doctor.Options{
-		Root: "/", Venv: f.Venv, HFHome: f.HFHome,
+		Root: "/", Venv: f.Venv, VenvSource: f.VenvSource, VenvCandidates: f.VenvCandidates,
+		HFHome:         f.HFHome,
 		ValidatedArchs: recipe.ValidatedArchs(set), RecipeEnv: recipeEnv(set, f.Recipe),
 	})
 	f.Setup = setup.Plan(ctx, h, rocm.Probe(ctx, "/"), setup.Options{

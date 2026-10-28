@@ -49,14 +49,17 @@ func GPUGroups(ctx context.Context, root string) []DeviceGroup  // numeric ids o
 ## machine/rocm
 
 ```go
-type Install struct { Root, Version, Kind string }   // Kind: opt|therock|distro|wheel
-type Report struct { Installs []Install; Tools map[string]string; ROCBLAS, HIPVersion string; Agents []string }
+type Install struct { Root, Version, Kind string; Nested []Install }   // Kind: opt|therock|distro|wheel
+type Report struct { Installs []Install; Tools map[string]string; OnPath map[string]bool;
+    ROCBLAS, HIPVersion string; Agents []string }
 type VenvReport struct { Python, Torch, HIP, VLLM string; DeviceCount, RDNAOps int; Err string }
 func Probe(ctx context.Context, root string) Report
 func ProbeVenv(ctx context.Context, venv string) VenvReport
 func VenvLibPaths(venv string) []string          // ROCm wheel libs + torch/lib, in load order
 func FindROCBLAS(root, venv string) string       // venv wheel first, then system
 func CompareVersions(a, b string) int
+func ResolvePath(p string) string                // resolves the symlinks of a tool path
+func InstallForPath(installs []Install, p string) (Install, bool) // the install that holds p
 ```
 
 ## machine/topo
@@ -80,8 +83,10 @@ func P2PChecklist(root string, gpus []gpu.GPU, o P2POptions) ([]CheckItem, error
 ```go
 type Status string // ok|warn|fail|skip
 type Check struct { ID, Category string; Status Status; Title, Detail, Fix, Doc string }
-type Report struct { Summary map[Status]int; Checks []Check }
-type Options struct { Root, Venv string; Categories []string; HFHome string; ValidatedArchs []string }
+type Report struct { Summary map[Status]int; Checks []Check; Venv *VenvInfo }
+type VenvInfo struct { Path, Source string; Candidates []string }
+type Options struct { Root, Venv string; VenvSource string; VenvCandidates []string;
+    Categories []string; HFHome string; ValidatedArchs []string }
 func Run(ctx context.Context, o Options) Report
 func (Report) Failed() bool
 ```
@@ -282,7 +287,7 @@ mutating tool; spec §13.10). `dashboard` mounts the handler on loopback only.
 ```go
 type Summary struct { Host host.Info; GPUs []gpu.GPU; Doctor map[doctor.Status]int;
     Problems []doctor.Check; Best string; Fits []string; Runs []Run; Next []string;
-    Onboarding *onboarding.Document }
+    Onboarding *onboarding.Document; Venv *doctor.VenvInfo }
 func Snapshot(ctx context.Context, venv string) (*Summary, error)           // `status`
 type UpOptions struct { Recipe string; Sets []string; Mode, Venv, Engine, Name string;
     Yes bool; Confirm func(prompt string) bool; Wait time.Duration }
@@ -316,6 +321,8 @@ func JSON(v any) (any, error); func Text(s string) string
 // config: <config>/config.yaml
 func Load() (Config, error); func Save(c Config) error
 func (c Config) ResolveVenv(flag string) string
+func (c Config) ResolveVenvInfo(flag string) VenvResolution   // path, source and candidates
+type VenvResolution struct { Path, Source string; Candidates []string }
 // fixture: test host snapshots
 func Root(tb testing.TB, name string) string
 ```

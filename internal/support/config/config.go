@@ -147,15 +147,10 @@ func setOverride(list []string, value string) []string {
 	return out
 }
 
-// ResolveVenv applies the venv order of spec §8.1: flag, $BERNIE_VENV,
-// config venv, $VIRTUAL_ENV. "" when none is set.
+// ResolveVenv applies the venv order of spec §6.2 and returns the selected
+// path. "" when none is set or when conventional candidates are ambiguous.
 func (c Config) ResolveVenv(flag string) string {
-	for _, v := range []string{flag, os.Getenv("BERNIE_VENV"), c.Venv, os.Getenv("VIRTUAL_ENV")} {
-		if v != "" {
-			return expandHome(v)
-		}
-	}
-	return ""
+	return c.ResolveVenvInfo(flag).Path
 }
 
 // ResolveHFHome is config hf_home, then $HF_HOME, then ~/.cache/huggingface.

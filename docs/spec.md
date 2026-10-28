@@ -125,7 +125,8 @@ other file, script or compose file is required.
 
 - `bernie` with no arguments runs `bernie status`. It changes nothing.
   It prints the GPUs, the doctor summary, the best recipe for this host,
-  the running runs, and the one next command to type.
+  the running runs, the venv it uses with its source
+  ([§6.2](#62-the-host-venv)), and the one next command to type.
 - `bernie status --steps` prints the onboarding checklist
   ([§3.3](#33-the-onboarding-checklist)): the ordered steps from a bare
   machine to a serving model, the state of each step, the command that does
@@ -164,7 +165,9 @@ other file, script or compose file is required.
   While it waits, `up` prints one line per phase change: what the server is
   doing now, in words ("Loading the model weights, 2 of 5 shards"). The
   sentence comes from the tail of the run's log ([§5.4](#54-log-phase)).
-- With `--json`, `status` and `up` write one JSON document. `up --json`
+- With `--json`, `status` and `up` write one JSON document. `status --json`
+  carries the venv and its source in the `venv` field
+  ([§6.2](#62-the-host-venv)). `up --json`
   never prompts; it requires `--yes` to change the host. A blocked `up`
   writes `{"blocked": {"reason": "", "commands": []}}`. An `up` whose run
   exited during startup with matching rules writes
@@ -467,10 +470,13 @@ one check (`topo.p2p.<item>`) with the same status, detail, fix and doc.
  "fix": "sudo dnf install hipcc", "doc": "https://..."}
 ```
 
-The report is `{"summary": {"ok": 0, "warn": 0, "fail": 0, "skip": 0}, "checks": [...]}`.
+The report is `{"summary": {"ok": 0, "warn": 0, "fail": 0, "skip": 0}, "checks": [...],
+"venv": {"path": "", "source": "flag", "candidates": []}}`.
 `fix` is a command for the host's package manager when one exists, else one
 sentence. Rule: `fail` blocks a launch; `warn` costs performance or
-stability; `skip` means the check cannot run here.
+stability; `skip` means the check cannot run here. The `venv` field says
+which venv the python checks used and where it came from
+([§6.2](#62-the-host-venv)). It is absent when the caller does not say.
 
 ### 5.2 Required checks
 
@@ -605,6 +611,28 @@ process its own temporary file
 (`<etag>.<random>.incomplete`, see `file_download.py` in the package), so
 an interrupted download starts over. The `hf` command does the same job
 (`hf download <repo>`) and stays the way to fetch a model by hand.
+
+### 6.2 The host venv
+
+Host mode needs a Python venv with vLLM. bernie picks it in this order:
+
+1. `--venv DIR`.
+2. `$BERNIE_VENV`.
+3. The config key `venv` ([§12](#12-files-and-paths)).
+4. `$VIRTUAL_ENV`.
+5. One conventional venv, when exactly one exists:
+   - `<data>/venv`
+   - `~/.venvs/vllm*`
+   - `~/Apps/vllm/venv*`
+
+A conventional candidate must have `bin/python`, and that Python must be
+able to find the `vllm` module. When several candidates exist, bernie picks
+none: `doctor` and `status` list the candidates and ask the operator to
+choose one with `bernie config set venv DIR`.
+
+`doctor` and `status` say which venv they used and where it came from:
+`flag`, `$BERNIE_VENV`, `config`, `$VIRTUAL_ENV` or `conventional`. An
+ambiguous choice has the source `ambiguous` and lists the candidates.
 
 ## 7. Recipes
 
@@ -795,7 +823,8 @@ dashboard use this same plan document.
   is a local path, and `0` when it is a Hugging Face repo id.
 - Host mode needs the fork built in the venv for `requires.engine: vllm-rdna`.
   It is not "the container without Docker".
-- Venv: `--venv`, then `$BERNIE_VENV`, then config `venv`, then `$VIRTUAL_ENV`.
+- Venv: the order of [§6.2](#62-the-host-venv): `--venv`, `$BERNIE_VENV`,
+  config `venv`, `$VIRTUAL_ENV`, then one conventional venv.
 - `LD_LIBRARY_PATH` starts with the venv's ROCm wheel libraries when present:
   `_rocm_sdk_libraries/lib`, `_rocm_sdk_core/lib`,
   `_rocm_sdk_core/lib/{host-math,rocm_sysdeps,core}/lib`,
@@ -1197,6 +1226,10 @@ set: ["env.GPU_MAX_HW_QUEUES=2"]        # default overrides, applied before --se
 The desired power state is `<config>/power.yaml` ([§9.2](#92-power)). The
 generated systemd units are `<state>/power/bernie-power.service` and
 `<state>/power/bernie-power.path`.
+
+The `venv` key is the third step of the venv order of
+[§6.2](#62-the-host-venv). It names the venv of every host-mode command
+that does not get a `--venv` of its own.
 
 ## 13. Model Context Protocol
 

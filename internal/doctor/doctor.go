@@ -42,10 +42,18 @@ type Check struct {
 	Doc      string `json:"doc,omitempty"`
 }
 
+// VenvInfo says which host-mode venv doctor checked and where it came from.
+type VenvInfo struct {
+	Path       string   `json:"path,omitempty"`
+	Source     string   `json:"source"`
+	Candidates []string `json:"candidates,omitempty"`
+}
+
 // Report is the doctor output.
 type Report struct {
 	Summary map[Status]int `json:"summary"`
 	Checks  []Check        `json:"checks"`
+	Venv    *VenvInfo      `json:"venv,omitempty"`
 }
 
 // Options select the host root, the venv for python checks and the
@@ -56,6 +64,8 @@ type Report struct {
 type Options struct {
 	Root           string
 	Venv           string
+	VenvSource     string
+	VenvCandidates []string
 	Categories     []string
 	HFHome         string
 	ValidatedArchs []string
@@ -69,27 +79,29 @@ func (r Report) Failed() bool { return r.Summary[Fail] > 0 }
 
 // inputs is everything the checks look at; gathered once, evaluated purely.
 type inputs struct {
-	root      string
-	host      host.Info
-	gpus      []gpu.GPU
-	gpuErr    error
-	ecc       []gpu.ECC // ECC state of every GPU, in HIP order
-	rocm      rocm.Report
-	venv      string
-	venvRep   rocm.VenvReport
-	site      string // venv site-packages ("" without venv)
-	rocblas   string // librocblas.so.5 the venv (or system) loads
-	libSHA    string
-	profiles  []tuning.Profile
-	profErr   error
-	match     *tuning.Profile
-	hfCache   string
-	hfFree    uint64 // free bytes on the HF cache filesystem, 0 = unknown
-	devices   devices
-	amdgpu    bool           // amdgpu kernel module loaded
-	validated []string       // gfx targets with validated recipes
-	groupGIDs map[string]int // gid of video and render; a group missing here was not found
-	recipe    topo.RecipeEnv // environment of the recipe bernie would run
+	root           string
+	host           host.Info
+	gpus           []gpu.GPU
+	gpuErr         error
+	ecc            []gpu.ECC // ECC state of every GPU, in HIP order
+	rocm           rocm.Report
+	venv           string
+	venvSource     string
+	venvCandidates []string
+	venvRep        rocm.VenvReport
+	site           string // venv site-packages ("" without venv)
+	rocblas        string // librocblas.so.5 the venv (or system) loads
+	libSHA         string
+	profiles       []tuning.Profile
+	profErr        error
+	match          *tuning.Profile
+	hfCache        string
+	hfFree         uint64 // free bytes on the HF cache filesystem, 0 = unknown
+	devices        devices
+	amdgpu         bool           // amdgpu kernel module loaded
+	validated      []string       // gfx targets with validated recipes
+	groupGIDs      map[string]int // gid of video and render; a group missing here was not found
+	recipe         topo.RecipeEnv // environment of the recipe bernie would run
 }
 
 // devices is the state of the GPU device nodes.
@@ -112,7 +124,11 @@ func Run(ctx context.Context, o Options) Report {
 			checks = append(checks, c)
 		}
 	}
-	return newReport(checks)
+	r := newReport(checks)
+	if o.VenvSource != "" {
+		r.Venv = &VenvInfo{Path: o.Venv, Source: o.VenvSource, Candidates: o.VenvCandidates}
+	}
+	return r
 }
 
 func newReport(checks []Check) Report {
@@ -142,7 +158,8 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 		}
 		return false
 	}
-	in := inputs{root: root, venv: o.Venv, validated: o.ValidatedArchs, recipe: o.RecipeEnv}
+	in := inputs{root: root, venv: o.Venv, venvSource: o.VenvSource, venvCandidates: o.VenvCandidates,
+		validated: o.ValidatedArchs, recipe: o.RecipeEnv}
 	var wg sync.WaitGroup
 	run := func(f func()) {
 		wg.Add(1)

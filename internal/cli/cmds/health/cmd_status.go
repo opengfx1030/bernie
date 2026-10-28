@@ -89,6 +89,17 @@ func printStatus(w io.Writer, s *flow.Summary) {
 		}
 		fmt.Fprintf(w, "gpus    %s\n", strings.Join(parts, "; "))
 	}
+	if v := s.Venv; v != nil {
+		if v.Path != "" {
+			fmt.Fprintf(w, "venv    %s (from %s)\n", v.Path, v.Source)
+		} else {
+			fmt.Fprintf(w, "venv    none (from %s)\n", v.Source)
+		}
+		if len(v.Candidates) > 0 {
+			fmt.Fprintf(w, "        candidates: %s\n", strings.Join(v.Candidates, ", "))
+			fmt.Fprintln(w, "        choose one: bernie config set venv DIR")
+		}
+	}
 	if s.Restriction != "" {
 		fmt.Fprintf(w, "%s\n", s.Restriction)
 	}

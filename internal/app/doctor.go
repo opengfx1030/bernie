@@ -29,9 +29,10 @@ func Doctor(ctx context.Context, categories []string, venv string) (doctor.Repor
 		return doctor.Report{}, err
 	}
 	set := recipe.Load()
+	v := cfg.ResolveVenvInfo(venv)
 	opts := doctor.Options{
-		Root: root, Venv: cfg.ResolveVenv(venv), Categories: categories,
-		HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(set),
+		Root: root, Venv: v.Path, VenvSource: v.Source, VenvCandidates: v.Candidates,
+		Categories: categories, HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(set),
 	}
 	if len(categories) == 0 || slices.Contains(categories, "topo.p2p") {
 		vis, _ := gpu.Visible(root)
