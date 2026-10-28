@@ -41,6 +41,9 @@ type Options struct {
 	Suite string `json:"suite,omitempty"`
 	// Reps is the number of repetitions per cell of a suite run.
 	Reps int `json:"reps,omitempty"`
+	// SizeTolerancePercent is the share of the prompt length a cell may
+	// miss. Zero takes the default of 2 %.
+	SizeTolerancePercent float64 `json:"size_tolerance_percent,omitempty"`
 }
 
 // Measurement holds the numbers of a cell or of one repetition of it.
@@ -85,8 +88,15 @@ type Measurement struct {
 	// Recall is the pass key check. It is nil when the check did not run.
 	Recall *Recall `json:"recall,omitempty"`
 	// WarmupFailed counts the warm-up requests that failed.
-	WarmupFailed int      `json:"warmup_failed,omitempty"`
-	Errors       []string `json:"errors,omitempty"` // distinct error samples
+	WarmupFailed int `json:"warmup_failed,omitempty"`
+	// OutputValid tells whether the replies look like text. A reply that
+	// repeats one token over and over is not a speed number.
+	OutputValid bool `json:"output_valid"`
+	// StreamIncremental tells whether the streams arrived in more than
+	// one chunk. A server that buffers the whole answer has no decode
+	// window.
+	StreamIncremental bool     `json:"stream_incremental"`
+	Errors            []string `json:"errors,omitempty"` // distinct error samples
 }
 
 // Cell is the result for one concurrency level. The flat latency fields are
@@ -113,6 +123,11 @@ type Cell struct {
 	// Incomplete marks a cell that lost a warm-up or a repetition. Its
 	// numbers stay visible, but no verdict is issued for it.
 	Incomplete bool `json:"incomplete,omitempty"`
+	// InputSizePercent is the share of the prompt length the server
+	// measured off the requested length. SizeValid tells whether the
+	// drift stays inside the tolerance of the run.
+	InputSizePercent float64 `json:"input_size_percent,omitempty"`
+	SizeValid        bool    `json:"size_valid"`
 }
 
 // Rep is one repetition of a cell: the numbers it measured, without the

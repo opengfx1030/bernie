@@ -60,6 +60,7 @@ func runGroup(ctx context.Context, s *Suite, g Group, o bench.Options, progress 
 		opts.OutputLen = g.OutputLen
 		opts.Concurrency = slices.Clone(g.Concurrency)
 		opts.Warmup = s.Warmup
+		opts.SizeTolerancePercent = s.SizeTolerancePercent
 		r, err := bench.Run(ctx, opts, progress)
 		if err != nil {
 			return nil, nil, err
@@ -140,6 +141,7 @@ func applyOverrides(s *Suite, o bench.Options) bench.Options {
 	}
 	o.InputLen = 0
 	o.OutputLen = 0
+	o.SizeTolerancePercent = s.SizeTolerancePercent
 	return o
 }
 

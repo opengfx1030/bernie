@@ -214,6 +214,15 @@ func medianCell(reps []bench.Cell) bench.Cell {
 		measurements[i] = r.Measurement
 	}
 	out.Measurement = medianMeasurement(measurements)
+	var drifts []float64
+	out.SizeValid = true
+	for _, r := range reps {
+		drifts = append(drifts, r.InputSizePercent)
+		if !r.SizeValid {
+			out.SizeValid = false
+		}
+	}
+	out.InputSizePercent = medianOf(drifts)
 	return out
 }
 
@@ -236,9 +245,17 @@ func medianMeasurement(ms []bench.Measurement) bench.Measurement {
 	out.ITLms = medianDist(itls)
 	out.ServerSide = medianServerSide(sides)
 	out.TokensExact = true
+	out.OutputValid = true
+	out.StreamIncremental = true
 	for _, m := range ms {
 		if !m.TokensExact {
 			out.TokensExact = false
+		}
+		if !m.OutputValid {
+			out.OutputValid = false
+		}
+		if !m.StreamIncremental {
+			out.StreamIncremental = false
 		}
 	}
 	out.TTFTP50 = medianOf(values(ms, func(m bench.Measurement) float64 { return m.TTFTP50 }))

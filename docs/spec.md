@@ -1123,8 +1123,17 @@ Cell fields:
 | `spread` | The min/max ratio of the metrics over the repetitions. |
 | `incomplete` | True when the cell lost a warm-up or a repetition. Its numbers stay visible, but no verdict is issued for it. |
 | `warmup_failed` | The number of warm-up requests that failed. |
+| `size_valid`, `input_size_percent` | The drift of the measured prompt length and whether it stays inside the tolerance of the run (2 % by default). |
+| `output_valid` | False when the replies of the cell are degenerate: fewer than 8 % distinct words. |
+| `stream_incremental` | False when a reply arrived in one chunk: the server buffered the whole answer, so there is no decode window. |
 
 A cell where every request fails makes `bench` exit 1 and saves nothing.
+
+The gates name why a number may not be a speed number. A cell that is off
+size, degenerate or buffered keeps its numbers visible, because hiding a
+cell is worse than labelling it. The verdict reads them as labels, not as
+gates: only a failed recall, an incomplete cell and a missing cell stop a
+verdict.
 
 A result also has a `workload`: `protocol_id`, `corpus_sha256`,
 `input_len`, `output_len`, `concurrency` and `recall`. It says what the

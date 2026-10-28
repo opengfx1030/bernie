@@ -175,3 +175,47 @@ func TestRunSuiteTurnsOnTheRecallGate(t *testing.T) {
 		t.Error("the workload does not say that the recall gate ran")
 	}
 }
+
+// TestRunSuiteReportsTheMeasurementGates checks the gates of a cell: a
+// reply that repeats one word is degenerate, and a stream that arrives in
+// one chunk has no decode window.
+func TestRunSuiteReportsTheMeasurementGates(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	fake := vllmtest.New(vllmtest.Config{Model: "fake", TTFT: 2 * ms, ChunkDelay: ms})
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+
+	s := &Suite{
+		Schema: Schema, ID: "t", Name: "T", Reps: 1, SizeTolerancePercent: 2,
+		Compare: Thresholds{Band: DefaultBand, Steady: DefaultSteady},
+		Groups: []Group{{
+			Name: "g", Kind: KindThroughput, InputLen: 1024, OutputLen: 64,
+			Concurrency: []int{1}, Reps: 1, Source: Source{Kind: SourceSynthetic},
+		}},
+	}
+	r, err := Run(context.Background(), s, bench.Options{URL: srv.URL, NumPrompts: 1}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := r.Cells[0]
+	if c.OutputValid {
+		t.Error("a reply that repeats one word is not valid output")
+	}
+	if !c.SizeValid {
+		t.Errorf("the prompt size drifted by %.2f %%", c.InputSizePercent)
+	}
+	if !c.StreamIncremental {
+		t.Error("the stream arrived in more than one chunk")
+	}
+
+	// One token per reply: the stream has a single chunk, so there is no
+	// decode window.
+	s.Groups[0].OutputLen = 1
+	r, err = Run(context.Background(), s, bench.Options{URL: srv.URL, NumPrompts: 1}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Cells[0].StreamIncremental {
+		t.Error("a stream of one chunk is not incremental")
+	}
+}
