@@ -43,6 +43,12 @@ func printChecklist(w io.Writer, doc *onboarding.Document) {
 		return
 	}
 	fmt.Fprintln(w, "onboarding")
+	for _, f := range doc.Facts {
+		fmt.Fprintf(w, "  %-8s %s\n", f.Label, f.Value)
+		if f.Why != "" {
+			fmt.Fprintf(w, "           %s\n", f.Why)
+		}
+	}
 	for _, s := range doc.Steps {
 		fmt.Fprintf(w, "  %-8s %-12s %s\n", s.State, s.ID, s.Summary)
 		if s.Progress != nil && s.Progress.Phase != "" {

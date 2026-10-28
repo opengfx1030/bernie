@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -37,11 +38,25 @@ type Job struct {
 	Step       string         `json:"step"`
 	State      string         `json:"state"`
 	Phase      string         `json:"phase,omitempty"`
+	Progress   *JobProgress   `json:"progress,omitempty"`
 	Error      string         `json:"error,omitempty"`
 	Findings   []logdoc.Match `json:"findings,omitempty"`
 	Lines      []string       `json:"lines,omitempty"`
 	StartedAt  time.Time      `json:"started_at"`
 	FinishedAt *time.Time     `json:"finished_at,omitempty"`
+}
+
+// JobProgress is the progress of a running job: the phase and the numbers
+// of the work. The numbers are there when the step counts them; a step that
+// only counts items keeps the done and the total of the step.
+type JobProgress struct {
+	Phase      string `json:"phase"`
+	BytesDone  int64  `json:"bytes_done,omitempty"`
+	BytesTotal int64  `json:"bytes_total,omitempty"`
+	RateBPS    int64  `json:"rate_bps,omitempty"`
+	FilesDone  int    `json:"files_done,omitempty"`
+	FilesTotal int    `json:"files_total,omitempty"`
+	ETAS       int    `json:"eta_s,omitempty"`
 }
 
 // jobMu holds the single job slot of this process.
@@ -181,7 +196,98 @@ func (w *jobWriter) line(text string) {
 	}
 	w.job.Phase = text
 	w.job.Lines = append([]string(nil), w.lines...)
+	w.progress(text)
 	_ = saveJob(w.job)
+}
+
+// progress reads the numbers of a line into the progress of the job: the
+// phase and, for a download, the bytes and the rate.
+func (w *jobWriter) progress(text string) {
+	p := w.job.Progress
+	if p == nil {
+		p = &JobProgress{Phase: w.job.Step}
+		w.job.Progress = p
+	}
+	if !strings.HasPrefix(text, "model.download: ") {
+		return
+	}
+	p.Phase = "model.download"
+	done, total, rate, ok := parseDownload(text)
+	if !ok {
+		return
+	}
+	p.BytesDone, p.BytesTotal, p.RateBPS = done, total, rate
+	if rate > 0 && total > done {
+		p.ETAS = int((total - done) / rate)
+	}
+}
+
+// parseDownload reads the numbers of a download line:
+// "model.download: 1.2 GB of 2.3 GB (52%) at 45.2 MB/s".
+func parseDownload(line string) (done, total, rate int64, ok bool) {
+	rest := strings.TrimPrefix(line, "model.download: ")
+	at := strings.Split(rest, " at ")
+	if len(at) != 2 {
+		return 0, 0, 0, false
+	}
+	sizes := strings.Split(at[0], " of ")
+	if len(sizes) != 2 {
+		return 0, 0, 0, false
+	}
+	done, ok = parseBytes(sizes[0])
+	if !ok {
+		return 0, 0, 0, false
+	}
+	total, ok = parseBytes(stripPercent(sizes[1]))
+	if !ok {
+		return 0, 0, 0, false
+	}
+	rate, ok = parseBytes(strings.TrimSuffix(strings.TrimSpace(at[1]), "/s"))
+	if !ok {
+		return 0, 0, 0, false
+	}
+	return done, total, rate, true
+}
+
+// stripPercent removes the share of a size: "2.3 GB (52%)" is "2.3 GB".
+func stripPercent(s string) string {
+	if i := strings.Index(s, " ("); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// parseBytes reads a size in bytes: "512 B", "45.2 MB". The units are
+// decimal, like the ones the download prints.
+func parseBytes(s string) (int64, bool) {
+	s = strings.TrimSpace(s)
+	i := 0
+	for i < len(s) && (s[i] == '.' || (s[i] >= '0' && s[i] <= '9')) {
+		i++
+	}
+	if i == 0 {
+		return 0, false
+	}
+	n, err := strconv.ParseFloat(s[:i], 64)
+	if err != nil {
+		return 0, false
+	}
+	var mult int64
+	switch strings.TrimSpace(s[i:]) {
+	case "B", "":
+		mult = 1
+	case "kB":
+		mult = 1000
+	case "MB":
+		mult = 1000 * 1000
+	case "GB":
+		mult = 1000 * 1000 * 1000
+	case "TB":
+		mult = 1000 * 1000 * 1000 * 1000
+	default:
+		return 0, false
+	}
+	return int64(n * float64(mult)), true
 }
 
 // RecentJobs returns the jobs of this host, newest first. A job that was

@@ -295,7 +295,19 @@ A step has this record:
 - `problems` are the doctor checks that hold the step back, with their fix
   and their documentation link.
 
-The document is `{"next": "<id>", "steps": [...], "facts_age_s": 0, "stale": false}`.
+The document also holds the facts of the host: the numbers the page shows
+above the steps, each with the reason why it matters.
+
+```json
+{"id": "gpus", "label": "GPUs", "value": "8× gfx1030 Radeon PRO V620",
+ "why": "Every card is gfx1030, so one recipe family fits them all."}
+```
+
+`bernie status --steps` prints the same array. The name of the fact is `id`
+and not `key`: a member whose name ends in `key` names a secret, so the
+redactor of [§13.7](#137-untrusted-content) would hide it.
+
+The document is `{"next": "<id>", "steps": [...], "facts": [...], "facts_age_s": 0, "stale": false}`.
 `next` is the step to do
 now: the first step of the path that is not done and not skipped. It is
 empty when the path is complete. `facts_age_s` is the age in seconds of the
@@ -328,6 +340,18 @@ A step that bernie can run does it in a job. `POST
 One job runs at a time. The state of a job is kept under
 `<state>/jobs/<id>`, so a page reload finds it again. A step that needs root
 answers with the commands to run and runs nothing.
+
+A job carries the numbers of the work when the step counts them:
+
+```json
+{"progress": {"phase": "model.download", "bytes_done": 1800000000,
+ "bytes_total": 2300000000, "rate_bps": 45200000, "files_done": 7,
+ "files_total": 14, "eta_s": 11}}
+```
+
+The phase is the step the job is on. The bytes, the rate and the time to
+finish are there for a download; the file counts are there when the step
+counts the files. A number that is not measured is absent.
 
 ## 4. Host inspection (`hw`, `topo`)
 
@@ -1393,7 +1417,7 @@ Rules for responses and tokens:
 | GET | `/api/bench/compare?a=ID&b=ID&format=markdown` | the receipt of the comparison as `text/markdown`: the text of `bernie bench compare A B --markdown`. |
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
-| GET | `/api/jobs/{id}` | the job document |
+| GET | `/api/jobs/{id}` | the job document: `{"id", "step", "state", "phase", "progress", "error", "findings", "lines", "started_at", "finished_at"}`. `progress` holds the numbers of the work when the step counts them ([§3.3](#33-the-onboarding-checklist)). |
 | GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
 
