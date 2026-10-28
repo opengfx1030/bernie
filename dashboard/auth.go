@@ -39,7 +39,9 @@ func IsLoopback(listen string) bool {
 // guard enforces the access rules of spec §11:
 //   - token mode (token != ""): every request carries the token as
 //     `Authorization: Bearer <t>` or the cookie; `/?token=<t>` sets the cookie
-//     and redirects to strip the token from the URL.
+//     and redirects to `/`. That is the only place the URL carries a token:
+//     /api paths refuse one, and nothing logs a query string.
+//   - every response is `Cache-Control: no-store`.
 //   - loopback mode (token == ""): the Host header must name a loopback host,
 //     which blocks DNS-rebinding pages from reaching the API.
 //   - POST and DELETE need `X-Bernie: 1` in both modes (CSRF guard).
@@ -70,8 +72,13 @@ func (g *guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Cache-Control", "no-store")
+	if strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Query().Has("token") {
+		httpError(w, http.StatusBadRequest, "the token is not accepted in the URL on /api: send Authorization: Bearer <token>")
+		return
+	}
 	if g.token {
-		if q := r.URL.Query(); q.Has("token") {
+		if q := r.URL.Query(); r.URL.Path == "/" && q.Has("token") {
 			if !g.match(q.Get("token")) {
 				httpError(w, http.StatusUnauthorized, "invalid token")
 				return
@@ -80,10 +87,7 @@ func (g *guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Name: cookieName, Value: q.Get("token"), Path: "/",
 				HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil,
 			})
-			q.Del("token")
-			u := *r.URL
-			u.RawQuery = q.Encode()
-			http.Redirect(w, r, u.RequestURI(), http.StatusSeeOther)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
 		if !g.authorized(r) {
