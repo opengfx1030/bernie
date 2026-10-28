@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -140,3 +141,74 @@ func (c *ctxFile) Read(p []byte) (int, error) {
 }
 
 func (c *ctxFile) Close() error { return c.f.Close() }
+
+// ContainerTailLines is the number of log lines the engine is asked for when
+// the tail of a container log is read.
+const ContainerTailLines = 2000
+
+// TailBytes returns the last n bytes of the log of a run, starting at a line
+// boundary. A host run's log is a file: only its last n bytes are read, so a
+// multi-gigabyte log costs n bytes of I/O. A container run's log is the
+// engine's log stream: the engine keeps the last lines, and only the last n
+// bytes are kept here.
+func TailBytes(ctx context.Context, r Record, n int) ([]byte, error) {
+	if r.Engine != "" && r.Container != "" {
+		return containerTail(ctx, r, n)
+	}
+	path := r.Log
+	if _, err := os.Stat(path); path == "" || err != nil {
+		path = filepath.Join(RunDir(r.Name), "serve.log")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if st.Size() <= int64(n) {
+		return io.ReadAll(f)
+	}
+	if _, err := f.Seek(st.Size()-int64(n), io.SeekStart); err != nil {
+		return nil, err
+	}
+	b, err := io.ReadAll(io.LimitReader(f, int64(n)))
+	if err != nil {
+		return nil, err
+	}
+	if i := bytes.IndexByte(b, '\n'); i >= 0 { // drop the line the cut broke
+		return b[i+1:], nil
+	}
+	return nil, nil
+}
+
+// containerTail returns the last n bytes of the engine's log of a container
+// run.
+func containerTail(ctx context.Context, r Record, n int) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, r.Engine, "logs", "--tail", strconv.Itoa(ContainerTailLines), r.Container)
+	buf := &tailBuffer{max: n}
+	cmd.Stdout, cmd.Stderr = buf, buf
+	if err := cmd.Run(); err != nil && ctx.Err() == nil {
+		return nil, fmt.Errorf("%s logs %s: %w", r.Engine, r.Container, err)
+	}
+	return buf.Bytes(), nil
+}
+
+// tailBuffer keeps the last max bytes written to it.
+type tailBuffer struct {
+	max int
+	buf []byte
+}
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > t.max {
+		t.buf = t.buf[len(t.buf)-t.max:]
+	}
+	return len(p), nil
+}
+
+// Bytes returns the bytes kept so far.
+func (t *tailBuffer) Bytes() []byte { return t.buf }

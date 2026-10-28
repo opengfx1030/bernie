@@ -15,11 +15,13 @@ import (
 // for longer.
 const FindingsBudget = 2 * time.Second
 
-// Run is a run with its state and, for an exited run, the known failures
-// found in its log (spec §5.3).
+// Run is a run with its state, the known failures found in the log of an
+// exited run (spec §5.3) and the phase the log of a live run names
+// (spec §3.1).
 type Run struct {
 	runner.Status
 	Findings []logdoc.Match `json:"findings,omitempty"`
+	Phase    *logdoc.Phase  `json:"phase,omitempty"`
 }
 
 // StartupExit is the error of a run that exited before it answered /health.
@@ -80,11 +82,17 @@ func Runs(ctx context.Context) ([]Run, error) {
 	}
 	sctx, cancel := context.WithTimeout(ctx, FindingsBudget)
 	defer cancel()
+	pctx, pcancel := context.WithTimeout(ctx, PhaseBudget)
+	defer pcancel()
 	out := make([]Run, len(runs))
 	for i, s := range runs {
 		out[i].Status = s
 		if s.State == runner.StateExited {
 			out[i].Findings = Findings(sctx, s.Record)
+			continue
+		}
+		if p, ok := Phase(pctx, s.Record); ok {
+			out[i].Phase = &p
 		}
 	}
 	return out, nil

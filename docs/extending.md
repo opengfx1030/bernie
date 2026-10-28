@@ -11,6 +11,7 @@ to run. Read [architecture.md](architecture.md) first for the layers. Run
 | A command | `internal/cli/cmds/<family>/cmd_<name>.go` with `cli.Register` in `init()`. A new family folder needs one blank import in `cmd/bernie/main.go`. Put the logic in a domain package. Add the row to the table in [spec §3](spec.md#3-command-surface). | `go test ./internal/cli/... ./internal/<package>/...` |
 | A doctor check | A function in `internal/doctor/checks_<category>.go` that returns `[]Check`. For a new category, add the function to the list in `evaluate` (`checks.go`) and the name to `Categories` (`doctor.go`). Add the row to [spec §5.2](spec.md#52-required-checks). | `go test ./internal/doctor/` (add a case to `TestEvaluateStatuses`) |
 | A known-failure rule | A rule in `internal/logdoc/catalog.yaml`. The id is `<family>.<slug>`. | `go test ./internal/logdoc/` |
+| A log phase | A phase in `internal/logdoc/phase.yaml`. The id is `<family>.<slug>`, the sentence is one plain sentence, the progress pattern has two groups (done and total). | `go test ./internal/logdoc/` |
 | A setup step | A `planner` method in `internal/setup/steps_<topic>.go`. Add it to the list in `Plan` (`setup.go`). Add the row to [spec §6](spec.md#6-setup). | `go test ./internal/setup/` |
 | A recipe | `recipes/<family>/<id>.yaml`. The file stem is the id and is unique in the tree. See [recipes.md](recipes.md). | `go test ./recipes/...` |
 | A recipe fragment | `recipes/_fragments/<concern>/_<id>.yaml`. Settings of one architecture go in `recipes/_fragments/arch/`. | `go test ./recipes/...` |

@@ -48,7 +48,7 @@ flowchart TB
   D1[("gpu/devices/*.yaml")]
   D2[("recipes/")]
   D3[("tunableop/<br/>tuned-moe/")]
-  D4[("logdoc/catalog.yaml")]
+  D4[("logdoc/*.yaml")]
   D5[("dashboard/web/")]
   CLI --> APP
   DASH --> APP
@@ -143,7 +143,7 @@ bernie/
 │   ├── flow/             status snapshot and `up`
 │   ├── doctor/           check registry (one checks_<category>.go per category)
 │   ├── setup/            install plan and non-root apply
-│   ├── logdoc/           known-failure catalog (embedded YAML) and log scanner
+│   ├── logdoc/           known-failure catalog, phase catalogue (embedded YAML) and log scanner
 │   ├── machine/          what the host is
 │   │   ├── gpu/              KFD/DRM/PCI enumeration, telemetry, devices/*.yaml tables
 │   │   ├── host/             OS, package manager, CPU, RAM, groups, container engines
