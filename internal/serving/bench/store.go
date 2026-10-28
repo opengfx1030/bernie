@@ -101,6 +101,9 @@ func load(path string) (*Result, error) {
 	if err := json.Unmarshal(data, &r); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	// A result saved before the metric groups existed still shows its
+	// numbers: the old fields are converted on read.
+	r.upgrade()
 	return &r, nil
 }
 

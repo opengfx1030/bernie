@@ -29,7 +29,7 @@ const (
 	FallbackURL      = "http://127.0.0.1:8000"
 	// ProtocolID names the shape of a benchmark: its prompt, its request
 	// and its metrics. It changes when the measurement changes.
-	ProtocolID = "bernie-bench-1"
+	ProtocolID = "bernie-bench-2"
 )
 
 // Options are the bench flags. Zero values take the spec defaults in Run,
@@ -51,12 +51,31 @@ type Options struct {
 	Recall bool `json:"recall"`
 }
 
-// Cell is the result for one concurrency level. Latencies are milliseconds.
+// Cell is the result for one concurrency level. The flat latency fields are
+// milliseconds; the new groups carry the same numbers in the units of spec
+// §10: seconds for the time to first token, milliseconds for the
+// inter-token latency.
 type Cell struct {
-	Concurrency int     `json:"concurrency"`
-	NumPrompts  int     `json:"num_prompts"`
-	Completed   int     `json:"completed"`
-	Failed      int     `json:"failed"`
+	Concurrency int `json:"concurrency"`
+	NumPrompts  int `json:"num_prompts"`
+	Completed   int `json:"completed"`
+	Failed      int `json:"failed"`
+	// Prefill is the prefill speed of the cell: the rate of the whole cell
+	// and the distribution of the rates of its requests.
+	Prefill *Rate `json:"prefill,omitempty"`
+	// Decode is the decode speed of the cell, in the same shape.
+	Decode *Rate `json:"decode,omitempty"`
+	// TTFTs is the distribution of the time to first token in seconds.
+	TTFTs *Dist `json:"ttft_s,omitempty"`
+	// ITLms is the distribution of the inter-token latency in
+	// milliseconds.
+	ITLms *Dist `json:"itl_ms,omitempty"`
+	// ServerSide is what the server measured over the same requests. It is
+	// nil when the server has no metrics.
+	ServerSide *ServerSide `json:"server_side,omitempty"`
+	// TokensExact tells whether the token counts of the cell come from the
+	// server's usage. False when a request came without usage.
+	TokensExact bool    `json:"tokens_exact"`
 	TTFTP50     float64 `json:"ttft_p50_ms"`
 	TTFTP95     float64 `json:"ttft_p95_ms"`
 	ITLP50      float64 `json:"itl_p50_ms"`
@@ -72,6 +91,9 @@ type Cell struct {
 	// they show how close the prompt calibration landed.
 	MeanPromptTokens float64 `json:"mean_prompt_tokens"`
 	MeanOutputTokens float64 `json:"mean_output_tokens"`
+	// MeanCachedPromptTokens is the mean number of prompt tokens the
+	// server had in its prefix cache. Zero when the server does not say.
+	MeanCachedPromptTokens float64 `json:"mean_cached_prompt_tokens,omitempty"`
 	// TokensPerChunk is completion tokens per streamed chunk; above 1 with
 	// speculative decoding (MTP).
 	TokensPerChunk float64 `json:"tokens_per_chunk"`
@@ -243,10 +265,10 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 	defer hc.CloseIdleConnections()
 
 	var seq atomic.Int64
-	send := func(ctx context.Context) sample {
+	send := func(ctx context.Context, from time.Time) sample {
 		n := int(seq.Add(1))
 		prompt := p.build(n, words)
-		s := streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen, o.Recall)
+		s := streamCompletion(ctx, hc, o.URL, o.Model, prompt, o.OutputLen, o.Recall, from)
 		if o.Recall {
 			s.expect = p.passKey(n)
 		}
@@ -257,7 +279,7 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		n := cellPrompts(o, c)
 		if o.Warmup > 0 {
 			fmt.Fprintf(progress, "bench: c=%d warmup %d request(s)\n", c, o.Warmup)
-			warm := runPool(ctx, o.Warmup, o.Warmup, send)
+			warm := runPool(ctx, o.Warmup, o.Warmup, time.Now(), send)
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
@@ -269,13 +291,16 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 			}
 		}
 		fmt.Fprintf(progress, "bench: c=%d running %d requests\n", c, n)
+		before := serverMetrics(ctx, client)
 		start := time.Now()
-		samples := runPool(ctx, c, n, send)
+		samples := runPool(ctx, c, n, start, send)
 		wall := time.Since(start)
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+		after := serverMetrics(ctx, client)
 		cell := aggregate(c, samples, wall)
+		cell.ServerSide = serverSide(before, after)
 		fmt.Fprintf(progress, "bench: c=%d done in %.1fs: %d ok, %d failed, %.1f output tok/s\n",
 			c, cell.DurationS, cell.Completed, cell.Failed, cell.OutputTokS)
 		if o.Recall {
@@ -291,9 +316,21 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 	return res, nil
 }
 
+// serverMetrics reads the metrics of the server. It returns nil when the
+// server has no /metrics endpoint: the cross-check with the server is
+// optional.
+func serverMetrics(ctx context.Context, c *vllm.Client) map[string]float64 {
+	m, err := c.Metrics(ctx)
+	if err != nil {
+		return nil
+	}
+	return m
+}
+
 // runPool sends n requests with at most workers in flight and returns the
-// samples in request order.
-func runPool(ctx context.Context, workers, n int, send func(context.Context) sample) []sample {
+// samples in request order. from is the start of the cell: every sample
+// keeps its times relative to it.
+func runPool(ctx context.Context, workers, n int, from time.Time, send func(context.Context, time.Time) sample) []sample {
 	out := make([]sample, n)
 	jobs := make(chan int)
 	var wg sync.WaitGroup
@@ -302,7 +339,7 @@ func runPool(ctx context.Context, workers, n int, send func(context.Context) sam
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				out[i] = send(ctx)
+				out[i] = send(ctx, from)
 			}
 		}()
 	}

@@ -63,6 +63,13 @@ Each item has a spec section and one test that proves it.
   `corpus_sha256`, input, output, concurrency, recall) and `bernie bench
   compare` refuses two results of different workloads. Spec
   [§10](spec.md#10-benchmark).
+- **Bench metrics.** Every cell reports five groups of numbers: the prefill
+  and the decode speed (the rate of the whole cell and the distribution of
+  the rates of its requests), the time to first token in seconds, the
+  inter-token latency in milliseconds and the output rate. The server's own
+  numbers from `/metrics` come next to them in `server_side`. The text, the
+  dashboard and the MCP tools show the same numbers with their units.
+  Spec [§10](spec.md#101-what-the-numbers-mean).
 - **Numeric GPU group ids.** A container run adds the numeric ids of the
   GPU groups of the host, never their names: the image has no /etc/group to
   resolve a name in. The plan shows the ids and where they came from. Spec

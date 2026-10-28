@@ -20,7 +20,10 @@ type Comparison struct {
 
 // Compare pairs two results that measure the same workload. It returns
 // ErrWorkloadDiffers when they do not: the numbers of two different
-// workloads cannot be put side by side.
+// workloads cannot be put side by side. Two results of different protocol
+// ids are refused too: they measured different things, so only the
+// numbers both of them measured could be compared, and those are not
+// worth a table.
 func Compare(a, b *Result) (*Comparison, error) {
 	if a == nil || b == nil {
 		return nil, errors.New("two results are needed")
@@ -38,7 +41,7 @@ func workloadDiff(a, b *Workload) []string {
 	}
 	var diff []string
 	if a.ProtocolID != b.ProtocolID {
-		diff = append(diff, fmt.Sprintf("protocol %s vs %s", a.ProtocolID, b.ProtocolID))
+		diff = append(diff, fmt.Sprintf("protocol %s vs %s (the two results measure different things)", a.ProtocolID, b.ProtocolID))
 	}
 	if a.CorpusSHA256 != b.CorpusSHA256 {
 		diff = append(diff, "corpus differs")
