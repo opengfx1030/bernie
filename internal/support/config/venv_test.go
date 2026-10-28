@@ -20,6 +20,7 @@ func makeVenv(t *testing.T, dir string) {
 }
 
 func TestConventionalVenvDetection(t *testing.T) {
+	resetVenvCache()
 	home := t.TempDir()
 	data := filepath.Join(home, "data")
 	t.Setenv("HOME", home)
@@ -53,6 +54,7 @@ func TestConventionalVenvDetection(t *testing.T) {
 	}
 
 	valid[paths[1]] = false
+	resetVenvCache()
 	got = (Config{}).ResolveVenvInfo("")
 	if got.Path != paths[0] || got.Source != VenvSourceConventional {
 		t.Fatalf("one valid candidate = %+v, want %q", got, paths[0])
@@ -60,6 +62,7 @@ func TestConventionalVenvDetection(t *testing.T) {
 
 	valid[paths[1]] = true
 	valid[paths[2]] = true
+	resetVenvCache()
 	got = (Config{}).ResolveVenvInfo("")
 	want := []string{paths[1], paths[2], paths[0]}
 	if got.Path != "" || got.Source != VenvSourceAmbiguous || !reflect.DeepEqual(got.Candidates, want) {
@@ -68,6 +71,7 @@ func TestConventionalVenvDetection(t *testing.T) {
 }
 
 func TestConventionalVenvProbesRunInParallel(t *testing.T) {
+	resetVenvCache()
 	home := t.TempDir()
 	data := filepath.Join(home, "data")
 	t.Setenv("HOME", home)
@@ -103,6 +107,29 @@ func TestConventionalVenvProbesRunInParallel(t *testing.T) {
 	_ = (Config{}).ResolveVenvInfo("")
 	if peak < 2 {
 		t.Errorf("probes ran %d at a time, want more than one", peak)
+	}
+}
+
+func TestConventionalVenvProbeIsCached(t *testing.T) {
+	resetVenvCache()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("BERNIE_DATA_DIR", filepath.Join(home, "data"))
+	t.Setenv("BERNIE_VENV", "")
+	t.Setenv("VIRTUAL_ENV", "")
+
+	old := venvCanImportVLLM
+	defer func() { venvCanImportVLLM = old }()
+	calls := 0
+	venvCanImportVLLM = func(string) bool {
+		calls++
+		return true
+	}
+	makeVenv(t, filepath.Join(home, ".venvs", "vllm-a"))
+	(Config{}).ResolveVenvInfo("")
+	(Config{}).ResolveVenvInfo("")
+	if calls != 1 {
+		t.Errorf("the candidates were probed %d times, want 1", calls)
 	}
 }
 
