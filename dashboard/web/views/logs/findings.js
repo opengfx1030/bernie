@@ -32,7 +32,8 @@ function logFixIsCommand(fix) {
 function logFinding(finding, options) {
   const o = options || {};
   const fix = finding.fix || "";
-  return h("div.finding.lg-finding",
+  const fail = finding.severity === "error";
+  return h("div.finding.lg-finding", { class: fail ? "lg-sev-fail" : "lg-sev-warn" },
     h("div.lg-finding-head",
       logSeverityPill(finding),
       h("span.lg-rule", finding.id || "rule"),
