@@ -954,7 +954,12 @@ attention: its speed numbers mean nothing.
 
 Results go to `<state>/bench/<id>.json` (id = UTC timestamp + short hash).
 The fingerprint has: host, GPU summary, recipe name, image digest (container
-runs) and run plan hash. Cell fields:
+runs) and run plan hash. The GPU summary lists only the GPUs used by the run:
+bernie reads `HIP_VISIBLE_DEVICES` and the selected GPU indices from the plan
+in the matching run record. When there is no matching run record, or its plan
+has no GPU selection, the summary lists every host GPU and `gpu_scope` is
+`all (run selection unknown)`. A known run selection has `gpu_scope` `run`.
+The text and dashboard history show the same summary and scope. Cell fields:
 
 | Field | Meaning |
 |---|---|

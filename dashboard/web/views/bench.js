@@ -92,6 +92,13 @@ async function viewBench(root) {
   loadHistory(hist, result);
 }
 
+/** benchGPUText names the GPUs used by a saved result. */
+function benchGPUText(r) {
+  const fp = (r && r.fingerprint) || {};
+  if (!fp.gpus) return "–";
+  return fp.gpu_scope ? `${fp.gpus} (${fp.gpu_scope})` : fp.gpus;
+}
+
 /** benchRow is one saved result in the history table. */
 function benchRow(r, result) {
   const cells = r.cells || [];
@@ -99,6 +106,7 @@ function benchRow(r, result) {
     onclick: () => put(result, h("h3", "Result " + r.id), h("div.small.muted", `${r.model} @ ${r.url} · ${new Date(r.time).toLocaleString()}`), cellsTable(cells), recallNote(cells)),
   },
     h("td.small", ago(r.time)), h("td", r.tag || ""), h("td", r.model),
+    h("td.small", benchGPUText(r)),
     h("td.num", cells.map((c) => c.concurrency).join(",")),
     h("td.num", num(Math.max(0, ...cells.map((c) => c.output_tok_s || 0)))),
     h("td.num", recallText(resultRecall(r))));
@@ -110,7 +118,7 @@ async function loadHistory(card, result) {
     const list = (Array.isArray(d) ? d : (d && d.results) || []).slice().sort((a, b) => new Date(b.time) - new Date(a.time));
     if (!list.length) { put(card, h("h2", "History"), h("div.empty", "No saved results.")); return; }
     put(card, h("h2", "History"), h("div.scroll", h("table",
-      h("thead", h("tr", h("th", "When"), h("th", "Tag"), h("th", "Model"), h("th.num", "Conc."), h("th.num", "Best output tok/s"), h("th.num", "Recall"))),
+      h("thead", h("tr", h("th", "When"), h("th", "Tag"), h("th", "Model"), h("th", "GPUs"), h("th.num", "Conc."), h("th.num", "Best output tok/s"), h("th.num", "Recall"))),
       h("tbody", list.map((r) => benchRow(r, result))))));
   } catch (e) { put(card, h("h2", "History"), failed(e)); }
 }

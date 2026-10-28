@@ -253,30 +253,36 @@ func TestFingerprint(t *testing.T) {
 	defer func() { gpuList = old }()
 	gpuList = func(string) ([]gpu.GPU, error) {
 		return []gpu.GPU{
-			{Name: "AMD Radeon PRO W7800", GFX: "gfx1100"},
-			{Name: "AMD Radeon PRO W7800", GFX: "gfx1100"},
-			{Name: "AMD Radeon PRO V620", GFX: "gfx1030"},
+			{HIPIndex: 0, Name: "AMD Radeon PRO W7800", GFX: "gfx1100"},
+			{HIPIndex: 1, Name: "AMD Radeon PRO W7800", GFX: "gfx1100"},
+			{HIPIndex: 2, Name: "AMD Radeon PRO V620", GFX: "gfx1030"},
 		}, nil
 	}
 	state := t.TempDir()
-	writeRun(t, state, "flash", `{"name":"flash","recipe":"flashnext-mtp2","host":"0.0.0.0","port":18096,"plan":{"model":"m","env":{"A":"1"}}}`)
+	writeRun(t, state, "flash", `{"name":"flash","recipe":"flashnext-mtp2","host":"0.0.0.0","port":18096,"plan":{"model":"m","gpus":[2],"hip_devices":"2","env":{"HIP_VISIBLE_DEVICES":"2"}}}`)
 	writeRun(t, state, "other", `{"name":"other","recipe":"x","host":"127.0.0.1","port":9000}`)
 
 	fp := fingerprint(state, "http://localhost:18096")
-	if fp["gpus"] != "2x AMD Radeon PRO W7800 (gfx1100), 1x AMD Radeon PRO V620 (gfx1030)" {
-		t.Errorf("gpus = %q", fp["gpus"])
+	if fp["gpus"] != "1x AMD Radeon PRO V620 (gfx1030)" || fp["gpu_scope"] != "run" {
+		t.Errorf("gpus = %q scope %q", fp["gpus"], fp["gpu_scope"])
 	}
 	if fp["run"] != "flash" || fp["recipe"] != "flashnext-mtp2" || len(fp["plan_hash"]) != 12 || fp["host"] == "" {
 		t.Errorf("fingerprint = %v", fp)
 	}
 	// Plan hash ignores JSON formatting.
 	state2 := t.TempDir()
-	writeRun(t, state2, "flash", `{"name":"flash","host":"0.0.0.0","port":18096,"plan":{ "model": "m", "env": {"A": "1"} }}`)
+	writeRun(t, state2, "flash", `{"name":"flash","host":"0.0.0.0","port":18096,"plan":{ "model": "m", "gpus": [2], "hip_devices": "2", "env": {"HIP_VISIBLE_DEVICES": "2"} }}`)
 	if fp2 := fingerprint(state2, "http://127.0.0.1:18096"); fp2["plan_hash"] != fp["plan_hash"] {
 		t.Errorf("plan hash depends on whitespace: %q vs %q", fp2["plan_hash"], fp["plan_hash"])
 	}
-	if fp := fingerprint(state, "http://10.1.1.1:18096"); fp["run"] != "" {
+	// Without a matching run the selection is unknown, so all host GPUs are
+	// listed and the result says that they are a fallback.
+	fp = fingerprint(state, "http://10.1.1.1:18096")
+	if fp["run"] != "" || fp["gpu_scope"] != "all (run selection unknown)" {
 		t.Errorf("remote URL matched local run: %v", fp)
+	}
+	if fp["gpus"] != "2x AMD Radeon PRO W7800 (gfx1100), 1x AMD Radeon PRO V620 (gfx1030)" {
+		t.Errorf("fallback gpus = %q", fp["gpus"])
 	}
 }
 
