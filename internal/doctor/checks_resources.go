@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"fmt"
+	"syscall"
 )
 
 func resourceChecks(in inputs) []Check {
@@ -38,4 +39,12 @@ func resourceChecks(in inputs) []Check {
 		out = append(out, check(cat, "shm", OK, "/dev/shm size", fmt.Sprintf("%.0f GiB", float64(shm)/gib)))
 	}
 	return out
+}
+
+func statfsFree(p string) uint64 {
+	var st syscall.Statfs_t
+	if p == "" || syscall.Statfs(p, &st) != nil {
+		return 0
+	}
+	return uint64(st.Bavail) * uint64(st.Bsize)
 }

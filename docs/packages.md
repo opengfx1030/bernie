@@ -87,7 +87,9 @@ func (Report) Failed() bool
 ```
 
 `ValidatedArchs` comes from `recipe.ValidatedArchs`. `doctor` does not import
-`recipe`. One `checks_<category>.go` file holds the checks of one category.
+`recipe`. Check files are grouped by role. GPU and topology checks share
+`checks_gpu.go`, with the GPU-group helpers; resource checks own the
+filesystem helper.
 
 ## logdoc
 
