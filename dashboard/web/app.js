@@ -128,6 +128,37 @@ function cardHead(title, path, ...rest) {
   return h("h2", title, h("span.grow"), ...rest, path ? jsonLink(path) : null);
 }
 
+// ---------- the state headline ----------
+
+/** stateHead is the block that opens a tab: the label of the tab, the
+ *  headline that says what the situation is and the line under it. The
+ *  headline is read out when it changes. The action is the one primary
+ *  button of the tab; it sits under the headline. */
+function stateHead(eyebrow, action) {
+  return h("section.state-head", { "aria-live": "polite" },
+    h("p.eyebrow", eyebrow),
+    h("h1.display", "…"),
+    h("p.lede", ""),
+    action ? h("div.head-actions", action) : null);
+}
+
+/** setHead writes the headline of a tab: the situation in one sentence, and
+ *  the reason under it. */
+function setHead(head, title, lede) {
+  const t = head.querySelector(".display");
+  const l = head.querySelector(".lede");
+  t.textContent = title;
+  l.textContent = lede || "";
+  l.hidden = !lede;
+}
+
+/** emptyState teaches: what the thing is, and what to do next. */
+function emptyState(what, next, command) {
+  return h("div.empty", h("b", what),
+    next ? h("span.next", next) : null,
+    command ? cmdBlock(command) : null);
+}
+
 let toastTimer;
 function toast(msg, ok) {
   const t = $("#toast");
@@ -173,7 +204,7 @@ function spark(canvas, values, max) {
   const top = max || Math.max(1, ...values);
   const step = w / (HISTORY - 1);
   const x0 = w - (values.length - 1) * step;
-  const color = getComputedStyle(document.documentElement).getPropertyValue("--spark").trim() || "#c8102e";
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#b3122c";
   c.beginPath();
   values.forEach((v, i) => {
     const y = hgt - 1 - (Math.min(v, top) / top) * (hgt - 2);

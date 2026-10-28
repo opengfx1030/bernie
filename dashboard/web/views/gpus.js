@@ -1,20 +1,56 @@
 "use strict";
 // ---------- GPUs ----------
 
+// gpusHead is the headline of the GPUs tab. It is kept between the renders,
+// because the telemetry stream repaints the tab every second.
+let gpusHead = null;
+
 async function viewGPUs(root) {
   put(root, loading());
   try { await loadHW(); } catch { /* names and PCI info are optional; telemetry still renders */ }
-  root.replaceChildren();
+  gpusHead = newGpusHead();
+  root.replaceChildren(gpusHead);
   renderGPUs();
   loadPower().then(() => renderPower(root)).catch(() => { /* power status is optional */ });
 }
 
+// newGpusHead is the headline of the GPUs tab with its one primary action:
+// copy the card list as plain text, one line per card.
+function newGpusHead() {
+  return stateHead("GPUs", h("button.primary", { type: "button", onclick: copyCardList }, "Copy the card list"));
+}
+
+// cardListText writes the cards as plain text: one line per card, so it can
+// be pasted into a report or a ticket.
+function cardListText() {
+  const samples = (state.tele && state.tele.gpus) || [];
+  const gpus = (state.hw && state.hw.gpus) || [];
+  if (!samples.length && !gpus.length) return "";
+  return samples.map((s) => {
+    const g = gpus.find((x) => x.hip_index === s.hip_index) || {};
+    return ["GPU " + s.hip_index, g.name || g.gfx || "", num(s.busy_pct, 0) + " % busy",
+      num(s.temp_c, 0) + " °C", num(s.power_w, 1) + " W",
+      (s.vram_used ? bytes(s.vram_used) : "–") + " / " + (s.vram_total ? bytes(s.vram_total) : "–")].join("\t");
+  }).join("\n");
+}
+
+async function copyCardList() {
+  const text = cardListText();
+  if (!text) { toast("There are no cards to copy yet."); return; }
+  const ok = await copyText(text);
+  toast(ok ? "The card list is on the clipboard." : "Copy failed: select the text and copy it.", ok);
+}
+
 function renderGPUs() {
   const root = $("#tab-gpus");
+  if (!gpusHead) gpusHead = newGpusHead();
   const t = state.tele;
   const gpus = (state.hw && state.hw.gpus) || [];
-  if (!gpus.length && !(t && t.gpus && t.gpus.length)) {
-    put(root, h("div.card", cardHead("GPUs", "/api/hw"), h("div.empty", "No AMD GPUs found on this host (KFD topology is empty).")));
+  const samples = new Map(((t && t.gpus) || []).map((s) => [s.hip_index, s]));
+  if (!gpus.length && !samples.size) {
+    setHead(gpusHead, "No AMD GPU on this machine", "bernie reads the cards from /sys/class/kfd. The amdgpu driver has to be loaded and /dev/kfd has to exist.");
+    put(root, gpusHead, h("div.card", cardHead("GPUs", "/api/hw"),
+      emptyState("No AMD GPU is visible to bernie.", "The amdgpu driver has to be loaded and /dev/kfd has to exist. The doctor checks every part of that.", "sudo modprobe amdgpu")));
     renderServers(root);
     renderPower(root);
     return;
@@ -22,10 +58,10 @@ function renderGPUs() {
   let grid = root.querySelector(".grid.gpus");
   if (!grid) {
     root.replaceChildren();
-    root.append(h("div.servers"), grid = h("div.grid.gpus"));
+    root.append(gpusHead, h("div.servers"), grid = h("div.grid.gpus"));
   }
+  setHead(gpusHead, gpuHeadline(gpus, samples), "The cards, the PCIe link behind them, and what the telemetry stream measures every second: the load, the memory, the power and the temperature.");
   renderServers(root);
-  const samples = new Map(((t && t.gpus) || []).map((s) => [s.hip_index, s]));
   const ids = gpus.length ? gpus.map((g) => g.hip_index) : [...samples.keys()];
   for (const i of ids) {
     let card = grid.querySelector(`[data-gpu="${i}"]`);
@@ -33,6 +69,13 @@ function renderGPUs() {
     updateGPUCard(card, i, samples.get(i));
   }
   renderPower(root);
+}
+
+// gpuHeadline says in one sentence how many cards there are and how busy they are.
+function gpuHeadline(gpus, samples) {
+  if (!gpus.length) return "AMD GPU found";
+  const busy = [...samples.values()].filter((s) => s.busy_pct > 5).length;
+  return gpus.length + (gpus.length === 1 ? " GPU" : " GPUs") + (busy ? ", " + busy + " busy" : ", all idle");
 }
 
 function gpuCard(i) {

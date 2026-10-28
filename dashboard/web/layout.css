@@ -1,0 +1,44 @@
+/* bernie dashboard: the layout.
+   The shell (the top bar and the tab bar), the grids, the cards and the
+   state headline every tab opens with. */
+
+/* the top bar */
+.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px;
+  padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.brand { display: flex; gap: 10px; align-items: baseline; padding: 10px 0; }
+.logo { font-weight: 700; letter-spacing: .02em; color: var(--accent); }
+nav { display: flex; gap: 2px; overflow-x: auto; flex: 1; }
+nav a { padding: 12px 10px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+nav a:hover { color: var(--text); }
+nav a[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.live { color: var(--skip); font-size: 12px; }
+.live.on { color: var(--ok); }
+
+/* the page */
+main { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.cols { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+/* the cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 10px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card h2 .grow, .grow { flex: 1; }
+.card h3 { font-size: 15px; margin: 0 0 6px; }
+.gap { height: 12px; }
+
+/* the state headline: the tab says in one sentence what the situation is */
+.state-head { margin: 0 0 var(--space-4); }
+.state-head .eyebrow { margin: 0 0 6px; }
+.state-head .display { font: 800 clamp(24px, 3.2vw, 38px)/1.1 var(--font-display); letter-spacing: -.02em; margin: 0 0 6px; }
+.state-head .display .key { color: var(--key); }
+.state-head .lede { font-size: 15px; color: var(--text-2); max-width: 68ch; margin: 0; }
+.state-head .head-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-3); }
+.eyebrow { font: 700 11px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+/* the facts: what the machine is, in short */
+.facts { display: grid; gap: var(--space-3); margin: 0; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.facts dt { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+.facts dd .why { display: block; font-weight: 400; font-size: 12px; color: var(--text-2); margin-top: 2px; }

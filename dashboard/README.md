@@ -64,7 +64,9 @@ flowchart LR
 | `web/app.js` | Core: helpers (`h()`, `api()`, `copyBtn()`, `cmdBlock()`), shared state, telemetry stream |
 | `web/views/<tab>.js` | One file per tab: `viewOverview`, `viewGPUs`, ... |
 | `web/boot.js` | Router and start-up. Loaded last. |
-| `web/app.css` | Theme (light and dark), layout, components |
+| `web/tokens.css` | The two palettes (light and dark), the type, the spacing and the radii |
+| `web/layout.css` | The shell, the grids, the cards and the state headline |
+| `web/components.css` | The badges, the buttons, the tables, the meters, the tiles and the ring |
 | `dashboard_test.go` | API, auth and stream tests |
 
 ## The six tabs
@@ -105,7 +107,8 @@ minute. An agent can read the same page as text.
    run. A copy button sits on every command. Never show a bare error code.
 4. **Next step is always visible.** The Overview tab shows one next command
    for the current state (no GPU, no recipe fits, ready to serve, starting,
-   running).
+   running). Every tab has at most one primary button; the rest are ghost
+   buttons.
 5. **Numbers have units and a range.** `18.2 / 29.4 GiB`, not `18.2`. A
    missing value shows `–`, never `0` or `NaN`.
 6. **Show what will happen before it happens.** A start button shows the plan
@@ -122,6 +125,11 @@ minute. An agent can read the same page as text.
 11. **Works with a keyboard and a screen reader.** Real `<a>`, `<button>`,
     `role=tab`, visible focus, `aria-live` for updates.
 12. **Light and dark.** Both follow the system setting. Contrast meets WCAG AA.
+13. **Every tab opens with a headline.** The first thing on a tab says in one
+    sentence what the situation is. The line under it says what that means
+    and what to do next. The headline is read out when it changes.
+14. **The colours come from the tokens.** A new rule uses the `--` variables
+    of `web/tokens.css`. No colour is written by hand in a component file.
 
 ## Copy and raw JSON
 
@@ -132,6 +140,34 @@ button is `type="button"`, so it never submits a form next to it.
 Every card has a `json` link in its header. It opens the raw JSON of the
 endpoint behind the card in a new tab: the same document an agent gets
 from the API. A card that shows no data has no link.
+
+## The palette
+
+The colours live in `web/tokens.css`, one block for the light palette and
+one for the dark palette. The dark palette is the system preference; the
+light one is the override. Every pair is at or above WCAG AA: 4.5:1 for
+text, 3:1 for large text and for the edges of the controls.
+
+The tokens are `--bg`, `--surface`, `--surface-2`, `--surface-3`,
+`--border`, `--border-strong`, `--text`, `--text-2`, `--muted`, `--accent`,
+`--on-accent`, `--key`, `--ok`, `--warn`, `--fail`, `--skip`, `--info` and
+the five `--series-1` to `--series-5`.
+
+The old single stylesheet used `--panel`, `--fg`, `--line`, `--code`,
+`--bar` and `--spark`. They are gone: the files use the new names.
+
+What changed on purpose when the palette was rebuilt:
+
+| What | Before | Now | Why |
+|---|---|---|---|
+| The accent, light | `#c8102e` | `#b3122c` | A little darker, so white text on it stays above AA. |
+| The accent, dark | `#ff5c6c` | `#ff5c6c` | Unchanged. |
+| The text on the accent, dark | white | `--on-accent` (`#16181c`) | White on the light red was 2.6:1. Dark text on it is 5.9:1. |
+| The muted text, light | `#667085` | `#5f6874` | The old value was 4.2:1 on the tinted surface of a command block. |
+| The skip colour | `#8c959f` / `#6e7681` | `#5f6874` / `#7d8590` | The word carries the meaning; the colour only helps. |
+| The warning, light | `#9a6700` | `#8a6100` | A little darker, so it stays above AA on white. |
+| The failure, light | `#cf222e` | `#b42318` | The same. |
+| The topology classes | four fixed colours | `--series-1` to `--series-5` | The four classes now use the same series as the charts. |
 
 ## Safe by default
 

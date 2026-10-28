@@ -130,7 +130,7 @@ func TestTokenCookieFlow(t *testing.T) {
 		t.Fatalf("cookie attributes: %+v", c)
 	}
 
-	r := httptest.NewRequest("GET", "/app.css", nil)
+	r := httptest.NewRequest("GET", "/tokens.css", nil)
 	r.Host = "gpu-box"
 	r.AddCookie(c)
 	rec := httptest.NewRecorder()

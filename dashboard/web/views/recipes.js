@@ -5,12 +5,16 @@ const recipeUI = { list: null, sel: null };
 
 async function viewRecipes(root) {
   put(root, loading());
+  const head = stateHead("Recipes");
   try {
     [recipeUI.list] = await Promise.all([api("/api/recipes"), loadHW().catch(() => null)]);
-  } catch (e) { put(root, failed(e)); return; }
+  } catch (e) { put(root, head, failed(e)); return; }
   const recipes = recipeUI.list.recipes || [];
   const errors = recipeUI.list.errors || [];
-  const detail = h("div.card.detail", cardHead("Plan"), h("div.empty", "Select a recipe."));
+  const fits = recipes.filter((r) => r.fit && r.fit.status === "fits").length;
+  setHead(head, recipes.length + (recipes.length === 1 ? " recipe" : " recipes") + (fits ? ", " + fits + " fit this host" : ""),
+    fits ? "A recipe is a model, the flags it needs and the way it is served. Pick one to see the exact command it runs." : "A recipe is a model, the flags it needs and the way it is served. None of them fits this host yet: the doctor below says what is missing.");
+  const detail = h("div.card.detail", cardHead("Plan"), emptyState("No recipe is selected.", "Pick a recipe on the left to see the model it serves, the flags it needs and the exact command it runs."));
   const rows = recipes.map((r) => {
     const tr = h("tr.click", { onclick: () => { recipeUI.sel = r.id; tbody.querySelectorAll("tr").forEach((x) => x.classList.toggle("sel", x === tr)); showRecipe(detail, r); } },
       h("td", h("b", r.id), h("div.small.muted", r.name)),
@@ -22,9 +26,9 @@ async function viewRecipes(root) {
     return tr;
   });
   const tbody = h("tbody", rows);
-  put(root, h("div.cols",
+  put(root, head, h("div.cols",
       h("div.card", cardHead("Recipes", "/api/recipes", h("span.small.muted", recipes.length + " loaded")),
-      recipes.length ? h("div.scroll", h("table", h("thead", h("tr", h("th", "Recipe"), h("th", "Status"), h("th.num", "GPUs"), h("th", "Arch"), h("th", "Fit"))), tbody)) : h("div.empty", "No recipes."),
+      recipes.length ? h("div.scroll", h("table", h("thead", h("tr", h("th", "Recipe"), h("th", "Status"), h("th.num", "GPUs"), h("th", "Arch"), h("th", "Fit"))), tbody)) : emptyState("There is no recipe to serve.", "A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository."),
       errors.length ? h("div", h("h3", "Load errors"), errors.map((e) => h("div.err.small", (e.source || "") + ": " + (e.err || e.error || "")))) : null),
     detail));
   const pre = recipes.findIndex((r) => r.id === recipeUI.sel);
