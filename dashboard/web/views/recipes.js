@@ -10,7 +10,7 @@ async function viewRecipes(root) {
   } catch (e) { put(root, failed(e)); return; }
   const recipes = recipeUI.list.recipes || [];
   const errors = recipeUI.list.errors || [];
-  const detail = h("div.card.detail", h("h2", "Plan"), h("div.empty", "Select a recipe."));
+  const detail = h("div.card.detail", cardHead("Plan"), h("div.empty", "Select a recipe."));
   const rows = recipes.map((r) => {
     const tr = h("tr.click", { onclick: () => { recipeUI.sel = r.id; tbody.querySelectorAll("tr").forEach((x) => x.classList.toggle("sel", x === tr)); showRecipe(detail, r); } },
       h("td", h("b", r.id), h("div.small.muted", r.name)),
@@ -23,7 +23,7 @@ async function viewRecipes(root) {
   });
   const tbody = h("tbody", rows);
   put(root, h("div.cols",
-    h("div.card", h("h2", "Recipes", h("span.grow"), h("span.small.muted", recipes.length + " loaded")),
+      h("div.card", cardHead("Recipes", "/api/recipes", h("span.small.muted", recipes.length + " loaded")),
       recipes.length ? h("div.scroll", h("table", h("thead", h("tr", h("th", "Recipe"), h("th", "Status"), h("th.num", "GPUs"), h("th", "Arch"), h("th", "Fit"))), tbody)) : h("div.empty", "No recipes."),
       errors.length ? h("div", h("h3", "Load errors"), errors.map((e) => h("div.err.small", (e.source || "") + ": " + (e.err || e.error || "")))) : null),
     detail));
@@ -70,7 +70,7 @@ function showRecipe(card, r) {
     } catch (e) { toast("Start failed: " + e.message); }
     ev.target.disabled = false;
   };
-  put(card, h("h2", "Plan: " + r.id),
+  put(card, cardHead("Plan: " + r.id, "/api/recipes/" + encodeURIComponent(r.id) + "/plan"),
     h("div.small.muted", r.model || ""),
     h("form.f", { onsubmit: (e) => { e.preventDefault(); preview(); } },
       fields,
@@ -99,7 +99,7 @@ function planView(plan) {
   return h("div",
     (plan.warnings || []).map((w) => h("div.err.small", "⚠ " + w)),
     h("h3", "Command"),
-    h("pre", argv.map(sh).join(" ")),
+      cmdBlock(argv.map(sh).join(" "), "Copy the launch command"),
     h("dl.kv", kv.map(([k, v]) => [h("dt", k), h("dd", String(v))])),
     settings.length ? [h("h3", "Settings and reasons"), h("div.scroll", h("table",
       h("thead", h("tr", h("th", "Setting"), h("th", "Value"))), h("tbody", settings)))] : null,

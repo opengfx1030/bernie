@@ -14,7 +14,7 @@ function renderGPUs() {
   const t = state.tele;
   const gpus = (state.hw && state.hw.gpus) || [];
   if (!gpus.length && !(t && t.gpus && t.gpus.length)) {
-    put(root, h("div.card", h("h2", "GPUs"), h("div.empty", "No AMD GPUs found on this host (KFD topology is empty).")));
+    put(root, h("div.card", cardHead("GPUs", "/api/hw"), h("div.empty", "No AMD GPUs found on this host (KFD topology is empty).")));
     renderServers(root);
     renderPower(root);
     return;
@@ -102,7 +102,7 @@ function renderServers(root) {
   const runs = (t && t.runs) || [];
   if (!runs.length) { box.replaceChildren(); return; }
   let card = box.querySelector(".card");
-  if (!card) put(box, card = h("div.card", h("h2", "vLLM servers"), h("div.scroll", h("table", h("thead", h("tr",
+  if (!card) put(box, card = h("div.card", cardHead("vLLM servers", "/api/telemetry"), h("div.scroll", h("table", h("thead", h("tr",
     ["Run", "State", "Running", "Waiting", "KV cache", "Gen tok/s", "Prompt tok/s", "Spec accept", "Gen tok/s, 60 s"].map((c, j) => h("th", { class: j > 1 && j < 8 ? "num" : null }, c)))), h("tbody")))), h("div.gap"));
   const tb = card.querySelector("tbody");
   const seen = new Set();

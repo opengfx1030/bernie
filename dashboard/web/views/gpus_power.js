@@ -15,13 +15,13 @@ function renderPower(root) {
     ? `installed, ${p.enabled ? "enabled" : "not enabled"}, ${p.active ? "watching changes" : "not watching changes"}`
     : "not installed";
   const children = [
-    h("h2", "Power caps", badge(p.state || "skip")),
+    cardHead("Power caps", "/api/power", badge(p.state || "skip")),
     h("div.muted", "Service: " + service),
   ];
   if (!p.installed) {
     children.push(h("div.err", "The power service is not installed. Install it before changing a cap; the controls stay disabled."));
     for (const command of p.install_commands || []) {
-      children.push(h("div.row", h("code", command), copyBtn(command)));
+      children.push(cmdBlock(command, "Copy the install command"));
     }
   } else if (!p.enabled || !p.active) {
     children.push(h("div.err", "The power service is not enabled or is not watching the desired-state file."));

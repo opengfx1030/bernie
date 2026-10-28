@@ -56,11 +56,12 @@ flowchart LR
 |---|---|
 | `dashboard.go` | `Serve`: listener, routes, graceful stop. `/mcp` is MCP over HTTP (`internal/mcp`, spec §13.10) with its own guard |
 | `api.go` | One handler per endpoint in spec §11 |
+| `onboarding.go` | The onboarding endpoints: the checklist, the jobs and their event stream (spec §3.3) |
 | `auth.go` | Token, loopback Host check, `X-Bernie` header on writes |
 | `hub.go`, `telemetry.go`, `sse.go` | 1 Hz samples and event streams |
 | `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
-| `web/app.js` | Core: helpers (`h()`, `api()`), shared state, telemetry stream |
+| `web/app.js` | Core: helpers (`h()`, `api()`, `copyBtn()`, `cmdBlock()`), shared state, telemetry stream |
 | `web/views/<tab>.js` | One file per tab: `viewOverview`, `viewGPUs`, ... |
 | `web/boot.js` | Router and start-up. Loaded last. |
 | `web/app.css` | Theme (light and dark), layout, components |
@@ -121,6 +122,16 @@ minute. An agent can read the same page as text.
 11. **Works with a keyboard and a screen reader.** Real `<a>`, `<button>`,
     `role=tab`, visible focus, `aria-live` for updates.
 12. **Light and dark.** Both follow the system setting. Contrast meets WCAG AA.
+
+## Copy and raw JSON
+
+Every command on the page has a copy button. The button copies the exact
+text of the command, so it can be pasted into a terminal as it is. The
+button is `type="button"`, so it never submits a form next to it.
+
+Every card has a `json` link in its header. It opens the raw JSON of the
+endpoint behind the card in a new tab: the same document an agent gets
+from the API. A card that shows no data has no link.
 
 ## Safe by default
 
