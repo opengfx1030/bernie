@@ -99,19 +99,19 @@ func Judge(cmp *Comparison, band float64) *Verdict {
 	}
 	for _, c := range cmp.A.Cells {
 		if c.Incomplete {
-			v.invalid(fmt.Sprintf("the cell %s is incomplete: it lost a request", cellLabel(c.Group, c.Concurrency)))
+			v.invalid(fmt.Sprintf("the cell %s is incomplete: it lost a request", CellLabel(c.Group, c.Concurrency)))
 		}
 	}
 	for _, c := range cmp.B.Cells {
 		if c.Incomplete {
-			v.invalid(fmt.Sprintf("the cell %s is incomplete: it lost a request", cellLabel(c.Group, c.Concurrency)))
+			v.invalid(fmt.Sprintf("the cell %s is incomplete: it lost a request", CellLabel(c.Group, c.Concurrency)))
 		}
 	}
 	for i := range cmp.A.Cells {
 		ca := &cmp.A.Cells[i]
 		cb := findCell(cmp.B, ca.Group, ca.Concurrency)
 		if cb == nil {
-			v.invalid(fmt.Sprintf("the run %s has no cell %s", cmp.B.ID, cellLabel(ca.Group, ca.Concurrency)))
+			v.invalid(fmt.Sprintf("the run %s has no cell %s", cmp.B.ID, CellLabel(ca.Group, ca.Concurrency)))
 			continue
 		}
 		cv := CellVerdict{Group: ca.Group, Concurrency: ca.Concurrency}
@@ -182,7 +182,7 @@ func findCell(r *bench.Result, group string, concurrency int) *bench.Cell {
 }
 
 // cellLabel names a cell.
-func cellLabel(group string, concurrency int) string {
+func CellLabel(group string, concurrency int) string {
 	if group == "" {
 		return fmt.Sprintf("c=%d", concurrency)
 	}
