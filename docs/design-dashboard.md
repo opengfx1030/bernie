@@ -244,10 +244,10 @@ redesigning anything.
 | Donut ring | an 84 px SVG ring with the number in the middle and a caption under it | the same | same |
 | Area chart | an inline SVG, grid lines, axis labels, a five-minute window | the same, with a window the reader picks (5 min, 15 min, 1 h) | adapted (bernie feature) |
 | Matrix | 2 px gaps, 6 px radius cells, one colour per class | the same; the classes of the PCIe links use `--series-1..4` | same |
-| Bar chart | SVG bars for the comparison of two runs | the same; the five metric groups of spec §10.1 are the groups | same |
+| Bar chart | SVG bars for the comparison of two runs | the same; the five metric groups of spec §10.1 are the groups | same (done) |
 | Log viewer | 12.5 px mono on near-black, 340 px tall, `pre-wrap` | the same | same |
 | Progress bar | a 10 px track, a 6 px radius, the key colour, and one plain sentence under it | the same | same (done) |
-| Radio card | a big radio, a title, one line of detail | the same; it picks the benchmark suite | same |
+| Radio card | a big radio, a title, one line of detail | the same; it picks the benchmark suite | same (done) |
 | Toast | fixed at the bottom centre, 2.6 s, `role="status"`, `aria-live="polite"` | the same | same |
 | Tooltip | a small mark that opens a fixed panel with `role="tooltip"` | the same, and it opens on focus as well | adapted (accessibility) |
 | Banner | the third surface with a 3 px bar on the left, dismissible | the same; it carries the stale and the offline notice | same |
