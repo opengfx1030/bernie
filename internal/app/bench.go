@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 )
@@ -18,11 +19,20 @@ type SaveError struct{ Err error }
 func (e *SaveError) Error() string { return "save result: " + e.Err.Error() }
 func (e *SaveError) Unwrap() error { return e.Err }
 
+// ErrBenchBusy means another benchmark of this process is running.
+var ErrBenchBusy = errors.New("a benchmark is already running")
+
+var benchMu sync.Mutex // one benchmark at a time per process
+
 // Bench runs a benchmark and saves the result under <state>/bench. Progress
 // lines go to progress. It returns the result and the file it was saved to.
 // When no request succeeded it saves nothing and returns the result with
-// ErrAllFailed.
+// ErrAllFailed. A second concurrent call returns ErrBenchBusy.
 func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Result, string, error) {
+	if !benchMu.TryLock() {
+		return nil, "", ErrBenchBusy
+	}
+	defer benchMu.Unlock()
 	r, err := bench.Run(ctx, o, progress)
 	if err != nil {
 		return nil, "", err
