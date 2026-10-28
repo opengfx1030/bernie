@@ -237,6 +237,7 @@ func BenchSuite(ctx context.Context, name string, o bench.Options, progress io.W
 func BenchList() ([]bench.Result, error)                                // never null
 func Stop(ctx context.Context, name string) (StopResult, error)
 func Onboarding(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) // the checklist
+func OnboardingCached(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) // the cached checklist
 func StartOnboardingJob(ctx context.Context, step string, o OnboardingOptions) (*onboarding.Job, error)
 func OnboardingJob(id string) (*onboarding.Job, error)
 func OnboardingJobLog(id string) ([]string, error)
@@ -249,7 +250,7 @@ its JSON body, the MCP server checks its input schema. `app` never prints.
 ## onboarding
 
 ```go
-type Document struct { Next string; Steps []Step }             // the checklist
+type Document struct { Next string; Steps []Step; FactsAgeS int; Stale bool }  // the checklist
 type Step struct { ID, Title, State, Summary, Detail, Command string; CanRun bool;
     RootCommands []string; Progress *Progress; Problems []Problem }
 type Problem struct { ID, Title, Status, Detail, Fix, Doc string }  // a doctor check
@@ -258,6 +259,7 @@ type Facts struct { Host host.Info; GPUs []gpu.GPU; Restriction string; Doctor d
     Venv, HFHome, Model string; Runs []Run; Jobs []Job }
 func Gather(ctx context.Context, o Options) (*Facts, error)   // one probe of the host
 func Build(f *Facts) *Document                                 // the steps from the facts
+func Load(ctx context.Context, o Options) (*Document, error)   // the cached document, refreshed in the background when it is stale
 type Action struct { Step, Kind string; Steps []setup.Step; Recipe, Mode, Venv string; Sets []string }
 func ActionFor(f *Facts, step string, o Options) (*Action, error)  // ErrNoAction
 func SetupAction(steps []setup.Step) *Action                  // what `up` applies

@@ -37,6 +37,13 @@ func Onboarding(ctx context.Context, o OnboardingOptions) (*onboarding.Document,
 	return onboarding.Build(f), nil
 }
 
+// OnboardingCached returns the onboarding document of this host from the
+// cache when it is fresh enough, and refreshes it in the background when it
+// is not (spec §3.3). The document says how old it is.
+func OnboardingCached(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) {
+	return onboarding.Load(ctx, o)
+}
+
 // StartOnboardingJob runs the action of an onboarding step in the background
 // and returns the job. One job runs at a time.
 func StartOnboardingJob(ctx context.Context, step string, o OnboardingOptions) (*onboarding.Job, error) {
