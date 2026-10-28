@@ -133,6 +133,12 @@ func hasECC(g GPU) bool {
 	return ok && d.ECC
 }
 
+// knownDevice reports whether the device tables know the card.
+func knownDevice(g GPU) bool {
+	_, ok := Lookup(g.DeviceID)
+	return ok
+}
+
 // smiTimeout bounds the amd-smi calls.
 const smiTimeout = 15 * time.Second
 
@@ -143,8 +149,10 @@ func ECCTool(ctx context.Context, gpus []GPU, ecc []ECC, amdSMI string) []ECC {
 		return ecc
 	}
 	need := false
-	for _, e := range ecc {
-		if !e.Counters {
+	for i, g := range gpus {
+		// A card the tables know has no ECC needs no counters: only a card
+		// with ECC, or a card the tables do not know, is worth a tool call.
+		if !ecc[i].Counters && (hasECC(g) || !knownDevice(g)) {
 			need = true
 		}
 	}

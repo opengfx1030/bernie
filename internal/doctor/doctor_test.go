@@ -302,3 +302,42 @@ func TestP2PCategory(t *testing.T) {
 		}
 	}
 }
+
+func TestECCChecksOnFixtures(t *testing.T) {
+	r := Run(context.Background(), Options{Root: fixture.Root(t, "v620-ecc"), Categories: []string{"gpu"}})
+	c := find(t, r.Checks, "gpu.ecc.0")
+	if c.Status != OK || !strings.Contains(c.Detail, "ue=0 ce=0 de=0") {
+		t.Errorf("v620-ecc: gpu.ecc.0 = %+v", c)
+	}
+	r = Run(context.Background(), Options{Root: fixture.Root(t, "ecc-synthetic"), Categories: []string{"gpu"}})
+	c = find(t, r.Checks, "gpu.ecc.0")
+	if c.Status != Fail || !strings.Contains(c.Detail, "ue=2 ce=5 de=1") || !strings.Contains(c.Fix, "replace it") {
+		t.Errorf("ecc-synthetic: gpu.ecc.0 = %+v", c)
+	}
+}
+
+func TestECCStates(t *testing.T) {
+	cases := []struct {
+		name   string
+		ecc    gpu.ECC
+		status Status
+		detail string
+	}{
+		{"clean", gpu.ECC{State: gpu.ECCEnabled, Counters: true}, OK, "ue=0 ce=0 de=0"},
+		{"corrected errors", gpu.ECC{State: gpu.ECCEnabled, CE: 5, Counters: true}, Warn, "corrected"},
+		{"degraded pages", gpu.ECC{State: gpu.ECCEnabled, DE: 2, Counters: true}, Warn, "degraded"},
+		{"uncorrectable errors", gpu.ECC{State: gpu.ECCEnabled, UE: 2, Counters: true}, Fail, "uncorrectable"},
+		{"off on a card with ECC", gpu.ECC{State: gpu.ECCDisabled}, Warn, "ECC is off"},
+		{"card with ECC, no counters", gpu.ECC{State: gpu.ECCSupported}, Skip, "no RAS counters"},
+		{"card without ECC", gpu.ECC{State: gpu.ECCUnsupported}, Skip, "does not count memory errors"},
+	}
+	for _, c := range cases {
+		in := base()
+		in.gpus = v620s(1, 180)
+		in.ecc = []gpu.ECC{c.ecc}
+		got := find(t, evaluate(in), "gpu.ecc.0")
+		if got.Status != c.status || !strings.Contains(got.Detail, c.detail) {
+			t.Errorf("%s: gpu.ecc.0 = %s %q, want %s containing %q", c.name, got.Status, got.Detail, c.status, c.detail)
+		}
+	}
+}
