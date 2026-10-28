@@ -28,7 +28,7 @@ const classic = {
 };
 
 const CLASSIC_DOCS = "https://github.com/opengfx1030/bernie/blob/main/docs/design-dashboard.md";
-const CLASSIC_HIST = 300;   // five minutes of samples at one per second
+const CLASSIC_HIST = 240;   // the points of a chart: four minutes at one per second
 const CLASSIC_TAIL = 60;    // the samples under a tile
 
 /* ---------- the view ---------- */
@@ -273,15 +273,15 @@ function classicBuild() {
   el.hostE2E = h("b");
   put(el.host,
     h("div.panel-head", h("h2", "This machine"), h("span.muted", { id: "classic-host" })),
-    h("div.stat", h("div.stat-h", h("span", "CPU"), el.hostCpu), h("div.meter", h("i", { style: "width:0%" }))),
-    h("div.stat", h("div.stat-h", h("span", "RAM"), el.hostRam), h("div.meter.mem", h("i", { style: "width:0%" }))),
+    h("div.stat", h("div.stat-h", h("span", "CPU"), el.hostCpu), h("div.meter", classicMeterFill(0))),
+    h("div.stat", h("div.stat-h", h("span", "RAM"), el.hostRam), h("div.meter.mem", classicMeterFill(0))),
     h("div.stat-row.big",
       h("span", h("span.muted", "Requests served"), el.hostReq),
       h("span", h("span.muted", "Avg request"), el.hostE2E)),
     h("p.classic-note", "The CPU load, the memory in use and the request times are not measured on this host."));
   el.hostNote = el.host.querySelector("#classic-host");
 
-  el.connectText = h("p.muted", { style: "margin:0 0 8px" });
+  el.connectText = h("p.muted.connect-text");
   el.connectCmd = h("div.cmd");
   el.seg = h("div.seg");
   for (const [k, label] of [["curl", "curl"], ["python", "Python"]]) {
@@ -370,51 +370,51 @@ function classicUpdate() {
   classicCount(el.genNum, gen.v, 1);
   el.genNum.parentElement.classList.toggle("idle", !!gen.idle);
   el.genNote.textContent = gen.note || "";
-  put(el.genSpark, classicSpark(classicTail("gen"), "var(--key)", 44));
+  put(el.genSpark, classicSpark(classicTail("gen"), "key", 44));
 
   // the six tiles
   const prompt = classicLive("prompt", 0);
   classicCount(el["num-prompt"], prompt.v, 0);
   el["num-prompt"].parentElement.classList.toggle("idle", !!prompt.idle);
   el["sub-prompt"].textContent = prompt.note || "Prefill, all users";
-  put(el["spark-prompt"], classicSpark(classicTail("prompt"), "var(--series-3)"));
+  put(el["spark-prompt"], classicSpark(classicTail("prompt"), "s3"));
 
   const running = classicLive("running", 0);
   classicCount(el["num-run"], running.v, 0);
   el["num-run"].parentElement.classList.toggle("idle", false);
   el["sub-run"].textContent = m.stats ? cfmt(m.stats.requests_waiting) + " waiting in line" : "no run is serving";
-  put(el["spark-run"], classicSpark(classicTail("running"), "var(--series-1)"));
+  put(el["spark-run"], classicSpark(classicTail("running"), "s1"));
 
   classicCount(el["num-ttft"], null, 2);
   el["sub-ttft"].textContent = "n/a on this host";
-  put(el["spark-ttft"], classicSpark([], "var(--series-1)"));
+  put(el["spark-ttft"], classicSpark([], "s1"));
 
   const kv = classicLive("kv", 0);
   classicCount(el["num-kv"], kv.v, 0);
   el["sub-kv"].textContent = kv.note || "of GPU cache in use";
-  put(el["spark-kv"], classicSpark(classicTail("kv"), "var(--series-3)"));
+  put(el["spark-kv"], classicSpark(classicTail("kv"), "s3"));
 
   classicCount(el["num-pc"], null, 0);
   el["sub-pc"].textContent = "n/a on this host";
-  put(el["spark-pc"], classicSpark([], "var(--series-1)"));
+  put(el["spark-pc"], classicSpark([], "s1"));
 
   const spec = classicLive("spec", 0);
   classicCount(el["num-sd"], spec.v, 0);
   el["num-sd"].parentElement.classList.toggle("idle", !!spec.idle);
   el["sub-sd"].textContent = spec.note || (m.stats && m.stats.spec_draft_tokens > 0 ? "MTP drafts kept" : "no draft tokens yet");
-  put(el["spark-sd"], classicSpark(classicTail("spec"), "var(--series-3)"));
+  put(el["spark-sd"], classicSpark(classicTail("spec"), "s3"));
 
   // the two charts
   const genPts = classic.hist.map((s) => [s.t / 1000, s.gen]);
   put(el.chart1, classicChart({
     id: "classic-gen", label: "Output tokens per second", height: 200, area: true,
-    series: [{ name: "Output tok/s", color: "var(--series-1)", pts: genPts }],
+    series: [{ name: "Output tok/s", cls: "s1", pts: genPts }],
     yFmt: (v) => cfmt(v, v < 10 ? 1 : 0),
   }));
   const promptPts = classic.hist.filter((s) => s.prompt != null).map((s) => [s.t / 1000, s.prompt]);
   put(el.chart2, classicChart({
     id: "classic-prompt", label: "Prompt tokens per second", height: 200, area: true,
-    series: [{ name: "Prompt tok/s", color: "var(--series-3)", pts: promptPts }],
+    series: [{ name: "Prompt tok/s", cls: "s3", pts: promptPts }],
   }));
   classicCharts();
 
@@ -477,6 +477,15 @@ function classicHeroButtons(m) {
   return [h("a.btn.go", { href: "#setup" }, "Start a run")];
 }
 
+/** classicMeterFill is the coloured part of a meter. The width is a value and
+ *  not a class, so it goes through the CSSOM: the CSP of the page refuses
+ *  style attributes but allows the CSSOM. */
+function classicMeterFill(pct) {
+  const fill = h("i");
+  fill.style.width = Math.max(0, Math.min(100, pct || 0)).toFixed(1) + "%";
+  return fill;
+}
+
 /** classicGpuCard is one card of a GPU, the way the reference draws it. */
 function classicGpuCard(g, m) {
   const mem = g.vramTotal ? (100 * (g.vramUsed || 0)) / g.vramTotal : 0;
@@ -490,23 +499,23 @@ function classicGpuCard(g, m) {
       used ? h("span.pill.ok", "In use") : h("span.pill.idle", "No run")),
     h("div.gpu-mid",
       h("div.ring-wrap",
-        classicRing(g.util, "var(--series-1)"),
+        classicRing(g.util, "s1"),
         h("div.ring-n", cfmt(g.util), h("small", "%")),
         h("div.ring-l", "busy")),
       h("div.gpu-stats",
         h("div.stat",
           h("div.stat-h", h("span", "Memory"),
             h("b", bytes(g.vramUsed || 0), h("span.muted", g.vramTotal ? " / " + bytes(g.vramTotal) : ""))),
-          h("div.meter.mem", h("i", { style: "width:" + mem.toFixed(1) + "%" }))),
+          h("div.meter.mem", classicMeterFill(mem))),
         h("div.stat",
           h("div.stat-h", h("span", "Power"),
             h("b", cfmt(g.power) + " W", h("span.muted", g.powerCap ? " / " + cfmt(g.powerCap) + " W" : ""))),
-          h("div.meter.pow", h("i", { style: "width:" + pw.toFixed(1) + "%" }))),
+          h("div.meter.pow", classicMeterFill(pw))),
         h("div.stat-row",
           h("span", h("span.muted", "Temp"), " ", h("b" + (hot ? ".temp-hot" : ""), hot ? "! " : "", cfmt(g.temp) + "°C")),
           h("span", h("span.muted", "Mem"), " ", h("b", g.tempMem == null ? "–" : cfmt(g.tempMem) + "°C")),
           h("span", h("span.muted", "Clock"), " ", h("b", g.sclk == null ? "–" : cfmt(g.sclk)))))),
-    h("div.gpu-spark", classicSpark(tail, "var(--series-1)", 28)));
+    h("div.gpu-spark", classicSpark(tail, "s1", 28)));
 }
 
 /* ---------- the crosshair of the charts ---------- */
@@ -548,9 +557,9 @@ function classicCrosshair(ev, box) {
     const p = s.pts.find((q) => q[0] === best);
     if (!p || p[1] == null) return null;
     return h("div.row",
-      h("span", { style: "color:" + s.color }, "●"),
+      h("span.c-dot.c-color-" + s.cls, "●"),
       h("span", s.name + ": "),
-      h("b", { style: "display:inline" }, c.opts.yFmt ? c.opts.yFmt(p[1]) : cfmt(p[1], 1)));
+      h("b.tip-value", c.opts.yFmt ? c.opts.yFmt(p[1]) : cfmt(p[1], 1)));
   }).filter(Boolean);
   const head = new Date(best * 1000).toLocaleTimeString();
   put(classic.tip, h("b", head), ...(rows.length ? rows : [h("div", "no data")]));

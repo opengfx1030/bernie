@@ -267,6 +267,33 @@
 }
 .classic .seg button.on { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .25); }
 
+/* ---------- the colours of the drawings ----------
+   The page's CSP (style-src 'self') refuses inline style attributes, so no
+   shape carries one: a drawing takes a class and the class carries the
+   colour. These rules are the only place in the tab that names a series
+   colour. */
+.classic .c-stroke-s1 { stroke: var(--series-1); }
+.classic .c-stroke-s2 { stroke: var(--series-2); }
+.classic .c-stroke-s3 { stroke: var(--series-3); }
+.classic .c-stroke-s4 { stroke: var(--series-4); }
+.classic .c-stroke-key { stroke: var(--key); }
+.classic .c-fill-s1 { fill: var(--series-1); }
+.classic .c-fill-s2 { fill: var(--series-2); }
+.classic .c-fill-s3 { fill: var(--series-3); }
+.classic .c-fill-s4 { fill: var(--series-4); }
+.classic .c-fill-key { fill: var(--key); }
+.classic .c-color-s1 { color: var(--series-1); }
+.classic .c-color-s2 { color: var(--series-2); }
+.classic .c-color-s3 { color: var(--series-3); }
+.classic .c-color-s4 { color: var(--series-4); }
+.classic .c-color-key { color: var(--key); }
+.classic .c-point { stroke: var(--bg); stroke-width: 2; }
+.classic .c-cross { stroke: var(--border-strong); }
+.classic .ring-track { stroke: var(--surface-2); }
+.classic .ring-live { transition: stroke-dashoffset .5s; }
+.classic .connect-text { margin: 0 0 8px; }
+.classic .tip .tip-value { display: inline; }
+
 /* ---------- the tooltip of the charts ---------- */
 .classic .tip {
   position: fixed; z-index: 50; max-width: 320px; background: var(--text); color: var(--bg);
