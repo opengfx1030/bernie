@@ -54,11 +54,10 @@ flowchart LR
 
 | Path | Job |
 |---|---|
-| `dashboard.go` | `Serve`: listener, routes, graceful stop |
+| `dashboard.go` | `Serve`: listener, routes, graceful stop. `/mcp` is MCP over HTTP (`internal/mcp`, spec §13.10) with its own guard |
 | `api.go` | One handler per endpoint in spec §11 |
 | `auth.go` | Token, loopback Host check, `X-Bernie` header on writes |
 | `hub.go`, `telemetry.go`, `sse.go` | 1 Hz samples and event streams |
-| `dashboard.go` | Routes. `/mcp` is MCP over HTTP (`internal/mcp`, spec §13.10), with its own guard |
 | `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
 | `web/app.js` | Views, one function per tab (`viewOverview`, `viewGPUs`, ...) |
