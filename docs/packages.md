@@ -21,7 +21,12 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/cli/cmds/dashcmd` | `dash` | `cli.Register` per command | 4 |
 | `internal/cli/cmds/mcpcmd` | `mcp` | `cli.Register` per command | 4 |
 | `internal/mcp` | the MCP front end | `New`, `Run`, `Handler`, `IsMutating`, `Options` | 4 |
-| `dashboard` | the web front end | `New`, `Handler`, `Options` | 4 |
+| `dashboard` | the web front end: the server, the API, the guard and the telemetry | `Serve`, `Start`, `NewStarter`, `NewToken`, `IsLoopback`, `Options` | 4 |
+| `dashboard/internal/api` | the JSON and SSE endpoints, one file per domain | `Register`, `Options` | 4 |
+| `dashboard/internal/auth` | the token, the loopback Host check and the CSRF guard | `New`, `NewToken`, `IsLoopback` | 4 |
+| `dashboard/internal/httpjson` | the JSON response shapes and the redaction | `Write`, `Error`, `Decode`, `Redacted` | 4 |
+| `dashboard/internal/sse` | the server-sent event writer | `New`, `Stream`, `LineWriter`, `Heartbeat` | 4 |
+| `dashboard/internal/telemetry` | the 1 Hz sampler and the hub that shares it | `NewHub`, `Hub`, `Sampler` | 4 |
 | `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Bench`, `BenchSuite`, `PowerStatus`, `Onboarding`, `Stop`, `Smoke` | 3 |
 | `internal/flow` | the `status` snapshot and the `up` chain | `Summary`, `Up`, `Findings`, `WaitHealthy`, `Blocked` | 3 |
 | `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
@@ -406,3 +411,10 @@ family package under `internal/cli/cmds/`. It calls `cli.Register` in
 
 `dashboard` serves the JSON API and the embedded `web/` of spec §11, and
 mounts `/mcp`. A handler calls the same packages as the matching command.
+The root package holds the server and its public surface. The internal
+packages split the work by role: `dashboard/internal/api` (one file per
+domain), `dashboard/internal/auth` (the token, the Host check and the CSRF
+guard), `dashboard/internal/telemetry` (the sampler and the hub),
+`dashboard/internal/sse` (the event writer) and `dashboard/internal/httpjson`
+(the JSON response shapes). The web tree is grouped by role:
+`web/css`, `web/js`, `web/components` and `web/views/<tab>`.

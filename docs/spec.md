@@ -154,7 +154,7 @@ other file, script or compose file is required.
   7. It starts the dashboard on `--listen` (default `127.0.0.1:7860`), unless
      `--no-dash` is given, and prints the URL to open (with `?token=` in token
      mode). The dashboard is reachable while the server loads the model: the
-     Runs tab shows the run as `starting`, its phase sentence and its log.
+     Logs tab shows the run as `starting`, its phase sentence and its log.
   8. It waits until `/health` answers (`--wait`, default 30 minutes) and
      prints the progress.
 
@@ -1373,7 +1373,7 @@ Rules for responses and tokens:
 | GET | `/api/doctor` | `doctor` JSON |
 | GET | `/api/recipes` | `recipe list --all` JSON |
 | GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`) |
-| GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Runs tab shows them next to its log. A live run has `phase` ([§5.4](#54-log-phase)); the Runs tab shows the sentence under its state badge. |
+| GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Logs tab shows them next to its log. A live run has `phase` ([§5.4](#54-log-phase)); the Logs tab shows the sentence under its state badge. |
 | POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record |
 | DELETE | `/api/runs/{name}` | stop |
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
@@ -1405,14 +1405,14 @@ person reads and the document an agent gets are the same one. Every
 command the page shows has a copy button, and the button copies the
 command exactly as it is shown.
 
-The Home tab is the first tab of the page. It renders the onboarding
+The Setup tab is the first tab of the page. It renders the onboarding
 document of [§3.3](#33-the-onboarding-checklist) and holds no state of its
 own: what the server reports is what the page shows, and a re-check asks
 the server again. A step that bernie can do is started with `POST
 /api/onboarding/{step}/run`; its output arrives on the event stream of the
 job (`GET /api/jobs/{id}/events`) and the page shows it under the step. A
 step that needs root shows its commands and a copy button, and the page
-never runs them. The Advanced disclosure of the Home tab holds the raw
+never runs them. The Advanced disclosure of the Setup tab holds the raw
 document of `GET /api/onboarding` and the commands that produce it
 (`bernie status --steps`, `bernie status --json`).
 
