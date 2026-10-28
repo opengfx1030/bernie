@@ -24,7 +24,13 @@ func rocmChecks(in inputs) []Check {
 		}
 		out = append(out, check(cat, "installs", st, "ROCm is installed", detail).with(install(pm, host.PkgROCm, "Install ROCm: https://rocm.docs.amd.com/projects/install-on-linux/en/latest/"), docInstall))
 	case 1:
-		out = append(out, check(cat, "installs", OK, "ROCm is installed", installList(r.Installs)).with("", docInstall))
+		if len(r.Installs[0].Nested) == 0 {
+			out = append(out, check(cat, "installs", OK, "ROCm is installed", installList(r.Installs)).with("", docInstall))
+		} else {
+			out = append(out, check(cat, "installs", Warn, "ROCm is installed",
+				fmt.Sprintf("1 install with nested layout: %s; tools and libraries may mix versions", installList(r.Installs))).
+				with("Keep one ROCm userspace on PATH/LD_LIBRARY_PATH (host mode uses the venv wheels first).", docInstall))
+		}
 	default:
 		out = append(out, check(cat, "installs", Warn, "ROCm is installed",
 			fmt.Sprintf("%d installs: %s; tools and libraries may mix versions", len(r.Installs), installList(r.Installs))).
@@ -94,7 +100,11 @@ func rocmChecks(in inputs) []Check {
 func installList(in []rocm.Install) string {
 	var s []string
 	for _, i := range in {
-		s = append(s, fmt.Sprintf("%s (%s, %s)", i.Root, i.Version, i.Kind))
+		item := fmt.Sprintf("%s (%s, %s)", i.Root, i.Version, i.Kind)
+		for _, nested := range i.Nested {
+			item += fmt.Sprintf("; nested %s (%s, %s)", nested.Root, nested.Version, nested.Kind)
+		}
+		s = append(s, item)
 	}
 	return strings.Join(s, ", ")
 }

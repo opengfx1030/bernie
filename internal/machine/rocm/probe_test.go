@@ -38,10 +38,10 @@ func par1Tree(t *testing.T) string {
 func TestFindInstalls(t *testing.T) {
 	root := par1Tree(t)
 	got := FindInstalls(root)
-	want := []Install{
-		{Root: "/opt/rocm-7.2.0", Version: "7.2.0", Kind: "opt"},
-		{Root: "/opt/rocm-7.2.0/core-7.14", Version: "7.14.1", Kind: "therock"},
-	}
+	want := []Install{{
+		Root: "/opt/rocm-7.2.0", Version: "7.2.0", Kind: "opt",
+		Nested: []Install{{Root: "/opt/rocm-7.2.0/core-7.14", Version: "7.14.1", Kind: "therock"}},
+	}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("FindInstalls = %+v, want %+v", got, want)
 	}
