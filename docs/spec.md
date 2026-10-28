@@ -315,7 +315,7 @@ stability; `skip` means the check cannot run here.
 | Category | Checks |
 |---|---|
 | `os` | Distro and version known. Package manager known. Kernel version. |
-| `gpu` | `/dev/kfd` exists and is readable/writable (`gpu.kfd`). `/dev/dri/renderD*` exist. User is in `video` and `render`. At least one GPU. One `gpu.supported.<gfx>` per gfx target on the host: `ok` when the target is in the device tables and a validated recipe lists it, `warn` when the target is in the tables but no validated recipe lists it, `warn` ("not in the device tables") when the tables do not know it (for example a CDNA target). One `gpu.hsa_override.<gfx>` (`warn`) per target whose table row has an `hsa_override`, with the `HSA_OVERRIDE_GFX_VERSION` advice. `gpu.igpu` warns when an integrated GPU mixes with discrete GPUs. |
+| `gpu` | `/dev/kfd` exists and is readable/writable (`gpu.kfd`). `/dev/dri/renderD*` exist. `gpu.groups` compares group ids: the `video` and `render` gids come from `/etc/group`, then from `getent group <name>` (3 s timeout). The user's gids are the primary and supplementary groups of the process. A group that neither source knows makes the check `warn` ("cannot tell"), never `fail`. At least one GPU. One `gpu.supported.<gfx>` per gfx target on the host: `ok` when the target is in the device tables and a validated recipe lists it, `warn` when the target is in the tables but no validated recipe lists it, `warn` ("not in the device tables") when the tables do not know it (for example a CDNA target). One `gpu.hsa_override.<gfx>` (`warn`) per target whose table row has an `hsa_override`, with the `HSA_OVERRIDE_GFX_VERSION` advice. `gpu.igpu` warns when an integrated GPU mixes with discrete GPUs. |
 | `kernel` | `amdgpu` is loaded. IOMMU mode from `/proc/cmdline` (`iommu=pt` advice for P2P). PCIe links are gen4 x8 or better. |
 | `rocm` | ROCm installs found (`/opt/rocm*`, `/opt/rocm/core-*`, `/usr`) with versions. More than one install: `warn`. `rocminfo` lists the GPUs. `hipcc`, `amd-smi` or `rocm-smi` present. `librocblas.so.5` found. ROCm 7.2.1 to 7.13 with more than one GPU: `warn` (RCCL TP>1 deadlock range). |
 | `python` | With `--venv` (or the configured venv): Python version, `torch` imports, `torch.version.hip` set, GPU count matches, `rocm-sdk-device` wheels match the GPU code targets, Triton is below the version that dropped a GPU generation (`triton_below` in the device tables; `fail`), `vllm` imports, fork ops registered (`_rocm_C::*rdna*` schema count > 10). |
@@ -659,12 +659,26 @@ A cell where every request fails makes `bench` exit 1 and saves nothing.
 ## 11. Dashboard
 
 `bernie dash` serves an embedded web UI and a JSON API. It listens on
-`127.0.0.1:7860` by default. On a non-loopback address, every request needs
-the token (`Authorization: Bearer <t>` or the cookie set by `/?token=<t>`).
-The token is `--token`, else `$BERNIE_DASH_TOKEN`, else a random token
-printed at start. POST and DELETE requests also need the header
+`127.0.0.1:7860` by default. On a non-loopback address the dashboard runs in
+token mode: every request needs the token (`Authorization: Bearer <t>` or the
+cookie). The token is `--token`, else `$BERNIE_DASH_TOKEN`, else a random
+token printed at start. POST and DELETE requests also need the header
 `X-Bernie: 1`. On a loopback address the `Host` header must be a loopback
 name (this blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
+
+Rules for responses and tokens:
+
+- Every response (HTML, assets, `/api`, errors, redirects) carries
+  `Cache-Control: no-store`.
+- In token mode, `/?token=<t>` is the only URL that accepts the token. It
+  sets an HttpOnly, SameSite=Strict cookie and redirects (303) to `/` with no
+  query.
+- A `token` query parameter on any `/api/` path is refused with 400
+  (`{"error": "...", "exit_code": 2}`) in both modes, even when the token is
+  valid. API clients send `Authorization: Bearer <token>`.
+- On other paths a query token is ignored. It sets no cookie.
+- The server writes no per-request log, so a query string never reaches the
+  log. The start line prints the bootstrap URL once.
 
 | Method | Path | Body / output |
 |---|---|---|
