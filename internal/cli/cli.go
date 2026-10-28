@@ -114,9 +114,14 @@ func Main(args []string) int {
 	if errors.As(err, &ee) {
 		code = ee.Code
 	}
-	if c.JSON && code != ExitChecks {
-		_ = json.NewEncoder(c.Out).Encode(map[string]any{"error": err.Error(), "exit_code": code})
-	} else {
+	switch {
+	case err.Error() == "":
+		// The command already explained itself.
+	case c.JSON && code != ExitChecks:
+		enc := json.NewEncoder(c.Out)
+		enc.SetEscapeHTML(false)
+		_ = enc.Encode(map[string]any{"error": err.Error(), "exit_code": code})
+	default:
 		fmt.Fprintf(c.Err, "rdnactl: %v\n", err)
 	}
 	return code
@@ -219,6 +224,7 @@ func Parse(fs *flag.FlagSet, args []string) ([]string, error) {
 func (c *Context) Emit(v any, human func(w io.Writer)) error {
 	if c.JSON {
 		enc := json.NewEncoder(c.Out)
+		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 		return enc.Encode(v)
 	}
