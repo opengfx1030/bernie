@@ -141,9 +141,7 @@ function setupHeadline(doc) {
   }
   if (running) {
     const phase = (running.progress && running.progress.phase) || running.summary || "bernie is working on the next step.";
-    const live = setupProgress[running.id];
-    const tail = live ? " · working for " + setupElapsedText(live) : "";
-    return { title: "SETTING UP THIS BOX.", lede: phase + tail, action: "continue" };
+    return { title: "SETTING UP THIS BOX.", lede: phase, action: "continue" };
   }
   if (!pending.length) {
     return {
@@ -190,7 +188,7 @@ function setupServerEndpoint(serve) {
 function setupHeadActions(doc, say) {
   const out = [];
   if (say.action === "doctor") {
-    out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
+    out.push(h("button", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
     return out;
   }
   if (say.action === "continue") {
@@ -371,6 +369,7 @@ function paintSetupTimeline(doc) {
     onRun: runSetupStep,
     onRefresh: () => loadSetupDocument(),
     onWait: setupExplainWait,
+    noteFor: setupStepNote,
     linkFor: setupStepLink,
     progress: setupProgress,
     logs: setupLogs,
@@ -382,6 +381,12 @@ function paintSetupTimeline(doc) {
 function setupStepLink(step) {
   if (step.id === "bench") return { href: "#benchmark", label: "the benchmark" };
   if (step.id === "tuning" || step.id === "power") return { href: "#dashboard", label: "the dashboard" };
+  return null;
+}
+
+/** setupStepNote is the extra line under a step of the checklist. */
+function setupStepNote(step) {
+  if (step.id === "recipe") return setupRecipeNote();
   return null;
 }
 

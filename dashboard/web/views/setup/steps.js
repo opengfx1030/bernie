@@ -78,6 +78,7 @@ function followSetupJob(step, job, options) {
       setupLogs[id].push(text);
       const current = setupProgress[id] || (setupProgress[id] = {});
       current.phase = text;
+      current.detail = setupLiveDetail(current);
       paintSetupProgress(id);
       loadSetupJobProgress(job.id, id);
       if (options.onRefresh) options.onRefresh();
@@ -118,8 +119,12 @@ function setupJobStart(job) {
 function setupApplyJobProgress(state, p) {
   if (!p) return;
   const pct = setupProgressPercent(p);
-  if (pct !== null) state.pct = pct;
-  state.detail = setupProgressDetail(p, state);
+  if (pct !== null) {
+    state.pct = pct;
+    state.detail = setupProgressDetail(p, state);
+  } else {
+    state.detail = setupLiveDetail(state);
+  }
   if (p.phase) state.phase = p.phase;
 }
 
@@ -182,7 +187,8 @@ function setupElapsed(state) {
 function setupElapsedText(state) {
   const s = setupElapsed(state);
   if (s < 60) return s + " s";
-  return Math.round(s / 60) + " min";
+  if (s < 3600) return Math.round(s / 60) + " min";
+  return Math.round(s / 3600) + " h";
 }
 
 /** setupLiveDetail is the line under the sentence. When the work is not
@@ -225,6 +231,7 @@ async function attachSetupJob(step) {
   try { job = await api("/api/jobs/" + encodeURIComponent(step.job_id)); } catch (e) { return; }
   if (!job) return;
   const state = { phase: job.phase || "Working…", started: setupJobStart(job) };
+  state.detail = setupLiveDetail(state);
   setupProgress[id] = state;
   if (step.job_state === "running") {
     setupLogs[id] = [];
