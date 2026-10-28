@@ -1,7 +1,7 @@
 package doctor
 
 import (
-	"github.com/opengfx1030/rdnactl/internal/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
 )
 
 // WikiURL is the gfx1030 community wiki used for doc links.

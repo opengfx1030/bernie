@@ -3,7 +3,7 @@ package doctor
 import (
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
 )
 
 func containerChecks(in inputs) []Check {

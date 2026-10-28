@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/execx"
-	"github.com/opengfx1030/rdnactl/internal/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/rdnactl/internal/support/execx"
 )
 
 func (p planner) groups() Step {

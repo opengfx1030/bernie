@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/fixture"
-	"github.com/opengfx1030/rdnactl/internal/gpu"
-	"github.com/opengfx1030/rdnactl/internal/recipe"
-	"github.com/opengfx1030/rdnactl/internal/topo"
-	"github.com/opengfx1030/rdnactl/internal/tuning"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/rdnactl/internal/machine/topo"
+	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
+	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
+	"github.com/opengfx1030/rdnactl/internal/support/fixture"
 	"github.com/opengfx1030/rdnactl/recipes"
 )
 

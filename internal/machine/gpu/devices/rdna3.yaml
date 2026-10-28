@@ -1,0 +1,40 @@
+# RDNA3 (gfx110x): Navi 31-33 and the gfx1103 APUs.
+#
+# Sources
+#   PCI ids and marketing names: https://pci-ids.ucw.cz/v2.2/pci.ids (vendor 1002)
+#   Product -> gfx target (RX 7900 XTX/XT/GRE, PRO W7900/W7800 = gfx1100;
+#     RX 7800 XT/7700 XT, PRO V710/W7700 = gfx1101; RX 7600 = gfx1102):
+#     https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html
+#     https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html
+#     https://llvm.org/docs/AMDGPUUsage.html#processors
+#   Die -> gfx target: the pci.ids die name of a product that the ROCm tables
+#     list with that target (Navi 31: RX 7900 XTX = gfx1100; Navi 32: RX 7800 XT,
+#     PRO V710 = gfx1101; Navi 33: RX 7600 = gfx1102). Other products on the
+#     same die share its target.
+#   Native BF16 matrix instructions (WMMA with BF16 inputs, wave32):
+#     https://rocm-handbook.amd.com/projects/amd-rocm-optimization-guide/en/latest/compiler-builtins/rdna/rdna3-dense-wmma-builtins.html
+#   Wave size: ROCm lists 32 or 64; rocminfo and KFD report 32 on a captured
+#     gfx1100 (internal/support/fixture/testdata/par1-cs25, wave_front_size 32).
+#     https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html
+#   FlashAttention ROCm allowlist (allowed_archs in setup.py):
+#     https://github.com/Dao-AILab/flash-attention/blob/main/setup.py
+#   gfx1103 is an APU target: https://llvm.org/docs/AMDGPUUsage.html#processors
+generation: rdna3
+wave_size: 32
+arches:
+  gfx1100: {family: navi31, bf16: native, flash_attn: true}
+  gfx1101: {family: navi32, bf16: native, flash_attn: true}
+  gfx1102: {family: navi33, bf16: native, flash_attn: true}
+  gfx1103: {integrated: true}
+devices:
+  - {ids: ["0x744c"], name: Radeon RX 7900 XT / 7900 XTX / 7900 GRE, gfx: gfx1100}
+  - {ids: ["0x7448"], name: Radeon PRO W7900, gfx: gfx1100}
+  - {ids: ["0x744a"], name: Radeon PRO W7900 Dual Slot, gfx: gfx1100}
+  - {ids: ["0x744b"], name: Radeon PRO W7900D, gfx: gfx1100}
+  - {ids: ["0x7449"], name: Radeon PRO W7800 48GB, gfx: gfx1100}
+  - {ids: ["0x745e"], name: Radeon PRO W7800, gfx: gfx1100}
+  - {ids: ["0x747e"], name: Radeon RX 7700 XT / 7800 XT, gfx: gfx1101}
+  - {ids: ["0x7470"], name: Radeon PRO W7700, gfx: gfx1101}
+  - {ids: ["0x7460", "0x7461"], name: Radeon PRO V710, gfx: gfx1101}
+  - {ids: ["0x7480"], name: Radeon RX 7600 / 7600 XT / PRO W7600, gfx: gfx1102}
+  - {ids: ["0x7489"], name: Radeon PRO W7500, gfx: gfx1102}

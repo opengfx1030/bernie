@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/bench"
+	"github.com/opengfx1030/rdnactl/internal/serving/bench"
 )
 
 func init() {

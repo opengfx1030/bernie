@@ -11,7 +11,7 @@ change. AI agents also follow [AGENTS.md](AGENTS.md).
 | Add or fix a recipe | `recipes/<id>.yaml`. See [docs/recipes.md](docs/recipes.md). |
 | Add a doctor check | `internal/doctor/`. Add a fixture and a test. |
 | Add TunableOp rows | `tunableop/<profile>/` + `profiles.json`. Include `provenance.json`. |
-| Support a distro | Package names and paths in `internal/host`, `internal/setup`, `internal/doctor`. |
+| Support a distro | Package names and paths in `internal/machine/host`, `internal/setup`, `internal/doctor`. |
 | Improve the dashboard | `dashboard/web/` (plain HTML/CSS/JS, no build step). |
 
 ## Build and test

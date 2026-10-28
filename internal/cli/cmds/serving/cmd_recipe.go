@@ -14,10 +14,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/opengfx1030/rdnactl/internal/gpu"
-	"github.com/opengfx1030/rdnactl/internal/host"
-	"github.com/opengfx1030/rdnactl/internal/recipe"
-	"github.com/opengfx1030/rdnactl/internal/runner"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
+	"github.com/opengfx1030/rdnactl/internal/serving/runner"
 )
 
 func init() {

@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/fixture"
-	"github.com/opengfx1030/rdnactl/internal/gpu"
-	"github.com/opengfx1030/rdnactl/internal/host"
-	"github.com/opengfx1030/rdnactl/internal/rocm"
-	"github.com/opengfx1030/rdnactl/internal/tuning"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
+	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
+	"github.com/opengfx1030/rdnactl/internal/support/fixture"
 )
 
 func find(t *testing.T, checks []Check, id string) Check {

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/config"
-	"github.com/opengfx1030/rdnactl/internal/gpu"
-	"github.com/opengfx1030/rdnactl/internal/host"
-	"github.com/opengfx1030/rdnactl/internal/rocm"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
 	"github.com/opengfx1030/rdnactl/internal/setup"
+	"github.com/opengfx1030/rdnactl/internal/support/config"
 )
 
 type setupFlags struct {

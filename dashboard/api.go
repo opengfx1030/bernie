@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/bench"
-	"github.com/opengfx1030/rdnactl/internal/config"
 	"github.com/opengfx1030/rdnactl/internal/doctor"
-	"github.com/opengfx1030/rdnactl/internal/gpu"
-	"github.com/opengfx1030/rdnactl/internal/host"
-	"github.com/opengfx1030/rdnactl/internal/recipe"
-	"github.com/opengfx1030/rdnactl/internal/runner"
-	"github.com/opengfx1030/rdnactl/internal/topo"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/topo"
+	"github.com/opengfx1030/rdnactl/internal/serving/bench"
+	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
+	"github.com/opengfx1030/rdnactl/internal/serving/runner"
+	"github.com/opengfx1030/rdnactl/internal/support/config"
 )
 
 // root is the host filesystem root the probes read ("/" in production).
