@@ -81,8 +81,9 @@ type inputs struct {
 	hfCache   string
 	hfFree    uint64 // free bytes on the HF cache filesystem, 0 = unknown
 	devices   devices
-	amdgpu    bool     // amdgpu kernel module loaded
-	validated []string // gfx targets with validated recipes
+	amdgpu    bool           // amdgpu kernel module loaded
+	validated []string       // gfx targets with validated recipes
+	groupGIDs map[string]int // gid of video and render; a group missing here was not found
 }
 
 // devices is the state of the GPU device nodes.
@@ -169,6 +170,9 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 	in.hfCache = hfCache(o.HFHome)
 	in.hfFree = freeBytes(in.hfCache)
 	wg.Wait()
+	if need("gpu") && in.host.User.Name != "" {
+		in.groupGIDs = resolveGroups(ctx, root, deviceGroups)
+	}
 	return in
 }
 

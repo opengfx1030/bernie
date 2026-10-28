@@ -225,6 +225,7 @@ func currentUser() User {
 	}
 	gids, _ := os.Getgroups()
 	gids = append([]int{os.Getgid()}, gids...)
+	u.GIDs = gids
 	seen := map[string]bool{}
 	for _, gid := range gids {
 		name := strconv.Itoa(gid)
