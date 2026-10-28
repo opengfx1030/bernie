@@ -94,6 +94,9 @@ func fillDevice(root string, g *GPU) {
 		g.PowerCapW = microWatts(readUint(filepath.Join(hw, "power1_cap")))
 	}
 	g.Name = readString(filepath.Join(dev, "product_name"))
+	if d, ok := Lookup(g.DeviceID); ok {
+		g.TempLimitsC = d.TempLimitsC
+	}
 }
 
 // Telemetry reads one sample per GPU. Missing files read as zero.
@@ -110,7 +113,9 @@ func Telemetry(root string, gpus []GPU) []Sample {
 				s.VRAMTotal = t
 			}
 			if hw := HwmonDir(dev); hw != "" {
-				s.TempC = float64(readUint(filepath.Join(hw, edgeTemp(hw)))) / 1000
+				s.TempC = edgeTemp(hw)
+				s.TempJunctionC = tempByLabel(hw, "junction")
+				s.TempMemC = tempByLabel(hw, "mem")
 				p := readUint(filepath.Join(hw, "power1_average"))
 				if p == 0 {
 					p = readUint(filepath.Join(hw, "power1_input"))
@@ -118,21 +123,21 @@ func Telemetry(root string, gpus []GPU) []Sample {
 				s.PowerW = microWatts(p)
 				s.PowerCapW = microWatts(readUint(filepath.Join(hw, "power1_cap")))
 			}
+			s.SclkMHz = dpmClock(filepath.Join(dev, "pp_dpm_sclk"))
+			s.MclkMHz = dpmClock(filepath.Join(dev, "pp_dpm_mclk"))
 		}
 		out = append(out, s)
 	}
 	return out
 }
 
-// edgeTemp returns the temp*_input file labelled "edge", else temp1_input.
-func edgeTemp(hw string) string {
-	labels, _ := filepath.Glob(filepath.Join(hw, "temp*_label"))
-	for _, l := range labels {
-		if readString(l) == "edge" {
-			return strings.TrimSuffix(filepath.Base(l), "_label") + "_input"
-		}
+// edgeTemp returns the temperature of the sensor labelled "edge", else the
+// first sensor of the hwmon node.
+func edgeTemp(hw string) float64 {
+	if t := tempByLabel(hw, "edge"); t != nil {
+		return *t
 	}
-	return "temp1_input"
+	return float64(readUint(filepath.Join(hw, "temp1_input"))) / 1000
 }
 
 // HwmonDir returns the first hwmon directory of a PCI device dir, or "".

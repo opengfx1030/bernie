@@ -19,6 +19,14 @@
 #   FlashAttention ROCm allowlist (allowed_archs in setup.py):
 #     https://github.com/Dao-AILab/flash-attention/blob/main/setup.py
 #   gfx1103 is an APU target: https://llvm.org/docs/AMDGPUUsage.html#processors
+#   ECC: the amdgpu driver creates ras/umc_err_count only for a card that
+#     counts its memory errors, which needs ECC memory. Read on par1-cs25:
+#     the Radeon PRO W7800 48GB publishes it with zero errors.
+#     https://docs.kernel.org/gpu/amdgpu/ras.html
+#   Temperature limits: the amdgpu hwmon node publishes the maximum operating
+#     temperature of the card as temp*_crit. Read on par1-cs25: edge 100 C,
+#     junction 110 C, memory 105 C.
+#     https://docs.kernel.org/hwmon/sysfs-interface.html
 generation: rdna3
 wave_size: 32
 arches:
@@ -31,7 +39,7 @@ devices:
   - {ids: ["0x7448"], name: Radeon PRO W7900, gfx: gfx1100}
   - {ids: ["0x744a"], name: Radeon PRO W7900 Dual Slot, gfx: gfx1100}
   - {ids: ["0x744b"], name: Radeon PRO W7900D, gfx: gfx1100}
-  - {ids: ["0x7449"], name: Radeon PRO W7800 48GB, gfx: gfx1100}
+  - {ids: ["0x7449"], name: Radeon PRO W7800 48GB, gfx: gfx1100, ecc: true, temp_limits_c: {edge: 100, junction: 110, mem: 105}}
   - {ids: ["0x745e"], name: Radeon PRO W7800, gfx: gfx1100}
   - {ids: ["0x747e"], name: Radeon RX 7700 XT / 7800 XT, gfx: gfx1101}
   - {ids: ["0x7470"], name: Radeon PRO W7700, gfx: gfx1101}

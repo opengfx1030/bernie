@@ -20,6 +20,14 @@
 #     https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
 #   V620 180 W cap (VBIOS floor 250 W, unlock to 120 W, PCI 1002:73a1 only):
 #     https://blivioniag.github.io/gfx1030-wiki/tuning/power.html
+#   ECC: the amdgpu driver creates ras/umc_err_count only for a card that
+#     counts its memory errors, which needs ECC memory. Read on par1-cs25:
+#     the Radeon PRO V620 publishes it with zero errors.
+#     https://docs.kernel.org/gpu/amdgpu/ras.html
+#   Temperature limits: the amdgpu hwmon node publishes the maximum operating
+#     temperature of the card as temp*_crit. Read on par1-cs25: edge 100 C,
+#     junction 100 C, memory 98 C.
+#     https://docs.kernel.org/hwmon/sysfs-interface.html
 generation: rdna2
 wave_size: 32
 triton_below: "3.9"
@@ -32,7 +40,7 @@ arches:
   gfx1035: {family: yellow_carp, bf16: none, hsa_override: "10.3.0", integrated: true}
   gfx1036: {bf16: none, hsa_override: "10.3.0", integrated: true}
 devices:
-  - {ids: ["0x73a1"], name: Radeon PRO V620, gfx: gfx1030, power_cap_advice_w: 180}
+  - {ids: ["0x73a1"], name: Radeon PRO V620, gfx: gfx1030, power_cap_advice_w: 180, ecc: true, temp_limits_c: {edge: 100, junction: 100, mem: 98}}
   - {ids: ["0x73ae"], name: Radeon PRO V620 MxGPU, gfx: gfx1030}
   - {ids: ["0x73a2"], name: Radeon PRO W6900X, gfx: gfx1030}
   - {ids: ["0x73a3"], name: Radeon PRO W6800, gfx: gfx1030}

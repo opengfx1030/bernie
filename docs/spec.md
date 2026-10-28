@@ -228,7 +228,8 @@ information. A missing tool is a `skip`, not an error.
 | GPUs, gfx target, HIP index | `/sys/class/kfd/kfd/topology/nodes/*/properties` (`gfx_target_version`, `location_id`, `drm_render_minor`). Nodes with `simd_count > 0` are GPUs. |
 | GPU name | The DRM `product_name`. Consumer cards have none: the device tables by PCI device id ([§4.4](#44-device-tables)), else `AMD GPU <gfx>`. |
 | PCI address, VRAM, link | `/sys/class/drm/renderD<minor>/device` → `mem_info_vram_total`, `current_link_speed`, `current_link_width`, `numa_node`. |
-| Telemetry | `gpu_busy_percent`, `mem_info_vram_used`, `hwmon/*/temp*_input`, `power1_average`, `power1_cap`. |
+| Telemetry | `gpu_busy_percent`, `mem_info_vram_used`, `hwmon/*/temp*_input`, `power1_average`, `power1_cap`. The edge temperature is the hwmon sensor labelled `edge`, else `temp1_input`; the junction temperature the sensor labelled `junction`; the memory temperature the sensor labelled `mem`. The clocks come from `pp_dpm_sclk` and `pp_dpm_mclk`: the line with the star is the state the card runs in. |
+| ECC | `/sys/class/drm/cardN/device/ras/umc_err_count` (`ue` uncorrectable, `ce` correctable, `de` degraded) and `ras/features`. The device tables say which cards have ECC ([§4.4](#44-device-tables)). When the kernel exposes no counters, `amd-smi metric --json` is the fallback. |
 | PCIe tree | The real path of the PCI device in `/sys/devices`. |
 | P2P | `nodes/<n>/io_links` and `nodes/<n>/p2p_links`. |
 | OS | `/etc/os-release`, `uname`, `/proc/cmdline`, `/proc/meminfo`, `/proc/cpuinfo`. |
@@ -268,9 +269,14 @@ pair.
   "gpus": [{"hip_index": 0, "kfd_node": 1, "name": "", "gfx": "gfx1030",
             "pci": "0000:07:00.0", "device_id": "0x73a1", "vram_bytes": 0,
             "render_minor": 128, "numa_node": 0,
-            "link": {"gen": 4, "width": 16}, "power_cap_w": 0}]
+            "link": {"gen": 4, "width": 16}, "power_cap_w": 0,
+            "temp_limits_c": {"edge": 100, "junction": 100, "mem": 98}}]
 }
 ```
+
+`temp_limits_c` holds the maximum operating temperatures of the card in
+degrees Celsius, keyed by the hwmon label. It is absent when the device
+tables do not know the card.
 
 ### 4.4 Device tables
 
@@ -288,7 +294,8 @@ arches:                    # gfx targets of this generation
   gfx1031: {family: navi22, bf16: none, hsa_override: "10.3.0"}
   gfx1035: {family: yellow_carp, bf16: none, hsa_override: "10.3.0", integrated: true}
 devices:                   # PCI device ids, lower-case 0x%04x
-  - {ids: ["0x73a1"], name: Radeon PRO V620, gfx: gfx1030, power_cap_advice_w: 180}
+  - {ids: ["0x73a1"], name: Radeon PRO V620, gfx: gfx1030, power_cap_advice_w: 180,
+     ecc: true, temp_limits_c: {edge: 100, junction: 100, mem: 98}}
 ```
 
 | Field | Meaning |
@@ -298,6 +305,8 @@ devices:                   # PCI device ids, lower-case 0x%04x
 | `integrated` | The arch is an APU. It shares memory with the CPU. |
 | `flash_attn` | The arch is on the FlashAttention ROCm allowlist. |
 | `power_cap_advice_w` | Recommended power cap of this device. Optional, only with a source. |
+| `ecc` | The card counts its memory errors: it has ECC. Optional, only with a source. |
+| `temp_limits_c` | The maximum operating temperatures of the card in degrees Celsius, keyed by the hwmon label (`edge`, `junction`, `mem`). Optional, only with a source. |
 
 Rules:
 
@@ -835,6 +844,17 @@ implement the deprecated HTTP+SSE transport.
 `bernie mcp [--allow-write]` serves one client on stdin and stdout.
 
 The server writes only MCP messages to stdout. It writes diagnostics to
+The `Sample` of the telemetry stream is one GPU:
+
+```json
+{"hip_index": 0, "busy_pct": 0, "temp_c": 33, "power_w": 12.5, "power_cap_w": 175,
+ "vram_used": 24117248, "vram_total": 32195477504,
+ "temp_junction_c": 35, "temp_mem_c": 34, "sclk_mhz": 2570, "mclk_mhz": 1000}
+```
+
+`temp_junction_c`, `temp_mem_c`, `sclk_mhz` and `mclk_mhz` are absent when
+the card does not publish them. The dashboard shows `–` for an absent value.
+
 stderr. The command has no `--json` output: the protocol is structured.
 
 `--allow-write`, or `BERNIE_MCP_WRITE=1` in the environment, enables the
