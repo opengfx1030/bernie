@@ -25,7 +25,7 @@ several packages of that group directly".
 flowchart TB
   subgraph front["Front ends"]
     CLI["internal/cli<br/>+ cli/cmds/family"]
-    DASH["dashboard<br/>HTTP, SSE, web/"]
+    DASH["dashboard<br/>server + internal/api,<br/>auth, telemetry, sse"]
     MCP["internal/mcp<br/>MCP tools"]
   end
   APP["internal/app<br/>shared operations"]
@@ -187,7 +187,7 @@ tuning data.
 | `internal/serving/bench/` | the streaming benchmark and the result store | 2 |
 | `internal/serving/bench/suite/` | the bench suites: the cells, the comparison, the verdict | 2 |
 | `internal/support/*` | the shared helpers: paths, execx, config, redact, pyenv, factcache, fixture | 0 |
-| `dashboard/` | the HTTP API, the SSE, the embedded web assets | 4 |
+| `dashboard/` | the server, the API, the auth, the SSE, the telemetry, the JSON helpers and the embedded web assets | 4 |
 | `recipes/` | the built-in recipes by family, the fragments by concern | data |
 | `tunableop/`, `tuned-moe/` | the tuning rows and the fused-MoE configs, by architecture | data |
 | `bench/suites/` | the bench suites, as YAML | data |
@@ -272,7 +272,8 @@ bernie/
 │       ├── pyenv/            the layout of a Python venv, read without an interpreter
 │       ├── factcache/        slow, stable host facts under <state>/facts
 │       └── fixture/          test host snapshots (testdata/*.tar.gz)
-├── dashboard/            HTTP API, SSE, embedded web/ (no build step)
+├── dashboard/            server.go + internal/{api,auth,telemetry,sse},
+│                        embedded web/{css,js,components,views} (no build step)
 ├── bench/suites/         the bench suites, as YAML
 ├── recipes/              built-in recipes by family, fragments by concern, embed.go
 ├── tunableop/            <arch>/<profile>/ rows and profile.json, embed.go

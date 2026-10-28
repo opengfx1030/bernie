@@ -73,7 +73,7 @@ Each item has a spec section and one test that proves it.
 - **Progress words.** One function turns the tail of a setup or serve log into one
   sentence ("Loading the model weights, 2 of 5 shards"). `serve` and `up`
   print it when it changes, `ps --json` and `status --json` carry the phase
-  of a live run, and the Runs tab shows the sentence under the state badge.
+  of a live run, and the Logs tab shows the sentence under the state badge.
   Spec [§5.4](spec.md#54-log-phase).
 - **P2P readiness checklist.** `bernie topo --check` and the doctor category
   `topo.p2p` answer whether multi-GPU peer-to-peer copies and the custom
@@ -135,6 +135,12 @@ Each item has a spec section and one test that proves it.
   prefill and the time to first token grow with the prompt, and the
   dashboard draws it as the length curve. Spec
   [§10.2](spec.md#102-suites).
+
+- **Dashboard structure.** The dashboard is one server package plus the
+  internal packages `api`, `auth`, `telemetry`, `sse` and `httpjson`. The web
+  tree is grouped by role: `web/css`, `web/js`, `web/components` and
+  `web/views/<tab>` for the four tabs Setup, Dashboard, Benchmark and Logs.
+  The old hash names still open their new tab.
 
 ## The next dashboard
 
