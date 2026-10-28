@@ -75,6 +75,7 @@ rdnactl/
 │   ├── rocm/           ROCm installs, tools, libraries, venv probe
 │   ├── topo/           PCIe tree, link classes, P2P matrix, bandwidth tests
 │   ├── doctor/         check registry built from the packages above
+│   ├── flow/           status snapshot and `up` (composes doctor, setup, recipe, runner)
 │   ├── setup/          install plan and non-root apply
 │   ├── recipe/         schema, loading, extends/merge, validation, fit, plan rendering
 │   ├── tuning/         TunableOp profiles and rows, GPU power cap
@@ -84,9 +85,13 @@ rdnactl/
 ├── dashboard/          HTTP API + SSE; web/ assets embedded (no build step)
 ├── recipes/            built-in recipes (*.yaml, _*.yaml fragments) + embed.go
 ├── tunableop/          profiles.json + rows per rocBLAS build + embed.go
-├── deploy/compose/     reference compose.yml (docker + podman)
-├── scripts/            install.sh (release download + checksum)
-└── docs/               spec.md, architecture.md, recipes.md, overview.html
+├── tuned-moe/          fork tuned MoE config + embed.go
+├── deploy/
+│   ├── packaging/      nfpm.yaml (rpm, deb)
+│   ├── docker/         Dockerfile of the dashboard/CLI image
+│   └── compose/        compose.yml (+ podman override), vLLM reference compose
+├── scripts/            install.sh (release download + checksum), capture-fixture.sh
+└── docs/               spec.md, architecture.md, recipes.md, install.md, third-party.md, overview.html
 ```
 
 ## 3. Package contracts
