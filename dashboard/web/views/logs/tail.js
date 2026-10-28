@@ -25,6 +25,9 @@ function logTail(options) {
   let stream = null;
   let runName = "";
   let findings = [];     // the findings of the log doctor
+  let seedDoc = null;    // the answer of the log endpoint: the numbers
+  let lastNo = null;     // the number of the last line of the log
+  let aligned = false;   // the seed has given the numbers of the lines
 
   const count = h("span.lg-count", "0 lines");
   const paused = h("span.lg-paused", { hidden: true }, "Paused");
@@ -78,23 +81,73 @@ function logTail(options) {
   /** add puts one line of the log into the tail. */
   function add(text, no) {
     const t = text == null ? "" : String(text);
-    const lvl = findingHit(t, no) ? "error" : logLevel(t);
-    const row = h("div.log-line", { class: "lg-" + lvl },
-      h("span.lg-no", no == null ? "" : String(no)),
-      h("span.lg-lvl", logLevelWord(lvl)),
-      h("span.lg-text", t));
-    lines.push({ no: no == null ? null : no, text: t, level: lvl, el: row });
+    let n = no;
+    if (n == null && lastNo != null) n = lastNo + 1;
+    const lvl = findingHit(t, n) ? "error" : logLevel(t);
+    const noEl = h("span.lg-no", n == null ? "" : String(n));
+    const lvlEl = h("span.lg-lvl", logLevelWord(lvl));
+    const row = h("div.log-line", { class: "lg-" + lvl }, noEl, lvlEl, h("span.lg-text", t));
+    const line = { no: n, text: t, level: lvl, el: row, noEl: noEl, lvlEl: lvlEl };
+    lines.push(line);
+    if (n != null) lastNo = n;
     linesBox.append(row);
     if (lines.length > LOG_MAX_LINES) lines.shift().el.remove();
     empty.hidden = true;
-    const ok = matches(lines[lines.length - 1]);
-    lines[lines.length - 1].el.hidden = !ok;
+    const ok = matches(line);
+    line.el.hidden = !ok;
     if (ok) shown++;
     count.textContent = logCount(lines.length) + " lines" + (shown === lines.length ? "" : " · " + logCount(shown) + " shown");
     search.disabled = false;
     firstErr.hidden = !lines.some((l) => l.level === "error");
     if (follow) scrollEnd();
     if (opts.onCount) opts.onCount(lines.length);
+    if (seedDoc && !aligned) align();
+  }
+
+  /** setMeta gives a line of the tail its number and its level. */
+  function setMeta(line, no, level) {
+    if (no != null) {
+      line.no = no;
+      line.noEl.textContent = String(no);
+    }
+    if (level) {
+      line.level = level;
+      line.lvlEl.textContent = logLevelWord(level);
+      line.el.className = "log-line lg-" + level;
+    }
+  }
+
+  /** seed takes the answer of the log endpoint: the tail of the log with the
+   *  number of every line and the level of the log doctor. The stream carries
+   *  the same lines; the seed gives the numbers and the levels. */
+  function seed(doc) {
+    seedDoc = doc || null;
+    aligned = false;
+    align();
+  }
+
+  /** align gives the lines of the tail their numbers when the seed holds the
+   *  same lines. The join is made at the oldest line of the tail: the line
+   *  after it in the seed must be the same line in the tail, or the join is
+   *  refused and the tail keeps the levels of the reader. */
+  function align() {
+    const seedLines = seedDoc && Array.isArray(seedDoc.lines) ? seedDoc.lines : [];
+    if (!seedLines.length || !lines.length) return;
+    const first = lines[0];
+    let best = -1;
+    let bestLen = 0;
+    for (let k = seedLines.length - 1; k >= 0; k--) {
+      if (seedLines[k].text !== first.text) continue;
+      let n = 0;
+      while (n < lines.length && k + n < seedLines.length && seedLines[k + n].text === lines[n].text) n++;
+      if (n > bestLen) { bestLen = n; best = k; }
+    }
+    if (best < 0) return;
+    for (let i = 0; i < bestLen; i++) {
+      setMeta(lines[i], seedLines[best + i].no, seedLines[best + i].level);
+    }
+    if (bestLen) lastNo = seedLines[best + bestLen - 1].no;
+    aligned = true;
   }
 
   /** findingHit tells whether a line is the one a finding points at. */
@@ -180,6 +233,9 @@ function logTail(options) {
     findings = known || [];
     lines.length = 0;
     shown = 0;
+    seedDoc = null;
+    lastNo = null;
+    aligned = false;
     put(linesBox);
     empty.hidden = false;
     follow = true;
@@ -239,6 +295,7 @@ function logTail(options) {
     close: close,
     save: save,
     apply: apply,
+    seed: seed,
     setFindings: (f) => { findings = f || []; },
     jumpToFinding: jumpToFinding,
     jumpToError: jumpToError,

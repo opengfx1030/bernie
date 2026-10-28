@@ -95,6 +95,18 @@ async function viewLogs(root) {
     setHeadline(run, matches);
   }
 
+  /** loadLog reads the tail of the log of the run with the number of every
+   *  line and the level of the log doctor. The stream carries the same lines;
+   *  the seed gives every line its number. */
+  async function loadLog(run) {
+    try {
+      const doc = await api("/api/runs/" + encodeURIComponent(run.name) + "/log?tail=2000");
+      if (doc && Array.isArray(doc.lines)) tail.seed(doc);
+    } catch (e) {
+      // the numbers of the lines are a comfort; the tail works without them
+    }
+  }
+
   /** select follows the log of one run. */
   async function select(run) {
     picked = run;
@@ -103,6 +115,7 @@ async function viewLogs(root) {
     tail.open(run.name, run.findings || []);
     download.disabled = !tail.hasLines();
     await loadFindings(run);
+    await loadLog(run);
   }
 
   /** refresh reads the runs again and follows the picked one. */
