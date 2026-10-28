@@ -1445,6 +1445,8 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `logs` | none (text) | `name`, `tail` (1 to 10000, default 100) |
 | `bench_list` | `bench list` | none |
 | `bench_show` | `bench show` | `id` |
+| `bench_suites` | `bench suites` | none |
+| `bench_compare` | `bench compare` | `a`, `b` (two saved result ids) |
 | `tunableop_status` | `tune tunableop status` | `venv` |
 | `power_status` | `tune power service status` | none |
 | `onboarding_status` | `status --steps` (the `onboarding` field of `status --json`) | `venv` |
@@ -1455,7 +1457,8 @@ Mutating tools ([§13.5](#135-write-gate)):
 |---|---|---|
 | `serve` | `serve` (no `--foreground`, `--dry-run`) | `runner.Record`, as `serve --json` |
 | `stop` | `stop NAME` (the name is required) | `{"name", "stopped"}` |
-| `bench_run` | `bench` (loopback `url` only, `recall` optional) | the saved `bench.Result` |
+| `bench_run` | `bench` (loopback `url` only, `recall`, `suite` optional) | the saved `bench.Result` |
+| `bench_ab` | `bench ab` (loopback `base` / `cand` URLs only) | the `suite.ABResult` |
 | `setup_apply` | `setup apply` | the setup steps after the run |
 | `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors"}` |
 

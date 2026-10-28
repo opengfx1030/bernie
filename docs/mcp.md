@@ -60,6 +60,8 @@ Read-only by default. Each tool returns the document of its command as
 | `recipe_list`, `recipe_show`, `recipe_plan` | `recipe list`, `show`, `plan` |
 | `ps`, `logs` | `ps`; the log of a run (text, marked untrusted) |
 | `bench_list`, `bench_show` | `bench list`, `bench show` |
+| `bench_suites` | `bench suites`: the built-in suites with their digest and their groups |
+| `bench_compare` | `bench compare <a> <b>`: the verdict of two saved results |
 | `tunableop_status`, `power_status` | `tune tunableop status`, `tune power service status` |
 | `onboarding_status` | `status --steps`: the onboarding checklist of this host |
 
@@ -75,9 +77,9 @@ that names a GPU the host does not have is an error, like in the CLI.
 
 ## Write mode
 
-The tools that change the host (`serve`, `stop`, `bench_run`, `setup_apply`,
-`tune_power_set`) are not listed until you enable them: `bernie mcp
---allow-write`, or `BERNIE_MCP_WRITE=1` in the environment of `bernie mcp` or
+The tools that change the host (`serve`, `stop`, `bench_run`, `bench_ab`,
+`setup_apply`, `tune_power_set`) are not listed until you enable them: `bernie mcp
+`--allow-write``, or `BERNIE_MCP_WRITE=1` in the environment of `bernie mcp` or
 `bernie dash`. Over HTTP they also need a dashboard token.
 
 Each one takes two calls:
@@ -92,9 +94,17 @@ arguments and plan. A changed argument or an expired token needs a new plan
 call. One host-changing operation runs at a time.
 
 `bench_run` takes the flags of `bernie bench`: `url`, `model`, `input_len`,
-`output_len`, `concurrency`, `num_prompts`, `warmup`, `seed`, `tag` and
-`recall`. With `recall`, every prompt hides a short random fact and the
-reply is checked for it; the result holds the verdict of every cell.
+`output_len`, `concurrency`, `num_prompts`, `warmup`, `seed`, `tag`,
+`recall` and `suite`. With `recall`, every prompt hides a short random
+fact and the reply is checked for it; the result holds the verdict of
+every cell. With `suite`, the suite decides the cells, the repetitions,
+the warm-up and the recall gate; the cell flags above are ignored.
+
+`bench_ab` takes `base` and `cand` (a recipe id or the URL of a server;
+loopback URLs only), `suite` (the suite every visit runs), `model`,
+`num_prompts`, `seed`, `tag` and `wait_s` (startup budget). The visits
+run in the order base, cand, cand, base; the bench lock is held for the
+whole run.
 
 The result of `bench_run` and `bench_list` holds the metric groups of
 [spec §10](spec.md#101-what-the-numbers-mean): `prefill` and `decode` (the
