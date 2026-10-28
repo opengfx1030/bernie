@@ -5,6 +5,8 @@
 
 const HISTORY = 60; // seconds of sparkline history
 const RUN_POLL_MS = 5000; // how often the run list is read for the pill
+const MAX_POLL_MS = 60000; // the longest wait after a failed read
+const STALE_MS = 30000; // after this the numbers are old
 
 const state = {
   hw: null,          // /api/hw
@@ -13,6 +15,8 @@ const state = {
   tab: "setup",      // the tab that is open
   power: null,       // /api/power
   runs: [],          // /api/runs
+  lastUpdate: 0,     // when the numbers were read (ms)
+  stale: false,      // the last read did not answer
 };
 
 /** request performs one JSON request and returns its status and document.
@@ -137,10 +141,33 @@ async function apiText(path) {
   return text;
 }
 
+/* ---------- one frame for every repaint ---------- */
+
+const frameJobs = new Set();
+let frameHandle = 0;
+
+/** onFrame batches the repaints of one sample into a single frame. A view
+ *  hands its work to it; the page paints once. It is the only place that
+ *  opens a requestAnimationFrame. */
+function onFrame(fn) {
+  frameJobs.add(fn);
+  if (frameHandle) return;
+  frameHandle = requestAnimationFrame(() => {
+    frameHandle = 0;
+    const jobs = Array.from(frameJobs);
+    frameJobs.clear();
+    for (const job of jobs) {
+      try { job(); } catch (e) { /* one broken card must not stop the page */ }
+    }
+  });
+}
+
 /* ---------- the one poller of the page ---------- */
 
 let telemetryStream = null;
-let runTimer = null;
+let pollTimer = null;
+let pollDelay = RUN_POLL_MS;
+let pollCycle = 0;
 
 /** startTelemetry opens the live stream and keeps the history of the page. */
 function startTelemetry() {
@@ -148,6 +175,8 @@ function startTelemetry() {
   telemetryStream = openTelemetry({
     message: (t) => {
       state.tele = t;
+      state.lastUpdate = Date.now();
+      state.stale = false;
       const gs = t.gpus || [];
       let pw = 0, busy = 0, vram = 0, hot = 0, sclk = 0;
       for (const s of gs) {
@@ -167,7 +196,11 @@ function startTelemetry() {
         pushHist("sclk_max", sclk);
       }
       for (const r of t.runs || []) pushHist("gen:" + r.name, r.gen_tok_s);
-      if (state.tab === "dashboard" && typeof renderGPUs === "function") renderGPUs();
+      // A hidden tab paints nothing: the sample is kept, the repaint waits.
+      if (document.hidden) return;
+      onFrame(() => {
+        if (state.tab === "dashboard" && typeof renderGPUs === "function") renderGPUs();
+      });
     },
   });
   return telemetryStream;
@@ -178,9 +211,16 @@ async function pollRuns() {
   try {
     const runs = runsOf(await api("/api/runs"));
     state.runs = runs;
+    state.lastUpdate = Date.now();
+    state.stale = false;
+    pollDelay = RUN_POLL_MS;
     setRunPill(runs);
   } catch (e) {
-    // The pill keeps its last word when the server does not answer.
+    // The pill keeps its last word, and the poll waits longer before it
+    // tries again: the server may be down.
+    state.stale = true;
+    pollDelay = Math.min(pollDelay * 2, MAX_POLL_MS);
+    setRunPill(state.runs);
   }
 }
 
@@ -199,15 +239,37 @@ async function pollCounts() {
   } catch (e) { /* the badge keeps its last number */ }
 }
 
-/** startPolling opens the one timer of the page. */
-function startPolling() {
-  if (runTimer) return;
-  let cycle = 0;
-  pollRuns();
-  runTimer = setInterval(() => {
-    pollRuns();
+/** schedulePoll arms the next read. The delay grows when the server does not
+ *  answer and shrinks back to the normal one when it does. */
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  pollTimer = null;
+  if (document.hidden) return;
+  pollTimer = setTimeout(async () => {
+    await pollRuns();
     // The checklist and the doctor are read every third round: they change
     // when the reader acts, not every second.
-    if (++cycle % 3 === 0) pollCounts();
-  }, RUN_POLL_MS);
+    if (++pollCycle % 3 === 0) pollCounts();
+    schedulePoll();
+  }, pollDelay);
 }
+
+/** startPolling opens the one timer of the page. */
+function startPolling() {
+  if (pollTimer) return;
+  pollRuns();
+  schedulePoll();
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      // A hidden tab asks nothing: the timer is dropped and the page is not
+      // painted until the reader comes back.
+      clearTimeout(pollTimer);
+      pollTimer = null;
+      return;
+    }
+    // Back in the foreground: read once, at once, then carry on.
+    pollRuns();
+    schedulePoll();
+  });
+}
+

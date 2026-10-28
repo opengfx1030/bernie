@@ -54,9 +54,23 @@ function route() {
 
   const panel = document.querySelector('[data-tab-panel="' + r.tab + '"]');
   const fn = window[VIEWS[r.tab]];
-  if (panel && typeof fn === "function") fn(panel);
+  if (panel && typeof fn === "function") {
+    // The view may paint in one go or in many: the panel is prepared when it
+    // is done.
+    Promise.resolve(fn(panel)).then(() => preparePanel(panel)).catch(() => preparePanel(panel));
+  }
 
   if (r.section) focusSection(r.tab, r.section);
+}
+
+/** preparePanel gives the panel a tab stop when it holds nothing focusable
+ *  (the APG pattern for a tab panel). */
+function preparePanel(panel) {
+  if (!panel) return;
+  const focusable = panel.querySelector(
+    "a[href], button, input, select, textarea, details, [tabindex]:not([tabindex='-1'])");
+  if (focusable) panel.removeAttribute("tabindex");
+  else panel.setAttribute("tabindex", "0");
 }
 
 /** focusSection scrolls to a section of a tab and puts the focus on its
@@ -74,15 +88,16 @@ function focusSection(tab, section) {
   }
 }
 
-/** tabsKey moves the focus in the tab bar: Left, Right, Home and End. */
+/** tabsKey moves the focus in the tab bar: Left, Right, Home and End. A
+ *  horizontal tab list must not take Up and Down (the APG pattern). */
 function tabsKey(ev) {
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
   if (!tabs.length) return;
   const i = tabs.indexOf(document.activeElement);
   if (i < 0) return;
   let next = -1;
-  if (ev.key === "ArrowRight" || ev.key === "ArrowDown") next = (i + 1) % tabs.length;
-  else if (ev.key === "ArrowLeft" || ev.key === "ArrowUp") next = (i - 1 + tabs.length) % tabs.length;
+  if (ev.key === "ArrowRight") next = (i + 1) % tabs.length;
+  else if (ev.key === "ArrowLeft") next = (i - 1 + tabs.length) % tabs.length;
   else if (ev.key === "Home") next = 0;
   else if (ev.key === "End") next = tabs.length - 1;
   if (next < 0) return;
@@ -93,7 +108,8 @@ function tabsKey(ev) {
 }
 
 /** shortcutsKey moves between the tabs with the keyboard: g, then the letter
- *  of the tab. */
+ *  of the tab. The letters are off until the reader turns them on in the `?`
+ *  panel (WCAG 2.1.4). */
 let pendingG = false;
 
 function shortcutsKey(ev) {
@@ -101,6 +117,12 @@ function shortcutsKey(ev) {
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
   const k = (ev.key || "").toLowerCase();
+  if (k === "escape") {
+    pendingG = false;
+    closeTip();
+    return;
+  }
+  if (!shortcutsOn()) return;
   if (pendingG) {
     pendingG = false;
     const tab = { s: "setup", d: "dashboard", b: "benchmark", l: "logs", c: "classic" }[k];
@@ -114,11 +136,6 @@ function shortcutsKey(ev) {
     pendingG = true;
     toast("Now press s, d, b, l or c.");
     setTimeout(() => (pendingG = false), 1500);
-    return;
-  }
-  if (k === "escape") {
-    pendingG = false;
-    closeTip();
   }
 }
 

@@ -49,6 +49,23 @@ function factRow(label, value, why) {
       why ? h("span.why", why) : null));
 }
 
+/** tableHead is the head of a table: the names of the columns with the scope
+ *  a screen reader needs to read the row. A column is a string or
+ *  `{label, num}`. */
+function tableHead(cols) {
+  return h("thead", h("tr", (cols || []).map((c) => {
+    const label = typeof c === "string" ? c : c.label;
+    const num = typeof c === "object" && c.num;
+    return h("th", { scope: "col", class: num ? "num" : null }, label);
+  })));
+}
+
+/** tableCaption is the caption of a table: what the table holds. It is read
+ *  out and kept out of the way. */
+function tableCaption(text) {
+  return h("caption", { class: "sr-only" }, text);
+}
+
 /** emptyState teaches: what the thing is, and the command that makes one. */
 function emptyState(what, next, command) {
   return h("div.empty",

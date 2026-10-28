@@ -15,6 +15,7 @@
 <link rel="icon" href="data:,">
 </head>
 <body class="shell">
+  <a class="skip" href="#main">Skip to the content</a>
   <aside class="rail">
     <div class="brand">
       <span class="brand-line"><span class="brand-mark" aria-hidden="true"></span><a class="logo" href="#setup">bernie</a></span>
@@ -30,6 +31,7 @@
     </nav>
     <div class="rail-foot">
       <span id="runpill" class="pill skip" role="status" title="No run is serving on this host." aria-label="idle — No run is serving on this host."><span class="pill-icon">–</span><span class="pill-word">idle</span></span>
+      <span id="pillage" class="pill-age muted">no data yet</span>
       <div class="rail-buttons">
         <button id="themeBtn" class="ghost small" type="button" aria-pressed="false" aria-label="Switch to the light palette">Light</button>
         <button id="advancedBtn" class="ghost small" type="button" aria-pressed="false" aria-label="Show the advanced panels">Advanced</button>
@@ -37,7 +39,7 @@
       </div>
     </div>
   </aside>
-  <main class="content">
+  <main id="main" class="content" tabindex="-1">
     <section id="panel-setup" class="panel" role="tabpanel" aria-labelledby="tab-setup" data-tab-panel="setup" hidden></section>
     <section id="panel-dashboard" class="panel" role="tabpanel" aria-labelledby="tab-dashboard" data-tab-panel="dashboard" hidden></section>
     <section id="panel-benchmark" class="panel" role="tabpanel" aria-labelledby="tab-benchmark" data-tab-panel="benchmark" hidden></section>
@@ -50,6 +52,7 @@
 <script src="components/cards.js"></script>
 <script src="components/charts.js"></script>
 <script src="components/metrics.js"></script>
+<script src="components/compare.js"></script>
 <script src="components/runs.js"></script>
 <script src="components/timeline.js"></script>
 <script src="js/shell.js"></script>
