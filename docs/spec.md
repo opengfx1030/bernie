@@ -326,8 +326,8 @@ Go code reads the tables only through `gpu.Lookup(deviceID)`,
 
 | User | What it takes |
 |---|---|
-| `gpu.List` | The device name when the DRM node has no `product_name`. |
-| `doctor` | `gpu.supported.<gfx>`, `gpu.hsa_override.<gfx>`, `gpu.igpu`, the Triton check, the power-cap advice. |
+| `gpu.List` | The device name when the DRM node has no `product_name`, and the temperature limits of the card. |
+| `doctor` | `gpu.supported.<gfx>`, `gpu.hsa_override.<gfx>`, `gpu.igpu`, `gpu.ecc.<hip index>`, the Triton check, the power-cap advice. |
 | `setup` | Code targets (wheels, build targets), the FlashAttention allowlist. |
 
 ### 4.5 P2P readiness checklist
@@ -387,7 +387,7 @@ stability; `skip` means the check cannot run here.
 | Category | Checks |
 |---|---|
 | `os` | Distro and version known. Package manager known. Kernel version. |
-| `gpu` | `/dev/kfd` exists and is readable/writable (`gpu.kfd`). `/dev/dri/renderD*` exist. `gpu.groups` compares group ids: the `video` and `render` gids come from `/etc/group`, then from `getent group <name>` (3 s timeout). The user's gids are the primary and supplementary groups of the process. A group that neither source knows makes the check `warn` ("cannot tell"), never `fail`. At least one GPU. One `gpu.supported.<gfx>` per gfx target on the host: `ok` when the target is in the device tables and a validated recipe lists it, `warn` when the target is in the tables but no validated recipe lists it, `warn` ("not in the device tables") when the tables do not know it (for example a CDNA target). One `gpu.hsa_override.<gfx>` (`warn`) per target whose table row has an `hsa_override`, with the `HSA_OVERRIDE_GFX_VERSION` advice. `gpu.igpu` warns when an integrated GPU mixes with discrete GPUs. |
+| `gpu` | `/dev/kfd` exists and is readable/writable (`gpu.kfd`). `/dev/dri/renderD*` exist. `gpu.groups` compares group ids: the `video` and `render` gids come from `/etc/group`, then from `getent group <name>` (3 s timeout). The user's gids are the primary and supplementary groups of the process. A group that neither source knows makes the check `warn` ("cannot tell"), never `fail`. At least one GPU. One `gpu.supported.<gfx>` per gfx target on the host: `ok` when the target is in the device tables and a validated recipe lists it, `warn` when the target is in the tables but no validated recipe lists it, `warn` ("not in the device tables") when the tables do not know it (for example a CDNA target). One `gpu.hsa_override.<gfx>` (`warn`) per target whose table row has an `hsa_override`, with the `HSA_OVERRIDE_GFX_VERSION` advice. `gpu.igpu` warns when an integrated GPU mixes with discrete GPUs. One `gpu.ecc.<hip index>` per GPU: `ok` when ECC is on and the card counted no memory error, `warn` when ECC is off on a card that has it or when the card corrected errors, `fail` when the card counted uncorrectable errors, `skip` when the card has no ECC or the kernel exposes no counters. |
 | `kernel` | `amdgpu` is loaded. IOMMU mode from `/proc/cmdline` (`iommu=pt` advice for P2P). PCIe links are gen4 x8 or better. |
 | `topo.p2p` | The P2P readiness checklist of [§4.5](#45-p2p-readiness-checklist): one check per item (`topo.p2p.<item>`). |
 | `rocm` | ROCm installs found (`/opt/rocm*`, `/opt/rocm/core-*`, `/usr`) with versions. More than one install: `warn`. `rocminfo` lists the GPUs. `hipcc`, `amd-smi` or `rocm-smi` present. `librocblas.so.5` found. ROCm 7.2.1 to 7.13 with more than one GPU: `warn` (RCCL TP>1 deadlock range). |

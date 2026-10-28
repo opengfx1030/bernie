@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
 )
 
 func gpuChecks(in inputs) []Check {
@@ -65,6 +66,7 @@ func gpuChecks(in inputs) []Check {
 		return out
 	}
 	out = append(out, check(cat, "count", OK, "At least one GPU", fmt.Sprintf("%d GPUs: %s", len(in.gpus), archSummary(in.gpus))).with("", docHardware))
+	out = append(out, eccChecks(in)...)
 	out = append(out, supportChecks(in)...)
 	var igpu, dgpu []string
 	for _, g := range in.gpus {
@@ -80,6 +82,63 @@ func gpuChecks(in inputs) []Check {
 			with("export HIP_VISIBLE_DEVICES="+strings.Join(dgpu, ","), docGotchas))
 	}
 	return out
+}
+
+// docRAS is the kernel documentation of the amdgpu RAS counters.
+const docRAS = "https://docs.kernel.org/gpu/amdgpu/ras.html"
+
+// eccChecks reports the ECC state of every GPU (gpu.ecc.<hip index>). A card
+// with uncorrectable memory errors fails: they corrupt data silently.
+func eccChecks(in inputs) []Check {
+	const cat = "gpu"
+	var out []Check
+	for i, g := range in.gpus {
+		id := fmt.Sprintf("ecc.%d", g.HIPIndex)
+		title := fmt.Sprintf("GPU %d ECC", g.HIPIndex)
+		if i >= len(in.ecc) {
+			out = append(out, check(cat, id, Skip, title, "the ECC state was not read").with("", docRAS))
+			continue
+		}
+		out = append(out, eccCheck(in, g, in.ecc[i]))
+	}
+	return out
+}
+
+// eccCheck turns the ECC state of one card into a check.
+func eccCheck(in inputs, g gpu.GPU, e gpu.ECC) Check {
+	const cat = "gpu"
+	id := fmt.Sprintf("ecc.%d", g.HIPIndex)
+	title := fmt.Sprintf("GPU %d ECC", g.HIPIndex)
+	src := ""
+	if e.Source != "" && e.Source != "sysfs" {
+		src = ", " + e.Source
+	}
+	switch e.State {
+	case gpu.ECCEnabled:
+		switch {
+		case e.UE > 0:
+			return check(cat, id, Fail, title,
+				fmt.Sprintf("ECC is on, uncorrectable memory errors (ue=%d ce=%d de=%d%s): they corrupt data silently", e.UE, e.CE, e.DE, src)).
+				with("Reset the card and replace it when the count comes back: stop the workload, then `sudo rmmod amdgpu && sudo modprobe amdgpu` (root). A card that counts uncorrectable errors again after the reset is faulty: replace it (RMA).", docRAS)
+		case e.CE > 0 || e.DE > 0:
+			return check(cat, id, Warn, title,
+				fmt.Sprintf("ECC is on, corrected or degraded memory errors (ue=%d ce=%d de=%d%s)", e.UE, e.CE, e.DE, src)).
+				with("Watch the counters: they must stop growing. A card that keeps correcting errors goes bad: replace it.", docRAS)
+		default:
+			return check(cat, id, OK, title,
+				fmt.Sprintf("ECC is on, no memory errors (ue=%d ce=%d de=%d%s)", e.UE, e.CE, e.DE, src)).with("", docRAS)
+		}
+	case gpu.ECCDisabled:
+		return check(cat, id, Warn, title,
+			"ECC is off on a card that has it: uncorrectable memory errors then stay silent and can corrupt inference. ECC reserves VRAM for the error correction and costs some memory bandwidth.").
+			with(host.KernelArgCommand(in.host.PkgManager, "amdgpu.ras_enable=1")+"  # then reboot. bernie does not change the ECC state.", docRAS)
+	case gpu.ECCSupported:
+		return check(cat, id, Skip, title,
+			"this card has ECC but the kernel exposes no RAS counters: the ECC state is unknown").with("", docRAS)
+	default:
+		return check(cat, id, Skip, title,
+			"no ECC counters: this card does not count memory errors").with("", docRAS)
+	}
 }
 
 func archSummary(gpus []gpu.GPU) string {
