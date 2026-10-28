@@ -64,10 +64,9 @@ function benchSentence(phase, rate, secs) {
 /** benchProgress is the live progress of a run: one sentence and one bar. */
 function benchProgress() {
   const sentence = h("p.bench-progress-sentence", { "aria-live": "polite" }, "");
-  const fill = h("i");
-  const bar = h("div.bench-bar", {
-    role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0",
-  }, fill);
+  const bar = h("progress.bench-bar", {
+    max: "100", value: "0", "aria-label": "The progress of the run",
+  });
   const log = h("p.small.muted.bench-progress-log", "");
   const el = h("div.card.bench-card.bench-progress", { hidden: true }, sentence, bar, log);
   let start = Date.now();
@@ -78,9 +77,7 @@ function benchProgress() {
     if (!start) start = Date.now();
     const done = (job && job.done) || 0;
     const total = (job && job.total) || 0;
-    const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
-    fill.style.width = pct + "%";
-    bar.setAttribute("aria-valuenow", String(pct));
+    bar.value = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
     const secs = Math.round((Date.now() - start) / 1000);
     const phase = (job && job.phase) || (total ? "Cell " + done + " of " + total : "Starting…");
     sentence.textContent = benchSentence(phase, rate, secs);

@@ -21,9 +21,6 @@
 /* ---------- the live progress ---------- */
 
 .bench-progress-sentence { margin: 0 0 var(--space-2); color: var(--text); }
-.bench-bar { height: 10px; border-radius: 6px; background: var(--surface-3); overflow: hidden; }
-.bench-bar > i { display: block; height: 100%; width: 0; background: var(--key);
-  transition: width var(--motion-progress); }
 .bench-progress-log { margin: var(--space-2) 0 0; }
 
 /* ---------- the table of the cells ---------- */
@@ -106,6 +103,47 @@
 .bench-advanced-cmds { margin-top: var(--space-4); }
 .bench-result-title { margin: 0; font-weight: 700; }
 
+/* ---------- the live progress bar (native progress, no inline styles) ---------- */
+
+.bench-bar { display: block; width: 100%; height: 10px; border: 0; border-radius: 6px;
+  background: var(--surface-3); appearance: none; }
+.bench-bar::-webkit-progress-bar { background: var(--surface-3); border-radius: 6px; }
+.bench-bar::-webkit-progress-value { background: var(--key); border-radius: 6px; }
+.bench-bar::-moz-progress-bar { background: var(--key); border-radius: 6px; }
+
+/* ---------- the spread and the headline row ---------- */
+
+.bench-spread { display: block; color: var(--warn); font-size: 11px; margin-top: 2px; }
+tr.is-headline { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+tr.is-headline > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.bench-headline-tag { display: inline-block; margin-top: 3px; padding: 0 6px; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--on-accent); font: 800 10px/1.6 var(--font-body);
+  letter-spacing: .06em; text-transform: uppercase; }
+.bench-headline-note { margin: var(--space-2) 0 0; }
+
+/* ---------- the comparison, cell by cell ---------- */
+
+.bench-compare-cell { margin-top: var(--space-3); }
+.bench-compare-cellhead { margin: 0 0 var(--space-2); font-weight: 700; }
+.bench-bars .bar-delta { font: 600 11px var(--font-mono); }
+.bench-bars .bar-delta.ok { fill: var(--ok); }
+.bench-bars .bar-delta.skip { fill: var(--skip); }
+.bench-bars .bar-delta.warn { fill: var(--warn); }
+.bench-bars .bar-delta.fail { fill: var(--fail); }
+.bench-bars .bar-index { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 4 4; }
+
+/* ---------- the curve: two stacked charts that share the x-axis ---------- */
+
+.bench-curve .axis-title { fill: var(--text); font: 800 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; }
+.bench-curve .grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* ---------- the text fallback of every chart ---------- */
+
+.bench-fallback { margin-top: var(--space-3); }
+.bench-fallback > summary { cursor: pointer; color: var(--muted); font: var(--small)/1.4 var(--font-body); padding: var(--space-1) 0; }
+.bench-fallback[open] > summary { color: var(--text); }
+.bench-fallback .bench-table { margin-top: var(--space-2); }
+
 /* ---------- 390 px: nothing overflows the page ---------- */
 
 @media (max-width: 639px) {
@@ -114,8 +152,4 @@
   .bench-pickers select { max-width: none; width: 100%; }
   .bench-ab { flex-direction: column; align-items: stretch; }
   .bench-ab input { width: 100%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bench-bar > i { transition: none; }
 }
