@@ -54,6 +54,13 @@ function benchSuiteCards(list, picked, onPick) {
   return h("div.bench-suites", list.map((s) => benchSuiteCard(s, s.id === picked, onPick)));
 }
 
+/** benchSentence writes the sentence of the progress card: the phase of the
+ *  job, the rate it reached and the time the run has taken. */
+function benchSentence(phase, rate, secs) {
+  const p = phase ? phase.charAt(0).toUpperCase() + phase.slice(1) : "Starting…";
+  return p + " · " + (rate || "–") + " · " + secs + " s so far.";
+}
+
 /** benchProgress is the live progress of a run: one sentence and one bar. */
 function benchProgress() {
   const sentence = h("p.bench-progress-sentence", { "aria-live": "polite" }, "");
@@ -64,25 +71,36 @@ function benchProgress() {
   const log = h("p.small.muted.bench-progress-log", "");
   const el = h("div.card.bench-card.bench-progress", { hidden: true }, sentence, bar, log);
   let start = Date.now();
+  let job = null;
+  let rate = null;
+  function render() {
+    el.hidden = false;
+    if (!start) start = Date.now();
+    const done = (job && job.done) || 0;
+    const total = (job && job.total) || 0;
+    const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    fill.style.width = pct + "%";
+    bar.setAttribute("aria-valuenow", String(pct));
+    const secs = Math.round((Date.now() - start) / 1000);
+    const phase = (job && job.phase) || (total ? "Cell " + done + " of " + total : "Starting…");
+    sentence.textContent = benchSentence(phase, rate, secs);
+  }
   return {
     el: el,
     /** show writes the state of the job: the phase, the numbers and the bar. */
-    show(job) {
-      el.hidden = false;
-      if (!start) start = Date.now();
-      const done = job.done || 0;
-      const total = job.total || 0;
-      const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
-      fill.style.width = pct + "%";
-      bar.setAttribute("aria-valuenow", String(pct));
-      const secs = Math.round((Date.now() - start) / 1000);
-      const phase = job.phase || (total ? "Cell " + done + " of " + total : "Starting…");
-      const rate = job.tok_s ? " · " + benchNum(job.tok_s, 1) + " tok/s" : "";
-      sentence.textContent = phase + rate + " · " + secs + " s so far.";
+    show(state) {
+      job = state || {};
+      render();
     },
     /** log writes one line of the run under the sentence. */
     log(text) {
-      if (text) log.textContent = String(text);
+      if (text) {
+        const line = String(text);
+        log.textContent = line;
+        const m = line.match(/([\d.]+)\s*tok\/s/);
+        if (m) rate = m[1] + " tok/s";
+      }
+      render();
     },
     /** fail says that the run stopped and shows the last line. */
     fail(text) {
@@ -94,6 +112,8 @@ function benchProgress() {
     hide() {
       el.hidden = true;
       start = 0;
+      job = null;
+      rate = null;
     },
   };
 }
@@ -163,12 +183,13 @@ function benchAB(onRun) {
       put(out, h("p.small.muted", "An A/B run needs both arms: a recipe id or the URL of a server."));
       return;
     }
-    onRun(base.value.trim(), cand.value.trim(), out, btn);
+    onRun(base.value.trim(), cand.value.trim(), out, btn, prog);
   });
   btn.addEventListener("click", () => form.requestSubmit());
+  const prog = benchProgress();
   return h("div.card.bench-card",
     h("p.small.muted", "An A/B run measures one server, then the other, then the first again."),
-    form, out);
+    form, prog.el, out);
 }
 
 /** benchAdvanced is the panel with the raw JSON of the endpoints of the tab

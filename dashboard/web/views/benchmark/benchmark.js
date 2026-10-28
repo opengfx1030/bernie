@@ -96,17 +96,16 @@ async function benchCopy(text) {
 
 /** benchReceipt reads the markdown receipt of a comparison. */
 async function benchReceipt(a, b) {
-  const res = await fetch("/api/bench/compare?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b) + "&format=markdown",
-    { credentials: "same-origin" });
-  if (!res.ok) throw new Error("The receipt could not be read.");
-  return await res.text();
+  return await apiText("/api/bench/compare?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b) + "&format=markdown");
 }
 
-/** benchWatch follows a running job: it reads the job document and the event
- *  stream, and it stops when the job ends. */
-function benchWatch(id, onProgress, onDone, onFail) {
+/** benchWatch follows a running job: the stream of the shell carries the
+ *  progress and the end of the run, the job document is the second pair of
+ *  eyes when the stream is quiet. */
+function benchWatch(id, onProgress, onLog, onDone, onFail) {
   let stopped = false;
   let stream = null;
+  let misses = 0;
   const stop = () => {
     stopped = true;
     clearInterval(timer);
@@ -116,34 +115,44 @@ function benchWatch(id, onProgress, onDone, onFail) {
     if (stopped) return;
     try {
       const job = await api("/api/bench/" + encodeURIComponent(id));
+      if (stopped) return;
+      misses = 0;
       onProgress(job);
-      if (job && (job.status === "done" || job.status === "failed" || job.result_id)) {
+      if (job && (job.status === "done" || job.status === "failed")) {
         stop();
-        if (job.status === "failed") onFail(new Error(job.phase || "The run stopped."));
+        if (job.status === "failed") onFail(new Error(job.error || job.phase || "The run stopped."));
         else onDone(job);
       }
     } catch (e) {
-      stop();
-      onFail(e);
+      misses += 1;
+      if (misses >= 3) {
+        stop();
+        onFail(e);
+      }
     }
   }, 2000);
-  try {
-    stream = new EventSource("/api/bench/" + encodeURIComponent(id) + "/events");
-    stream.addEventListener("progress", (ev) => {
+  stream = openBenchEvents(id, {
+    progress: (ev) => {
+      if (stopped) return;
       try { onProgress(JSON.parse(ev.data)); } catch (e) { /* a plain line */ }
-    });
-    stream.addEventListener("log", (ev) => {
-      try { onProgress({ log: JSON.parse(ev.data).text }); } catch (e) { onProgress({ log: ev.data }); }
-    });
-    stream.addEventListener("done", () => { stop(); onDone({}); });
-    stream.addEventListener("failed", (ev) => {
+    },
+    log: (ev) => { if (!stopped) onLog(ev.data); },
+    done: (ev) => {
+      stop();
+      let job = {};
+      try { job = JSON.parse(ev.data); } catch (e) { /* the empty job */ }
+      onDone(job);
+    },
+    failed: (ev) => {
       stop();
       let text = "The run stopped.";
-      try { text = JSON.parse(ev.data).error || text; } catch (e) { /* keep the sentence */ }
+      try {
+        const job = JSON.parse(ev.data);
+        text = job.error || job.phase || text;
+      } catch (e) { /* keep the sentence */ }
       onFail(new Error(text));
-    });
-    stream.onerror = () => { /* the poll keeps the card alive */ };
-  } catch (e) { /* no stream: the poll shows the progress */ }
+    },
+  });
   return stop;
 }
 
@@ -177,7 +186,7 @@ async function viewBenchmark(root) {
         cmpBtn, receiptBtn),
       cmpOut)),
     benchSection("The history", historyCard),
-    benchSection("An A/B run", benchAB((b, c, out, btn) => runAB(b, c, out, btn))),
+    benchSection("An A/B run", benchAB((b, c, out, btn, prog) => runAB(b, c, out, btn, prog))),
     advanced.el);
   advBtn.addEventListener("click", () => advanced.btn.click());
 
@@ -284,19 +293,6 @@ async function viewBenchmark(root) {
       runBtn.disabled = false;
       return;
     }
-    if (res.status === 404 || res.status === 405) {
-      // This build has no job endpoint: the run answers in one call.
-      try {
-        const r = await api("/api/bench", { method: "POST", body: { suite: benchState.suite } });
-        progress.hide();
-        runBtn.disabled = false;
-        await loadResults(r && r.id);
-      } catch (e) {
-        progress.fail(String(e.message || e));
-        runBtn.disabled = false;
-      }
-      return;
-    }
     if (!res.ok) {
       let text = "The run could not be started.";
       try { text = (await res.json()).error || text; } catch (e) { /* keep the sentence */ }
@@ -306,10 +302,8 @@ async function viewBenchmark(root) {
     }
     const job = await res.json();
     benchWatch(job.id,
-      (j) => {
-        if (j.log) progress.log(j.log);
-        else progress.show(j);
-      },
+      (j) => progress.show(j),
+      (line) => progress.log(line),
       async (j) => {
         progress.hide();
         runBtn.disabled = false;
@@ -322,7 +316,7 @@ async function viewBenchmark(root) {
   }
 
   /** runAB starts the A/B run of the two arms. */
-  async function runAB(baseArm, candArm, out, btn) {
+  async function runAB(baseArm, candArm, out, btn, prog) {
     btn.disabled = true;
     put(out, h("p.small.muted", "The A/B run starts. It visits the base, then the candidate, then the candidate again, then the base."));
     let res;
@@ -346,15 +340,19 @@ async function viewBenchmark(root) {
       return;
     }
     const job = await res.json();
+    if (prog) prog.show({ done: 0, total: 0 });
     benchWatch(job.id,
-      (j) => { if (j.log) progress.log(j.log); },
+      (j) => { if (prog) prog.show(j); },
+      (line) => { if (prog) prog.log(line); },
       async () => {
         btn.disabled = false;
+        if (prog) prog.hide();
         await loadResults();
         put(out, h("p.small.muted", "The A/B run ended. Pick its two results in the comparison above."));
       },
       (e) => {
         btn.disabled = false;
+        if (prog) prog.fail(String(e.message || e));
         put(out, benchFailed("The A/B run stopped.", e, null));
       });
   }
