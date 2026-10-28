@@ -18,30 +18,30 @@ function dashRunState(run) {
 function dashRunCard(section) {
   const el = h("div.card");
   section.append(el);
-  const box = h("div", { style: "display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,420px);gap:28px;align-items:start" });
-  const left = h("div", { style: "min-width:0" });
-  const right = h("div", { style: "min-width:0;border-left:1px solid var(--border);padding-left:28px" });
+  const box = h("div", { class: "dash-run-grid" });
+  const left = h("div", { class: "dash-min0" });
+  const right = h("div", { class: "dash-run-right" });
   el.append(box);
   box.append(left, right);
 
-  const name = h("h3", { style: "font:900 22px/1.1 var(--font-display);margin:0;overflow-wrap:anywhere" }, "No run is serving.");
-  const pill = h("span", { style: "display:inline-flex" });
-  const title = h("div", { style: "display:flex;gap:12px;align-items:center;flex-wrap:wrap" }, name, pill);
-  const phase = h("p", { style: "color:var(--text-2);font-size:14px;margin:8px 0 10px" }, "");
+  const name = h("h3", { class: "dash-run-name" }, "No run is serving.");
+  const pill = h("span", { class: "dash-pill-wrap" });
+  const title = h("div", { class: "dash-run-title" }, name, pill);
+  const phase = h("p", { class: "dash-run-phase" }, "");
   const endpoint = h("div");
-  const age = h("span", { style: "font-size:13px;color:var(--muted)" }, "");
+  const age = h("span", { class: "dash-note-13-muted" }, "");
   const stop = h("button", { type: "button" }, "Stop");
   const restart = h("button", { type: "button" }, "Restart");
-  const actions = h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px" }, age, stop, restart);
-  const findings = h("div", { style: "margin-top:12px" });
+  const actions = h("div", { class: "dash-run-actions" }, age, stop, restart);
+  const findings = h("div", { class: "dash-mt12" });
   left.append(title, phase, endpoint, actions, findings);
 
-  const ask = h("div", { style: "font-size:13px;color:var(--text-2);margin-bottom:6px" }, "Ask the server something.");
+  const ask = h("div", { class: "dash-ask-label" }, "Ask the server something.");
   const prompt = h("input", { type: "text", value: "Hello", "aria-label": "The prompt to send to the server",
-    style: "width:100%;padding:9px 11px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:8px" });
+    class: "dash-ask-input" });
   const send = h("button.primary", { type: "button" }, "Try it");
-  const answer = h("div", { style: "margin-top:10px;font-size:13px;color:var(--text-2)" });
-  right.append(ask, prompt, h("div", { style: "margin-top:8px" }, send), answer);
+  const answer = h("div", { class: "dash-answer" });
+  right.append(ask, prompt, h("div", { class: "dash-mt8" }, send), answer);
 
   stop.addEventListener("click", () => dashStopRun());
   restart.addEventListener("click", () => dashRestartRun());
@@ -64,7 +64,7 @@ function dashRunCard(section) {
         findings.replaceChildren();
         prompt.disabled = true;
         send.disabled = true;
-        answer.replaceChildren(h("div", { style: "color:var(--muted)" }, "Start the server first."));
+        answer.replaceChildren(h("div", { class: "dash-muted" }, "Start the server first."));
         return;
       }
       name.textContent = run.name;
@@ -78,10 +78,10 @@ function dashRunCard(section) {
       prompt.disabled = false;
       send.disabled = false;
       if (live && !live.stats && run.state !== "exited") {
-        answer.replaceChildren(h("div", { style: "color:var(--fail)" }, "The server did not answer."),
-          h("div", { style: "color:var(--muted);margin-top:2px" }, live.error || "The process is alive but /health stays silent."));
+        answer.replaceChildren(h("div", { class: "dash-fail" }, "The server did not answer."),
+          h("div", { class: "dash-muted-note" }, live.error || "The process is alive but /health stays silent."));
       } else if (answer.dataset.answer !== "1") {
-        answer.replaceChildren(h("div", { style: "color:var(--muted)" },
+        answer.replaceChildren(h("div", { class: "dash-muted" },
           "One prompt, one answer, the time to the first token and the tokens per second."));
       }
       findings.replaceChildren(dashFindings(run));
@@ -95,16 +95,16 @@ function dashRunCard(section) {
 function dashFindings(run) {
   const list = (run && run.findings) || [];
   if (!list.length) {
-    return h("div", { style: "font-size:13px;color:var(--muted)" }, "No known failure in this log.");
+    return h("div", { class: "dash-note-13-muted" }, "No known failure in this log.");
   }
   const box = h("div.findings");
   for (const f of list) {
     const kind = f.severity === "error" || f.severity === "fail" ? "fail" : f.severity === "warn" ? "warn" : "info";
-    box.append(h("div.finding", { style: "border:1px solid var(--border);border-left:3px solid var(--fail);border-radius:8px;padding:8px 10px;margin:0 0 8px" },
-      h("div", { style: "display:flex;gap:8px;align-items:center" }, dashPill(kind, f.severity || "warn"), h("span", { style: "font-family:var(--font-mono);font-size:12px;color:var(--muted)" }, f.id)),
-      f.cause ? h("div", { style: "font-size:13px;color:var(--text-2);margin-top:4px" }, f.cause) : null,
+    box.append(h("div.finding",
+      h("div", { class: "dash-finding-head" }, dashPill(kind, f.severity || "warn"), h("span", { class: "dash-finding-id" }, f.id)),
+      f.cause ? h("div", { class: "dash-finding-cause" }, f.cause) : null,
       f.fix ? cmdBlock(f.fix, "Copy the fix") : null,
-      f.doc ? h("a", { href: f.doc, target: "_blank", rel: "noopener noreferrer", style: "font-size:12px" }, "the rule in the documentation") : null));
+      f.doc ? h("a", { href: f.doc, target: "_blank", rel: "noopener noreferrer", class: "dash-small-12" }, "the rule in the documentation") : null));
   }
   return box;
 }
@@ -112,38 +112,38 @@ function dashFindings(run) {
 // dashProblems is the section with the known problems of the host: the
 // checks of the doctor that fail or warn.
 function dashProblems(section) {
-  const el = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px" });
+  const el = h("div.card", { class: "dash-problems-card" });
   section.append(el);
   const rerun = h("button", { type: "button", onclick: async () => {
       try { dash.doctor = await api("/api/doctor"); } catch (e) { dash.doctor = null; }
       api.update();
-    }, style: "font-size:13px" }, "Re-run");
+    }, class: "dash-small-13" }, "Re-run");
   const api = {
     update: () => {
       const doc = dash.doctor;
       const head = cardHead("Known problems", "/api/doctor", rerun);
       if (!doc) {
         const err = (dash.errors || {})["/api/doctor"];
-        put(el, head, h("div", { style: "color:var(--fail);font-size:13px" }, "The doctor could not run."),
-          h("div", { style: "color:var(--muted);font-size:13px;margin:4px 0 8px" }, err || "The endpoint did not answer."),
+        put(el, head, h("div", { class: "dash-fail-13" }, "The doctor could not run."),
+          h("div", { class: "dash-muted-13-gap" }, err || "The endpoint did not answer."),
           cmdBlock("bernie doctor", "Copy the command"));
         return;
       }
       const bad = (doc.checks || []).filter((c) => c.status === "fail" || c.status === "warn");
       if (!bad.length) {
-        put(el, head, h("div", { style: "font-size:13px;color:var(--text-2)" },
-          h("b", { style: "color:var(--text)" }, "Nothing is wrong on this host."),
-          h("div", { style: "color:var(--muted);margin-top:2px" }, "Every check of the host passed.")));
+        put(el, head, h("div", { class: "dash-note-13-text2" },
+          h("b", { class: "chart-strong" }, "Nothing is wrong on this host."),
+          h("div", { class: "dash-muted-note" }, "Every check of the host passed.")));
         return;
       }
       const box = h("div");
       for (const c of bad) {
         const kind = c.status === "fail" ? "fail" : "warn";
-        box.append(h("div", { style: "display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--border)" },
-          h("div", { style: "display:flex;gap:8px;align-items:baseline" }, dashPill(kind, c.status), h("b", { style: "font-size:13px" }, c.title || c.id)),
-          c.detail ? h("div", { style: "grid-column:2;color:var(--text-2);font-size:13px" }, c.detail) : null,
-          c.fix ? h("div", { style: "grid-column:2;margin-top:6px" }, cmdBlock(c.fix, "Copy the fix")) : null,
-          c.doc ? h("a", { href: c.doc, target: "_blank", rel: "noopener noreferrer", style: "grid-column:2;font-size:12px;margin-top:4px" }, "the rule in the documentation") : null));
+        box.append(h("div", { class: "dash-check-row" },
+          h("div", { class: "dash-check-head" }, dashPill(kind, c.status), h("b", { class: "dash-small-13" }, c.title || c.id)),
+          c.detail ? h("div", { class: "dash-check-detail" }, c.detail) : null,
+          c.fix ? h("div", { class: "dash-check-fix" }, cmdBlock(c.fix, "Copy the fix")) : null,
+          c.doc ? h("a", { href: c.doc, target: "_blank", rel: "noopener noreferrer", class: "dash-check-doc" }, "the rule in the documentation") : null));
       }
       put(el, head, box);
     },
@@ -183,25 +183,25 @@ async function dashRestartRun() {
 async function dashAsk(text, box, button) {
   const run = dashLiveRun();
   if (!run) {
-    box.replaceChildren(h("div", { style: "color:var(--muted)" }, "Start the server first."));
+    box.replaceChildren(h("div", { class: "dash-muted" }, "Start the server first."));
     return;
   }
   button.disabled = true;
   const label = button.textContent;
   button.textContent = "Try it…";
-  box.replaceChildren(h("div", { style: "color:var(--muted)" }, "The server is answering…"));
+  box.replaceChildren(h("div", { class: "dash-muted" }, "The server is answering…"));
   try {
     const res = await api("/api/smoke", { method: "POST", body: { prompt: text || "Hello", run: run.name } });
     box.dataset.answer = "1";
     box.replaceChildren(
-      h("div", { style: "color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere" }, res.reply || "(no answer)"),
-      h("div", { style: "color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums" },
+      h("div", { class: "dash-answer-text" }, res.reply || "(no answer)"),
+      h("div", { class: "dash-answer-meta" },
         (res.ttft_ms != null ? num(res.ttft_ms, 0) + " ms to the first token · " : "") +
         (res.tok_s != null ? num(res.tok_s) + " tok/s" : "")));
   } catch (e) {
     box.replaceChildren(
-      h("div", { style: "color:var(--fail)" }, "The server did not answer."),
-      h("div", { style: "color:var(--muted);margin-top:2px" }, e.message || String(e)));
+      h("div", { class: "dash-fail" }, "The server did not answer."),
+      h("div", { class: "dash-muted-note" }, e.message || String(e)));
   } finally {
     button.disabled = false;
     button.textContent = label;

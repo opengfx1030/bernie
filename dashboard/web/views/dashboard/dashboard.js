@@ -65,31 +65,8 @@ function dashPill(kind, word) {
     h("span", word || kind));
 }
 
-/** dashStream follows the shared telemetry stream. The stream lives in
- *  js/data.js; this view never opens an EventSource of its own. The handler
- *  is passed as a function that also answers to the handler names, so the
- *  shell can call it either way. */
-function dashStream(onSample) {
-  if (typeof openTelemetry === "function") {
-    const handle = (ev) => {
-      let doc = ev;
-      if (ev && typeof ev === "object" && typeof ev.data === "string") {
-        try { doc = JSON.parse(ev.data); } catch { return; }
-      }
-      if (doc && Array.isArray(doc.gpus)) onSample(doc);
-    };
-    handle.message = handle;
-    handle.sample = handle;
-    handle.telemetry = handle;
-    handle.onSample = handle;
-    return openTelemetry(handle);
-  }
-  // The shell has no stream yet: read the last document of the state. This
-  // reads nothing extra; the stream itself stays in js/data.js.
-  return setInterval(() => {
-    if (state && state.tele && state.tele !== dash.tele) onSample(state.tele);
-  }, 1000);
-}
+// The stream lives in js/data.js; the shell calls renderGPUs() on every
+// telemetry message. This view opens no fetch and no timer of its own.
 
 // dashPush keeps one compact sample of the stream and the fleet numbers it
 // carries. The buffer holds one hour, so the 1 h window is always full.
@@ -216,7 +193,7 @@ function dashAdvanced() {
   const body = h("div.advanced-body");
   for (const [path, doc, command] of docs) {
     body.append(h("h3", path), cmdBlock(command, "Copy the command"));
-    const pre = h("pre", { style: "max-height:260px;overflow:auto" });
+    const pre = h("pre", { class: "dash-raw-json" });
     pre.textContent = doc == null ? "not read yet" : JSON.stringify(doc, null, 2);
     body.append(pre);
   }
@@ -302,7 +279,7 @@ async function viewDashboard(root) {
   dash.grids = [];
   const stop = h("button", { type: "button", onclick: () => dashStopRun() }, "Stop");
   const restart = h("button", { type: "button", onclick: () => dashRestartRun() }, "Restart");
-  const head = stateHead("Dashboard", h("div", { style: "display:flex;gap:8px;flex-wrap:wrap" }, stop, restart));
+  const head = stateHead("Dashboard", h("div", { class: "dash-head-actions" }, stop, restart));
   dash.head = head;
   dash.live.headStop = stop;
   dash.live.headRestart = restart;
@@ -330,7 +307,7 @@ async function viewDashboard(root) {
 
   await dashLoad();
   await dashHistory();
-  dashStream(dashSample);
+  renderGPUs();
 }
 
 // dashSample is the stream: it keeps the sample and repaints the live parts.
