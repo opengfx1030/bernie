@@ -127,9 +127,9 @@ func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
 	web, _ := fs.Sub(webFS, "web")
 	static := http.FileServerFS(web)
-	mux.Handle("GET /{$}", noStore(static))
-	mux.Handle("GET /app.js", noStore(static))
-	mux.Handle("GET /app.css", noStore(static))
+	mux.Handle("GET /{$}", withCSP(static))
+	mux.Handle("GET /app.js", withCSP(static))
+	mux.Handle("GET /app.css", withCSP(static))
 
 	mux.HandleFunc("GET /api/hw", s.getHW)
 	mux.HandleFunc("GET /api/topo", s.getTopo)
@@ -149,10 +149,9 @@ func (s *server) handler() http.Handler {
 	return newGuard(s.o.Token, mux)
 }
 
-// noStore makes the browser revalidate assets: the binary is the version.
-func noStore(h http.Handler) http.Handler {
+// withCSP adds the CSP to the embedded UI (the guard sets Cache-Control).
+func withCSP(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'")
 		h.ServeHTTP(w, r)
 	})

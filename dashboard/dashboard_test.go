@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -117,8 +118,8 @@ func TestTokenCookieFlow(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("query token: got %d, want 303", w.Code)
 	}
-	if loc := w.Header().Get("Location"); loc != "/?tab=1" {
-		t.Fatalf("redirect must strip the token: Location %q", loc)
+	if loc := w.Header().Get("Location"); loc != "/" {
+		t.Fatalf("redirect must go to / without any query: Location %q", loc)
 	}
 	cs := w.Result().Cookies()
 	if len(cs) != 1 {
@@ -316,4 +317,102 @@ func TestParseConcurrency(t *testing.T) {
 func fmtInts(v []int) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+// Every response, including errors, redirects and the HTML, is uncacheable.
+func TestNoStoreEverywhere(t *testing.T) {
+	tok := newServer(Options{Listen: "0.0.0.0:7860", Token: testToken}).handler()
+	loop := newServer(Options{}).handler()
+	bearer := map[string]string{"Host": "gpu-box", "Authorization": "Bearer " + testToken}
+	for _, tc := range []struct {
+		name string
+		h    http.Handler
+		path string
+		hdr  map[string]string
+		code int
+	}{
+		{"html", tok, "/", bearer, 200},
+		{"asset", tok, "/app.js", bearer, 200},
+		{"api json", tok, "/api/runs", bearer, 200},
+		{"api 404", tok, "/api/nope", bearer, 404},
+		{"api 401", tok, "/api/runs", map[string]string{"Host": "gpu-box"}, 401},
+		{"bootstrap redirect", tok, "/?token=" + testToken, map[string]string{"Host": "gpu-box"}, 303},
+		{"loopback html", loop, "/", map[string]string{"Host": "localhost"}, 200},
+		{"loopback api", loop, "/api/runs", map[string]string{"Host": "localhost"}, 200},
+		{"rebinding 403", loop, "/", map[string]string{"Host": "evil.example"}, 403},
+	} {
+		w := do(t, tc.h, "GET", tc.path, tc.hdr)
+		if w.Code != tc.code {
+			t.Errorf("%s: status %d, want %d", tc.name, w.Code, tc.code)
+		}
+		if cc := w.Header().Get("Cache-Control"); cc != "no-store" {
+			t.Errorf("%s: Cache-Control %q, want no-store", tc.name, cc)
+		}
+	}
+}
+
+// The token travels in the URL only to bootstrap the cookie on "/".
+func TestTokenRefusedInAPIQuery(t *testing.T) {
+	h := newServer(Options{Listen: "0.0.0.0:7860", Token: testToken}).handler()
+	host := map[string]string{"Host": "gpu-box"}
+	for _, target := range []string{"/api/runs?token=" + testToken, "/api/hw?x=1&token=" + testToken, "/api/runs?token=wrong"} {
+		w := do(t, h, "GET", target, host)
+		if w.Code != http.StatusBadRequest || len(w.Result().Cookies()) != 0 {
+			t.Errorf("%s: %d, cookies %v; want 400 and no cookie", target, w.Code, w.Result().Cookies())
+		}
+		if strings.Contains(w.Body.String(), testToken) {
+			t.Errorf("%s: response echoes the token: %s", target, w.Body.String())
+		}
+	}
+	// A valid bearer does not make a URL token acceptable either.
+	w := do(t, h, "GET", "/api/runs?token="+testToken, map[string]string{"Host": "gpu-box", "Authorization": "Bearer " + testToken})
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("bearer + query token: %d, want 400", w.Code)
+	}
+	// Off "/" a query token is no credential and sets no cookie.
+	w = do(t, h, "GET", "/app.js?token="+testToken, host)
+	if w.Code != http.StatusUnauthorized || len(w.Result().Cookies()) != 0 {
+		t.Errorf("/app.js?token: %d, cookies %v; want 401 and no cookie", w.Code, w.Result().Cookies())
+	}
+	// Loopback mode has no token, but still refuses one in /api URLs.
+	if w := do(t, newServer(Options{}).handler(), "GET", "/api/runs?token=x", map[string]string{"Host": "localhost"}); w.Code != http.StatusBadRequest {
+		t.Errorf("loopback /api?token: %d, want 400", w.Code)
+	}
+}
+
+// The server writes no per-request lines: a URL's query string (the token)
+// never reaches Options.Log.
+func TestRequestsNeverLogQuery(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var log bytes.Buffer
+	urls := make(chan string, 1)
+	errc := make(chan error, 1)
+	go func() {
+		errc <- Serve(ctx, Options{Listen: "127.0.0.1:0", Token: testToken, Log: &log, Ready: func(u string) { urls <- u }})
+	}()
+	var base string
+	select {
+	case u := <-urls:
+		base = u[:strings.Index(u, "?")]
+	case err := <-errc:
+		t.Fatal(err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Serve did not become ready")
+	}
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	for _, q := range []string{"?token=" + testToken, "?token=wrong&a=b", "api/runs?token=" + testToken} {
+		resp, err := client.Get(base + q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+	}
+	cancel()
+	if err := <-errc; err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(log.String(), "token") || strings.Contains(log.String(), "wrong") {
+		t.Errorf("log leaks a query string:\n%s", log.String())
+	}
 }
