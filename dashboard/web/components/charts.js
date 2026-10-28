@@ -24,6 +24,16 @@ function chartSvg(tag, attrs) {
   return el;
 }
 
+/** downsample keeps at most max points of an array, evenly spaced. The
+ *  chart fills after the first minute; older samples are dropped. */
+function downsample(pts, max) {
+  if (pts.length <= max) return pts;
+  const out = new Array(max);
+  const step = (pts.length - 1) / (max - 1);
+  for (let i = 0; i < max; i++) out[i] = pts[Math.round(i * step)];
+  return out;
+}
+
 /** chartNumbers keeps the numbers of a series that can be drawn. */
 function chartNumbers(values) {
   const out = [];
@@ -65,19 +75,19 @@ function chartPointer(svg, count, onIndex) {
 function spark(values, max, label, opts) {
   const W = 120, H = 34, PAD = 2;
   const options = opts || {};
-  const wrap = h("div.spark-wrap", { style: "position:relative;min-width:0" });
+  const wrap = h("div.spark-wrap");
   const svg = chartSvg("svg", {
     class: "spark-svg", viewBox: "0 0 " + W + " " + H, preserveAspectRatio: "none",
     role: "img", tabindex: "0", "aria-label": label || "the last minute",
-    style: "display:block;width:100%;height:34px;overflow:visible",
+    class: "spark-svg",
   });
   const base = chartSvg("line", { x1: 0, x2: W, y1: H - 1, y2: H - 1,
-    style: "stroke:var(--border);stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke" });
-  const area = chartSvg("path", { style: "fill:var(--series-1);opacity:.18;stroke:none" });
-  const line = chartSvg("path", { style: "fill:none;stroke:var(--series-1);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke" });
-  const mark = chartSvg("circle", { r: 2.4, style: "fill:var(--series-1);opacity:0;vector-effect:non-scaling-stroke" });
+    class: "chart-base" });
+  const area = chartSvg("path", { class: "chart-area" });
+  const line = chartSvg("path", { class: "chart-line" });
+  const mark = chartSvg("circle", { r: 2.4, class: "chart-pointer" });
   svg.append(base, area, line, mark);
-  const read = h("span.chart-read", { style: "position:absolute;right:0;top:0;padding:0 4px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-size:11px;line-height:1.5;opacity:0;pointer-events:none" });
+  const read = h("span.chart-read", { class: "chart-readout" });
   wrap.append(svg, read);
 
   const paint = (vals) => {
@@ -136,25 +146,25 @@ function spark(values, max, label, opts) {
 function areaChart(series, opts) {
   const options = opts || {};
   const W = 320, H = 170, L = 34, R = 312, T = 8, B = 128;
-  const box = h("figure.chart", { style: "margin:0;min-width:0" });
-  const head = h("figcaption", { style: "display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 6px" });
-  const title = h("span", { style: "font:800 11px/1.2 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)" }, options.title || "");
-  const read = h("span.chart-read", { style: "font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums" }, "");
+  const box = h("figure.chart", { class: "chart-figure" });
+  const head = h("figcaption", { class: "chart-caption" });
+  const title = h("span", { class: "chart-label" }, options.title || "");
+  const read = h("span.chart-read", { class: "chart-value" }, "");
   head.append(title, read);
   const svg = chartSvg("svg", {
     viewBox: "0 0 " + W + " " + H, role: "img", tabindex: "0",
-    "aria-label": options.title || "the measure", style: "width:100%;height:auto;display:block;overflow:visible",
+    "aria-label": options.title || "the measure", class: "chart-svg",
   });
-  const grid = chartSvg("g", { style: "stroke:var(--border);stroke-width:1" });
-  const ylab = chartSvg("g", { style: "fill:var(--muted);font:400 10px var(--font-body);text-anchor:end" });
-  const xlab = chartSvg("g", { style: "fill:var(--muted);font:400 10px var(--font-body)" });
-  const area = chartSvg("path", { style: "fill:var(--series-1);opacity:.18;stroke:none" });
-  const line = chartSvg("path", { style: "fill:none;stroke:var(--series-1);stroke-width:2;stroke-linejoin:round;stroke-linecap:round" });
-  const cross = chartSvg("line", { y1: T, y2: B, style: "stroke:var(--border-strong);stroke-width:1;stroke-dasharray:3 3;opacity:0" });
-  const dot = chartSvg("circle", { r: 3.5, style: "fill:var(--series-1);opacity:0" });
+  const grid = chartSvg("g", { class: "chart-grid" });
+  const ylab = chartSvg("g", { class: "chart-axis-end" });
+  const xlab = chartSvg("g", { class: "chart-axis" });
+  const area = chartSvg("path", { class: "chart-area" });
+  const line = chartSvg("path", { class: "chart-line-strong" });
+  const cross = chartSvg("line", { y1: T, y2: B, class: "chart-cross" });
+  const dot = chartSvg("circle", { r: 3.5, class: "chart-dot" });
   svg.append(grid, area, line, cross, dot, ylab, xlab);
   box.append(head, svg);
-  const empty = h("div.chart-empty", { style: "color:var(--muted);font-size:12px;padding:2px 0" });
+  const empty = h("div.chart-empty");
   box.append(empty);
 
   let points = [];
@@ -165,7 +175,7 @@ function areaChart(series, opts) {
       else if (p && typeof p === "object") out.push({ t: p.t || p.time || null, v: typeof p.v === "number" ? p.v : p.value });
       else if (typeof p === "number") out.push({ t: null, v: p });
     }
-    return out.filter((p) => typeof p.v === "number" && isFinite(p.v));
+    return downsample(out.filter((p) => typeof p.v === "number" && isFinite(p.v)), 240);
   };
   const paint = () => {
     const n = points.length;
@@ -187,8 +197,8 @@ function areaChart(series, opts) {
       line.setAttribute("d", "");
       empty.hidden = false;
       empty.textContent = "";
-      empty.append(h("b", { style: "color:var(--text)" }, "No samples yet."),
-        h("span", { style: "display:block;margin-top:2px" }, options.hint || "The chart fills after the first minute."));
+      empty.append(h("b", { class: "chart-strong" }, "No samples yet."),
+        h("span", { class: "chart-sub" }, options.hint || "The chart fills after the first minute."));
       return;
     }
     empty.hidden = true;
@@ -249,13 +259,13 @@ function chartClock(t) {
 function ring(pct, label, opts) {
   const options = opts || {};
   const R = 36, C = 2 * Math.PI * R;
-  const box = h("div.ring-wrap", { style: "flex:none;text-align:center;min-width:84px" });
+  const box = h("div.ring-wrap");
   const svg = chartSvg("svg", { class: "ring", viewBox: "0 0 84 84", role: "img", "aria-label": "the load of " + (label || "the card") });
   const track = chartSvg("circle", { class: "ring-bg", cx: 42, cy: 42, r: R });
   const arc = chartSvg("circle", { class: "ring-fg", cx: 42, cy: 42, r: R, "stroke-dasharray": C.toFixed(2) });
   const value = chartSvg("text", { class: "ring-n", x: 42, y: 47 });
   svg.append(track, arc, value);
-  const cap = h("div", { style: "font-size:11px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere" }, label || "");
+  const cap = h("div", { class: "ring-caption" }, label || "");
   box.append(svg, cap);
   const paint = (v) => {
     if (v == null || !isFinite(v)) {
@@ -287,9 +297,9 @@ function meter(value, max, opts) {
   const track = h("div.bar", { role: "img" });
   const fill = h("i");
   track.append(fill);
-  const tick = h("span", { style: "position:absolute;top:-2px;height:12px;width:2px;background:var(--border-strong);display:none" });
-  const wrap = h("div", { style: "position:relative" }, track, tick);
-  const note = h("div", { style: "font-size:11px;color:var(--muted);margin-top:3px" }, "");
+  const tick = h("span", { class: "meter-tick" });
+  const wrap = h("div", { class: "meter-track-wrap" }, track, tick);
+  const note = h("div", { class: "meter-note" }, "");
   box.append(head, wrap, note);
 
   const paint = (v, m) => {

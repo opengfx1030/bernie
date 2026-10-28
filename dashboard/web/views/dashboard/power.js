@@ -17,7 +17,7 @@ function dashPower(section) {
       if (!p) {
         const err = (dash.errors || {})["/api/power"];
         kids.push(h("div.err", "The power caps could not be read."));
-        kids.push(h("div", { style: "color:var(--muted);font-size:13px;margin-bottom:8px" }, err || "The endpoint did not answer."));
+        kids.push(h("div", { class: "dash-note-13-gap" }, err || "The endpoint did not answer."));
         kids.push(h("button", { type: "button", onclick: () => dashLoad() }, "Try again"));
         put(el, ...kids);
         return;
@@ -25,12 +25,12 @@ function dashPower(section) {
       const service = p.installed
         ? (p.enabled && p.active ? "installed, enabled and watching the changes" : (p.enabled ? "installed and enabled, but not watching the changes" : "installed, but not enabled"))
         : "not installed";
-      kids.push(h("div", { style: "font-size:13px;color:var(--text-2);margin-bottom:12px" }, "The power service is " + service + "."));
+      kids.push(h("div", { class: "dash-power-service" }, "The power service is " + service + "."));
       if (!p.installed) {
-        kids.push(h("div", { style: "color:var(--muted);font-size:13px" }, "The power service is not installed. Install it before changing a cap; the controls stay disabled."));
+        kids.push(h("div", { class: "dash-note-13" }, "The power service is not installed. Install it before changing a cap; the controls stay disabled."));
         for (const command of p.install_commands || []) kids.push(cmdBlock(command, "Copy the install command"));
       } else if (!p.enabled || !p.active) {
-        kids.push(h("div", { style: "color:var(--warn);font-size:13px" }, "The service does not watch the wanted values yet, so a cap may not reach the card."));
+        kids.push(h("div", { class: "dash-warn-13" }, "The service does not watch the wanted values yet, so a cap may not reach the card."));
       }
       const rows = (p.gpus || []).map((g) => dashPowerRow(g, p.installed));
       if (rows.length) {
@@ -39,7 +39,7 @@ function dashPower(section) {
           h("tbody", rows))));
         kids.push(dashPowerAll(p));
       } else {
-        kids.push(h("div", { style: "color:var(--muted);font-size:13px" }, "No GPU publishes a hwmon power cap."));
+        kids.push(h("div", { class: "dash-note-13" }, "No GPU publishes a hwmon power cap."));
       }
       put(el, ...kids);
     },
@@ -57,13 +57,13 @@ function dashPowerRow(g, installed) {
   const value = Math.max(min, Math.min(max, wanted || min));
   const input = h("input", { type: "number", min: String(min), max: String(max), step: "1", value: String(Math.round(value)),
     disabled: !installed, "aria-label": "the wanted watts of GPU " + g.hip_index,
-    style: "width:88px" });
+    class: "dash-cap-input" });
   const set = h("button", { type: "button", disabled: !installed }, "Set");
   set.addEventListener("click", () => dashSavePower(g.hip_index, Number(input.value), min, max, input));
   const drift = g.drift ? dashPill("warn", "drift") : dashPill("ok", "in sync");
   const cell = (text) => h("td.num", text);
   return h("tr", null,
-    h("td", { style: "font-weight:600" }, "GPU " + g.hip_index),
+    h("td", { class: "dash-strong" }, "GPU " + g.hip_index),
     cell(g.cap_w != null ? Math.round(g.cap_w) + " W" : "–"),
     cell(Math.round(min) + "–" + Math.round(max) + " W"),
     cell(g.desired_w != null ? Math.round(g.desired_w) + " W" : "–"),
@@ -78,10 +78,10 @@ function dashPowerAll(p) {
   const max = Math.max(...(p.gpus || []).map((g) => g.max_w || 1));
   const input = h("input", { type: "number", min: String(min), max: String(max), step: "1", value: String(Math.round((min + max) / 2)),
     disabled: !p.installed, "aria-label": "the wanted watts of every card",
-    style: "width:88px" });
+    class: "dash-cap-input" });
   const set = h("button", { type: "button", disabled: !p.installed }, "Set every card");
   set.addEventListener("click", () => dashSavePower("all", Number(input.value), min, max, input));
-  return h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--text-2)" },
+  return h("div", { class: "dash-power-all" },
     h("span", "One cap for every card:"), input, set);
 }
 

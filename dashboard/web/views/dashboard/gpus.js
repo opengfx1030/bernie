@@ -9,7 +9,7 @@
 // unit, one line of context and the last minute of it. A number that was not
 // measured is a dash and a greyed unit, never a zero.
 function dashTile(spec) {
-  const el = h("div.tile", { style: "display:flex;flex-direction:column" });
+  const el = h("div.tile", { class: "dash-tile" });
   const label = h("div.tile-l", spec.label);
   if (spec.tip) label.append(dashInfo(spec.tip));
   const value = h("div.tile-n");
@@ -17,7 +17,7 @@ function dashTile(spec) {
   const unit = h("small", spec.unit || "");
   value.append(amount, unit);
   const sub = h("div.tile-s", spec.sub || "");
-  const sparkBox = h("div", { style: "margin-top:auto;padding-top:10px" });
+  const sparkBox = h("div", { class: "dash-tile-spark" });
   const chart = spark(spec.series || [], spec.max, spec.label, { unit: spec.unit, format: spec.format });
   sparkBox.append(chart);
   el.append(label, value, sub, sparkBox);
@@ -33,7 +33,7 @@ function dashTile(spec) {
 
 // dashTiles is the eight tiles of the fleet, in the order of the design.
 function dashTiles() {
-  const box = h("div.tiles", { style: "grid-template-columns:repeat(auto-fit,minmax(min(100%,132px),1fr))" });
+  const box = h("div.tiles", { class: "dash-tiles" });
   const defs = [
     { key: "busy", label: "Load", unit: "%", tip: "The mean load of the cards, in percent. The load is the share of the time the card was busy." },
     { key: "pow", label: "Power", unit: "W", tip: "The sum of the power of the cards. The card cannot draw more than its cap." },
@@ -59,15 +59,15 @@ function dashTiles() {
 // dashHero is the block at the top of the tab: the output speed of the live
 // run on the left, the tiles of the fleet on the right.
 function dashHero() {
-  const el = h("div.dashboard-hero", { style: "align-items:start" });
-  const left = h("div", { style: "min-width:0" });
+  const el = h("div.dashboard-hero", { class: "dash-hero-start" });
+  const left = h("div", { class: "dash-min0" });
   const eyebrow = h("div.eyebrow", "Output speed");
-  const value = h("div", { style: "font:900 var(--hero-number)/1 var(--font-display);letter-spacing:-.03em;color:var(--key);font-variant-numeric:tabular-nums;white-space:nowrap" });
+  const value = h("div", { class: "dash-hero-num" });
   const amount = h("span", "–");
-  const unit = h("small", { style: "font:700 15px var(--font-display);color:var(--muted);margin-left:8px" }, "tok/s");
+  const unit = h("small", { class: "dash-hero-unit" }, "tok/s");
   value.append(amount, unit);
-  const note = h("div", { style: "font-size:13px;color:var(--muted);margin-top:6px;min-height:18px" }, "No run is serving.");
-  const chartBox = h("div", { style: "margin-top:10px;height:44px" });
+  const note = h("div", { class: "dash-hero-note" }, "No run is serving.");
+  const chartBox = h("div", { class: "dash-hero-spark" });
   const chart = spark([], null, "the output speed of the live run", { unit: "tok/s" });
   chartBox.append(chart);
   left.append(eyebrow, value, note, chartBox);
@@ -125,31 +125,31 @@ function dashTilesPaint(box) {
 // ECC state and the last minute of its load.
 function dashCard(hip) {
   const hw = ((dash.hw && dash.hw.gpus) || []).find((g) => g.hip_index === hip) || null;
-  const el = h("div.card", { style: "padding:18px 18px 12px" });
-  const top = h("div.gpu-top", { style: "display:flex;align-items:flex-start;justify-content:space-between;gap:10px" });
-  const names = h("div", { style: "min-width:0" });
-  const name = h("h3", { style: "font:900 20px/1.1 var(--font-display);text-transform:uppercase;overflow-wrap:anywhere;margin:0" }, dashCardName(hip));
-  const where = h("div.small-t", { style: "font-size:12.5px;color:var(--muted);margin-top:3px" }, (hw ? hw.pci : "") + (hw && hw.gfx ? " · " + hw.gfx : ""));
+  const el = h("div.card", { class: "dash-card" });
+  const top = h("div.gpu-top", { class: "dash-card-top" });
+  const names = h("div", { class: "dash-min0" });
+  const name = h("h3", { class: "dash-card-name" }, dashCardName(hip));
+  const where = h("div.small-t", { class: "dash-card-where" }, (hw ? hw.pci : "") + (hw && hw.gfx ? " · " + hw.gfx : ""));
   names.append(name, where);
   top.append(names);
-  const mid = h("div.gpu-mid", { style: "display:grid;grid-template-columns:84px 1fr;gap:16px;align-items:center;margin-top:14px" });
+  const mid = h("div.gpu-mid", { class: "dash-card-mid" });
   const ringBox = ring(null, "GPU " + hip);
-  const stats = h("div.gpu-stats", { style: "display:flex;flex-direction:column;gap:10px;min-width:0" });
+  const stats = h("div.gpu-stats", { class: "dash-card-stats" });
   const mem = meter(null, null, { label: "Memory", unit: "GiB", format: (v) => num(v / (1024 * 1024 * 1024)) });
   const pow = meter(null, null, { label: "Power", unit: "W", sep: " of ", format: (v) => num(Math.round(v)) });
-  const temps = h("div.stat-row", { style: "display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;font-variant-numeric:tabular-nums" });
-  const clocks = h("div.stat-row", { style: "display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;font-variant-numeric:tabular-nums;align-items:center" });
-  const hot = h("div", { style: "font-size:11.5px;color:var(--serious)" });
+  const temps = h("div.stat-row", { class: "dash-stat-row" });
+  const clocks = h("div.stat-row", { class: "dash-stat-row-center" });
+  const hot = h("div", { class: "dash-stat-hot" });
   stats.append(mem, pow, temps, hot, clocks);
   mid.append(ringBox, stats);
-  const sparkBox = h("div.gpu-spark", { style: "margin-top:12px" });
+  const sparkBox = h("div.gpu-spark", { class: "dash-mt12" });
   const chart = spark([], 100, "the load of GPU " + hip, { unit: "%" });
   sparkBox.append(chart);
   el.append(top, mid, sparkBox);
 
-  const pair = (label, value, color) => h("span", { style: "white-space:nowrap" },
-    h("span", { style: "color:var(--muted)" }, label + " "),
-    h("b", { style: "font-weight:600;font-variant-numeric:tabular-nums" + (color ? ";color:" + color : "") }, value));
+  const pair = (label, value, cls) => h("span", { class: "dash-nowrap" },
+    h("span", { class: "dash-muted" }, label + " "),
+    h("b", { class: "dash-stat-value" + (cls ? " " + cls : "") }, value));
 
   el.update = () => {
     const sample = dash.tele ? (dash.tele.gpus || []).find((g) => g.hip_index === hip) : null;
@@ -165,7 +165,7 @@ function dashCard(hip) {
     const t = card ? card.tmp : null;
     const isHot = t != null && limit != null && t >= limit;
     temps.replaceChildren(
-      pair("TEMP", t == null ? "–" : num(t) + " °C", isHot ? "var(--serious)" : ""),
+      pair("TEMP", t == null ? "–" : num(t) + " °C", isHot ? "dash-stat-serious" : ""),
       pair("JUNCTION", card && card.jtmp != null ? num(card.jtmp) + " °C" : "–"),
       pair("MEM", card && card.mtmp != null ? num(card.mtmp) + " °C" : "–"));
     hot.textContent = isHot ? "hot: the limit of this card is " + limit + " °C" : "";
@@ -195,8 +195,8 @@ function dashEcc(hip) {
 
 // dashCards is the section with one card per card of the host.
 function dashCards(section) {
-  const grid = h("div", { style: "display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))" });
-  const note = h("div", { style: "color:var(--muted);font-size:13px;margin-bottom:14px" });
+  const grid = h("div", { class: "dash-cards" });
+  const note = h("div", { class: "dash-cards-note" });
   section.append(note, grid);
   let built = [];
   const build = () => {
@@ -220,17 +220,23 @@ function dashCards(section) {
   return api;
 }
 
-// renderGPUs repaints the cards of the host. The shell calls it when the
-// window changes.
+// renderGPUs subscribes to the shared stream through the onTabFrame seam.
+// The stream lives in js/data.js; this view opens no fetch and no timer of
+// its own. One stream, one frame per sample, for the whole page. A hidden
+// tab paints nothing: data.js pauses the poller and skips the frame.
 function renderGPUs() {
-  for (const f of dash.grids) f();
-  if (dash.live.cards) dash.live.cards.update();
+  if (typeof onTabFrame !== "function") return;
+  onTabFrame("dashboard", (doc) => {
+    for (const f of dash.grids) f();
+    if (doc) dashSample(doc);
+    else if (dash.live.cards) dash.live.cards.update();
+  });
 }
 
 // dashCharts is the section with the four charts of the last minutes and the
 // control that picks the window.
 function dashCharts(section) {
-  const head = h("div", { style: "display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px" });
+  const head = h("div", { class: "dash-section-head" });
   const seg = h("div.segmented-control", { role: "group", "aria-label": "The window of the charts" });
   const buttons = {};
   for (const w of [{ id: "5m", label: "5 min" }, { id: "15m", label: "15 min" }, { id: "1h", label: "1 h" }]) {
@@ -244,7 +250,7 @@ function dashCharts(section) {
   };
   paintSeg();
   head.append(seg);
-  const grid = h("div", { style: "display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))" });
+  const grid = h("div", { class: "dash-cards-grid" });
   const charts = {
     busy: areaChart([], { title: "Utilisation", unit: "%", windowMinutes: 5 }),
     pow: areaChart([], { title: "Power", unit: "W", windowMinutes: 5 }),
