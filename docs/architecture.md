@@ -1,292 +1,287 @@
-# rdnactl architecture
+# bernie architecture
 
-This document describes how the code is organized. The behavior contract is
-[spec.md](spec.md). If the two disagree, spec.md is correct and this file is
-a bug.
+This document shows how the code is organized and how data moves through it.
+The behavior contract is [spec.md](spec.md). If the two disagree, spec.md is
+correct and this file is a bug.
+
+Related pages:
+
+- [packages.md](packages.md): the API of each package.
+- [extending.md](extending.md): where to change what, and how to add a GPU
+  generation.
+- [recipes.md](recipes.md): how to write a recipe.
 
 ## 1. Layers
 
+Packages sit in layers. An arrow means "imports". Nothing imports upward.
+A solid arrow is a main dependency. A dotted arrow means "also imports
+several packages of that group directly".
+
 ```mermaid
 flowchart TB
-  subgraph Front["Front ends"]
-    CLI["internal/cli<br/>cmds/&lt;family&gt;/cmd_*.go (one file per command)"]
-    DASH["dashboard<br/>net/http + embedded web/"]
+  subgraph front["Front ends"]
+    CLI["internal/cli<br/>+ cli/cmds/family"]
+    DASH["dashboard<br/>HTTP, SSE, web/"]
   end
-  subgraph Core["Domain packages (no I/O formatting)"]
-    LOGDOC["logdoc"]
-    DOC["doctor"] --> HOST["host"]
-    DOC --> GPU["gpu"]
-    DOC --> ROCM["rocm"]
-    DOC --> TOPO["topo"]
-    DOC --> TUN["tuning"]
-    SET["setup"] --> HOST
-    SET --> ROCM
-    REC["recipe"] --> GPU
-    REC --> TOPO
-    RUN["runner"] --> REC
-    RUN --> TUN
-    RUN --> HOST
-    BEN["bench"] --> VLLM["vllm (client)"]
-    BEN --> GPU
-    TOPO --> GPU
-    TUN --> ROCM
+  FLOW["internal/flow<br/>status, up"]
+  subgraph top["Domain, top level"]
+    DOC["doctor"]
+    SET["setup"]
+    LOG["logdoc"]
   end
-  subgraph Base["Base"]
-    PATHS["paths"]
-    EXEC["execx"]
-    CFG["config"]
+  subgraph serving["internal/serving"]
+    RUN["runner"]
+    REC["recipe"]
+    TUN["tuning"]
+    BEN["bench"]
+    VLLM["vllm client"]
   end
-  subgraph Data["Embedded data"]
-    RECIPES[("recipes/*.yaml")]
-    ROWS[("tunableop/")]
-    WEB[("dashboard/web/")]
+  subgraph machine["internal/machine"]
+    TOPO["topo"]
+    GPU["gpu"]
+    HOST["host"]
+    ROCM["rocm"]
   end
-  CLI --> Core
-  DASH --> Core
-  Core --> Base
-  REC --> RECIPES
-  TUN --> ROWS
-  DASH --> WEB
+  SUP["internal/support<br/>paths, execx, config"]
+  D1[("gpu/devices/*.yaml")]
+  D2[("recipes/")]
+  D3[("tunableop/<br/>tuned-moe/")]
+  D4[("logdoc/catalog.yaml")]
+  D5[("dashboard/web/")]
+  CLI --> FLOW
+  CLI --> DASH
+  CLI --> DOC
+  CLI --> LOG
+  DASH --> DOC
+  FLOW --> DOC
+  FLOW --> SET
+  FLOW --> RUN
+  RUN --> REC
+  RUN --> TUN
+  REC --> TOPO
+  DOC --> TUN
+  TOPO --> GPU
+  TOPO --> ROCM
+  BEN --> VLLM
+  CLI -.-> serving
+  DASH -.-> serving
+  CLI -.-> machine
+  DASH -.-> machine
+  DOC -.-> machine
+  SET -.-> machine
+  serving -.-> machine
+  machine --> SUP
+  serving --> SUP
+  GPU --> D1
+  REC --> D2
+  TUN --> D3
+  LOG --> D4
+  DASH --> D5
 ```
+
+Two facts matter:
+
+- `gpu` imports no other bernie package. It is the root of the graph.
+- `dashboard` never imports `cli`. `cli` imports `dashboard` in two places:
+  `dash` and the last step of `up`.
 
 Rules:
 
 1. Front ends parse input and format output. They hold no domain logic.
 2. Domain packages return plain structs with JSON tags. They never print.
    They take a `context.Context` for anything that can block.
-3. Domain packages read the host through an injectable root (`fs.FS` or a
-   root path), so tests run on fixture trees under `testdata/`.
+3. Domain packages read the host through an injectable root (a root path or
+   an `fs.FS`), so tests run on fixture trees.
 4. Arrows are the only allowed imports. `gpu` never imports `recipe`.
-   `dashboard` and `cli` never import each other.
-5. The JSON field names of domain structs are the public API (spec.md). Rename
-   a field only together with spec.md.
+   `dashboard` never imports `cli`. `doctor` never imports `recipe`: the
+   caller passes the validated architectures in `doctor.Options`.
+5. The JSON field names of domain structs are the public API (spec.md).
+   Rename a field only together with spec.md.
+6. `flow` holds the two product-level chains (`status` and `up`).
+   `runner.Prepare` is the only place that turns a recipe id into a ready
+   plan. The CLI and the dashboard both call it.
 
 ## 2. Repository layout
 
-```
-rdnactl/
-├── cmd/rdnactl/        main.go only: calls cli.Main
+```text
+bernie/
+├── cmd/bernie/           main.go: blank-imports each cmds family, calls cli.Main
 ├── internal/
-│   ├── cli/            router, --json/exit-code contract; cmds/<family>/cmd_<feature>.go
-│   ├── paths/          XDG config/state/data/cache resolution
-│   ├── execx/          bounded exec of external tools
-│   ├── config/         <config>/config.yaml load/save
-│   ├── host/           OS, distro, package manager, CPU, RAM, groups, devices, container engines
-│   ├── gpu/            GPU enumeration (KFD + DRM + PCI sysfs), telemetry samples
-│   ├── rocm/           ROCm installs, tools, libraries, venv probe
-│   ├── topo/           PCIe tree, link classes, P2P matrix, bandwidth tests
-│   ├── doctor/         check registry built from the packages above
-│   ├── logdoc/         known-failure catalog (embedded YAML) and streaming log scanner
-│   ├── flow/           status snapshot and `up` (composes doctor, setup, recipe, runner)
-│   ├── setup/          install plan and non-root apply
-│   ├── recipe/         schema, loading, extends/merge, validation, fit, plan rendering
-│   ├── tuning/         TunableOp profiles and rows, GPU power cap
-│   ├── runner/         host and container backends, run records, logs
-│   ├── vllm/           client: /health, /v1/models, /tokenize, /metrics
-│   └── bench/          streaming benchmark, result store
-├── dashboard/          HTTP API + SSE; web/ assets embedded (no build step)
-├── recipes/            built-in recipes (*.yaml, _*.yaml fragments) + embed.go
-├── tunableop/          profiles.json + rows per rocBLAS build + embed.go
-├── tuned-moe/          fork tuned MoE config + embed.go
-├── deploy/
-│   ├── packaging/      nfpm.yaml (rpm, deb)
-│   ├── docker/         Dockerfile of the dashboard/CLI image
-│   └── compose/        compose.yml (+ podman override), vLLM reference compose
-├── scripts/            install.sh (release download + checksum), capture-fixture.sh
-└── docs/               spec.md, architecture.md, recipes.md, install.md, third-party.md, overview.html
+│   ├── cli/              command framework, --json and exit-code contract, version
+│   │   └── cmds/         one family package per area, one cmd_<name>.go per command
+│   │       ├── health/       doctor, setup, status, up
+│   │       ├── inventory/    hw, topo
+│   │       ├── serving/      recipe, serve, ps, stop, logs, compose, config
+│   │       ├── tunecmd/      tune
+│   │       ├── benchcmd/     bench
+│   │       └── dashcmd/      dash
+│   ├── flow/             status snapshot and `up`
+│   ├── doctor/           check registry (one checks_<category>.go per category)
+│   ├── setup/            install plan and non-root apply
+│   ├── logdoc/           known-failure catalog (embedded YAML) and log scanner
+│   ├── machine/          what the host is
+│   │   ├── gpu/              KFD/DRM/PCI enumeration, telemetry, devices/*.yaml tables
+│   │   ├── host/             OS, package manager, CPU, RAM, groups, container engines
+│   │   ├── rocm/             ROCm installs, tools, libraries, venv probe
+│   │   └── topo/             PCIe tree, link classes, P2P matrix, bandwidth
+│   ├── serving/          what bernie runs
+│   │   ├── recipe/           schema, load, extends/merge, validate, fit, plan
+│   │   ├── runner/           host and container backends, run records, logs
+│   │   ├── tuning/           TunableOp profiles and rows, tuned-MoE folders, power cap
+│   │   ├── vllm/             client: /health, /v1/models, /tokenize, /metrics
+│   │   └── bench/            streaming benchmark and result store
+│   └── support/          small shared helpers
+│       ├── paths/            XDG config, state, data, cache
+│       ├── execx/            bounded exec of external tools
+│       ├── config/           <config>/config.yaml
+│       └── fixture/          test host snapshots (testdata/*.tar.gz)
+├── dashboard/            HTTP API, SSE, embedded web/ (no build step)
+├── recipes/              built-in recipes by family, fragments by concern, embed.go
+├── tunableop/            <arch>/<profile>/ rows and profile.json, embed.go
+├── tuned-moe/            <arch>/ fused-MoE configs, embed.go
+├── deploy/               packaging (nfpm), docker, compose
+├── scripts/              install.sh, capture-fixture.sh
+└── docs/                 spec, architecture, packages, extending, recipes, install, overview.html
 ```
 
-## 3. Package contracts
+## 3. Flows
 
-Signatures below are the agreed API between packages. Unexported helpers are
-free.
+### 3.1 What `up` does
 
-### host
-
-```go
-type Info struct {
-    Hostname, Kernel, PkgManager, Virtualization string
-    OS   OSRelease   // ID, VersionID, Pretty
-    CPU  CPU         // Model, Vendor, Sockets, Cores, Threads
-    RAMBytes uint64
-    User User        // Name, UID, Groups []string
-    Engines []Engine // Name docker|podman, Path, Version, Rootless, Usable, Compose string
-    SELinux string   // enforcing|permissive|disabled|""
-    Cmdline string
-}
-func Probe(ctx context.Context, root string) (Info, error)   // root "/" in production
-```
-
-### gpu
-
-```go
-type GPU struct { HIPIndex, KFDNode int; Name, GFX string; GFXTargetVersion int;
-    PCI, DeviceID string; VRAMBytes uint64; RenderMinor, NUMANode int;
-    Link Link; PowerCapW float64; SysfsPath string }
-type Sample struct { HIPIndex int; BusyPct, TempC, PowerW, PowerCapW float64;
-    VRAMUsed, VRAMTotal uint64 }
-func List(root string) ([]GPU, error)
-func Telemetry(root string, gpus []GPU) []Sample
-func GFXName(targetVersion int) string
-```
-
-### rocm
-
-```go
-type Install struct { Root, Version, Kind string }   // Kind: opt|therock|distro|wheel
-type Report struct { Installs []Install; Tools map[string]string;   // name -> path
-    ROCBLAS string; HIPVersion string; Agents []string }            // rocminfo gfx names
-type VenvReport struct { Python, Torch, HIP, VLLM string; DeviceCount, RDNAOps int; Err string }
-func Probe(ctx context.Context, root string) Report
-func ProbeVenv(ctx context.Context, venv string) VenvReport
-func VenvLibPaths(venv string) []string         // ROCm wheel libs + torch/lib, in load order
-func FindROCBLAS(root, venv string) string       // venv wheel first, then system
-```
-
-### topo
-
-```go
-type Pair struct { A, B int; Class string; P2P bool; GBps float64 }
-type Node struct { HIPIndex int; PCI string; Path []string; Switch string; RootPort string }
-type Topology struct { Nodes []Node; Pairs []Pair; Bandwidth string } // Bandwidth: source used
-func Discover(root string, gpus []gpu.GPU) (Topology, error)
-func MeasureBandwidth(ctx context.Context, t *Topology, venv string) error
-func BestGroup(t Topology, candidates []int, n int) (sel []int, reason string)
-```
-
-### doctor
-
-```go
-type Status string // ok|warn|fail|skip
-type Check struct { ID, Category string; Status Status; Title, Detail, Fix, Doc string }
-type Report struct { Summary map[Status]int; Checks []Check }
-type Options struct { Root, Venv string; Categories []string }
-func Run(ctx context.Context, o Options) Report
-```
-
-### logdoc
-
-```go
-type Rule struct { ID, Pattern, Cause, Fix, Doc, Severity string }
-type Match struct { Rule; Line string; LineNo int }
-func Load() ([]Rule, error)                       // embedded catalog.yaml, validated
-func Scan(r io.Reader, rules []Rule) []Match      // first matching line per rule, streaming
-func ScanFile(path string) ([]Match, error)
-```
-
-### setup
-
-```go
-type Step struct { ID, Title, Mode string; Root, Done bool; Commands []string; Why string }
-type Options struct { Mode, Venv, Image, ModelRepo string }
-func Plan(ctx context.Context, h host.Info, r rocm.Report, o Options) []Step
-func Apply(ctx context.Context, steps []Step, only []string, log io.Writer) error
-```
-
-### recipe
-
-```go
-type Recipe struct { /* schema of spec.md §7.2 */ ID, Source string; Fragment bool; ... }
-type LoadError struct { Source string; Err string }
-type Set struct { Recipes map[string]*Recipe; Errors []LoadError }
-func Load(extraDirs ...string) Set                 // embedded < config < $RDNACTL_RECIPES < extra
-func (s Set) Resolve(id string) (*Recipe, error)   // extends merged
-func Validate(r *Recipe) []string
-type Fit struct { Status string; Reasons []string }  // fits|no|unknown
-func CheckFit(r *Recipe, gpus []gpu.GPU, ramBytes uint64) Fit
-type Plan struct {
-    Recipe, Name, Mode, Model, ServedName, Host string
-    Port int
-    Env  map[string]string
-    Args []string          // after "serve": model + flags
-    HIPDevices string; GPUSelectReason string
-    Image, ShmSize, TunableOpProfile string
-    PathInputs []string
-    Warnings []string
-}
-type PlanOptions struct { Mode, Name string; Sets []string; GPUs []gpu.GPU; Topo *topo.Topology }
-func BuildPlan(r *Recipe, o PlanOptions) (*Plan, error)
-```
-
-### tuning
-
-```go
-type Profile struct { Name, Dir, ROCBLAS, ROCm, Torch, LibSHA256, Status string; RowsPerRank int; Covers []string }
-func Profiles() ([]Profile, error)
-func HashLib(path string) (string, error)
-func Select(libSHA string, explicit string) (*Profile, error)
-func Materialize(p *Profile) (dir string, err error)    // <data>/tunableop/<name>
-func Env(p *Profile, rowsDir string, tuning bool) map[string]string
-type Power struct { HIPIndex int; CapW, MinW, MaxW float64; Path string }
-func PowerStatus(gpus []gpu.GPU) []Power
-func SetPower(gpus []gpu.GPU, idx []int, watts float64) (cmds []string, err error) // cmds when not root
-```
-
-### runner
-
-```go
-type Record struct { Name, Recipe, Mode string; PID int; Container, Engine, Host string;
-    Port int; StartedAt time.Time; Log string; Plan *recipe.Plan }
-type Status struct { Record; State string }   // running|starting|exited
-func Start(ctx context.Context, p *recipe.Plan, o StartOptions) (*Record, error)
-func List(ctx context.Context) ([]Status, error)
-func Stop(ctx context.Context, name string) error
-func Logs(ctx context.Context, name string, follow bool, tail int, w io.Writer) error
-func HostCommand(p *recipe.Plan, venv string) (argv []string, env []string, err error)
-func ContainerCommand(p *recipe.Plan, eng host.Engine, rowsDir, hfCache string) []string
-func Compose(p *recipe.Plan, rowsDir, hfCache string) ([]byte, error)
-```
-
-### vllm and bench
-
-```go
-// vllm
-func New(baseURL string) *Client
-func (c *Client) Health(ctx) error
-func (c *Client) Models(ctx) ([]string, error)
-func (c *Client) Tokenize(ctx, model, text string) (int, error)
-func (c *Client) Metrics(ctx) (map[string]float64, error)   // flattened Prometheus samples
-// bench
-type Options struct { URL, Model, Tag string; InputLen, OutputLen, Warmup int;
-    Concurrency []int; NumPrompts int; Seed int64 }
-type Cell struct { Concurrency, Completed, Failed int; TTFTP50, TTFTP95, ITLP50, ITLP95,
-    DecodeTokS, PrefillTokS, OutputTokS, DurationS float64 }
-type Result struct { ID, Tag, URL, Model string; Time time.Time; Options Options;
-    Fingerprint map[string]string; Cells []Cell }
-func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error)
-func Save(r *Result) (string, error); func List() ([]Result, error); func Get(id string) (*Result, error)
-```
-
-## 4. Launch flow
+`up` is a thin front end over `flow.Up`. The sequence below shows who calls
+whom. A step that cannot go on returns `Blocked`. `cli` prints it and exits
+with code 3.
 
 ```mermaid
 sequenceDiagram
-  actor Op as Operator / agent
-  participant CLI as rdnactl serve
+  actor U as User
+  participant C as cli (health/cmd_up)
+  participant F as flow
+  participant D as doctor
   participant R as recipe
-  participant G as gpu + topo
-  participant T as tuning
+  participant S as setup
   participant X as runner
-  Op->>CLI: serve flashnext-mtp2 --set PLE_QUANT_DIR=/data/ples
-  CLI->>R: Load, Resolve (extends merge)
-  CLI->>G: List GPUs, Discover topology
-  CLI->>R: BuildPlan(sets, gpus, topo)
-  R-->>CLI: Plan (env, args, HIP devices, warnings)
-  CLI->>T: Select profile (host: hash rocBLAS; container: recipe profile)
-  T-->>CLI: rows dir + TunableOp env
-  CLI->>X: Start(plan) host process or container
-  X-->>CLI: Record (pid/container, log, port)
-  CLI-->>Op: run record (text or --json)
+  participant V as vLLM
+  participant W as dashboard
+  U->>C: bernie up [RECIPE]
+  C->>F: Up(options)
+  F->>D: Run(categories gpu, kernel)
+  D-->>F: report (fail = Blocked + fix commands)
+  F->>R: Load, List (fit), Best or Resolve
+  R-->>F: recipe id
+  F->>S: Plan(mode, GPU archs)
+  S-->>F: steps (root step pending = Blocked + commands)
+  F->>C: Confirm (once, skipped by --yes)
+  C->>U: Run setup steps and start RECIPE?
+  U-->>C: yes
+  F->>S: Apply(non-root steps)
+  F->>X: Prepare(recipe, mode, sets)
+  X-->>F: plan (see 3.2)
+  F->>X: Start(plan)
+  X->>V: spawn process, or engine run
+  loop every 3 s until --wait
+    F->>X: List
+    X->>V: GET /health
+  end
+  F-->>C: UpResult (url, run record)
+  C->>W: Serve(listen)
+  W->>X: List, Logs (on request)
 ```
+
+### 3.2 From recipe to command
+
+`runner.Prepare` runs this chain. `recipe plan`, `serve`, `compose` and the
+dashboard use the same chain. First, the recipe becomes a plan:
+
+```mermaid
+flowchart LR
+  L["Load<br/>layers"] --> R["Resolve<br/>merge extends"]
+  L --> F["CheckFit<br/>used by list, up"]
+  R --> O["Apply<br/>config set, --set<br/>then Validate"]
+  O --> P["BuildPlan<br/>inputs, env, args,<br/>GPU selection:<br/>arch, count, PCIe switch,<br/>host: tuned-MoE folder"]
+  W["gpu.List<br/>topo.Discover"] --> P
+```
+
+Then the plan gets the host and becomes a command:
+
+```mermaid
+flowchart LR
+  S["Plan (from BuildPlan)"] --> H["Host env, or<br/>container mounts"]
+  H --> T["TunableOp profile<br/>host: rocBLAS hash + arch<br/>container: recipe profile"]
+  T --> M{"mode"}
+  M -- host --> X1["Plan.Exec<br/>venv python -m vllm"]
+  M -- container --> X2["Plan.Exec<br/>engine run image,<br/>or compose file"]
+```
+
+### 3.3 Life of a run
+
+The state of a run is not stored. `runner.List` derives it from the process
+(or container) and `/health`. Only `run.json` is stored, when `Start`
+succeeds. A plan has no record until it starts.
+
+```mermaid
+stateDiagram-v2
+  [*] --> planned: Prepare (recipe plan)
+  planned --> starting: Start writes run.json
+  starting --> running: /health answers 200
+  running --> starting: process alive, /health silent
+  starting --> exited: process or container gone
+  running --> exited: bernie stop, or a crash
+  exited --> starting: serve with the same name
+  exited --> [*]
+```
+
+`exited` covers a normal `stop` and a failure. To tell them apart, run
+`bernie doctor --run NAME`. It matches the log against the known-failure
+catalog.
+
+## 4. Data keyed by GPU architecture
+
+Four kinds of data depend on the GPU. Each has one folder per key. A new
+architecture adds files. It never edits the files of another architecture.
+
+```mermaid
+flowchart LR
+  ARCH(["GPU arch<br/>gfx1030, gfx1100, ..."])
+  ARCH --- DEV["internal/machine/gpu/devices/<br/>generation.yaml"]
+  ARCH --- TOP["tunableop/arch/profile/<br/>profile.json + rows"]
+  ARCH --- MOE["tuned-moe/arch/<br/>E=...json"]
+  ARCH --- REC["recipes/<br/>requires.arch + fragments/arch/"]
+  DEV --> R1["gpu.Lookup, LookupArch, CodeTargets<br/>used by gpu, doctor, setup"]
+  TOP --> R2["tuning.Profiles, Select<br/>used by runner, doctor"]
+  MOE --> R3["tuning.MaterializeTunedMoE<br/>used by recipe plan"]
+  REC --> R4["recipe.Load, CheckFit<br/>used by up, list, plan"]
+```
+
+Rules:
+
+- Every reader finds the data by walking the embedded tree. No Go file lists
+  a device, a profile or a recipe.
+- A profile says which architectures it fits in its own `profile.json`.
+- `doctor` learns the validated architectures from the recipes
+  (`recipe.ValidatedArchs`), not from a list.
+
+[extending.md](extending.md) lists the steps to add a generation.
 
 ## 5. Testing
 
-- Unit tests use fixture trees: `internal/<pkg>/testdata/<case>/sys/...`.
-  Capture fixtures from real hosts with `scripts/capture-fixture.sh`.
+- Unit tests read a root path. Fixture trees live in
+  `internal/support/fixture/testdata/<name>.tar.gz`. `fixture.Root(t, name)`
+  unpacks one. Capture a real host with `scripts/capture-fixture.sh`.
+- A fixture that was not captured is synthetic. Its name ends in
+  `-synthetic` and it has a `SYNTHETIC` file at its root. The README next to
+  the fixtures says which values are real and which are written by hand.
+  Never present a synthetic fixture as proof of hardware support.
+- `gpu` tests check that every device table loads, ids are unique and each
+  override points to an arch of the same file.
+- `tuning` tests check the layout of `tunableop/` and `tuned-moe/` (top
+  folders are gfx names, at most 12 entries per folder) and that every
+  `profile.json` name equals its folder name.
 - `recipe` tests check merge rules, interpolation, rendering and GPU
-  selection. Every built-in recipe must validate (`go test ./recipes/...`).
-- `runner` tests check the rendered argv and compose output, not process
-  execution.
+  selection. Every built-in recipe must load, resolve, validate and plan
+  (`go test ./recipes/...`).
+- `runner` tests check the rendered argv and compose output. They do not run
+  processes.
 - `bench` tests use an in-process fake OpenAI server.
-- Smoke on real hardware before a release: `doctor`, `topo`, `recipe plan`
-  for each built-in recipe, one `serve` + `bench` cell.
+- Before a release, smoke on real hardware: `doctor`, `topo`, `recipe plan`
+  for each built-in recipe, one `serve` and one `bench` cell.
