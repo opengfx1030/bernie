@@ -1,11 +1,18 @@
 package doctor
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/topo"
+	"github.com/opengfx1030/bernie/internal/support/execx"
 )
 
 func gpuChecks(in inputs) []Check {
@@ -202,4 +209,74 @@ func validatedSentence(archs []string) string {
 		return archs[0] + " only"
 	}
 	return strings.Join(archs, ", ") + " only"
+}
+
+// deviceGroups are the groups that grant access to /dev/kfd and /dev/dri.
+var deviceGroups = []string{"video", "render"}
+
+// getentTimeout bounds the getent fallback (LDAP/SSSD lookups can hang).
+const getentTimeout = 3 * time.Second
+
+// resolveGroups returns the gid of each named group. The binary is static
+// (CGO_ENABLED=0), so os/user reads only /etc/group and cannot see groups that
+// come from LDAP or SSSD: look in <root>/etc/group first and, on the live host
+// only, fall back to `getent group <name>`. Groups found by neither are absent
+// from the result.
+func resolveGroups(ctx context.Context, root string, names []string) map[string]int {
+	data, _ := os.ReadFile(filepath.Join(root, "etc/group"))
+	out := map[string]int{}
+	for _, name := range names {
+		gid, ok := groupGID(string(data), name)
+		if !ok && root == "/" {
+			if res, err := execx.Run(ctx, getentTimeout, "getent", "group", name); err == nil && res.OK() {
+				gid, ok = groupGID(execx.FirstLine(res.Stdout), name)
+			}
+		}
+		if ok {
+			out[name] = gid
+		}
+	}
+	return out
+}
+
+// groupGID finds name in group(5) formatted text (name:passwd:gid:members).
+func groupGID(text, name string) (int, bool) {
+	for _, line := range strings.Split(text, "\n") {
+		parts := strings.Split(strings.TrimSpace(line), ":")
+		if len(parts) < 3 || parts[0] != name {
+			continue
+		}
+		gid, err := strconv.Atoi(parts[2])
+		if err == nil {
+			return gid, true
+		}
+	}
+	return 0, false
+}
+
+func hasGID(gids []int, gid int) bool {
+	for _, g := range gids {
+		if g == gid {
+			return true
+		}
+	}
+	return false
+}
+
+// p2pChecks turns the P2P readiness checklist into doctor checks. The
+// checklist is the same one `bernie topo --check` prints.
+func p2pChecks(in inputs) []Check {
+	const cat = "topo.p2p"
+	items, err := topo.P2PChecklist(in.root, in.gpus, topo.P2POptions{
+		Cmdline: in.host.Cmdline, PkgManager: in.host.PkgManager, Recipe: in.recipe,
+	})
+	if err != nil {
+		return []Check{check(cat, "error", Skip, "P2P readiness",
+			"the PCIe topology could not be read: "+err.Error()).with("", topo.P2PDoc)}
+	}
+	out := make([]Check, 0, len(items))
+	for _, it := range items {
+		out = append(out, check(cat, it.ID, Status(it.Status), it.Title, it.Detail).with(it.Fix, it.Doc))
+	}
+	return out
 }

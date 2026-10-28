@@ -141,7 +141,7 @@ bernie/
 │   ├── app/              operations shared by the front ends, one `--json` document each
 │   ├── mcp/              MCP server: tools, confirm tokens, audit (official Go SDK)
 │   ├── flow/             status snapshot and `up`
-│   ├── doctor/           check registry (one checks_<category>.go per category)
+│   ├── doctor/           check registry; related checks and helpers grouped by role
 │   ├── setup/            install plan and non-root apply
 │   ├── logdoc/           known-failure catalog, phase catalogue (embedded YAML) and log scanner
 │   ├── machine/          what the host is
