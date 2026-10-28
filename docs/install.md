@@ -79,11 +79,11 @@ sudo apt install ./bernie_<ver>_amd64.deb         # Debian, Ubuntu
 ## 3. Container image
 
 ```bash
-docker pull ghcr.io/opengfx1030/bernie:latest      # or podman pull
+docker pull ghcr.io/opengfx1030/bernie:v0.1.0      # or podman pull
 ```
 
 The image has multi-arch tags: `vX.Y.Z` and `latest`. It holds only the
-`bernie` binary on `distroless/static` and runs as user 65532 (not root).
+`bernie` binary on `scratch` (no shell, no libc, no CA bundle) and runs as user 65532 (not root).
 The default command is `dash --listen 0.0.0.0:7860`.
 
 ### What works in the image
@@ -112,7 +112,7 @@ docker run -d --name bernie-dash \
   --group-add "$(stat -c %g /dev/kfd)" --group-add "$(stat -c %g /dev/dri/renderD128)" \
   --security-opt label=disable --security-opt seccomp=unconfined \
   -v "$PWD/data:/data" -v /sys:/sys:ro \
-  ghcr.io/opengfx1030/bernie:latest
+  ghcr.io/opengfx1030/bernie:v0.1.0
 ```
 
 Notes:

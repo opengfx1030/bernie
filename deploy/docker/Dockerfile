@@ -11,7 +11,7 @@
 #     --security-opt seccomp=unconfined --security-opt label=disable \
 #     -v "$PWD/data:/data" -v /sys:/sys:ro ghcr.io/opengfx1030/bernie
 
-FROM --platform=$BUILDPLATFORM golang:1.26 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26@sha256:670bb5aa5349ae03b8516764718486f4f16399134bdc9acd0c46a23f043ab05c AS build
 ARG TARGETOS=linux
 ARG TARGETARCH
 ARG VERSION=dev
@@ -25,12 +25,14 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
       -o /out/bernie ./cmd/bernie \
  && mkdir -p /out/data/config /out/data/state /out/data/data /out/data/cache
 
-# distroless/static: no shell, no package manager, about 2 MB. It adds what a
-# bare scratch image lacks and bernie needs: CA certificates (HTTPS to Hugging
-# Face and GitHub), tzdata, and a non-root user (uid 65532) with a passwd entry.
-FROM gcr.io/distroless/static-debian12:nonroot
+# scratch: the image is the static binary and an empty /data, nothing else.
+# bernie makes no HTTPS calls (it talks to the local vLLM server over HTTP and
+# runs external tools for downloads), so it needs no CA bundle, shell or libc.
+# It runs as uid 65532; a numeric USER needs no passwd entry.
+FROM scratch
 COPY --from=build /out/bernie /bernie
 COPY --from=build --chown=65532:65532 /out/data /data
+USER 65532:65532
 ENV HOME=/data \
     BERNIE_CONFIG_DIR=/data/config \
     BERNIE_STATE_DIR=/data/state \
