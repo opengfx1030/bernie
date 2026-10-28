@@ -175,21 +175,24 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		return nil, err
 	}
 	res := &UpResult{Recipe: id, Mode: mode, Applied: apply, Run: rec, URL: rec.URL()}
-	if err := waitHealthy(ctx, rec.Name, o.Wait, log); err != nil {
+	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: bernie logs %s -f)\n", rec.Name, rec.Name)
+	if err := WaitHealthy(ctx, rec.Name, o.Wait); err != nil {
 		return res, err
 	}
 	res.Healthy = true
 	return res, nil
 }
 
-func waitHealthy(ctx context.Context, name string, limit time.Duration, log io.Writer) error {
+// WaitHealthy waits until the run answers /health (limit 0 = 30 minutes). A
+// run that exits first yields a *StartupExit with the known failures in its
+// log.
+func WaitHealthy(ctx context.Context, name string, limit time.Duration) error {
 	if limit == 0 {
 		limit = 30 * time.Minute
 	}
 	deadline := time.Now().Add(limit)
 	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
-	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: bernie logs %s -f)\n", name, name)
 	for {
 		runs, err := runner.List(ctx)
 		if err != nil {
@@ -203,7 +206,7 @@ func waitHealthy(ctx context.Context, name string, limit time.Duration, log io.W
 			case "running":
 				return nil
 			case "exited":
-				return fmt.Errorf("%s exited during startup; see: bernie logs %s", name, name)
+				return &StartupExit{Name: name, Findings: Findings(ctx, s.Record)}
 			}
 		}
 		if time.Now().After(deadline) {

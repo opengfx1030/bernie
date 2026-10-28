@@ -7,10 +7,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/support/execx"
 )
 
 // Logs writes the last tail lines of a run's log (all when tail <= 0) and
@@ -91,3 +94,49 @@ func tailLines(r io.Reader, n int, w io.Writer) error {
 	}
 	return nil
 }
+
+// Get returns the record of the named run. The error wraps os.ErrNotExist when
+// there is no such run.
+func Get(name string) (*Record, error) { return readRecord(name) }
+
+// OpenLog opens the whole log of a run for reading. A host run's log is the
+// file named by the record (serve.log in the run directory when the record
+// names none or the file is gone). A container run's log is the output of
+// `<engine> logs`, run with the execx timeout. Reads from a host log fail
+// with ctx.Err() once ctx is done.
+func OpenLog(ctx context.Context, r Record, timeout time.Duration) (io.ReadCloser, error) {
+	if r.Engine != "" && r.Container != "" {
+		res, err := execx.Run(ctx, timeout, r.Engine, "logs", r.Container)
+		if err != nil {
+			return nil, err
+		}
+		if !res.OK() {
+			return nil, fmt.Errorf("%s logs %s failed: %s", r.Engine, r.Container, execx.FirstLine(res.Stderr))
+		}
+		return io.NopCloser(io.MultiReader(strings.NewReader(res.Stdout), strings.NewReader(res.Stderr))), nil
+	}
+	path := r.Log
+	if _, err := os.Stat(path); path == "" || err != nil {
+		path = filepath.Join(RunDir(r.Name), "serve.log")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	return &ctxFile{f: f, ctx: ctx}, nil
+}
+
+// ctxFile is a file whose reads stop once ctx is done.
+type ctxFile struct {
+	f   *os.File
+	ctx context.Context
+}
+
+func (c *ctxFile) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.f.Read(p)
+}
+
+func (c *ctxFile) Close() error { return c.f.Close() }

@@ -68,6 +68,15 @@ func printStatus(w io.Writer, s *flow.Summary) {
 			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", r.Name, r.State, r.Mode, r.URL())
 		}
 		tw.Flush()
+		for _, r := range s.Runs {
+			if len(r.Findings) > 0 {
+				ids := make([]string, len(r.Findings))
+				for i, m := range r.Findings {
+					ids[i] = m.ID
+				}
+				fmt.Fprintf(w, "    %s log: %s (bernie ps shows cause and fix)\n", r.Name, strings.Join(ids, ", "))
+			}
+		}
 	}
 	fmt.Fprintln(w, "\nnext:")
 	for _, n := range s.Next {
