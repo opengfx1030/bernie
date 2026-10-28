@@ -14,8 +14,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
       - run: go test ./...
@@ -24,17 +24,17 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
       - name: binaries, archives, rpm, deb, SHA256SUMS
         env:
           TAG: ${{ github.ref_name }}
         run: make dist packages VERSION="$TAG"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: dist
           path: dist/
@@ -47,11 +47,11 @@ jobs:
       contents: write # create the release
       id-token: write # keyless signing (Sigstore OIDC)
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: dist
           path: dist
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - name: sign SHA256SUMS
         working-directory: dist
         run: cosign sign-blob --yes --bundle SHA256SUMS.bundle SHA256SUMS
@@ -72,15 +72,15 @@ jobs:
       contents: read
       packages: write # push to ghcr.io
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ghcr.io/opengfx1030/bernie
           tags: |
@@ -90,7 +90,7 @@ jobs:
             org.opencontainers.image.title=bernie
             org.opencontainers.image.description=Run vLLM on AMD ROCm GPUs: CLI and web dashboard
             org.opencontainers.image.licenses=Apache-2.0
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: deploy/docker/Dockerfile

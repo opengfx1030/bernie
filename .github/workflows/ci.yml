@@ -12,12 +12,16 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
       - name: gofmt + vet
         run: make lint
+      - name: modules (verified and tidy)
+        run: |
+          go mod verify
+          go mod tidy -diff
       - name: test
         run: go test -race ./...
       - name: linux static build
@@ -32,17 +36,17 @@ jobs:
           ./bin/bernie-linux-amd64 --json recipe validate
           ./bin/bernie-linux-amd64 --json hw > /dev/null
 
-  # Separate job: govulncheck runs on the latest stable Go so it reports against the
-  # newest standard library.
+  # Separate job so a vulnerability report never hides a build failure. The tool
+  # version is pinned; bump it on purpose (Dependabot cannot see this line).
   vuln:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: stable
+          go-version-file: go.mod
       - name: govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
   # Builds archives, rpm/deb and the container image (no push) when a pull
   # request touches packaging, the Makefile, the installer or these workflows.
@@ -50,7 +54,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: changed packaging files?
@@ -62,7 +66,7 @@ jobs:
             grep -Eq '^(deploy/|Makefile$|scripts/install\.sh$|\.github/workflows/(ci|release)\.yml$)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         if: steps.changed.outputs.run == 'true'
         with:
           go-version-file: go.mod
@@ -78,11 +82,11 @@ jobs:
       - name: compose file
         if: steps.changed.outputs.run == 'true'
         run: docker compose -f deploy/compose/compose.yml config -q
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
         if: steps.changed.outputs.run == 'true'
       - name: image (no push)
         if: steps.changed.outputs.run == 'true'
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: deploy/docker/Dockerfile
