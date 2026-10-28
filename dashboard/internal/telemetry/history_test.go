@@ -43,11 +43,11 @@ func TestHistoryWindowShape(t *testing.T) {
 			{HIPIndex: 1, BusyPct: 30, PowerW: 40.5, VRAMUsed: 200},
 		}, 5)
 	}
-	doc, err := h.Window(Window15m)
+	doc, err := h.Window(Window5m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.Window != Window15m || doc.IntervalS != 2 || doc.Points != 3 {
+	if doc.Window != Window5m || doc.IntervalS != 2 || doc.Points != 3 {
 		t.Fatalf("the document is %+v", doc)
 	}
 	if len(doc.Series) != 2 {
@@ -84,11 +84,11 @@ func TestHistoryLongWindowIsDownsampled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.IntervalS != 10 {
-		t.Fatalf("the 1 h window has the spacing %d s, want 10", doc.IntervalS)
+	if doc.IntervalS != 15 {
+		t.Fatalf("the 1 h window has the spacing %d s, want 15", doc.IntervalS)
 	}
-	if doc.Points < 6 || doc.Points > 7 { // 60 s at one point every 10 s
-		t.Fatalf("the 1 h window holds %d points, want 6 or 7", doc.Points)
+	if doc.Points < 4 || doc.Points > 5 { // 60 s at one point every 15 s
+		t.Fatalf("the 1 h window holds %d points, want 4 or 5", doc.Points)
 	}
 	// The last point of every bucket wins.
 	if got := doc.Series[0].TokensPerS[len(doc.Series[0].TokensPerS)-1]; got != 29 {
@@ -129,6 +129,29 @@ func TestHistoryRejectsAnUnknownWindow(t *testing.T) {
 	for _, name := range []string{Window5m, Window15m, Window1h} {
 		if _, err := h.Window(name); err != nil {
 			t.Errorf("the window %q was refused: %v", name, err)
+		}
+	}
+}
+
+// TestHistoryCapsThePointsOfASeries checks that no window holds more than
+// maxSeriesPoints points per series: a long window is downsampled further.
+func TestHistoryCapsThePointsOfASeries(t *testing.T) {
+	h := NewHistory()
+	now := time.Now()
+	for i := range historyCapacity { // 30 minutes at one point every 2 s
+		at := now.Add(-time.Duration(historyCapacity-i) * historyStep)
+		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, 0)
+	}
+	for _, name := range []string{Window5m, Window15m, Window1h} {
+		doc, err := h.Window(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc.Points > maxSeriesPoints {
+			t.Errorf("the window %s holds %d points, want at most %d", name, doc.Points, maxSeriesPoints)
+		}
+		if len(doc.Series) != 1 || len(doc.Series[0].BusyPct) > maxSeriesPoints {
+			t.Errorf("the series of the window %s holds %d points", name, len(doc.Series[0].BusyPct))
 		}
 	}
 }
