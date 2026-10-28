@@ -200,6 +200,7 @@ other file, script or compose file is required.
 | `bernie bench list` / `bench show <ID>` | no | Saved results. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
+| `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
 | `bernie version` | no | Version. |
 
 `recipe plan`, `serve` and `compose` share the launch flags: `--set`,
