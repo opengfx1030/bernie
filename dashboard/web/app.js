@@ -497,12 +497,13 @@ function runsTable(runs, compact, logCard, root) {
       return h("tr",
         h("td", h("b", r.name)),
         h("td", r.recipe),
-        h("td", badge(r.state), t && t.stats ? h("div.small.muted", `${num(t.stats.requests_running, 0)} running · ${num(t.gen_tok_s)} tok/s`) : null),
+        h("td", badge(r.state), t && t.stats ? h("div.small.muted", `${num(t.stats.requests_running, 0)} running · ${num(t.gen_tok_s)} tok/s`) : null,
+          r.findings && r.findings.length ? h("div.small.muted", "Known failure: " + r.findings.map((f) => f.id).join(", ")) : null),
         compact ? null : h("td", r.mode + (r.engine ? " (" + r.engine + ")" : "")),
         h("td.mono", r.port ? h("a", { href: runURL(r) + "/v1/models", target: "_blank", rel: "noopener noreferrer" }, (r.host || "127.0.0.1") + ":" + r.port) : "–"),
         compact ? null : h("td.small", r.started_at ? ago(r.started_at) : ""),
         compact ? null : h("td", h("div.row",
-          h("button.small", { onclick: () => followLogs(logCard, r.name) }, "Logs"),
+          h("button.small", { onclick: () => followLogs(logCard, r.name, r.findings) }, "Logs"),
           r.state !== "exited" ? h("button.small.danger", { onclick: (ev) => stopRun(ev, r.name, root) }, "Stop") : null)));
     }))));
 }
@@ -517,13 +518,32 @@ async function stopRun(ev, name, root) {
   viewRuns(root);
 }
 
-function followLogs(card, name) {
+function copyBtn(text) {
+  return h("button.small", { onclick: async () => {
+    try { await navigator.clipboard.writeText(text); toast("Copied.", true); } catch (e) { toast("Copy failed: " + e.message); }
+  } }, "Copy");
+}
+
+// findingsBox shows the known failures logdoc found in the log of an exited run (spec §5.3).
+function findingsBox(fs) {
+  if (!fs || !fs.length) return null;
+  return h("div.findings", { role: "region", "aria-label": "Known failures in this log" },
+    h("h3", `${fs.length} known failure${fs.length > 1 ? "s" : ""} in this log`),
+    fs.map((f) => h("div.finding",
+      h("div.row", badge(f.severity === "error" ? "fail" : f.severity), h("b.mono", f.id), h("span.small.muted", `line ${f.line_no}`)),
+      h("div", h("b", "Cause: "), f.cause),
+      h("div", h("b", "Fix: "), /^bernie /.test(f.fix) ? h("div.row", h("code", f.fix), copyBtn(f.fix)) : f.fix),
+      /^https?:\/\//.test(f.doc) ? h("div.small", h("a", { href: f.doc, target: "_blank", rel: "noopener noreferrer" }, "Documentation")) : null,
+      h("pre.small", f.line))));
+}
+
+function followLogs(card, name, findings) {
   stopLogs();
   const box = h("div.log");
   const status = h("span.small.muted", "connecting…");
   let follow = true;
   box.addEventListener("scroll", () => { follow = box.scrollTop + box.clientHeight >= box.scrollHeight - 4; });
-  put(card, h("h2", "Logs: " + name, h("span.grow"), status, h("button.small", { onclick: () => { stopLogs(); status.textContent = "stopped"; } }, "Close")), box);
+  put(card, h("h2", "Logs: " + name, h("span.grow"), status, h("button.small", { onclick: () => { stopLogs(); status.textContent = "stopped"; } }, "Close")), findingsBox(findings), box);
   logES = new EventSource(`/api/runs/${encodeURIComponent(name)}/logs`);
   logES.onopen = () => (status.textContent = "following");
   logES.onerror = () => (status.textContent = "disconnected");
