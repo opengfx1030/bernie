@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/app"
+	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/support/redact"
 )
 
 // root is the host filesystem root the probes read ("/" in production).
@@ -88,13 +90,10 @@ func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/runs — `bernie ps --json`.
 func (s *server) getRuns(w http.ResponseWriter, r *http.Request) {
-	runs, err := runner.List(r.Context())
+	runs, err := flow.Runs(r.Context())
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
-	}
-	if runs == nil {
-		runs = []runner.Status{}
 	}
 	writeRedacted(w, http.StatusOK, runs)
 }
@@ -325,14 +324,11 @@ func (s *server) postBench(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if !s.bench.TryLock() {
-		httpError(w, http.StatusConflict, "a benchmark is already running")
-		return
-	}
-	defer s.bench.Unlock()
 	res, _, err := app.Bench(r.Context(), o, s.o.Log)
 	var saveErr *app.SaveError
 	switch {
+	case errors.Is(err, app.ErrBenchBusy):
+		httpError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, app.ErrAllFailed):
 		httpError(w, http.StatusBadGateway, err.Error()+app.FirstCellError(res))
 	case errors.As(err, &saveErr):
@@ -356,7 +352,7 @@ func decodeBody(w http.ResponseWriter, r *http.Request, v any) bool {
 }
 
 func writeRedacted(w http.ResponseWriter, code int, v any) {
-	g, err := redactJSON(v)
+	g, err := redact.JSON(v)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
