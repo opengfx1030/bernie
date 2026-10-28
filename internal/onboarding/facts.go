@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
@@ -48,6 +49,9 @@ type Facts struct {
 	Model          string // the model repo of the recipe
 	Runs           []Run
 	Jobs           []Job
+	// roc is the ROCm report of this host. The doctor report and the setup
+	// plan share it: the ROCm trees are probed once.
+	roc rocm.Report
 }
 
 // Run is one run of this host.
@@ -74,29 +78,45 @@ func recipeEnv(set recipe.Set, id string) topo.RecipeEnv {
 }
 
 // Gather probes the host once and returns the facts the steps are derived
-// from.
+// from. The independent probes run together: the host, the GPUs and the
+// ROCm trees do not depend on each other, and neither do the doctor
+// report, the setup plan and the runs.
 func Gather(ctx context.Context, o Options) (*Facts, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	h, _ := host.Probe(ctx, "/")
-	vis, err := gpu.Visible("/")
-	if gpu.Restricted(err) {
-		return nil, err // the restriction names a GPU this host does not have
-	}
-	gpus := vis.GPUs
-	if gpus == nil {
-		gpus = []gpu.GPU{}
-	}
 	venv := cfg.ResolveVenvInfo(o.Venv)
 	f := &Facts{
-		Host: h, GPUs: gpus, Restriction: vis.Restriction.Note(),
+		GPUs: []gpu.GPU{},
 		Venv: venv.Path, VenvSource: venv.Source, VenvCandidates: venv.Candidates,
 		HFHome: cfg.ResolveHFHome(),
 	}
+	var wg sync.WaitGroup
+	run := func(fn func()) {
+		wg.Add(1)
+		go func() { defer wg.Done(); fn() }()
+	}
+	var gpuErr error
+	run(func() { f.Host, _ = host.Probe(ctx, "/") }) // best-effort, never fails
+	run(func() {
+		vis, err := gpu.Visible("/")
+		if gpu.Restricted(err) {
+			gpuErr = err // the restriction names a GPU this host does not have
+			return
+		}
+		if vis.GPUs != nil {
+			f.GPUs = vis.GPUs
+		}
+		f.Restriction = vis.Restriction.Note()
+	})
+	run(func() { f.roc = rocm.Probe(ctx, "/") })
+	wg.Wait()
+	if gpuErr != nil {
+		return nil, gpuErr
+	}
 	set := recipe.Load()
-	f.Recipes = recipe.List(set, gpus, h.RAMBytes, true)
+	f.Recipes = recipe.List(set, f.GPUs, f.Host.RAMBytes, true)
 	for _, e := range f.Recipes.Recipes {
 		if e.Fit.Status == recipe.FitYes {
 			f.Fits = append(f.Fits, e.ID)
@@ -109,16 +129,22 @@ func Gather(ctx context.Context, o Options) (*Facts, error) {
 			f.Model = modelRepo(r.Model.Source)
 		}
 	}
-	f.Mode = mode(h, cfg, o, set, f.Recipe)
-	f.Doctor = doctor.Run(ctx, doctor.Options{
-		Root: "/", Venv: f.Venv, VenvSource: f.VenvSource, VenvCandidates: f.VenvCandidates,
-		HFHome:         f.HFHome,
-		ValidatedArchs: recipe.ValidatedArchs(set), RecipeEnv: recipeEnv(set, f.Recipe),
+	f.Mode = mode(f.Host, cfg, o, set, f.Recipe)
+	run(func() {
+		f.Doctor = doctor.Run(ctx, doctor.Options{
+			Root: "/", Venv: f.Venv, VenvSource: f.VenvSource, VenvCandidates: f.VenvCandidates,
+			HFHome:         f.HFHome,
+			ValidatedArchs: recipe.ValidatedArchs(set), RecipeEnv: recipeEnv(set, f.Recipe),
+			Host: &f.Host, ROCm: &f.roc,
+		})
 	})
-	f.Setup = setup.Plan(ctx, h, rocm.Probe(ctx, "/"), setup.Options{
-		Mode: f.Mode, Venv: f.Venv, HFHome: f.HFHome, GPUArchs: archs(gpus), ModelRepo: f.Model,
+	run(func() {
+		f.Setup = setup.Plan(ctx, f.Host, f.roc, setup.Options{
+			Mode: f.Mode, Venv: f.Venv, HFHome: f.HFHome, GPUArchs: archs(f.GPUs), ModelRepo: f.Model,
+		})
 	})
-	f.Runs = runs(ctx)
+	run(func() { f.Runs = runs(ctx) })
+	wg.Wait()
 	f.Jobs = RecentJobs()
 	return f, nil
 }
