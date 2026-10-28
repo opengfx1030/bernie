@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/opengfx1030/bernie/dashboard/internal/telemetry"
 )
 
 const testToken = "s3cret-token"
@@ -46,8 +48,8 @@ func TestLoopbackMode(t *testing.T) {
 	if w := do(t, h, "GET", "/", map[string]string{"Host": "127.0.0.1:7860"}); w.Code != 200 || !strings.Contains(w.Body.String(), "<title>bernie</title>") {
 		t.Fatalf("GET / on loopback: %d %q", w.Code, w.Body.String())
 	}
-	if w := do(t, h, "GET", "/app.js", map[string]string{"Host": "localhost:7860"}); w.Code != 200 {
-		t.Fatalf("GET /app.js: %d", w.Code)
+	if w := do(t, h, "GET", "/js/core.js", map[string]string{"Host": "localhost:7860"}); w.Code != 200 {
+		t.Fatalf("GET /js/core.js: %d", w.Code)
 	}
 	// DNS rebinding: a foreign Host header never reaches the API without a token.
 	if w := do(t, h, "GET", "/api/hw", map[string]string{"Host": "evil.example:7860"}); w.Code != http.StatusForbidden {
@@ -130,7 +132,7 @@ func TestTokenCookieFlow(t *testing.T) {
 		t.Fatalf("cookie attributes: %+v", c)
 	}
 
-	r := httptest.NewRequest("GET", "/tokens.css", nil)
+	r := httptest.NewRequest("GET", "/css/tokens.css", nil)
 	r.Host = "gpu-box"
 	r.AddCookie(c)
 	rec := httptest.NewRecorder()
@@ -172,36 +174,12 @@ func TestServeGeneratesTokenOffLoopback(t *testing.T) {
 	}
 }
 
-func TestLineEventsFraming(t *testing.T) {
-	rec := httptest.NewRecorder()
-	st := newSSE(rec)
-	lw := &lineEvents{s: st}
-	for _, chunk := range []string{"first li", "ne\nsecond\r\n", "bar 10%\rbar 20%\r", "\ntail"} {
-		if _, err := lw.Write([]byte(chunk)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := lw.flush(); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.event("end", ""); err != nil {
-		t.Fatal(err)
-	}
-	want := "data: first line\n\ndata: second\n\ndata: bar 10%\n\ndata: bar 20%\n\ndata: tail\n\nevent: end\ndata: \n\n"
-	if got := rec.Body.String(); got != want {
-		t.Fatalf("framing:\n got %q\nwant %q", got, want)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "text/event-stream" {
-		t.Fatalf("Content-Type %q", ct)
-	}
-}
-
 // TestTelemetryStream checks the SSE framing of /api/telemetry and that the
 // shared sampler stops when the last subscriber leaves.
 func TestTelemetryStream(t *testing.T) {
 	s := newServer(Options{Listen: "127.0.0.1:0"})
 	n := 0
-	s.tele = newHub(5*time.Millisecond, func(context.Context) []byte {
+	s.tele = telemetry.NewHub(5*time.Millisecond, func(context.Context) []byte {
 		n++
 		b, _ := json.Marshal(map[string]int{"seq": n})
 		return b
@@ -249,7 +227,7 @@ func TestTelemetryStream(t *testing.T) {
 	if next := event(b1); next["seq"] <= a["seq"] {
 		t.Fatalf("sequence must advance: %v then %v", a, next)
 	}
-	if !s.tele.running() {
+	if !s.tele.Running() {
 		t.Fatal("sampler must run while subscribed")
 	}
 	c1()
@@ -257,7 +235,7 @@ func TestTelemetryStream(t *testing.T) {
 	c2()
 	r2.Body.Close()
 	deadline := time.Now().Add(2 * time.Second)
-	for s.tele.running() {
+	for s.tele.Running() {
 		if time.Now().After(deadline) {
 			t.Fatal("sampler still running after the last subscriber left")
 		}
@@ -278,7 +256,7 @@ func TestNoStoreEverywhere(t *testing.T) {
 		code int
 	}{
 		{"html", tok, "/", bearer, 200},
-		{"asset", tok, "/app.js", bearer, 200},
+		{"asset", tok, "/js/core.js", bearer, 200},
 		{"api json", tok, "/api/runs", bearer, 200},
 		{"api 404", tok, "/api/nope", bearer, 404},
 		{"api 401", tok, "/api/runs", map[string]string{"Host": "gpu-box"}, 401},
@@ -316,9 +294,9 @@ func TestTokenRefusedInAPIQuery(t *testing.T) {
 		t.Errorf("bearer + query token: %d, want 400", w.Code)
 	}
 	// Off "/" a query token is no credential and sets no cookie.
-	w = do(t, h, "GET", "/app.js?token="+testToken, host)
+	w = do(t, h, "GET", "/js/core.js?token="+testToken, host)
 	if w.Code != http.StatusUnauthorized || len(w.Result().Cookies()) != 0 {
-		t.Errorf("/app.js?token: %d, cookies %v; want 401 and no cookie", w.Code, w.Result().Cookies())
+		t.Errorf("/js/core.js?token: %d, cookies %v; want 401 and no cookie", w.Code, w.Result().Cookies())
 	}
 	// Loopback mode has no token, but still refuses one in /api URLs.
 	if w := do(t, newServer(Options{}).handler(), "GET", "/api/runs?token=x", map[string]string{"Host": "localhost"}); w.Code != http.StatusBadRequest {

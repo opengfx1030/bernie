@@ -1,9 +1,11 @@
-package dashboard
+package telemetry
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"strconv"
 	"sync"
 	"time"
@@ -13,8 +15,11 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/vllm"
 )
 
-// telemetry is one event of GET /api/telemetry.
-type telemetry struct {
+// root is the host filesystem root the probes read ("/" in production).
+const root = "/"
+
+// document is one event of GET /api/telemetry.
+type document struct {
 	Time int64        `json:"time"` // Unix milliseconds
 	GPUs []gpu.Sample `json:"gpus"`
 	Runs []runMetrics `json:"runs"`
@@ -38,18 +43,18 @@ type counters struct {
 	gen, prompt float64
 }
 
-// sampler holds state that lives as long as one hub sampler goroutine.
-type sampler struct {
+// Sampler holds state that lives as long as one hub sampler goroutine.
+type Sampler struct {
 	mu   sync.Mutex
 	gpus []gpu.GPU
 	gpuT time.Time
 	prev map[string]counters
 }
 
-// sampleTelemetry builds one telemetry document. It is the hub's sample func;
+// Sample builds one telemetry document. It is the hub's sample function;
 // the hub calls it from a single goroutine.
-func (s *server) sampleTelemetry(ctx context.Context) []byte {
-	sp := &s.sampler
+func (s *Sampler) Sample(ctx context.Context) []byte {
+	sp := s
 	sp.mu.Lock()
 	defer sp.mu.Unlock()
 	now := time.Now()
@@ -58,7 +63,7 @@ func (s *server) sampleTelemetry(ctx context.Context) []byte {
 		g, _ := listGPUs()
 		sp.gpus, sp.gpuT = g, now
 	}
-	t := telemetry{Time: now.UnixMilli(), GPUs: gpu.Telemetry(root, sp.gpus), Runs: []runMetrics{}}
+	t := document{Time: now.UnixMilli(), GPUs: gpu.Telemetry(root, sp.gpus), Runs: []runMetrics{}}
 	if t.GPUs == nil {
 		t.GPUs = []gpu.Sample{}
 	}
@@ -108,6 +113,22 @@ func (s *server) sampleTelemetry(ctx context.Context) []byte {
 		return []byte(`{"error":` + strconv.Quote(err.Error()) + `}`)
 	}
 	return b
+}
+
+// listGPUs returns the KFD GPUs; a host without KFD has none (not an error).
+func listGPUs() ([]gpu.GPU, error) {
+	vis, err := gpu.Visible(root)
+	if gpu.Restricted(err) {
+		return []gpu.GPU{}, err
+	}
+	gpus := vis.GPUs
+	if errors.Is(err, fs.ErrNotExist) {
+		return []gpu.GPU{}, nil
+	}
+	if gpus == nil {
+		gpus = []gpu.GPU{}
+	}
+	return gpus, err
 }
 
 // rate is the per-second increase of a counter; a reset (restart) gives 0.

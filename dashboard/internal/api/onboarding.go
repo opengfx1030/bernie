@@ -1,4 +1,4 @@
-package dashboard
+package api
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
+	"github.com/opengfx1030/bernie/dashboard/internal/sse"
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/onboarding"
 )
@@ -18,13 +20,13 @@ const jobPoll = 300 * time.Millisecond
 // It is the same document `bernie status --steps` prints. The document comes
 // from the cache when it is fresh enough; a document past its time to live
 // is served as it is and refreshed in the background (spec §3.3).
-func (s *server) getOnboarding(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getOnboarding(w http.ResponseWriter, r *http.Request) {
 	doc, err := app.OnboardingCached(r.Context(), app.OnboardingOptions{})
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, doc)
+	httpjson.Write(w, http.StatusOK, doc)
 }
 
 // onboardingRunRequest is the optional body of POST /api/onboarding/{step}/run: the
@@ -44,80 +46,80 @@ func (b onboardingRunRequest) options() app.OnboardingOptions {
 // POST /api/onboarding/{step}/run — run the action of a step in the
 // background. A step that needs root answers with the commands to run, and
 // runs nothing.
-func (s *server) postOnboardingRun(w http.ResponseWriter, r *http.Request) {
+func (h *handler) postOnboardingRun(w http.ResponseWriter, r *http.Request) {
 	var req onboardingRunRequest
-	if !decodeBody(w, r, &req) {
+	if !httpjson.Decode(w, r, &req) {
 		return
 	}
 	step := r.PathValue("step")
 	doc, err := app.Onboarding(r.Context(), req.options())
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	found := findStep(doc.Steps, step)
 	if found == nil {
-		httpError(w, http.StatusBadRequest, "no onboarding step named "+step)
+		httpjson.Error(w, http.StatusBadRequest, "no onboarding step named "+step)
 		return
 	}
 	if len(found.RootCommands) > 0 {
-		writeJSON(w, http.StatusOK, map[string]any{
+		httpjson.Write(w, http.StatusOK, map[string]any{
 			"step": step, "root_required": true, "commands": found.RootCommands,
 		})
 		return
 	}
 	if !found.CanRun {
-		httpError(w, http.StatusBadRequest, "this step has nothing bernie can run")
+		httpjson.Error(w, http.StatusBadRequest, "this step has nothing bernie can run")
 		return
 	}
 	job, err := app.StartOnboardingJob(r.Context(), step, req.options())
 	switch {
 	case errors.Is(err, onboarding.ErrJobBusy):
-		httpError(w, http.StatusConflict, err.Error())
+		httpjson.Error(w, http.StatusConflict, err.Error())
 	case err != nil:
-		httpError(w, http.StatusBadRequest, err.Error())
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
 	default:
-		writeJSON(w, http.StatusCreated, job)
+		httpjson.Write(w, http.StatusCreated, job)
 	}
 }
 
 // GET /api/jobs/{id} — the state of a job.
-func (s *server) getJob(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getJob(w http.ResponseWriter, r *http.Request) {
 	job, err := app.OnboardingJob(r.PathValue("id"))
 	if err != nil {
-		httpError(w, http.StatusNotFound, err.Error())
+		httpjson.Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, job)
+	httpjson.Write(w, http.StatusOK, job)
 }
 
 // GET /api/jobs/{id}/events — the output of a job: one event per line, then
 // a "done" or "failed" event with the job document.
-func (s *server) getJobEvents(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getJobEvents(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if _, err := app.OnboardingJob(id); err != nil {
-		httpError(w, http.StatusNotFound, err.Error())
+		httpjson.Error(w, http.StatusNotFound, err.Error())
 		return
 	}
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
-	st := newSSE(w)
-	go heartbeat(ctx, st, cancel)
+	st := sse.New(w)
+	go sse.Heartbeat(ctx, st, cancel)
 	sent := 0
 	for {
 		lines, err := app.OnboardingJobLog(id)
 		if err != nil {
-			_ = st.event("error", oneLine(err.Error()))
+			_ = st.Event("error", sse.OneLine(err.Error()))
 			return
 		}
 		for ; sent < len(lines); sent++ {
-			if st.event("line", lines[sent]) != nil {
+			if st.Event("line", lines[sent]) != nil {
 				return
 			}
 		}
 		job, err := app.OnboardingJob(id)
 		if err != nil {
-			_ = st.event("error", oneLine(err.Error()))
+			_ = st.Event("error", sse.OneLine(err.Error()))
 			return
 		}
 		if job.State != onboarding.JobRunning {
@@ -127,10 +129,10 @@ func (s *server) getJobEvents(w http.ResponseWriter, r *http.Request) {
 			}
 			b, err := json.Marshal(job)
 			if err != nil {
-				_ = st.event("error", oneLine(err.Error()))
+				_ = st.Event("error", sse.OneLine(err.Error()))
 				return
 			}
-			_ = st.event(name, string(b))
+			_ = st.Event(name, string(b))
 			return
 		}
 		select {

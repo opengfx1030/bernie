@@ -1,4 +1,4 @@
-package dashboard
+package api
 
 import (
 	"encoding/json"
@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
 	"github.com/opengfx1030/bernie/internal/app"
 )
 
@@ -19,19 +20,19 @@ type powerRequest struct {
 }
 
 // GET /api/power — `bernie tune power service status --json`.
-func (s *server) getPower(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getPower(w http.ResponseWriter, r *http.Request) {
 	status, err := app.ReadPowerServiceStatus(r.Context())
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, status)
+	httpjson.Write(w, http.StatusOK, status)
 }
 
 // PUT /api/power — write one desired power cap.
-func (s *server) putPower(w http.ResponseWriter, r *http.Request) {
+func (h *handler) putPower(w http.ResponseWriter, r *http.Request) {
 	var req powerRequest
-	if !decodeBody(w, r, &req) {
+	if !httpjson.Decode(w, r, &req) {
 		return
 	}
 	if !validPowerRequest(w, req) {
@@ -39,23 +40,23 @@ func (s *server) putPower(w http.ResponseWriter, r *http.Request) {
 	}
 	target, all, err := parsePowerTarget(req.GPU)
 	if err != nil {
-		httpError(w, http.StatusBadRequest, err.Error())
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	status, err := app.ReadPowerServiceStatus(r.Context())
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if !status.Installed {
-		httpError(w, http.StatusConflict, "the power service is not installed; install it before changing a cap")
+		httpjson.Error(w, http.StatusConflict, "the power service is not installed; install it before changing a cap")
 		return
 	}
 	watts := req.Watts
 	if !all {
 		row := findPowerGPU(status, target)
 		if row == nil {
-			httpError(w, http.StatusBadRequest, fmt.Sprintf("GPU %d has no power cap", target))
+			httpjson.Error(w, http.StatusBadRequest, fmt.Sprintf("GPU %d has no power cap", target))
 			return
 		}
 		watts = clampDashboardPower(watts, row.MinW, row.MaxW)
@@ -66,19 +67,19 @@ func (s *server) putPower(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := app.PowerDesiredSet(indexes, watts)
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, result)
+	httpjson.Write(w, http.StatusOK, result)
 }
 
 func validPowerRequest(w http.ResponseWriter, req powerRequest) bool {
 	if len(req.GPU) == 0 {
-		httpError(w, http.StatusBadRequest, "body field gpu is required")
+		httpjson.Error(w, http.StatusBadRequest, "body field gpu is required")
 		return false
 	}
 	if req.Watts <= 0 || math.IsNaN(req.Watts) || math.IsInf(req.Watts, 0) {
-		httpError(w, http.StatusBadRequest, "body field watts must be a positive number")
+		httpjson.Error(w, http.StatusBadRequest, "body field watts must be a positive number")
 		return false
 	}
 	return true

@@ -1,4 +1,5 @@
-package dashboard
+// Package auth guards the dashboard with its token, Host and CSRF rules.
+package auth
 
 import (
 	"crypto/rand"
@@ -8,10 +9,12 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
 )
 
-// cookieName holds the dashboard token after the operator visits /?token=….
-const cookieName = "bernie_token"
+// CookieName holds the dashboard token after the operator visits /?token=….
+const CookieName = "bernie_token"
 
 // NewToken returns a random 128-bit hex token.
 func NewToken() string {
@@ -36,7 +39,7 @@ func IsLoopback(listen string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// guard enforces the access rules of spec §11:
+// Guard enforces the access rules of spec §11:
 //   - token mode (token != ""): every request carries the token as
 //     `Authorization: Bearer <t>` or the cookie; `/?token=<t>` sets the cookie
 //     and redirects to `/`. That is the only place the URL carries a token:
@@ -45,14 +48,15 @@ func IsLoopback(listen string) bool {
 //   - loopback mode (token == ""): the Host header must name a loopback host,
 //     which blocks DNS-rebinding pages from reaching the API.
 //   - POST and DELETE need `X-Bernie: 1` in both modes (CSRF guard).
-type guard struct {
+type Guard struct {
 	tokenSum [32]byte
 	token    bool
 	next     http.Handler
 }
 
-func newGuard(token string, next http.Handler) *guard {
-	g := &guard{next: next, token: token != ""}
+// New returns the guard for a dashboard token.
+func New(token string, next http.Handler) *Guard {
+	g := &Guard{next: next, token: token != ""}
 	if g.token {
 		g.tokenSum = sha256.Sum256([]byte(token))
 	}
@@ -60,7 +64,7 @@ func newGuard(token string, next http.Handler) *guard {
 }
 
 // match compares in constant time; hashing first hides the token length.
-func (g *guard) match(t string) bool {
+func (g *Guard) match(t string) bool {
 	if t == "" {
 		return false
 	}
@@ -68,23 +72,23 @@ func (g *guard) match(t string) bool {
 	return subtle.ConstantTimeCompare(s[:], g.tokenSum[:]) == 1
 }
 
-func (g *guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (g *Guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Cache-Control", "no-store")
 	if strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Query().Has("token") {
-		httpError(w, http.StatusBadRequest, "the token is not accepted in the URL on /api: send Authorization: Bearer <token>")
+		httpjson.Error(w, http.StatusBadRequest, "the token is not accepted in the URL on /api: send Authorization: Bearer <token>")
 		return
 	}
 	if g.token {
 		if q := r.URL.Query(); r.URL.Path == "/" && q.Has("token") {
 			if !g.match(q.Get("token")) {
-				httpError(w, http.StatusUnauthorized, "invalid token")
+				httpjson.Error(w, http.StatusUnauthorized, "invalid token")
 				return
 			}
 			http.SetCookie(w, &http.Cookie{
-				Name: cookieName, Value: q.Get("token"), Path: "/",
+				Name: CookieName, Value: q.Get("token"), Path: "/",
 				HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil,
 			})
 			http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -94,26 +98,26 @@ func (g *guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				w.Header().Set("WWW-Authenticate", `Bearer realm="bernie"`)
 			}
-			httpError(w, http.StatusUnauthorized, "token required: open the URL printed by `bernie dash` (…/?token=…) or send Authorization: Bearer <token>")
+			httpjson.Error(w, http.StatusUnauthorized, "token required: open the URL printed by `bernie dash` (…/?token=…) or send Authorization: Bearer <token>")
 			return
 		}
 	} else if !loopbackHost(r.Host) {
-		httpError(w, http.StatusForbidden, "host header is not a loopback name")
+		httpjson.Error(w, http.StatusForbidden, "host header is not a loopback name")
 		return
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Header.Get("X-Bernie") != "1" {
-		httpError(w, http.StatusForbidden, "missing header X-Bernie: 1")
+		httpjson.Error(w, http.StatusForbidden, "missing header X-Bernie: 1")
 		return
 	}
 	g.next.ServeHTTP(w, r)
 }
 
-func (g *guard) authorized(r *http.Request) bool {
+func (g *Guard) authorized(r *http.Request) bool {
 	if a := r.Header.Get("Authorization"); a != "" {
 		const p = "Bearer "
 		return len(a) > len(p) && strings.EqualFold(a[:len(p)], p) && g.match(a[len(p):])
 	}
-	c, err := r.Cookie(cookieName)
+	c, err := r.Cookie(CookieName)
 	return err == nil && g.match(c.Value)
 }
 

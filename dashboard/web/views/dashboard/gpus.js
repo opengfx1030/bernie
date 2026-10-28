@@ -1,11 +1,13 @@
 "use strict";
 // ---------- GPUs ----------
 
-// gpusHead is the headline of the GPUs tab. It is kept between the renders,
-// because the telemetry stream repaints the tab every second.
+// gpusHead is the headline of the GPU section. It is kept between the
+// renders, because the telemetry stream repaints the section every second.
 let gpusHead = null;
+let gpusRoot = null;
 
 async function viewGPUs(root) {
+  gpusRoot = root;
   put(root, loading());
   try { await loadHW(); } catch { /* names and PCI info are optional; telemetry still renders */ }
   gpusHead = newGpusHead();
@@ -42,7 +44,8 @@ async function copyCardList() {
 }
 
 function renderGPUs() {
-  const root = $("#tab-gpus");
+  const root = gpusRoot;
+  if (!root) return;
   if (!gpusHead) gpusHead = newGpusHead();
   const t = state.tele;
   const gpus = (state.hw && state.hw.gpus) || [];
@@ -96,87 +99,32 @@ function renderTiles(root) {
   const hot = gs.reduce((a, s) => ((s.temp_c || 0) > (a.temp_c || 0) ? s : a), {});
   const sclk = gs.reduce((a, s) => ((s.sclk_mhz || 0) > (a.sclk_mhz || 0) ? s : a), {});
   put(box,
-    gpuTile("Busy", Math.round(avg), "%", busy + " of " + n + " cards busy", "busy_avg", 100,
+    tile("Busy", Math.round(avg), "%", busy + " of " + n + " cards busy", state.hist.busy_avg, 100,
       "The average load of the cards, last 60 seconds"),
-    gpuTile("Power", Math.round(power), "W", cap ? "of " + Math.round(cap) + " W of cap" : "no cap published",
-      "power_total", undefined, "The power of all cards, last 60 seconds"),
-    gpuTile("Memory", vram.toFixed(1), "GiB", "of " + vramTotal.toFixed(1) + " GiB",
-      "vram_used", undefined, "The memory in use on all cards, last 60 seconds"),
-    gpuTile("Hottest", hot.temp_c == null ? "–" : Math.round(hot.temp_c), "°C",
+    tile("Power", Math.round(power), "W", cap ? "of " + Math.round(cap) + " W of cap" : "no cap published",
+      state.hist.power_total, undefined, "The power of all cards, last 60 seconds"),
+    tile("Memory", vram.toFixed(1), "GiB", "of " + vramTotal.toFixed(1) + " GiB",
+      state.hist.vram_used, undefined, "The memory in use on all cards, last 60 seconds"),
+    tile("Hottest", hot.temp_c == null ? "–" : Math.round(hot.temp_c), "°C",
       hot.hip_index == null ? "no card reports a temperature" : "GPU " + hot.hip_index,
-      "temp_max", undefined, "The hottest card, last 60 seconds"),
-    gpuTile("Clock", sclk.sclk_mhz == null ? "–" : Math.round(sclk.sclk_mhz), "MHz",
-      "the highest shader clock", "sclk_max", undefined, "The highest shader clock, last 60 seconds"));
-}
-
-// gpuTile is one number of the tab: the label, the value with its unit, the
-// line under it and the last minute of it.
-function gpuTile(label, value, unit, sub, hist, max, aria) {
-  return h("article.tile",
-    h("p.tile-l", label),
-    h("p.tile-n", String(value), unit ? h("small", unit) : null),
-    h("p.tile-s", sub),
-    sparkSvg(state.hist[hist] || [], max, aria));
-}
-
-// busyRing draws the load of a card as a ring: the number in the middle and
-// the track behind it.
-function busyRing() {
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("class", "ring");
-  svg.setAttribute("viewBox", "0 0 84 84");
-  svg.setAttribute("role", "img");
-  const bg = document.createElementNS(ns, "circle");
-  bg.setAttribute("class", "ring-bg");
-  const fg = document.createElementNS(ns, "circle");
-  fg.setAttribute("class", "ring-fg");
-  for (const c of [bg, fg]) {
-    c.setAttribute("cx", "42");
-    c.setAttribute("cy", "42");
-    c.setAttribute("r", "36");
-  }
-  const circumference = 2 * Math.PI * 36;
-  fg.setAttribute("stroke-dasharray", circumference + " " + circumference);
-  fg.setAttribute("stroke-dashoffset", String(circumference));
-  const n = document.createElementNS(ns, "text");
-  n.setAttribute("class", "ring-n");
-  n.setAttribute("x", "42");
-  n.setAttribute("y", "44");
-  const u = document.createElementNS(ns, "text");
-  u.setAttribute("class", "ring-u");
-  u.setAttribute("x", "42");
-  u.setAttribute("y", "56");
-  u.textContent = "%";
-  svg.append(bg, fg, n, u);
-  return svg;
-}
-
-// setRing writes the load of a card into its ring.
-function setRing(ring, pct) {
-  if (!ring) return;
-  const p = Math.max(0, Math.min(100, pct || 0));
-  const circumference = 2 * Math.PI * 36;
-  ring.querySelector(".ring-fg").setAttribute("stroke-dashoffset", String(circumference * (1 - p / 100)));
-  ring.querySelector(".ring-n").textContent = String(Math.round(p));
-  ring.setAttribute("aria-label", "The card is busy " + Math.round(p) + " percent");
+      state.hist.temp_max, undefined, "The hottest card, last 60 seconds"),
+    tile("Clock", sclk.sclk_mhz == null ? "–" : Math.round(sclk.sclk_mhz), "MHz",
+      "the highest shader clock", state.hist.sclk_max, undefined, "The highest shader clock, last 60 seconds"));
 }
 
 function gpuCard(i) {
   const g = ((state.hw && state.hw.gpus) || []).find((x) => x.hip_index === i) || {};
-  const metric = (name, bar = true, title = "", hint = "") =>
-    h("div.metric", { "data-m": name }, h("div.lbl", { title: title }, h("span", name), h("b")), bar ? h("div.bar", h("i")) : null, hint ? h("div.small.muted", hint) : null);
   return h("div.card.gpu", { "data-gpu": String(i) },
     h("div.head", h("h3", "GPU " + i + " ", h("span.muted.small", g.name || "")), h("div.ring-wrap", busyRing())),
     h("div.muted.small", [g.gfx, g.pci, g.link && g.link.gen ? `PCIe ${g.link.gen}.0 x${g.link.width}` : "", g.numa_node >= 0 ? "NUMA " + g.numa_node : ""].filter(Boolean).join(" · ")),
     h("canvas.spark", { "data-s": "busy", title: "busy %, last 60 s" }),
-    metric("VRAM"),
-    metric("Power", true, "the power the card draws and the cap it may draw", "the cap is the power the card may draw"),
-    metric("Temp", true, "edge temperature"),
-    metric("Junction", true, "memory junction temperature"),
-    metric("Mem", true, "memory temperature"),
-    metric("sclk", false, "shader clock"),
-    metric("mclk", false, "memory clock"),
+    metricMeter("VRAM"),
+    metricMeter("Power", true, "the power the card draws and the cap it may draw", "the cap is the power the card may draw"),
+    metricMeter("Temp", true, "edge temperature"),
+    metricMeter("Junction", true, "memory junction temperature"),
+    metricMeter("Mem", true, "memory temperature"),
+    metricMeter("sclk", false, "shader clock"),
+    metricMeter("mclk", false, "memory clock"),
     h("canvas.spark", { "data-s": "pow", title: "power W, last 60 s" }));
 }
 

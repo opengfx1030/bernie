@@ -61,14 +61,14 @@ flowchart LR
 | `hub.go`, `telemetry.go`, `sse.go` | 1 Hz samples and event streams |
 | `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
-| `web/app.js` | Core: helpers (`h()`, `api()`, `copyBtn()`, `cmdBlock()`), shared state, telemetry stream |
-| `web/views/<tab>.js` | One file per tab: `viewHome`, `viewGPUs`, ... |
-| `web/views/home_steps.js` | The step timeline of the Home tab: the Run button, the root commands and the progress |
-| `web/views/home_advanced.js` | The Advanced disclosure of the Home tab: the raw document and the commands |
-| `web/boot.js` | Router and start-up. Loaded last. |
-| `web/tokens.css` | The two palettes (light and dark), the type, the spacing and the radii |
-| `web/layout.css` | The shell, the grids, the cards and the state headline |
-| `web/components.css` | The badges, the buttons, the tables, the meters, the tiles and the ring |
+| `web/js/app.js` | Core: helpers (`h()`, `api()`, `copyBtn()`, `cmdBlock()`), shared state, telemetry stream |
+| `web/views/<tab>/<tab>.js` | One file per tab: `viewHome`, `viewGPUs`, ... |
+| `web/views/home/home_steps.js` | The step timeline of the Home tab: the Run button, the root commands and the progress |
+| `web/views/home/home_advanced.js` | The Advanced disclosure of the Home tab: the raw document and the commands |
+| `web/js/boot.js` | Router and start-up. Loaded last. |
+| `web/css/tokens.css` | The two palettes (light and dark), the type, the spacing and the radii |
+| `web/css/layout.css` | The shell, the grids, the cards and the state headline |
+| `web/css/components.css` | The badges, the buttons, the tables, the meters, the tiles and the ring |
 | `dashboard_test.go` | API, auth and stream tests |
 
 ## The six tabs
@@ -153,7 +153,7 @@ minute. An agent can read the same page as text.
     sentence what the situation is. The line under it says what that means
     and what to do next. The headline is read out when it changes.
 14. **The colours come from the tokens.** A new rule uses the `--` variables
-    of `web/tokens.css`. No colour is written by hand in a component file.
+    of `web/css/tokens.css`. No colour is written by hand in a component file.
 
 ## Copy and raw JSON
 

@@ -1,9 +1,8 @@
 "use strict";
-// ---------- Home ----------
-// Home answers one question: what state is this machine in, and what is the
-// next thing to do? It renders the onboarding checklist of spec §3.3 and the
-// doctor report. The page holds no state of its own: what the server says
-// is what the page shows, and a re-check asks the server again.
+// ---------- Setup ----------
+// Setup answers one question: what state is this machine in, what is the next
+// thing to do, and which recipe can serve it? It renders the onboarding
+// checklist of spec §3.3, the doctor report and the recipe chooser.
 
 // homeDoc is the onboarding document of the last read.
 let homeDoc = null;
@@ -14,16 +13,23 @@ function checking(phase) {
   return h("div.empty", h("span.spin"), " " + phase);
 }
 
-async function viewHome(root) {
+async function viewSetup(root) {
+  const overview = h("div.setup-overview");
+  const recipes = h("div.setup-recipes");
+  put(root, overview, recipes);
+  renderSetupOverview(overview);
+  renderSetupRecipes(recipes);
+}
+
+async function renderSetupOverview(root) {
   const actions = h("div.head-actions");
-  const head = stateHead("Home", actions);
+  const head = stateHead("Setup", actions);
   const factsCard = h("div.card.hero", cardHead("This machine", "/api/hw"), loading());
   const stepsCard = h("div.card", cardHead("The path to a serving model", "/api/onboarding"), checking("checking the host…"));
   const docCard = h("div.card", cardHead("Doctor", "/api/doctor"), loading());
-  const runCard = h("div.card", cardHead("Runs", "/api/runs"), loading());
   const hostCard = h("div.card", cardHead("Host", "/api/hw"), loading());
   put(root, head, factsCard, stepsCard, advancedPanel(),
-    h("div.cols", h("div", docCard, h("div.gap"), runCard), hostCard));
+    h("div.cols", docCard, hostCard));
 
   // The checklist is the slow answer: the headline names the phase instead
   // of showing a dot.
@@ -31,8 +37,6 @@ async function viewHome(root) {
     "bernie reads the host: the GPUs, the driver, the ROCm runtime, the Python environment and the runs.");
 
   loadDoctor(docCard);
-  api("/api/runs").then((d) => put(runCard, cardHead("Runs", "/api/runs", h("a.small", { href: "#runs" }, "manage")), runsTable(runsOf(d), true)))
-    .catch((e) => put(runCard, cardHead("Runs", "/api/runs"), failed(e)));
   loadHW(true).then((hw) => put(hostCard, cardHead("Host", "/api/hw"), hostSummary(hw)))
     .catch((e) => put(hostCard, cardHead("Host", "/api/hw"), failed(e)));
 
