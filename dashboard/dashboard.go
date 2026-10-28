@@ -14,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -112,7 +111,6 @@ func displayAddr(a net.Addr, listen string) string {
 type server struct {
 	o       Options
 	tele    *hub
-	bench   sync.Mutex // one benchmark at a time
 	sampler sampler
 }
 
