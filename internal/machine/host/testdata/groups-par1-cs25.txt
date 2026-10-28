@@ -1,0 +1,10 @@
+# Captured on par1-cs25 (Fedora 43) on 2026-10-28 with
+#   getent group video render
+# The member lists are left out: they name the users of the host, and
+# bernie only needs the name and the id of a group.
+#
+# The ids of these groups are not the same on every host. par1-cs25 owns
+# /dev/kfd and /dev/dri/renderD* as group render (105) and the card nodes
+# as group video (39).
+video:x:39:
+render:x:105:

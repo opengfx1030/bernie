@@ -23,6 +23,10 @@ func plan(entry string) *recipe.Plan {
 		Args:       []string{"org/m", "--port", "18096", "--x", `{"a":"$b"}`},
 		PathInputs: []string{"/data/ple"},
 		Mounts:     []recipe.Mount{{Host: "/host/tm", Container: "/bernie/tuned-moe", ReadOnly: true}},
+		GroupAdd: []host.DeviceGroup{
+			{Role: "video", GID: 39, Source: "/dev/dri/card0"},
+			{Role: "render", GID: 105, Source: "/dev/kfd"},
+		},
 	}
 }
 
@@ -128,14 +132,14 @@ func TestContainerCommand(t *testing.T) {
 		want  []string
 	}{
 		{"docker cli", host.Engine{Name: "docker"}, "cli", cat([]string{"docker"}, common,
-			[]string{"--group-add", "video", "--group-add", "render"}, sec,
+			[]string{"--group-add", "39", "--group-add", "105"}, sec,
 			[]string{"-e", "FLASH_ATTENTION_TRITON_AMD_ENABLE=", "img:1", "serve", "org/m", "--port", "18096", "--x", `{"a":"$b"}`})},
 		{"rootless podman api", host.Engine{Name: "podman", Rootless: true}, "api", cat([]string{"podman"}, common,
 			[]string{"--group-add", "keep-groups"}, sec,
 			[]string{"--unsetenv", "FLASH_ATTENTION_TRITON_AMD_ENABLE", "--entrypoint", "python3", "img:1",
 				"-m", "vllm.entrypoints.openai.api_server", "--model", "org/m", "--port", "18096", "--x", `{"a":"$b"}`})},
 		{"rootful podman keeps numeric groups", host.Engine{Name: "podman"}, "cli", cat([]string{"podman"}, common,
-			[]string{"--group-add", "video", "--group-add", "render"}, sec,
+			[]string{"--group-add", "39", "--group-add", "105"}, sec,
 			[]string{"--unsetenv", "FLASH_ATTENTION_TRITON_AMD_ENABLE", "img:1", "serve", "org/m", "--port", "18096", "--x", `{"a":"$b"}`})},
 	}
 	for _, tt := range tests {
@@ -145,6 +149,24 @@ func TestContainerCommand(t *testing.T) {
 				t.Errorf("\n got %q\nwant %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// A group name never reaches the command: the image has no /etc/group to
+// resolve it.
+func TestContainerCommandWithoutGroups(t *testing.T) {
+	p := plan("cli")
+	p.GroupAdd = nil
+	got := ContainerCommand(p, host.Engine{Name: "docker"}, "", "")
+	for _, a := range got {
+		if a == "video" || a == "render" {
+			t.Errorf("group name in the command: %q", got)
+		}
+	}
+	for _, a := range got {
+		if a == "--group-add" {
+			t.Errorf("group flag without an id: %q", got)
+		}
 	}
 }
 
@@ -182,7 +204,7 @@ func TestCompose(t *testing.T) {
 				t.Errorf("service: %+v", s)
 			}
 			if !reflect.DeepEqual(s.Devices, []string{"/dev/kfd", "/dev/dri"}) ||
-				!reflect.DeepEqual(s.GroupAdd, []string{"video", "render"}) ||
+				!reflect.DeepEqual(s.GroupAdd, []string{"39", "105"}) ||
 				!reflect.DeepEqual(s.SecurityOpt, []string{"seccomp=unconfined", "label=disable"}) {
 				t.Errorf("devices/groups/security: %+v", s)
 			}
