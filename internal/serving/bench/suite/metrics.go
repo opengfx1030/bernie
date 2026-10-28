@@ -293,6 +293,24 @@ func medianMeasurement(ms []bench.Measurement) bench.Measurement {
 			}
 		}
 	}
+	// The declared-answer check counts every reply of every repetition.
+	var checkAsked, checkPassed int
+	for _, m := range ms {
+		if m.Check == nil {
+			continue
+		}
+		checkAsked += m.Check.Asked
+		checkPassed += m.Check.Passed
+	}
+	if checkAsked > 0 {
+		out.Check = &bench.Check{Asked: checkAsked, Passed: checkPassed}
+		for _, m := range ms {
+			if m.Check != nil {
+				out.Check.Method = m.Check.Method
+				break
+			}
+		}
+	}
 	// The errors of the repetitions are the errors of the cell.
 	seen := map[string]bool{}
 	for _, m := range ms {
@@ -373,6 +391,7 @@ func repOf(c bench.Cell) bench.Rep {
 			MeanCachedPromptTokens: c.MeanCachedPromptTokens,
 			TokensPerChunk:         c.TokensPerChunk,
 			Recall:                 c.Recall,
+			Check:                  c.Check,
 			WarmupFailed:           c.WarmupFailed,
 			Errors:                 c.Errors,
 		},

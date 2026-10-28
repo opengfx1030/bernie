@@ -61,6 +61,9 @@ func workloadDiff(a, b *bench.Workload) []string {
 	if a.Recall != b.Recall {
 		diff = append(diff, fmt.Sprintf("recall %s vs %s", onOff(a.Recall), onOff(b.Recall)))
 	}
+	if a.Check != b.Check {
+		diff = append(diff, fmt.Sprintf("check %s vs %s", onOff(a.Check), onOff(b.Check)))
+	}
 	// A suite run carries the lens of its cells, and the digest pins them.
 	if a.SuiteID == "" && b.SuiteID == "" {
 		if a.InputLen != b.InputLen {

@@ -61,6 +61,11 @@ func runGroup(ctx context.Context, s *Suite, g Group, o bench.Options, progress 
 		opts.Concurrency = slices.Clone(g.Concurrency)
 		opts.Warmup = s.Warmup
 		opts.SizeTolerancePercent = s.SizeTolerancePercent
+		// A group of kind "check" runs the pass key machinery and the
+		// verdict lands in cell.check, separate from the suite-wide
+		// recall gate. A throughput group never turns the check on.
+		opts.Check = g.Kind == KindCheck
+		opts.Recall = o.Recall && !opts.Check
 		r, err := bench.Run(ctx, opts, progress)
 		if err != nil {
 			return nil, nil, err
@@ -97,6 +102,7 @@ func groupCells(g Group, reps []bench.Cell) []bench.Cell {
 		cell.Group = g.Name
 		cell.InputLen = g.InputLen
 		cell.OutputLen = g.OutputLen
+		cell.Kind = g.Kind
 		for _, r := range ofLevel {
 			cell.Reps = append(cell.Reps, repOf(r))
 			if r.WarmupFailed > 0 || r.Failed > 0 {
@@ -155,7 +161,18 @@ func workload(s *Suite, o bench.Options, base *bench.Workload) *bench.Workload {
 	}
 	w.SuiteID = s.ID
 	w.SuiteDigest = s.Digest()
+	// The kind of the workload is "check" if any group is a check group,
+	// else "throughput". A mixed suite compares with another mixed
+	// suite of the same digest; a pure throughput suite compares with
+	// another pure throughput suite.
 	w.Kind = KindThroughput
+	for _, g := range s.Groups {
+		if g.Kind == KindCheck {
+			w.Kind = KindCheck
+			w.Check = true
+			break
+		}
+	}
 	w.CompareBand = s.Compare.Band
 	w.CompareSteady = s.Compare.Steady
 	for _, g := range s.Groups {

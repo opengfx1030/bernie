@@ -34,8 +34,14 @@ type Options struct {
 	NumPrompts int   `json:"num_prompts"`
 	Seed       int64 `json:"seed"`
 	// Recall turns on the pass key check: every prompt hides a short
-	// random fact and the reply must contain it.
+	// random fact and the reply must contain it. The verdict lands in
+	// cell.recall.
 	Recall bool `json:"recall"`
+	// Check turns on a declared-answer check: the same pass key
+	// machinery, but the verdict lands in cell.check so a group whose
+	// assertion is "check" stays distinguishable from the suite-wide
+	// recall gate.
+	Check bool `json:"check,omitempty"`
 	// Suite is the name of the suite that shaped this run. Empty for a
 	// plain run.
 	Suite string `json:"suite,omitempty"`
@@ -85,8 +91,13 @@ type Measurement struct {
 	// TokensPerChunk is completion tokens per streamed chunk; above 1 with
 	// speculative decoding (MTP).
 	TokensPerChunk float64 `json:"tokens_per_chunk"`
-	// Recall is the pass key check. It is nil when the check did not run.
+	// Recall is the suite-wide pass key check. It is nil when the gate
+	// did not run.
 	Recall *Recall `json:"recall,omitempty"`
+	// Check is the declared-answer check of the cell. It is separate
+	// from recall so a group of kind "check" stays distinguishable in
+	// one result.
+	Check *Check `json:"check,omitempty"`
 	// WarmupFailed counts the warm-up requests that failed.
 	WarmupFailed int `json:"warmup_failed,omitempty"`
 	// OutputValid tells whether the replies look like text. A reply that
@@ -115,6 +126,9 @@ type Cell struct {
 	Group     string `json:"group,omitempty"`
 	InputLen  int    `json:"input_len,omitempty"`
 	OutputLen int    `json:"output_len,omitempty"`
+	// Kind is the assertion of the group: "throughput" (a speed) or
+	// "check" (a declared answer). Empty for a plain run.
+	Kind string `json:"kind,omitempty"`
 	// Reps holds one entry per repetition, so a reader can recompute the
 	// numbers of the cell.
 	Reps []Rep `json:"reps,omitempty"`
@@ -156,6 +170,9 @@ type Workload struct {
 	Concurrency []int `json:"concurrency"`
 	// Recall tells whether the pass key check ran.
 	Recall bool `json:"recall"`
+	// Check tells whether the declared-answer check ran. A suite whose
+	// groups are of kind "check" sets it.
+	Check bool `json:"check,omitempty"`
 	// SuiteID and SuiteDigest name the suite that shaped the workload.
 	// Two results of different suites cannot be compared.
 	SuiteID     string `json:"suite_id,omitempty"`

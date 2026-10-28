@@ -1118,7 +1118,9 @@ Cell fields:
 | `mean_prompt_tokens`, `mean_output_tokens`, `mean_cached_prompt_tokens`, `tokens_per_chunk` | Real sizes seen. |
 | `duration_s`, `errors` | Wall time; sample of error strings. |
 | `recall` | Pass key check of the cell: `asked`, `passed`, `depth`, `method`. Absent when the check did not run. |
+| `check` | The declared-answer verdict of the cell: `asked`, `passed`, `method`. It is separate from `recall`, so a group of kind `check` stays distinguishable in one result. Absent when the check did not run. |
 | `group`, `input_len`, `output_len` | The suite group of the cell and the lens of that group. Absent in a plain run. |
+| `kind` | What the cell asserts: `throughput` (a speed) or `check` (a declared answer). Absent in a plain run. |
 | `reps` | The repetitions of the cell. Each entry holds the numbers of one repetition. |
 | `spread` | The min/max ratio of the metrics over the repetitions. |
 | `incomplete` | True when the cell lost a warm-up or a repetition. Its numbers stay visible, but no verdict is issued for it. |
@@ -1136,7 +1138,7 @@ gates: only a failed recall, an incomplete cell and a missing cell stop a
 verdict.
 
 A result also has a `workload`: `protocol_id`, `corpus_sha256`,
-`input_len`, `output_len`, `concurrency` and `recall`. It says what the
+`input_len`, `output_len`, `concurrency`, `recall` and `check`. It says what the
 benchmark asked for. Results saved before the field existed have none. A
 suite run adds `suite_id`, `suite_digest` and `kind`. A result of a suite
 run also has a `suite` block: the id, the digest and the version of the
@@ -1202,6 +1204,14 @@ list is refused. The defaults of a file that leaves a value out: `reps` 1,
 `warmup` 0, `seed` 0, `recall` off, `band` 0.02, `steady` 0.95,
 `size_tolerance_percent` 2, the kind `throughput` and the source
 `synthetic`.
+
+A group of kind `check` asserts a declared answer instead of a speed. It
+needs a `check` block with a `type`; the only known type is `passkey`,
+which uses the same pass key machinery as the recall gate. The verdict of
+a check group lands in the cell field `check`, not in `recall`, so the two
+kinds stay distinguishable in one result. A failed check makes a
+comparison invalid, like a failed recall. The `kind` of the workload is
+`check` when a group of the suite is a check group, else `throughput`.
 
 The built-in `pr` suite has the fixed cells of a pull request: 1024 prompt
 tokens and 512 output tokens at the levels 1, 4 and 8, and 16384 prompt
