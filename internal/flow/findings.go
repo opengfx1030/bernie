@@ -82,7 +82,7 @@ func Runs(ctx context.Context) ([]Run, error) {
 	}
 	sctx, cancel := context.WithTimeout(ctx, FindingsBudget)
 	defer cancel()
-	pctx, pcancel := context.WithTimeout(ctx, PhaseBudget)
+	pctx, pcancel := context.WithTimeout(ctx, runner.PhaseBudget)
 	defer pcancel()
 	out := make([]Run, len(runs))
 	for i, s := range runs {
@@ -91,7 +91,7 @@ func Runs(ctx context.Context) ([]Run, error) {
 			out[i].Findings = Findings(sctx, s.Record)
 			continue
 		}
-		if p, ok := Phase(pctx, s.Record); ok {
+		if p, ok := runner.Phase(pctx, s.Record); ok {
 			out[i].Phase = &p
 		}
 	}

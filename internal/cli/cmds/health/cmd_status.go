@@ -9,12 +9,14 @@ import (
 	"github.com/opengfx1030/bernie/internal/cli"
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/flow"
+	"github.com/opengfx1030/bernie/internal/onboarding"
 )
 
 func init() {
-	cmd := &cli.Command{Name: "status", Summary: "Overview of this host and the next command to type", Usage: "[--venv DIR]"}
+	cmd := &cli.Command{Name: "status", Summary: "Overview of this host and the next command to type", Usage: "[--venv DIR] [--steps]"}
 	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
+		steps := fs.Bool("steps", false, "print the onboarding checklist instead of the overview")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
@@ -22,9 +24,48 @@ func init() {
 		if err != nil {
 			return err
 		}
-		return c.Emit(s, func(w io.Writer) { printStatus(w, s) })
+		return c.Emit(s, func(w io.Writer) {
+			if *steps {
+				printChecklist(w, s.Onboarding)
+				return
+			}
+			printStatus(w, s)
+		})
 	}
 	cli.Register(cmd)
+}
+
+// printChecklist prints the onboarding checklist: every step, its state and the
+// command that does it.
+func printChecklist(w io.Writer, doc *onboarding.Document) {
+	if doc == nil {
+		fmt.Fprintln(w, "onboarding: the state of this host is unknown")
+		return
+	}
+	fmt.Fprintln(w, "onboarding")
+	for _, s := range doc.Steps {
+		fmt.Fprintf(w, "  %-8s %-12s %s\n", s.State, s.ID, s.Summary)
+		if s.Progress != nil && s.Progress.Phase != "" {
+			fmt.Fprintf(w, "           %s\n", s.Progress.Phase)
+		}
+		for _, p := range s.Problems {
+			fmt.Fprintf(w, "           [%s] %s\n", p.Status, p.Title)
+			if p.Fix != "" {
+				fmt.Fprintf(w, "           fix: %s\n", p.Fix)
+			}
+		}
+		for _, cmd := range s.RootCommands {
+			fmt.Fprintf(w, "           root: %s\n", cmd)
+		}
+		if s.Command != "" {
+			fmt.Fprintf(w, "           run:  %s\n", s.Command)
+		}
+	}
+	if doc.Next != "" {
+		fmt.Fprintf(w, "next: %s\n", doc.Next)
+	} else {
+		fmt.Fprintln(w, "next: the host is ready")
+	}
 }
 
 func printStatus(w io.Writer, s *flow.Summary) {

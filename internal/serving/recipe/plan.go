@@ -220,6 +220,24 @@ func inputValues(r *Recipe, given map[string]string) (map[string]string, error) 
 	return vals, nil
 }
 
+// Env returns the environment of a recipe: the variables its launch sets.
+// It is informational: the P2P checklist shows the communication variables
+// of the recipe bernie would run.
+func Env(set Set, id string) (topo.RecipeEnv, error) {
+	r, err := set.Resolve(id)
+	if err != nil {
+		return topo.RecipeEnv{}, err
+	}
+	env := map[string]string{}
+	for k, v := range r.Env {
+		if v == nil {
+			continue
+		}
+		env[k] = scalarString(v)
+	}
+	return topo.RecipeEnv{ID: r.ID, Env: env}, nil
+}
+
 // planEnv fills p.Env and p.Unset. HF_HUB_OFFLINE and TRANSFORMERS_OFFLINE
 // default to 1 for a local model path and 0 for a Hugging Face repo id.
 func planEnv(r *Recipe, p *Plan, interp func(string) string, local bool) {

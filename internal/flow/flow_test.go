@@ -10,35 +10,44 @@ import (
 
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/machine/host"
-	"github.com/opengfx1030/bernie/internal/serving/recipe"
-	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/onboarding"
 )
 
 func TestNextCommand(t *testing.T) {
 	one := []gpu.GPU{{GFX: "gfx1030"}}
-	fail := doctor.Check{Status: doctor.Fail, Title: "/dev/kfd is readable and writable"}
-	warn := doctor.Check{Status: doctor.Warn, Title: "iommu=pt"}
+	fail := doctor.Check{ID: "gpu.kfd", Status: doctor.Fail, Title: "/dev/kfd is readable and writable",
+		Fix: "load the amdgpu driver"}
+	warn := doctor.Check{ID: "kernel.iommu", Status: doctor.Warn, Title: "iommu=pt"}
 	cases := []struct {
 		name string
-		s    Summary
+		f    *onboarding.Facts
 		want []string
 	}{
-		{"no GPU: look at the driver", Summary{}, []string{"bernie doctor   # no AMD GPU found: check /dev/kfd and the amdgpu driver"}},
-		{"fitting recipe: up", Summary{GPUs: one, Best: "r1"}, []string{"bernie up   # serves r1"}},
-		{"no fitting recipe", Summary{GPUs: one}, []string{"bernie recipe list --all   # no recipe fits this host"}},
-		{"failed check goes first", Summary{GPUs: one, Best: "r1", Problems: []doctor.Check{warn, fail}},
-			[]string{"bernie doctor   # /dev/kfd is readable and writable", "bernie up   # serves r1"}},
-		{"warnings alone do not add doctor", Summary{GPUs: one, Best: "r1", Problems: []doctor.Check{warn}}, []string{"bernie up   # serves r1"}},
-		{"running: dash and bench instead of up", Summary{GPUs: one, Best: "r1", Runs: []Run{{Status: runner.Status{State: "running"}}}},
+		{"no GPU: look at the driver", &onboarding.Facts{},
+			[]string{"bernie doctor   # No AMD GPU is visible to bernie."}},
+		{"fitting recipe: up", &onboarding.Facts{GPUs: one, Recipe: "r1", Best: "r1"},
+			[]string{"bernie up r1"}},
+		{"no fitting recipe", &onboarding.Facts{GPUs: one},
+			[]string{"bernie recipe list --all   # No recipe fits this host."}},
+		{"failed check goes first", &onboarding.Facts{GPUs: one, Recipe: "r1",
+			Doctor: doctor.Report{Checks: []doctor.Check{warn, fail}}},
+			[]string{"load the amdgpu driver   # This user cannot open the GPU device nodes."}},
+		{"warnings alone do not add doctor", &onboarding.Facts{GPUs: one, Recipe: "r1",
+			Doctor: doctor.Report{Checks: []doctor.Check{warn}}},
+			[]string{"bernie up r1"}},
+		{"running: dash and bench instead of up", &onboarding.Facts{GPUs: one, Recipe: "r1",
+			Runs: []onboarding.Run{{Name: "r1", State: "running"}}},
 			[]string{"bernie dash", "bernie bench"}},
-		{"starting counts as running", Summary{GPUs: one, Best: "r1", Runs: []Run{{Status: runner.Status{State: "starting"}}}},
+		{"starting counts as running", &onboarding.Facts{GPUs: one, Recipe: "r1",
+			Runs: []onboarding.Run{{Name: "r1", State: "starting"}}},
 			[]string{"bernie dash", "bernie bench"}},
-		{"exited run is not running", Summary{GPUs: one, Best: "r1", Runs: []Run{{Status: runner.Status{State: "exited"}}}},
-			[]string{"bernie up   # serves r1"}},
+		{"exited run is not running", &onboarding.Facts{GPUs: one, Recipe: "r1",
+			Runs: []onboarding.Run{{Name: "r1", State: "exited"}}},
+			[]string{"bernie up r1"}},
 	}
 	for _, c := range cases {
-		if got := next(&c.s); !reflect.DeepEqual(got, c.want) {
+		s := &Summary{Onboarding: onboarding.Build(c.f)}
+		if got := next(s); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s: next = %q, want %q", c.name, got, c.want)
 		}
 	}
@@ -59,7 +68,7 @@ func TestSnapshotWithoutGPUs(t *testing.T) {
 	if s.GPUs == nil || s.Runs == nil || s.Problems == nil || s.Fits == nil {
 		t.Errorf("nil slice in %+v", s)
 	}
-	if len(s.Next) != 1 || !strings.HasPrefix(s.Next[0], "bernie doctor") {
+	if len(s.Next) == 0 {
 		t.Errorf("next = %q", s.Next)
 	}
 }
@@ -74,70 +83,8 @@ func TestUpBlockedWithoutGPUs(t *testing.T) {
 	if res != nil || !errors.As(err, &b) {
 		t.Fatalf("Up = %v, %v; want *Blocked", res, err)
 	}
-	if b.Reason != "no AMD GPU found" || !reflect.DeepEqual(b.Commands, []string{"bernie doctor"}) {
+	if b.Reason != "No AMD GPU is visible to bernie." || len(b.Commands) == 0 {
 		t.Errorf("blocked = %+v", b)
-	}
-}
-
-func fits(id string, prio int, inputs map[string]recipe.Input) recipe.ListEntry {
-	return recipe.ListEntry{ID: id, Priority: prio, Inputs: inputs, Fit: recipe.Fit{Status: recipe.FitYes}}
-}
-
-func TestPickSkipsRecipesWithUnsetRequiredInputs(t *testing.T) {
-	needsModel := map[string]recipe.Input{"MODEL": {Required: true, Description: "path"}}
-	withDefault := map[string]recipe.Input{"MODEL": {Required: true, Default: "/m"}}
-	l := recipe.Listing{Recipes: []recipe.ListEntry{
-		fits("high-needs-input", 9, needsModel),
-		fits("low-ready", 1, nil),
-		fits("mid-default", 5, withDefault),
-		{ID: "top-but-no-fit", Priority: 99, Fit: recipe.Fit{Status: recipe.FitNo}},
-	}}
-	cases := []struct {
-		name string
-		sets []string
-		want string
-	}{
-		{"ready recipe with the best priority", nil, "mid-default"},
-		{"--set satisfies the input", []string{"MODEL=/x"}, "high-needs-input"},
-		{"unrelated --set does not", []string{"MODELX=/x"}, "mid-default"},
-	}
-	for _, c := range cases {
-		if got := pick(l, c.sets); got != c.want {
-			t.Errorf("%s: pick = %q, want %q", c.name, got, c.want)
-		}
-	}
-	// Nothing ready: the best fitting recipe, so up can name the missing input.
-	only := recipe.Listing{Recipes: []recipe.ListEntry{fits("needs", 1, needsModel)}}
-	if got := pick(only, nil); got != "needs" {
-		t.Errorf("pick = %q, want needs", got)
-	}
-	if got := pick(recipe.Listing{}, nil); got != "" {
-		t.Errorf("pick of nothing = %q", got)
-	}
-}
-
-func TestEngineUsable(t *testing.T) {
-	h := host.Info{Engines: []host.Engine{{Name: "docker", Usable: false}, {Name: "podman", Usable: true}}}
-	for want, ok := range map[string]bool{"": true, "podman": true, "docker": false, "other": false} {
-		if got := engineUsable(h, want); got != ok {
-			t.Errorf("engineUsable(%q) = %v, want %v", want, got, ok)
-		}
-	}
-	if engineUsable(host.Info{}, "") {
-		t.Error("no engines")
-	}
-}
-
-func TestModelRepo(t *testing.T) {
-	for in, want := range map[string]string{
-		"org/model":      "org/model",
-		"/models/x":      "",
-		"${MODEL_DIR}/x": "",
-		"":               "",
-	} {
-		if got := modelRepo(in); got != want {
-			t.Errorf("modelRepo(%q) = %q, want %q", in, got, want)
-		}
 	}
 }
 

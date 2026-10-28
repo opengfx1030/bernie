@@ -113,7 +113,7 @@ func waitHealthy(ctx context.Context, name string, limit time.Duration, progress
 				return fmt.Errorf("%s is not healthy after %s; see: bernie logs %s", name, limit, name)
 			}
 		}
-		if ph, ok := Phase(ctx, rec); ok {
+		if ph, ok := runner.Phase(ctx, rec); ok {
 			printer.print(name, ph)
 		}
 		select {

@@ -30,6 +30,7 @@ flowchart TB
     DOC["doctor"]
     SET["setup"]
     LOG["logdoc"]
+    ONB["onboarding<br/>steps, jobs"]
   end
   subgraph serving["internal/serving"]
     RUN["runner"]
@@ -53,6 +54,8 @@ flowchart TB
   CLI --> APP
   DASH --> APP
   MCP --> APP
+  APP --> ONB
+  FLOW --> ONB
   MCP --> FLOW
   DASH --> MCP
   APP -.-> top
@@ -68,6 +71,10 @@ flowchart TB
   FLOW --> SET
   FLOW --> RUN
   FLOW --> LOG
+  ONB --> DOC
+  ONB --> SET
+  ONB --> REC
+  ONB --> RUN
   RUN --> REC
   RUN --> TUN
   REC --> TOPO
@@ -120,8 +127,12 @@ Rules:
 7. `app` holds the operations that more than one front end runs and that no
    domain package owns: `hw`, `topo`, `doctor`, the run-log scan, `recipe
    list`, `tune` status and power, `setup` plan and apply, `bench` (run and
-   save). Each returns the struct of its `--json` document. `app` never
-   prints and never imports a front end.
+   save), the onboarding checklist and its jobs. Each returns the struct of
+   its `--json` document. `app` never prints and never imports a front end.
+8. `onboarding` holds the checklist of spec §3.3: the facts of the host
+   (one probe), the steps derived from them and the jobs that run a step.
+   `flow`, `app` and the front ends read the same document, so the page and
+   the command cannot disagree.
 
 ## 2. Repository layout
 
@@ -141,6 +152,7 @@ bernie/
 │   ├── app/              operations shared by the front ends, one `--json` document each
 │   ├── mcp/              MCP server: tools, confirm tokens, audit (official Go SDK)
 │   ├── flow/             status snapshot and `up`
+│   ├── onboarding/       the onboarding checklist: facts, steps, jobs
 │   ├── doctor/           check registry; related checks and helpers grouped by role
 │   ├── setup/            install plan and non-root apply
 │   ├── logdoc/           known-failure catalog, phase catalogue (embedded YAML) and log scanner
@@ -216,7 +228,28 @@ sequenceDiagram
   W->>X: List, Logs (on request)
 ```
 
-### 3.2 From recipe to command
+### 3.2 The onboarding
+
+The onboarding is one document with the ordered steps from a bare machine to
+a serving model. It is derived from the real state of the host and read by
+every front end.
+
+```mermaid
+flowchart LR
+  F["onboarding.Facts<br/>one probe"] --> D["onboarding.Build<br/>the steps"]
+  D --> S["status --steps"]
+  D --> U["up: the first blocked step"]
+  D --> A["GET /api/onboarding"]
+  D --> M["MCP onboarding_status"]
+  U --> J["onboarding.Action<br/>the action of a step"]
+  J --> P["POST /api/onboarding/{step}/run<br/>a job"]
+```
+
+`up` and the jobs run the same action: the setup steps, the serve and the
+smoke check. A job keeps its state under `<state>/jobs/<id>`, so a page
+reload finds it again.
+
+### 3.3 From recipe to command
 
 `runner.Prepare` runs this chain. `recipe plan`, `serve`, `compose` and the
 dashboard use the same chain. First, the recipe becomes a plan:
