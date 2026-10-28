@@ -1,209 +1,582 @@
+// The Setup tab answers one question: what do I do to make this box serve?
+// It reads the onboarding checklist, the doctor report and the recipes, and
+// it never changes the host on its own.
 "use strict";
-// ---------- Setup ----------
-// Setup answers one question: what state is this machine in, what is the next
-// thing to do, and which recipe can serve it? It renders the onboarding
-// checklist of spec §3.3, the doctor report and the recipe chooser.
 
-// homeDoc is the onboarding document of the last read.
-let homeDoc = null;
+// SETUP_EXTRA_STEPS are the steps that come after the path of the host.
+const SETUP_EXTRA_STEPS = ["bench", "tuning", "power"];
 
-// checking is the state of a card whose answer takes a moment: it names the
-// phase instead of showing nothing.
-function checking(phase) {
-  return h("div.empty", h("span.spin"), " " + phase);
-}
+// SETUP_STEP_NAMES name a step of the path in one plain phrase.
+const SETUP_STEP_NAMES = {
+  hardware: "the cards",
+  access: "the device groups",
+  rocm: "the ROCm tools",
+  "python-env": "the Python environment",
+  model: "the model",
+  recipe: "a recipe",
+  serve: "the server",
+  verify: "the server check",
+};
 
+// SETUP_SMOKE_ENABLED says whether the endpoint that answers one prompt
+// exists. It stays false until the backend lands it.
+const SETUP_SMOKE_ENABLED = false;
+
+// setupState holds the documents of the tab and the nodes it paints.
+const setupState = {
+  doc: null,
+  doctor: null,
+  recipes: null,
+  hw: null,
+  plan: null,
+  recipeID: "",
+  mode: "host",
+  sets: [],
+  head: null,
+  actions: null,
+  banner: null,
+  hero: null,
+  timeline: null,
+  recipeBox: null,
+  recipeErrors: null,
+  planBox: null,
+  doctorBox: null,
+  advanced: null,
+  primaryOwner: "headline",
+  generation: 0,
+  onRefresh: null,
+};
+
+/** viewSetup draws the tab: the headline, the plan, the checklist, the
+ *  recipes, the doctor report and the raw documents. */
 async function viewSetup(root) {
-  const overview = h("div.setup-overview");
-  const recipes = h("div.setup-recipes");
-  put(root, overview, recipes);
-  renderSetupOverview(overview);
-  renderSetupRecipes(recipes);
-}
+  setupState.generation++;
+  const gen = setupState.generation;
+  setupStopStreams();
 
-async function renderSetupOverview(root) {
+  const head = stateHead("Setup");
   const actions = h("div.head-actions");
-  const head = stateHead("Setup", actions);
-  const factsCard = h("div.card.hero", cardHead("This machine", "/api/hw"), loading());
-  const stepsCard = h("div.card", cardHead("The path to a serving model", "/api/onboarding"), checking("checking the host…"));
-  const docCard = h("div.card", cardHead("Doctor", "/api/doctor"), loading());
-  const hostCard = h("div.card", cardHead("Host", "/api/hw"), loading());
-  put(root, head, factsCard, stepsCard, advancedPanel(),
-    h("div.cols", docCard, hostCard));
+  head.append(actions);
+  const banner = h("div.banner.warn", { hidden: true });
+  const hero = h("div.setup-hero");
+  const timeline = h("div.setup-timeline-body");
+  const recipeBox = h("div.setup-recipe-chooser");
+  const recipeErrors = h("div.recipe-errors");
+  const planBox = h("div.recipe-plan-box");
+  const doctorBox = h("div.doctor-findings");
+  const advanced = setupAdvancedPanel();
 
-  // The checklist is the slow answer: the headline names the phase instead
-  // of showing a dot.
-  setHead(root.querySelector(".state-head"), "Checking this machine…",
-    "bernie reads the host: the GPUs, the driver, the ROCm runtime, the Python environment and the runs.");
+  Object.assign(setupState, {
+    head, actions, banner, hero, timeline, recipeBox, recipeErrors, planBox, doctorBox, advanced,
+    onRefresh: () => loadSetupDocument(),
+  });
 
-  loadDoctor(docCard);
-  loadHW(true).then((hw) => put(hostCard, cardHead("Host", "/api/hw"), hostSummary(hw)))
-    .catch((e) => put(hostCard, cardHead("Host", "/api/hw"), failed(e)));
+  put(root, head, banner, hero,
+    h("section.section", { id: "setup-path" },
+      h("h2.section-label", "THE PATH TO A SERVING MODEL"),
+      timeline),
+    h("section.section", { id: "setup-recipes" },
+      h("h2.section-label", "THE RECIPE"),
+      recipeBox, recipeErrors, planBox),
+    h("section.section", { id: "setup-doctor" },
+      h("h2.section-label", "DOCTOR", h("span.grow"),
+        h("button.small", { type: "button", onclick: loadSetupDoctor }, "Re-run")),
+      doctorBox),
+    advanced);
 
-  const paint = () => refreshHome(root, stepsCard, factsCard, actions);
-  await paint();
+  setHead(head, "BERNIE IS CHECKING THE HOST.", "Reading the host. The checklist arrives in a moment.");
+  put(hero, loading());
+  put(timeline, loading());
+  put(recipeBox, loading());
+  put(doctorBox, loading());
+
+  await Promise.all([loadSetupDocument(gen), loadSetupRecipes(gen), loadSetupDoctor(gen)]);
 }
 
-// refreshHome reads the onboarding checklist again and paints the headline,
-// the facts and the timeline.
-async function refreshHome(root, stepsCard, factsCard, actions) {
-  let doc;
+/** loadSetupDocument reads the onboarding checklist and paints the
+ *  headline, the facts and the timeline. */
+async function loadSetupDocument(gen) {
+  if (gen && gen !== setupState.generation) return;
+  let doc = null;
   try {
     doc = await api("/api/onboarding");
   } catch (e) {
-    setHead(root.querySelector(".state-head"), "The state of this machine is unknown", String(e.message || e));
-    put(stepsCard, cardHead("The path to a serving model", "/api/onboarding"), failed(e));
+    if (!gen || gen === setupState.generation) paintSetupError(e);
     return;
   }
-  homeDoc = doc;
-  const say = homeHeadline(doc);
-  if (doc.stale) {
-    say.lede = "The checklist is " + doc.facts_age_s + " seconds old; bernie is checking the host again. " + say.lede;
-  }
-  setHead(root.querySelector(".state-head"), say.title, say.lede);
-  put(factsCard, cardHead("This machine", "/api/hw"), homeFacts(doc));
-  put(stepsCard, cardHead("The path to a serving model", "/api/onboarding",
-    h("button.small", { type: "button", onclick: () => refreshHome(root, stepsCard, factsCard, actions) }, "Re-check")),
-    homeSteps(doc, () => refreshHome(root, stepsCard, factsCard, actions)));
-  put(actions, homeActions(doc, () => refreshHome(root, stepsCard, factsCard, actions)));
+  if (gen && gen !== setupState.generation) return;
+  setupState.doc = doc;
+  paintSetupHead(doc);
+  paintSetupStale(doc);
+  paintSetupTimeline(doc);
+  await paintSetupFacts(doc);
 }
 
-// homeHeadline says in one sentence what state the machine is in.
-function homeHeadline(doc) {
+/** paintSetupHead writes the state of the machine in one sentence and the
+ *  actions that follow from it. */
+function paintSetupHead(doc) {
+  const say = setupHeadline(doc);
+  setupState.primaryOwner = say.action === "doctor" ? "plan" : "headline";
+  setHead(setupState.head, say.title, say.lede);
+  put(setupState.actions, setupHeadActions(doc, say));
+}
+
+/** setupHeadline says what the machine is in one sentence, with the lede
+ *  under it and the action that follows. */
+function setupHeadline(doc) {
   const steps = doc.steps || [];
-  const pending = steps.filter((s) => s.state !== "done" && s.state !== "skipped" && !EXTRA_STEPS.includes(s.id));
-  const next = steps.find((s) => s.id === doc.next);
-  const root = pending.filter((s) => (s.root_commands || []).length).length;
+  const path = steps.filter((s) => !SETUP_EXTRA_STEPS.includes(s.id));
+  const pending = path.filter((s) => s.state !== "done" && s.state !== "skipped");
+  const running = path.find((s) => s.state === "running");
+  const hardware = steps.find((s) => s.id === "hardware");
+  const serve = steps.find((s) => s.id === "serve");
+  const roots = pending.filter((s) => (s.root_commands || []).length);
+  if (running && running.id !== "serve") {
+    const phase = (running.progress && running.progress.phase) || running.summary || "bernie is working on the next step.";
+    return { title: "SETTING UP THIS BOX.", lede: phase, action: "continue" };
+  }
   if (!pending.length) {
-    return { title: "This machine is serving", lede: "Every step of the path is done. The runs below say what is serving and where it listens." };
-  }
-  if (root) {
+    if (serve && serve.state === "running") {
+      return {
+        title: "THIS BOX IS SERVING.",
+        lede: "The model answers on " + setupServerEndpoint(serve) + ". Try it, or read the logs.",
+        action: "try",
+      };
+    }
     return {
-      title: root + (root === 1 ? " step needs" : " steps need") + " your password",
-      lede: homeLede(pending) + " The steps that need root are marked; the command of each one is on the card.",
+      title: "THIS BOX IS READY TO SERVE.",
+      lede: "Everything bernie needs is in place. Start the server and it answers on " + setupServerEndpoint(serve) + ".",
+      action: "start",
     };
   }
-  if (next && next.state === "blocked") {
+  if (hardware && hardware.state === "blocked") {
     return {
-      title: pending.length + (pending.length === 1 ? " step needs" : " steps need") + " an operator",
-      lede: homeLede(pending) + " The card of each step says what holds it back and the command that fixes it.",
+      title: "THIS BOX HAS NO GPU FOR BERNIE.",
+      lede: "bernie needs an AMD card with /dev/kfd. The doctor report says what is missing.",
+      action: "doctor",
     };
   }
+  const names = pending.slice(0, 3).map((s) => SETUP_STEP_NAMES[s.id] || s.title || s.id);
+  const more = pending.length > 3 ? " and " + (pending.length - 3) + " more" : "";
+  const missing = names.join(", ") + more;
+  const rootClause = roots.length
+    ? " " + roots.length + (roots.length === 1 ? " step needs" : " steps need") + " root; you will run " + (roots.length === 1 ? "it" : "them") + " yourself."
+    : "";
   return {
-    title: pending.length + (pending.length === 1 ? " step left" : " steps left") + " before this box can serve",
-    lede: homeLede(pending) + " bernie does the rest.",
+    title: pending.length + (pending.length === 1 ? " STEP LEFT" : " STEPS LEFT") + " BEFORE THIS BOX CAN SERVE.",
+    lede: "The " + missing + (pending.length === 1 ? " is" : " are") + " not there yet." + rootClause,
+    action: "setup",
   };
 }
 
-// STEP_LABELS are the short names of the steps of the checklist. The ids are
-// stable (spec §3.3), so the page can name a step in a few words.
-const STEP_LABELS = {
-  hardware: "GPUs", access: "device access", rocm: "ROCm runtime", "python-env": "Python environment",
-  model: "model files", recipe: "recipe", serve: "server", verify: "check",
-};
-
-// homeLede names the steps that are left, in words.
-function homeLede(pending) {
-  const names = pending.slice(0, 3).map((s) => "the " + (STEP_LABELS[s.id] || s.title.toLowerCase()));
-  const more = pending.length > 3 ? " and " + (pending.length - 3) + " more" : "";
-  return "What is left: " + names.join(", ") + more + ".";
+/** setupServerEndpoint is where the server answers. */
+function setupServerEndpoint(serve) {
+  if (serve && serve.detail && /^https?:\/\//.test(serve.detail)) return serve.detail;
+  const plan = setupState.plan;
+  if (plan && plan.port) return "port " + plan.port;
+  return "the port of the plan";
 }
 
-// homeFacts turns the steps into the fact strip: what the machine is, in
-// short, with the reason under every value.
-function homeFacts(doc) {
-  const steps = (doc.steps || []).filter((s) => STEP_LABELS[s.id]);
-  if (!steps.length) {
-    return emptyState("There is nothing to say about this machine yet.",
-      "The facts come from the checklist: the cards, the driver, the runtime, the model and the server.");
-  }
-  return h("dl.facts", steps.map((s) => h("div",
-    h("dt", STEP_LABELS[s.id]),
-    h("dd", s.summary || "–", homeWhy(s)))));
-}
-
-// homeWhy is the reason under a fact: the detail of the step, or the cause
-// of the first problem that holds it back.
-function homeWhy(step) {
-  if (step.detail) return h("span.why", step.detail);
-  const p = (step.problems || [])[0];
-  if (!p) return null;
-  return h("span.why", p.detail || p.fix || "");
-}
-
-// homeActions are the actions of the Home tab: the one primary action and
-// the re-check.
-function homeActions(doc, onRefresh) {
-  const next = (doc.steps || []).find((s) => s.id === doc.next);
+/** setupHeadActions are the actions of the tab. There is one filled button:
+ *  the action the state asks for. */
+function setupHeadActions(doc, say) {
   const out = [];
-  if (next && next.can_run) {
-    out.push(h("button.primary", { type: "button", onclick: () => runStep(next, onRefresh) }, "Run the next step"));
-  } else if (next) {
-    const label = (next.root_commands || []).length ? "Show the commands" : "Show what to fix";
-    out.push(h("button.primary", { type: "button", onclick: () => focusStep(next.id) }, label));
+  if (say.action === "doctor") {
+    out.push(h("button", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
+    return out;
   }
-  out.push(h("button", { type: "button", onclick: onRefresh }, "Re-check"));
+  if (say.action === "continue") {
+    out.push(h("button.primary", { type: "button", onclick: setupRunNextStep }, "Run the rest of the steps"));
+    out.push(h("button", { type: "button", onclick: () => loadSetupDocument() }, "Re-check"));
+    return out;
+  }
+  if (say.action === "start") {
+    out.push(h("button.primary", { type: "button", onclick: startSetupServer }, "Start the server"));
+    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    return out;
+  }
+  if (say.action === "try") {
+    out.push(h("button.primary", { type: "button", onclick: focusSetupVerify }, "Try it"));
+    out.push(h("button", { type: "button", onclick: () => { location.hash = "#logs"; } }, "Read the logs"));
+    return out;
+  }
+  const next = setupNextRunnable(doc);
+  if (next) {
+    out.push(h("button.primary", {
+      type: "button",
+      onclick: () => runSetupStep(next, { onRefresh: () => loadSetupDocument() }),
+    }, "Set up this machine"));
+  } else {
+    out.push(h("button.primary", { type: "button", onclick: () => focusSetupStep(doc.next) }, "Show the commands"));
+  }
+  out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the command"));
+  out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
   return out;
 }
 
-// focusStep scrolls a step into view and puts the cursor on its first
-// control.
-function focusStep(id) {
-  const el = document.querySelector('[data-step="' + id + '"]');
-  if (!el) return;
-  el.scrollIntoView({ block: "center" });
-  const c = el.querySelector("button, a");
-  if (c) c.focus();
+/** setupNextRunnable is the next step bernie can do itself. */
+function setupNextRunnable(doc) {
+  const steps = (doc && doc.steps) || [];
+  const path = steps.filter((s) => !SETUP_EXTRA_STEPS.includes(s.id));
+  return path.find((s) => s.state === "todo" && s.can_run) || null;
 }
 
-// loadDoctor paints the doctor card: the counts, the checks that fail or
-// warn and every check behind a disclosure.
-async function loadDoctor(card) {
-  const title = () => cardHead("Doctor", "/api/doctor", h("button.small", { onclick: () => { put(card, title(), loading()); loadDoctor(card); } }, "Re-run"));
-  put(card, title(), loading());
+/** setupRunNextStep starts the next step bernie can do. */
+function setupRunNextStep() {
+  const doc = setupState.doc;
+  const next = setupNextRunnable(doc);
+  if (!next) {
+    toast("Nothing else can run right now.");
+    return;
+  }
+  runSetupStep(next, { onRefresh: () => loadSetupDocument() });
+}
+
+/** setupCopyNextCommand copies the command of the next step. */
+function setupCopyNextCommand() {
+  const doc = setupState.doc;
+  const next = doc && (doc.steps || []).find((s) => s.id === doc.next);
+  const text = (next && next.command) || setupPlanCommand(setupState.plan || {});
+  setupCopyText(text);
+}
+
+/** setupCopyText puts a command on the clipboard and says that it worked. */
+async function setupCopyText(text) {
+  if (!text) {
+    toast("There is nothing to copy.");
+    return;
+  }
+  let ok = false;
   try {
-    const rep = await api("/api/doctor");
-    const sum = rep.summary || {};
-    const checks = rep.checks || [];
-    const bad = checks.filter((c) => c.status === "fail" || c.status === "warn")
-      .sort((a, b) => (a.status === "fail" ? 0 : 1) - (b.status === "fail" ? 0 : 1));
-    put(card, title(),
-      h("div.counts", ["fail", "warn", "ok", "skip"].map((s) => h("span.badge", { class: "b-" + s }, (sum[s] || 0) + " " + s))),
-      bad.length ? bad.map(checkRow) : emptyState("Every check passed.", "The doctor looks for the things that keep a server from running on this host: the GPUs, the driver, the ROCm runtime and the Python environment."),
-      h("details", h("summary.muted.small", "All checks (" + checks.length + ")"), checks.map(checkRow)));
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  } catch (e) { ok = false; }
+  if (!ok) {
+    try {
+      const area = h("textarea", { style: "position:fixed;left:-9999px;top:0" });
+      area.value = text;
+      document.body.append(area);
+      area.select();
+      ok = document.execCommand("copy");
+      area.remove();
+    } catch (e) { ok = false; }
+  }
+  toast(ok ? "Copied the command." : "Copy failed: select the text and press Ctrl-C.", ok);
+}
+
+/** startSetupServer starts the server of the path. */
+function startSetupServer() {
+  const doc = setupState.doc;
+  const serve = doc && (doc.steps || []).find((s) => s.id === "serve");
+  if (serve && serve.can_run) {
+    runSetupStep(serve, { onRefresh: () => loadSetupDocument() });
+    return;
+  }
+  startSetupRecipe();
+}
+
+/** paintSetupStale shows the banner of a checklist that is older than its
+ *  time to live. */
+function paintSetupStale(doc) {
+  const banner = setupState.banner;
+  if (!banner) return;
+  if (doc.stale) {
+    put(banner, "bernie is checking the host again. The values below are the last known state.");
+    banner.hidden = false;
+  } else {
+    put(banner);
+    banner.hidden = true;
+  }
+}
+
+/** paintSetupError says that the state of the machine is unknown. */
+function paintSetupError(e) {
+  setHead(setupState.head, "THE STATE OF THIS MACHINE IS UNKNOWN.", "The dashboard could not read /api/onboarding.");
+  put(setupState.actions, h("button.primary", { type: "button", disabled: true, "aria-disabled": "true" }, "Try again"));
+  put(setupState.hero);
+  put(setupState.timeline, h("div.setup-error",
+    h("p", "The dashboard could not read the checklist."),
+    h("p", String(e.message || e)),
+    h("button", { type: "button", onclick: () => loadSetupDocument() }, "Try again")));
+}
+
+/** paintSetupTimeline draws the checklist of the host. */
+function paintSetupTimeline(doc) {
+  if (!setupState.timeline) return;
+  if (!doc) doc = setupState.doc;
+  if (!doc) return;
+  const steps = doc.steps || [];
+  for (const step of steps) {
+    if (step.progress && !setupProgress[step.id]) {
+      const total = step.progress.total || 0;
+      setupProgress[step.id] = {
+        phase: step.progress.phase || "",
+        pct: total ? Math.round((step.progress.done * 100) / total) : 0,
+      };
+    }
+  }
+  put(setupState.timeline, stepTimeline(steps, {
+    extraIDs: SETUP_EXTRA_STEPS,
+    onRun: runSetupStep,
+    onRefresh: () => loadSetupDocument(),
+    linkFor: setupStepLink,
+    progress: setupProgress,
+    logs: setupLogs,
+    verify: setupVerifyBox,
+  }));
+}
+
+/** setupStepLink is the link of an optional step. */
+function setupStepLink(step) {
+  if (step.id === "bench") return { href: "#benchmark", label: "the benchmark" };
+  if (step.id === "tuning" || step.id === "power") return { href: "#dashboard", label: "the dashboard" };
+  return null;
+}
+
+/** paintSetupFacts draws the plan of the host and the facts under it. */
+async function paintSetupFacts(doc) {
+  if (!setupState.hero) return;
+  const facts = await setupFactList(doc);
+  const sentence = setupPlanSentence();
+  put(setupState.hero,
+    h("div.setup-plan",
+      h("p", "bernie picked the setup that fits this host."),
+      h("p.small.muted", "Anything that needs a password is shown as a command to paste."),
+      sentence ? h("p.small.muted", sentence) : null),
+    facts.length ? h("dl.facts", facts.map(setupFact)) : null);
+}
+
+/** setupFactList is the facts of the host. The onboarding document carries
+ *  them; the hardware and the doctor report fill them until it does. */
+async function setupFactList(doc) {
+  if (Array.isArray(doc.facts) && doc.facts.length) return doc.facts;
+  const hw = await setupLoadHW();
+  const doctor = setupState.doctor || await setupLoadDoctorReport();
+  return setupFactsFromHost(hw, doctor);
+}
+
+/** setupFact is one fact: its name, its value and the reason under it. */
+function setupFact(fact) {
+  const row = factRow(fact.label || fact.key || "", fact.value, fact.why);
+  row.classList.add("setup-fact");
+  return row;
+}
+
+/** setupFactsFromHost reads the facts of the host from the hardware and the
+ *  doctor report. */
+function setupFactsFromHost(hw, doctor) {
+  const facts = [];
+  if (hw) {
+    const gpus = hw.gpus || [];
+    const names = {};
+    for (const gpu of gpus) {
+      const name = gpu.name || gpu.gfx || "GPU";
+      names[name] = (names[name] || 0) + 1;
+    }
+    const archs = Array.from(new Set(gpus.map((g) => g.gfx).filter(Boolean)));
+    const value = gpus.length
+      ? Object.keys(names).map((name) => names[name] + " x " + name).join(", ")
+      : "–";
+    let why = "No AMD GPU is visible to bernie.";
+    if (gpus.length === 1 && archs.length === 1) why = "one recipe family fits them all";
+    if (gpus.length > 1 && archs.length === 1) why = "every card is " + archs[0] + ", so one recipe family fits them all";
+    if (gpus.length && archs.length > 1) why = "the cards use " + archs.length + " architectures";
+    facts.push({ key: "gpus", label: "GPUs", value: value, why: why });
+
+    const ram = hw.host && hw.host.ram_bytes;
+    facts.push({ key: "memory", label: "Memory", value: ram ? bytes(ram) : "–", why: setupMemoryWhy(hw) });
+
+    const engines = (hw.host && hw.host.engines) || [];
+    const usable = engines.filter((e) => e.usable);
+    const engine = usable[0] || engines[0];
+    facts.push({
+      key: "engine",
+      label: "Engine",
+      value: engine ? (engine.name + (engine.version ? " " + engine.version : "")) : "–",
+      why: usable.length ? "the image is used" : "the server runs on the host",
+    });
+  }
+  if (doctor) {
+    const rocm = (doctor.checks || []).find((c) => c.category === "rocm");
+    facts.push({
+      key: "rocm",
+      label: "ROCm",
+      value: rocm ? rocm.status : "–",
+      why: rocm ? (rocm.detail || rocm.title) : "The doctor could not read the host.",
+    });
+  }
+  return facts;
+}
+
+/** setupMemoryWhy says what the memory of the host is used for. */
+function setupMemoryWhy(hw) {
+  const gpus = (hw && hw.gpus) || [];
+  const vram = gpus.reduce((sum, gpu) => sum + (gpu.vram_bytes || 0), 0);
+  if (!vram) return "";
+  const perCard = Math.round(vram / gpus.length / (1024 * 1024 * 1024));
+  return perCard + " GiB per card, the rest is the KV cache";
+}
+
+/** setupPlanSentence names the recipe that fits this host. */
+function setupPlanSentence() {
+  const recipes = (setupState.recipes && setupState.recipes.recipes) || [];
+  const best = recipes.find((r) => r.fit && r.fit.status === "fits");
+  if (!best) return "";
+  const gpus = (setupState.hw && setupState.hw.gpus) || [];
+  const archs = Array.from(new Set(gpus.map((g) => g.gfx).filter(Boolean)));
+  let cards = "";
+  if (gpus.length && archs.length) cards = gpus.length + " cards of " + archs.join(", ");
+  else if (best.gpus) cards = best.gpus + " cards";
+  return "The recipe is " + (best.name || best.id) + (cards ? " with " + cards : "") + ".";
+}
+
+/** setupLoadHW reads the hardware of the host once. */
+async function setupLoadHW() {
+  if (setupState.hw) return setupState.hw;
+  try {
+    setupState.hw = await api("/api/hw");
   } catch (e) {
-    put(card, title(), failed(e));
+    setupState.hw = null;
+  }
+  return setupState.hw;
+}
+
+/** setupLoadDoctorReport reads the doctor report once. */
+async function setupLoadDoctorReport() {
+  if (setupState.doctor) return setupState.doctor;
+  try {
+    setupState.doctor = await api("/api/doctor");
+  } catch (e) {
+    setupState.doctor = null;
+  }
+  return setupState.doctor;
+}
+
+/** loadSetupDoctor reads the doctor report and paints the findings. */
+async function loadSetupDoctor() {
+  const box = setupState.doctorBox;
+  if (!box) return;
+  put(box, loading());
+  let report = null;
+  try {
+    report = await api("/api/doctor");
+  } catch (e) {
+    put(box, h("p", "The doctor could not run."),
+      h("p", String(e.message || e)),
+      cmdBlock("bernie doctor", "Copy the command"),
+      h("button", { type: "button", onclick: loadSetupDoctor }, "Try again"));
+    return;
+  }
+  setupState.doctor = report;
+  const checks = report.checks || [];
+  const bad = checks.filter((c) => c.status === "fail" || c.status === "warn");
+  const summary = report.summary || {};
+  put(box,
+    h("div.doctor-summary", ["fail", "warn", "ok", "skip"].map((s) =>
+      h("span.badge", { class: "b-" + s }, (summary[s] || 0) + " " + s))),
+    bad.length
+      ? h("div.doctor-findings-list", bad.map(setupDoctorFinding))
+      : h("div.doctor-clean",
+        h("p", "The doctor found nothing to report."),
+        h("p", "Every check of the host passed.")),
+    h("details.doctor-all", h("summary", "All checks (" + checks.length + ")"), checks.map(setupDoctorFinding)));
+}
+
+/** setupDoctorFinding is one finding: its state, its rule, the cause and
+ *  the command that fixes it. */
+function setupDoctorFinding(check) {
+  const status = check.status || "warn";
+  return h("div.finding.doctor-finding",
+    h("div.doctor-finding-head",
+      h("span.badge", { class: "b-" + status }, status),
+      h("span.doctor-finding-id", check.id || "")),
+    h("p.doctor-finding-cause", check.title || ""),
+    check.detail ? h("p.small.muted", check.detail) : null,
+    check.fix ? cmdBlock(check.fix, "Copy the fix command") : null,
+    check.doc ? h("a.small", { href: check.doc, target: "_blank", rel: "noopener noreferrer" }, "the rule") : null);
+}
+
+/** setupVerifyBox is the box that asks the server one question. It appears
+ *  when the endpoint exists; until then the step has no box. */
+function setupVerifyBox() {
+  if (!SETUP_SMOKE_ENABLED) return null;
+  const running = setupServerRunning();
+  const answer = h("div.try-answer");
+  const input = h("input", {
+    type: "text",
+    placeholder: "What is the capital of Portugal?",
+    disabled: !running,
+    "aria-label": "The question for the server",
+  });
+  const form = h("form.try-form", {
+    onsubmit: (e) => {
+      e.preventDefault();
+      setupAskServer(input.value, answer);
+    },
+  }, input, h("button", { type: "submit", disabled: !running }, "Ask"));
+  return h("div.try-box",
+    h("p.try-label", "Ask the server something."),
+    running ? form : h("p.try-note", "Start the server first."),
+    answer);
+}
+
+/** setupServerRunning says whether a server answers on this host. */
+function setupServerRunning() {
+  const doc = setupState.doc;
+  const serve = doc && (doc.steps || []).find((s) => s.id === "serve");
+  return !!(serve && serve.state === "running");
+}
+
+/** setupAskServer sends one prompt to the server and shows the answer. */
+async function setupAskServer(prompt, answer) {
+  if (!prompt) return;
+  put(answer, h("span.spin"), " asking…");
+  try {
+    const result = await api("/api/smoke", { method: "POST", body: { prompt: prompt } });
+    const metrics = [];
+    if (result.ttft_ms != null) metrics.push(result.ttft_ms + " ms to the first token");
+    if (result.tok_s != null) metrics.push(result.tok_s + " tok/s");
+    put(answer,
+      h("p.try-reply", result.reply || ""),
+      metrics.length ? h("p.try-metrics", metrics.join(" · ")) : null);
+  } catch (e) {
+    put(answer,
+      h("p.try-error", "The server did not answer."),
+      h("p.try-reason", String(e.message || e)));
   }
 }
 
-// hostSummary is the key and value list of the host.
-function hostSummary(hw) {
-  const ho = hw.host || {};
-  const cpu = ho.cpu || {};
-  const gpus = hw.gpus || [];
-  const byName = {};
-  for (const g of gpus) {
-    const k = (g.name || "GPU") + " (" + g.gfx + ")";
-    byName[k] = (byName[k] || 0) + 1;
-  }
-  const engines = (ho.engines || []).map((e) => e.name + " " + (e.version || "") + (e.usable ? "" : " (not usable)") + (e.rootless ? ", rootless" : ""));
-  return h("dl.kv",
-    h("dt", "Host"), h("dd", ho.hostname || "–"),
-    h("dt", "OS"), h("dd", (ho.os && (ho.os.pretty || ho.os.id)) || "–", ho.pkg_manager ? h("span.muted", " · " + ho.pkg_manager) : null),
-    h("dt", "Kernel"), h("dd", ho.kernel || "–"),
-    h("dt", "CPU"), h("dd", cpu.model || "–", cpu.threads ? h("span.muted", ` · ${cpu.sockets || 1}× socket, ${cpu.cores} cores / ${cpu.threads} threads`) : null),
-    h("dt", "RAM"), h("dd", bytes(ho.ram_bytes)),
-    h("dt", "GPUs"), h("dd", gpus.length ? Object.entries(byName).map(([k, n]) => h("div", n + "× " + k)) : h("span.muted", "none found")),
-    h("dt", "Engines"), h("dd", engines.length ? engines.join("; ") : h("span.muted", "none")),
-    ho.selinux ? [h("dt", "SELinux"), h("dd", ho.selinux)] : null,
-  );
+/** focusSetupStep scrolls to a step and puts the focus on its first
+ *  control. */
+function focusSetupStep(id) {
+  if (!id) return;
+  const row = document.querySelector('[data-step="' + id + '"]');
+  if (!row) return;
+  row.scrollIntoView({ block: "center" });
+  const control = row.querySelector("button, a, input");
+  if (control) control.focus();
 }
 
-// checkRow is one check of the doctor: its state, its cause and its fix.
-function checkRow(c) {
-  return h("div.check",
-    h("div.t", badge(c.status), h("b", c.title), h("span.id", c.id)),
-    c.detail ? h("div.muted.small", c.detail) : null,
-    c.fix ? cmdBlock(c.fix, "Copy the fix command") : null,
-    c.doc ? h("a.small", { href: c.doc, target: "_blank", rel: "noopener noreferrer" }, "docs") : null);
+/** focusSetupDoctor scrolls to the doctor report. */
+function focusSetupDoctor() {
+  const section = document.getElementById("setup-doctor");
+  if (!section) return;
+  section.scrollIntoView({ block: "start" });
+  const control = section.querySelector("button, a");
+  if (control) control.focus();
+}
+
+/** focusSetupVerify scrolls to the verify step. */
+function focusSetupVerify() {
+  focusSetupStep("verify");
+}
+
+/** setupToggleAdvanced opens or closes the raw documents of the tab. */
+function setupToggleAdvanced() {
+  const panel = setupState.advanced;
+  if (!panel) return;
+  panel.open = !panel.open;
+  if (panel.open) panel.scrollIntoView({ block: "nearest" });
 }

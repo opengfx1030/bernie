@@ -1,83 +1,198 @@
+// The actions of the steps of the checklist: start a step, follow the job
+// it starts and show the progress under the step.
 "use strict";
-// ---------- Home: step actions ----------
-// The timeline itself is a shared component. This file owns the actions that
-// start a step and follow its background job.
 
-// EXTRA_STEPS are the steps that never hold the path. They are listed after
-// the path, under their own rule.
-const EXTRA_STEPS = ["bench", "tuning", "power"];
+// setupProgress is the live progress of a step, by step id.
+const setupProgress = {};
 
-// homeSteps renders the checklist of a host.
-function homeSteps(doc, onRefresh) {
-  return stepTimeline(doc.steps || [], {
-    extraIDs: EXTRA_STEPS,
-    onRefresh,
-    onRun: runStep,
-  });
-}
+// setupLogs is the output of a step, by step id.
+const setupLogs = {};
 
-// startStep asks the server to run a step. It answers with the job of the
-// step, or with the commands of a step that needs root.
-async function startStep(id) {
-  const result = await request("/api/onboarding/" + encodeURIComponent(id) + "/run", {
-    method: "POST",
-    body: {},
-  });
-  const data = result.data;
-  if (result.status === 200 && data && data.root_required) return { kind: "root", commands: data.commands || [] };
-  if (result.status === 201) return { kind: "job", job: data };
-  if (result.status === 409) return { kind: "busy", error: (data && data.error) || "another step is running" };
-  throw new Error((data && data.error) || (result.response.status + " " + result.response.statusText));
-}
+// setupStreams holds the open job streams, by step id.
+const setupStreams = {};
 
-// runStep starts a step and shows its progress under it.
-async function runStep(step, onRefresh) {
-  const box = stepProgressBox(step.id);
-  if (!box) return;
-  put(box, h("span.spin"), " starting…");
-  let res;
+/**
+ * runSetupStep starts one step of the checklist. The server answers with a
+ * job; the job stream carries the output and the end of the work.
+ */
+async function runSetupStep(step, options = {}) {
+  const id = step.id;
+  setupProgress[id] = { phase: "Starting…", pct: 0 };
+  setupLogs[id] = [];
+  paintSetupProgress(id);
+  let job = null;
   try {
-    res = await startStep(step.id);
+    job = await api("/api/onboarding/" + encodeURIComponent(id) + "/run", { method: "POST", body: {} });
   } catch (e) {
-    put(box, h("div.err", String(e.message || e)));
+    setupProgress[id] = { phase: "Failed: " + (e.message || e), pct: 0, failed: true };
+    paintSetupProgress(id);
     return;
   }
-  if (res.kind === "root") {
-    put(box, h("div.err", "This step needs root. Run the command above in a terminal, then re-check."));
+  if (!job || job.root_required) {
+    setupProgress[id] = { phase: "This step needs root. Run it in a terminal, then re-check.", pct: 0, failed: true };
+    paintSetupProgress(id);
     return;
   }
-  if (res.kind === "busy") {
-    put(box, h("div.err", res.error + ". Wait for it to finish, then run this step again."));
-    return;
-  }
-  followJob(res.job, box, onRefresh);
+  followSetupJob(step, job, options);
 }
 
-// stepProgressBox returns the box under a step where its progress goes.
-function stepProgressBox(id) {
-  const el = document.querySelector('[data-step="' + id + '"] .progress');
-  return el || null;
-}
-
-// followJob follows the output of a job: one line per event, then the job
-// document when it ends.
-function followJob(job, box, onRefresh) {
-  const sentence = h("p.progress-sentence", { "aria-live": "polite" }, job.phase || "working…");
-  const lines = h("div.log-lines");
-  put(box, sentence, lines);
-  let es;
-  const finish = (name, doc) => {
-    es.close();
-    put(box, h("p.progress-sentence", { "aria-live": "polite" },
-      name === "done" ? "Done." : "Failed: " + ((doc && doc.error) || "the step did not finish")));
-    if (onRefresh) onRefresh();
+/** followSetupJob follows the output of a job and refreshes the checklist
+ *  when the job ends. */
+function followSetupJob(step, job, options) {
+  const id = step.id;
+  const stop = () => {
+    const stream = setupStreams[id];
+    if (stream) {
+      stream.close();
+      delete setupStreams[id];
+    }
   };
-  es = openJobEvents(job.id, {
+  const finish = (name, raw) => {
+    stop();
+    let doc = null;
+    try { doc = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (e) { doc = null; }
+    const previous = setupProgress[id] || {};
+    if (name === "done") {
+      setupProgress[id] = { phase: "Done.", pct: 100 };
+    } else {
+      setupProgress[id] = {
+        phase: "Failed: " + ((doc && doc.error) || "the step did not finish."),
+        pct: previous.pct || 0,
+        failed: true,
+      };
+      if (doc && Array.isArray(doc.lines) && doc.lines.length) setupLogs[id] = doc.lines.slice();
+    }
+    paintSetupProgress(id);
+    if (options.onRefresh) options.onRefresh();
+  };
+  const stream = openJobEvents(job.id, {
     line: (ev) => {
-      sentence.textContent = ev.data;
-      lines.append(h("div", ev.data));
+      const text = ev.data || "";
+      if (!setupLogs[id]) setupLogs[id] = [];
+      setupLogs[id].push(text);
+      const current = setupProgress[id] || (setupProgress[id] = {});
+      current.phase = text;
+      paintSetupProgress(id);
+      loadSetupJobProgress(job.id, id);
+      if (options.onRefresh) options.onRefresh();
     },
-    done: (ev) => finish("done", JSON.parse(ev.data)),
-    failed: (ev) => finish("failed", JSON.parse(ev.data)),
+    done: (ev) => finish("done", ev.data),
+    failed: (ev) => finish("failed", ev.data),
   });
+  setupStreams[id] = stream;
+  loadSetupJobProgress(job.id, id);
+}
+
+/** loadSetupJobProgress reads the numbers of a running job: the phase, the
+ *  fraction and the rate of the work. */
+async function loadSetupJobProgress(jobID, stepID) {
+  let job = null;
+  try { job = await api("/api/jobs/" + encodeURIComponent(jobID)); } catch (e) { return; }
+  const p = job && job.progress;
+  if (!p) return;
+  const current = setupProgress[stepID] || (setupProgress[stepID] = {});
+  current.pct = setupProgressPercent(p);
+  current.detail = setupProgressDetail(p, current.pct);
+  if (p.phase) current.phase = p.phase;
+  else if (!current.phase) current.phase = setupProgressSentence(p);
+  paintSetupProgress(stepID);
+}
+
+/** setupProgressPercent is the fraction of the work that is done, in
+ *  percent. Bytes come first; files are the fallback. */
+function setupProgressPercent(p) {
+  let done = 0;
+  let total = 0;
+  if (p.bytes_total) {
+    done = p.bytes_done || 0;
+    total = p.bytes_total;
+  } else if (p.files_total) {
+    done = p.files_done || 0;
+    total = p.files_total;
+  }
+  if (!total) return 0;
+  return Math.max(0, Math.min(100, Math.round((done * 100) / total)));
+}
+
+/** setupProgressSentence names the work in one plain sentence. */
+function setupProgressSentence(p) {
+  if (p.phase) return p.phase;
+  if (p.files_total) {
+    return "Downloading the model weights, " + (p.files_done || 0) + " of " + p.files_total + " files.";
+  }
+  if (p.bytes_total) {
+    return "Downloading the model weights, " + bytes(p.bytes_done || 0) + " of " + bytes(p.bytes_total) + ".";
+  }
+  return "Working…";
+}
+
+/** setupProgressDetail is the line under the bar: the percent, the size,
+ *  the rate and the time that is left. */
+function setupProgressDetail(p, pct) {
+  let text = pct + "%";
+  if (p.bytes_total) {
+    text += " - " + bytes(p.bytes_done || 0) + " of " + bytes(p.bytes_total);
+    if (p.rate_bps) text += " at " + setupRate(p.rate_bps);
+  } else if (p.files_total) {
+    text += " - " + (p.files_done || 0) + " of " + p.files_total + " files";
+  }
+  if (p.eta_s) text += " - about " + setupDuration(p.eta_s) + " left";
+  return text;
+}
+
+/** setupRate is a download rate in one unit. */
+function setupRate(bps) {
+  if (bps >= 1000 * 1000) return (bps / (1000 * 1000)).toFixed(1) + " MB/s";
+  if (bps >= 1000) return (bps / 1000).toFixed(1) + " kB/s";
+  return bps + " B/s";
+}
+
+/** setupDuration is a number of seconds in words. */
+function setupDuration(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return s + " s";
+  return Math.round(s / 60) + " min";
+}
+
+/** paintSetupProgress writes the live progress into the row of a step. */
+function paintSetupProgress(id) {
+  const box = document.querySelector('[data-step="' + id + '"] .step-progress');
+  if (!box) return;
+  const p = setupProgress[id] || {};
+  const sentence = box.querySelector(".progress-sentence");
+  if (!sentence) {
+    paintSetupTimeline();
+    return;
+  }
+  sentence.textContent = p.phase || "";
+  const bar = box.querySelector(".step-bar");
+  if (bar) {
+    const pct = typeof p.pct === "number" ? p.pct : 0;
+    bar.setAttribute("aria-valuenow", String(pct));
+    const fill = bar.querySelector("i");
+    if (fill) fill.style.width = pct + "%";
+  }
+  const detail = box.querySelector(".step-progress-detail");
+  if (detail) detail.textContent = p.detail || "";
+  const lines = setupLogs[id] || [];
+  let log = box.querySelector(".step-log");
+  if (lines.length && !log) {
+    paintSetupTimeline();
+    return;
+  }
+  if (!log) return;
+  while (log.childElementCount > lines.length) log.lastElementChild.remove();
+  while (log.childElementCount < lines.length) log.append(h("div", ""));
+  lines.forEach((line, i) => {
+    if (log.children[i].textContent !== line) log.children[i].textContent = line;
+  });
+}
+
+/** setupStopStreams closes the job streams of the tab. */
+function setupStopStreams() {
+  for (const id of Object.keys(setupStreams)) {
+    const stream = setupStreams[id];
+    if (stream) stream.close();
+  }
+  for (const id of Object.keys(setupStreams)) delete setupStreams[id];
 }

@@ -1,111 +1,289 @@
+// The recipe chooser and the plan of the picked recipe.
 "use strict";
-// ---------- Recipes ----------
 
-const recipeUI = { list: null, sel: null };
-
-async function renderSetupRecipes(root) {
-  put(root, loading());
-  const head = stateHead("Recipes");
+/** loadSetupRecipes reads the recipes of the host and paints the chooser. */
+async function loadSetupRecipes() {
+  const box = setupState.recipeBox;
+  if (!box) return;
+  let list = null;
   try {
-    [recipeUI.list] = await Promise.all([api("/api/recipes"), loadHW().catch(() => null)]);
-  } catch (e) { put(root, head, failed(e)); return; }
-  const recipes = recipeUI.list.recipes || [];
-  const errors = recipeUI.list.errors || [];
-  const fits = recipes.filter((r) => r.fit && r.fit.status === "fits").length;
-  setHead(head, recipes.length + (recipes.length === 1 ? " recipe" : " recipes") + (fits ? ", " + fits + " fit this host" : ""),
-    fits ? "A recipe is a model, the flags it needs and the way it is served. Pick one to see the exact command it runs." : "A recipe is a model, the flags it needs and the way it is served. None of them fits this host yet: the doctor below says what is missing.");
-  const detail = h("div.card.detail", cardHead("Plan"), emptyState("No recipe is selected.", "Pick a recipe on the left to see the model it serves, the flags it needs and the exact command it runs."));
-  const rows = recipes.map((r) => {
-    const tr = h("tr.click", { onclick: () => { recipeUI.sel = r.id; tbody.querySelectorAll("tr").forEach((x) => x.classList.toggle("sel", x === tr)); showRecipe(detail, r); } },
-      h("td", h("b", r.id), h("div.small.muted", r.name)),
-      h("td", badge(r.status)),
-      h("td.num", r.gpus || "–"),
-      h("td.small", (r.arch || []).join(", ")),
-      h("td", h("span.badge", { class: "b-" + (r.fit && r.fit.status), title: (r.fit && r.fit.reasons || []).join("\n") }, (r.fit && r.fit.status) || "?"),
-        r.fit && r.fit.reasons && r.fit.reasons.length ? h("div.small.muted", r.fit.reasons.join("; ")) : null));
-    return tr;
-  });
-  const tbody = h("tbody", rows);
-  put(root, head, h("div.cols",
-      h("div.card", cardHead("Recipes", "/api/recipes", h("span.small.muted", recipes.length + " loaded")),
-      recipes.length ? h("div.scroll", h("table", h("thead", h("tr", h("th", "Recipe"), h("th", "Status"), h("th.num", "GPUs"), h("th", "Arch"), h("th", "Fit"))), tbody)) : emptyState("There is no recipe to serve.", "A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository."),
-      errors.length ? h("div", h("h3", "Load errors"), errors.map((e) => h("div.err.small", (e.source || "") + ": " + (e.err || e.error || "")))) : null),
-    detail));
-  const pre = recipes.findIndex((r) => r.id === recipeUI.sel);
-  if (pre >= 0) rows[pre].click();
+    list = await api("/api/recipes");
+  } catch (e) {
+    put(box, h("p", "The recipes could not be read."),
+      h("p", String(e.message || e)));
+    return;
+  }
+  setupState.recipes = list;
+  const recipes = list.recipes || [];
+  const errors = list.errors || [];
+  if (!recipes.length) {
+    put(box, emptyState("There is no recipe to serve.",
+      "A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository."));
+  } else {
+    put(box, h("div.recipe-chooser", recipes.map(setupRecipeCard)));
+  }
+  if (setupState.recipeErrors) {
+    put(setupState.recipeErrors, errors.length
+      ? [h("h3", "LOAD ERRORS"), errors.map(setupRecipeError)]
+      : null);
+  }
+  if (!setupState.recipeID || !recipes.some((r) => r.id === setupState.recipeID)) {
+    const best = recipes.find((r) => r.fit && r.fit.status === "fits");
+    setupState.recipeID = best ? best.id : (recipes[0] ? recipes[0].id : "");
+  }
+  setupPaintRecipeSelection();
+  await loadSetupPlan();
 }
 
-function showRecipe(card, r) {
-  const inputs = r.inputs || {};
-  const inputEls = {};
-  const fields = Object.entries(inputs).map(([k, inp]) => {
-    inputEls[k] = h("input", { name: k, value: inp.default || "", placeholder: inp.path ? "/absolute/path" : "", required: !!inp.required });
-    return [h("label", { for: "in-" + k }, k + (inp.required ? " *" : "")), Object.assign(inputEls[k], { id: "in-" + k }),
-      inp.description ? h("div.hint", inp.description) : null];
+/** setupRecipeCard is one radio card of the chooser: the name, the status,
+ *  the cards it wants, its architecture and its fit. */
+function setupRecipeCard(recipe) {
+  const input = h("input", {
+    type: "radio",
+    name: "setup-recipe",
+    value: recipe.id,
+    checked: recipe.id === setupState.recipeID,
+    onchange: () => setupSelectRecipe(recipe.id),
   });
-  // Container mode needs a usable Docker/Podman engine; without one only host mode is offered.
-  const engineOK = !state.hw || ((state.hw.host && state.hw.host.engines) || []).some((e) => e.usable);
-  const modes = (r.modes || ["host", "container"]).filter((m) => m !== "container" || engineOK);
-  const mode = h("select", { name: "mode" }, (modes.length > 1 ? ["", ...modes] : modes).map((m) => h("option", { value: m }, m || "auto")));
-  const name = h("input", { name: "name", placeholder: r.id });
-  const sets = h("textarea", { rows: 3, placeholder: "args.max-model-len=32768\nenv.VLLM_RDNA_AR=0" });
-  const out = h("div");
-  const collect = () => {
-    const s = [];
-    for (const [k, el] of Object.entries(inputEls)) if (el.value !== "") s.push(k + "=" + el.value);
-    for (const line of sets.value.split("\n")) if (line.trim()) s.push(line.trim());
-    return s;
-  };
-  const preview = async () => {
-    put(out, loading());
-    const q = new URLSearchParams();
-    for (const s of collect()) q.append("set", s);
-    if (mode.value) q.set("mode", mode.value);
-    try {
-      put(out, planView(await api(`/api/recipes/${encodeURIComponent(r.id)}/plan?` + q)));
-    } catch (e) { put(out, failed(e)); }
-  };
-  const start = async (ev) => {
-    ev.target.disabled = true;
-    try {
-      const rec = await api("/api/runs", { method: "POST", body: { recipe: r.id, set: collect(), mode: mode.value, name: name.value } });
-      toast(`Started run ${rec.name} on port ${rec.port}.`, true);
-      location.hash = "#logs";
-    } catch (e) { toast("Start failed: " + e.message); }
-    ev.target.disabled = false;
-  };
-  put(card, cardHead("Plan: " + r.id, "/api/recipes/" + encodeURIComponent(r.id) + "/plan"),
-    h("div.small.muted", r.model || ""),
-    h("form.f", { onsubmit: (e) => { e.preventDefault(); preview(); } },
-      fields,
-      h("label", "mode"), mode,
-      h("label", "run name"), name,
-      h("label.full", "Overrides (--set KEY=VALUE, one per line)"), h("div.full", sets),
-      h("div.full.row", h("button", { type: "submit" }, "Preview plan"), h("button.primary", { type: "button", onclick: start }, "Start"))),
-    out);
-  preview();
+  return h("label.recipe-card", { class: "recipe-card" + (recipe.id === setupState.recipeID ? " picked" : "") },
+    input,
+    h("h3", recipe.name || recipe.id),
+    h("div.recipe-meta",
+      h("span.recipe-status", recipe.status || ""),
+      h("span.recipe-need", recipe.gpus ? recipe.gpus + " GPUs" : "any number of GPUs"),
+      h("span.recipe-arch", (recipe.arch || []).join(", ") || "any architecture")),
+    h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, setupFitLine(recipe)));
 }
 
-function planView(plan) {
-  const ex = plan.exec || {};
-  const argv = ex.argv && ex.argv.length ? ex.argv : ["vllm", "serve", ...(plan.args || [])];
-  const envRows = ex.env && ex.env.length
-    ? ex.env.map((kv) => { const i = kv.indexOf("="); return [kv.slice(0, i), kv.slice(i + 1)]; })
-    : Object.entries(plan.env || {});
-  const rows = envRows.sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => h("tr", h("td.mono", k), h("td.mono", v)));
-  const kv = [["Mode", plan.mode], ["Model", plan.model], ["Served name", plan.served_name], ["Address", plan.host && plan.port ? plan.host + ":" + plan.port : plan.port],
-    ["GPUs", plan.hip_devices], ["Selection", plan.gpu_select_reason], ["Image", plan.image], ["shm", plan.shm_size], ["TunableOp", plan.tunableop_profile],
-    ["Path inputs", (plan.path_inputs || []).join(", ")], ["Directory", ex.dir], ["Unset", (ex.unset || []).join(", ")]].filter(([, v]) => v != null && v !== "");
-  const settings = (plan.settings || []).map((s) => h("tr",
-    h("td.mono", s.setting),
-    h("td", h("div.mono", s.value == null || s.value === "" ? "–" : String(s.value)),
-      s.why ? h("div.small.muted", s.why) : null)));
-  return h("div",
-    (plan.warnings || []).map((w) => h("div.err.small", "⚠ " + w)),
-    h("h3", "Command"),
-      cmdBlock(argv.map(sh).join(" "), "Copy the launch command"),
-    h("dl.kv", kv.map(([k, v]) => [h("dt", k), h("dd", String(v))])),
-    settings.length ? [h("h3", "Settings and reasons"), h("div.scroll", h("table",
-      h("thead", h("tr", h("th", "Setting"), h("th", "Value"))), h("tbody", settings)))] : null,
-    rows.length ? [h("h3", ex.env && ex.env.length ? "Environment (added)" : "Environment"), h("div.scroll", h("table", h("tbody", rows)))] : null);
+/** setupRecipeError is one recipe file that did not load. */
+function setupRecipeError(error) {
+  return h("div.recipe-error", h("span.recipe-error-source", error.source || "recipe"),
+    h("span.recipe-error-text", error.error || error.err || "the file did not load"));
+}
+
+/** setupFitStatus is the fit of a recipe: fits, no or unknown. */
+function setupFitStatus(recipe) {
+  return (recipe.fit && recipe.fit.status) || "unknown";
+}
+
+/** setupFitLine is the fit of a recipe in one line, with the reason. */
+function setupFitLine(recipe) {
+  const status = setupFitStatus(recipe);
+  const reasons = (recipe.fit && recipe.fit.reasons) || [];
+  if (status === "unknown") return "fit: unknown - No GPU data on this host.";
+  if (status === "no") return "no: " + (reasons.join("; ") || "this recipe does not fit this host.");
+  const need = (recipe.arch || []).join(", ") || "any architecture";
+  const gpus = recipe.gpus ? recipe.gpus + " GPUs" : "any number of GPUs";
+  let line = "fits: " + need + ", " + gpus;
+  if (reasons.length) line += " - " + reasons.join("; ");
+  return line;
+}
+
+/** setupSelectRecipe picks a recipe and builds its plan again. */
+async function setupSelectRecipe(id) {
+  setupState.recipeID = id;
+  const recipe = (setupState.recipes && setupState.recipes.recipes || []).find((r) => r.id === id);
+  const modes = (recipe && recipe.modes) || ["host"];
+  setupState.mode = modes.includes(setupState.mode) ? setupState.mode : modes[0];
+  setupState.sets = [];
+  setupPaintRecipeSelection();
+  await loadSetupPlan();
+}
+
+/** setupPaintRecipeSelection marks the picked recipe in the chooser. */
+function setupPaintRecipeSelection() {
+  const cards = setupState.recipeBox ? setupState.recipeBox.querySelectorAll(".recipe-card") : [];
+  cards.forEach((card) => {
+    const input = card.querySelector("input");
+    const picked = input && input.value === setupState.recipeID;
+    card.classList.toggle("picked", picked);
+    if (input) input.checked = picked;
+  });
+}
+
+/** loadSetupPlan reads the plan of the picked recipe and paints it. */
+async function loadSetupPlan() {
+  const box = setupState.planBox;
+  if (!box || !setupState.recipeID) return;
+  const recipe = setupRecipe();
+  put(box, loading());
+  const query = new URLSearchParams();
+  query.set("mode", setupState.mode);
+  for (const set of setupState.sets) query.append("set", set);
+  let plan = null;
+  try {
+    plan = await api("/api/recipes/" + encodeURIComponent(setupState.recipeID) + "/plan?" + query.toString());
+  } catch (e) {
+    put(box, h("h3", setupState.recipeID),
+      h("p", "The plan could not be built."),
+      h("p", String(e.message || e)),
+      h("button", { type: "button", onclick: loadSetupPlan }, "Try again"));
+    return;
+  }
+  setupState.plan = plan;
+  put(box, setupPlanView(plan, recipe));
+}
+
+/** setupRecipe is the picked recipe of the listing. */
+function setupRecipe() {
+  const recipes = (setupState.recipes && setupState.recipes.recipes) || [];
+  return recipes.find((r) => r.id === setupState.recipeID) || null;
+}
+
+/** setupPlanView is the plan card: the recipe, its fit, the mode, the
+ *  command, the cards it uses, the settings with their reasons and the
+ *  button that starts the server. */
+function setupPlanView(plan, recipe) {
+  const modes = (recipe && recipe.modes) || [plan.mode || "host"];
+  const card = h("div.recipe-plan",
+    h("div.recipe-plan-head",
+      h("h3", (recipe && (recipe.name || recipe.id)) || plan.recipe || "Plan"),
+      h("div.segmented-control", { role: "group", "aria-label": "The mode of the server" },
+        modes.map((m) => h("button", {
+          type: "button",
+          class: m === setupState.mode ? "active" : "",
+          "aria-pressed": String(m === setupState.mode),
+          onclick: () => setupSwitchMode(m),
+        }, m)))),
+    h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, recipe ? setupFitLine(recipe) : "fit: unknown"),
+    setupPlanOverrides(recipe),
+    (plan.warnings || []).map((w) => h("p.recipe-warning", w)),
+    h("h4", "The launch command"),
+    cmdBlock(setupPlanCommand(plan), "Copy the launch command"),
+    h("div.recipe-gpus",
+      h("span.recipe-gpus-label", "GPUs"),
+      h("span.recipe-gpus-value", (plan.gpus || []).length ? (plan.gpus || []).join(", ") : "–"),
+      plan.gpu_select_reason ? h("span.recipe-gpus-why", plan.gpu_select_reason) : null),
+    setupPlanSettings(plan),
+    setupPlanAdjustments(plan),
+    h("div.recipe-plan-actions",
+      h("button", {
+        type: "button",
+        class: setupState.primaryOwner === "plan" ? "primary" : "",
+        onclick: startSetupRecipe,
+      }, "Start the server")));
+  return card;
+}
+
+/** setupPlanCommand is the exact command of the plan. */
+function setupPlanCommand(plan) {
+  if (plan.command) return plan.command;
+  const exec = plan.exec || {};
+  if (Array.isArray(exec.argv) && exec.argv.length) return exec.argv.map(setupQuote).join(" ");
+  return "bernie serve " + (plan.recipe || setupState.recipeID) + " --mode " + (plan.mode || setupState.mode);
+}
+
+/** setupQuote makes one argument safe for a terminal. */
+function setupQuote(arg) {
+  const text = String(arg == null ? "" : arg);
+  return /^[A-Za-z0-9_@%+=:,./-]+$/.test(text) ? text : "'" + text.replace(/'/g, "'\\''") + "'";
+}
+
+/** setupPlanSettings lists every setting of the plan with its reason. */
+function setupPlanSettings(plan) {
+  const settings = plan.settings || [];
+  if (!settings.length) return null;
+  return h("div.recipe-settings",
+    h("h4", "The settings"),
+    settings.map((s) => h("div.recipe-setting",
+      h("span.recipe-setting-name", s.setting),
+      h("span.recipe-setting-value", s.value == null || s.value === "" ? "–" : String(s.value)),
+      s.why ? h("span.recipe-setting-why", s.why) : null)));
+}
+
+/** setupPlanAdjustments lists what the plan changed to fit this host. */
+function setupPlanAdjustments(plan) {
+  const adjustments = plan.adjustments || [];
+  if (!adjustments.length) return null;
+  return h("div.recipe-adjustments",
+    h("h4", "What the plan changed"),
+    adjustments.map((a) => {
+      if (typeof a === "string") return h("div.recipe-adjustment", a);
+      const what = a.what || a.setting || a.path || "";
+      return h("div.recipe-adjustment",
+        h("span.recipe-adjustment-what", what),
+        a.why ? h("span.recipe-adjustment-why", a.why) : null);
+    }));
+}
+
+/** setupPlanOverrides are the inputs of the recipe and the extra settings
+ *  the operator wants. A change builds the plan again. */
+function setupPlanOverrides(recipe) {
+  if (!recipe) return null;
+  const inputs = recipe.inputs || {};
+  const fields = Object.keys(inputs).sort().map((name) => {
+    const input = inputs[name];
+    const field = h("input", {
+      type: "text",
+      name: name,
+      value: setupSetValue(name, input.default || ""),
+      placeholder: input.path ? "/absolute/path" : "",
+      required: !!input.required,
+      onchange: () => setupApplyOverrides(),
+    });
+    return h("label.recipe-input", h("span.recipe-input-name", name + (input.required ? " *" : "")), field);
+  });
+  const extra = h("textarea", {
+    rows: 2,
+    placeholder: "args.max-model-len=32768",
+    onchange: () => setupApplyOverrides(),
+  });
+  extra.value = setupExtraSets(inputs).join("\n");
+  return h("div.recipe-overrides", fields,
+    h("label.recipe-input", h("span.recipe-input-name", "Overrides"), extra));
+}
+
+/** setupSetValue is the value of one input of the recipe. */
+function setupSetValue(name, fallback) {
+  const prefix = name + "=";
+  const found = setupState.sets.find((s) => s.startsWith(prefix));
+  return found ? found.slice(prefix.length) : fallback;
+}
+
+/** setupExtraSets are the overrides that are not an input of the recipe. */
+function setupExtraSets(inputs) {
+  const names = Object.keys(inputs || {});
+  return setupState.sets.filter((s) => !names.some((n) => s.startsWith(n + "=")));
+}
+
+/** setupApplyOverrides reads the fields of the plan and builds it again. */
+async function setupApplyOverrides() {
+  const box = setupState.planBox;
+  if (!box) return;
+  const sets = [];
+  const fields = box.querySelectorAll(".recipe-overrides input");
+  fields.forEach((field) => {
+    if (field.value !== "") sets.push(field.name + "=" + field.value);
+  });
+  const extra = box.querySelector(".recipe-overrides textarea");
+  if (extra) {
+    for (const line of extra.value.split("\n")) {
+      if (line.trim()) sets.push(line.trim());
+    }
+  }
+  setupState.sets = sets;
+  await loadSetupPlan();
+}
+
+/** setupSwitchMode changes the mode of the plan and builds it again. */
+async function setupSwitchMode(mode) {
+  if (mode === setupState.mode) return;
+  setupState.mode = mode;
+  await loadSetupPlan();
+}
+
+/** startSetupRecipe starts the server of the picked recipe. */
+async function startSetupRecipe() {
+  const recipe = setupRecipe();
+  if (!recipe) return;
+  try {
+    const run = await api("/api/runs", {
+      method: "POST",
+      body: { recipe: recipe.id, set: setupState.sets, mode: setupState.mode },
+    });
+    toast("Started " + (run.name || recipe.id) + ".", true);
+    if (setupState.onRefresh) setupState.onRefresh();
+  } catch (e) {
+    toast("Start failed: " + (e.message || e));
+  }
 }
