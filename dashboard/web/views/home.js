@@ -8,16 +8,27 @@
 // homeDoc is the onboarding document of the last read.
 let homeDoc = null;
 
+// checking is the state of a card whose answer takes a moment: it names the
+// phase instead of showing nothing.
+function checking(phase) {
+  return h("div.empty", h("span.spin"), " " + phase);
+}
+
 async function viewHome(root) {
   const actions = h("div.head-actions");
   const head = stateHead("Home", actions);
   const factsCard = h("div.card.hero", cardHead("This machine", "/api/hw"), loading());
-  const stepsCard = h("div.card", cardHead("The path to a serving model", "/api/onboarding"), loading());
+  const stepsCard = h("div.card", cardHead("The path to a serving model", "/api/onboarding"), checking("checking the host…"));
   const docCard = h("div.card", cardHead("Doctor", "/api/doctor"), loading());
   const runCard = h("div.card", cardHead("Runs", "/api/runs"), loading());
   const hostCard = h("div.card", cardHead("Host", "/api/hw"), loading());
   put(root, head, factsCard, stepsCard, advancedPanel(),
     h("div.cols", h("div", docCard, h("div.gap"), runCard), hostCard));
+
+  // The checklist is the slow answer: the headline names the phase instead
+  // of showing a dot.
+  setHead(root.querySelector(".state-head"), "Checking this machine…",
+    "bernie reads the host: the GPUs, the driver, the ROCm runtime, the Python environment and the runs.");
 
   loadDoctor(docCard);
   api("/api/runs").then((d) => put(runCard, cardHead("Runs", "/api/runs", h("a.small", { href: "#runs" }, "manage")), runsTable(runsOf(d), true)))
@@ -41,6 +52,9 @@ async function refreshHome(root, stepsCard, factsCard, actions) {
   }
   homeDoc = doc;
   const say = homeHeadline(doc);
+  if (doc.stale) {
+    say.lede = "The checklist is " + doc.facts_age_s + " seconds old; bernie is checking the host again. " + say.lede;
+  }
   setHead(root.querySelector(".state-head"), say.title, say.lede);
   put(factsCard, cardHead("This machine", "/api/hw"), homeFacts(doc));
   put(stepsCard, cardHead("The path to a serving model", "/api/onboarding",
