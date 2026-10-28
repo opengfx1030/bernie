@@ -29,7 +29,6 @@ view of the CLI. It adds no logic.
    `index.html`. Go files follow the repo limit.
 9. **Same names as the CLI.** A field on the page has the JSON name of the
    CLI output.
-10. **Names.** Do not name other products in code, text or commits.
 
 ## Where to change what
 
