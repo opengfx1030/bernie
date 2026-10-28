@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt + vet
+        run: make lint
+      - name: test
+        run: go test -race ./...
+      - name: linux static build
+        run: make linux
+      - name: smoke
+        run: |
+          ./bin/rdnactl-linux-amd64 version
+          ./bin/rdnactl-linux-amd64 --json recipe validate
+          ./bin/rdnactl-linux-amd64 --json hw > /dev/null
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

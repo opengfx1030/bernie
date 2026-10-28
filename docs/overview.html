@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rdnactl — visual overview</title>
+<style>
+  :root { --bg:#0f1115; --fg:#e6e6e6; --muted:#9aa3ad; --card:#171a21; --border:#2a2f3a; --accent:#e4572e; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  @media (prefers-color-scheme: light) { :root { --bg:#fafafa; --fg:#1b1f24; --muted:#57606a; --card:#fff; --border:#d0d7de; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:28px 24px 8px; max-width:1100px; margin:auto; }
+  h1 { margin:0 0 4px; font-size:28px; } h1 span { color:var(--accent); }
+  h2 { font-size:18px; margin:0 0 12px; }
+  p.lead { color:var(--muted); margin:0; }
+  main { max-width:1100px; margin:auto; padding:8px 24px 48px; display:grid; gap:20px; }
+  section { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .step { border:1px solid var(--border); border-radius:8px; padding:10px 12px; cursor:pointer; min-width:120px; }
+  .step.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .step b { display:block; } .step small { color:var(--muted); }
+  .arrow { color:var(--muted); }
+  pre { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; overflow:auto; margin:10px 0 0; font-size:13px; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
+  .layer { border:1px dashed var(--border); border-radius:8px; padding:10px; margin-bottom:8px; }
+  .layer h3 { margin:0 0 6px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .pkg { display:inline-block; border:1px solid var(--border); border-radius:6px; padding:3px 8px; margin:3px; font:13px ui-monospace, monospace; cursor:pointer; }
+  .pkg:hover, .pkg.active { border-color:var(--accent); }
+  #pkgdesc { color:var(--muted); min-height:3em; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  td, th { border-bottom:1px solid var(--border); padding:6px 8px; text-align:left; }
+  .cls { font-weight:600; } .PIX{color:var(--ok)} .PXB{color:#58a6ff} .PHB{color:var(--warn)} .SYS{color:var(--bad)}
+  .merge { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  .merge pre { margin:0; }
+  .merge h4 { margin:0 0 6px; font-size:13px; color:var(--muted); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>rdnactl</span> — vLLM on AMD ROCm, one binary</h1>
+  <p class="lead">Check the host, install the stack, launch a recipe, tune, benchmark, watch. Every step is a CLI command with <code>--json</code>; the dashboard is a view over the same code.</p>
+</header>
+<main>
+  <section>
+    <h2>The path from bare metal to tokens (click a step)</h2>
+    <div class="flow" id="flow"></div>
+    <pre id="flowcmd"></pre>
+  </section>
+
+  <section class="grid2">
+    <div>
+      <h2>Code layers (click a package)</h2>
+      <div class="layer"><h3>Front ends</h3><span class="pkg">cli</span><span class="pkg">dashboard</span></div>
+      <div class="layer"><h3>Domain</h3><span class="pkg">doctor</span><span class="pkg">setup</span><span class="pkg">recipe</span><span class="pkg">runner</span><span class="pkg">tuning</span><span class="pkg">bench</span><span class="pkg">vllm</span><span class="pkg">host</span><span class="pkg">gpu</span><span class="pkg">rocm</span><span class="pkg">topo</span></div>
+      <div class="layer"><h3>Base</h3><span class="pkg">paths</span><span class="pkg">execx</span><span class="pkg">config</span></div>
+      <div class="layer"><h3>Embedded data</h3><span class="pkg">recipes/</span><span class="pkg">tunableop/</span><span class="pkg">web/</span></div>
+      <p id="pkgdesc">Front ends format. Domain packages decide. Base packages touch the OS. Data ships inside the binary.</p>
+    </div>
+    <div>
+      <h2>PCIe link classes (<code>rdnactl topo</code>)</h2>
+      <table>
+        <tr><th>Class</th><th>Path between two GPUs</th><th>For TP</th></tr>
+        <tr><td class="cls PIX">PIX</td><td>Same PCIe switch</td><td>Best. Put a TP group here.</td></tr>
+        <tr><td class="cls PXB">PXB</td><td>Several switches, no root complex</td><td>Good.</td></tr>
+        <tr><td class="cls PHB">PHB</td><td>Through one root complex</td><td>Slower all-reduce.</td></tr>
+        <tr><td class="cls SYS">SYS</td><td>Across root complexes / sockets</td><td>Avoid for TP; check P2P.</td></tr>
+      </table>
+      <p style="color:var(--muted)">When a recipe does not pin <code>HIP_VISIBLE_DEVICES</code>, rdnactl picks GPUs of the right arch that share a switch.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>How a recipe becomes a launch</h2>
+    <div class="merge">
+      <div><h4>_base.yaml (fragment)</h4><pre>env:
+  VLLM_ROCM_USE_AITER: "0"
+  GPU_MAX_HW_QUEUES: "2"
+args:
+  dtype: float16</pre></div>
+      <div><h4>27b-awq.yaml</h4><pre>extends: [_base, _attn-fa]
+model:
+  source: org/Qwen3.8-27B-AWQ
+requires: {arch: [gfx1030], gpus: 4}
+args:
+  tensor-parallel-size: 4
+  enable-prefix-caching: true</pre></div>
+      <div><h4>--set overrides</h4><pre>--set args.max-model-len=32768
+--set env.GPU_MAX_HW_QUEUES=4</pre></div>
+      <div><h4>plan (rdnactl recipe plan)</h4><pre>export GPU_MAX_HW_QUEUES=4
+export HIP_VISIBLE_DEVICES=2,3,4,5
+vllm serve org/Qwen3.8-27B-AWQ \
+  --attention-backend RDNA_ATTN \
+  --dtype float16 \
+  --enable-prefix-caching \
+  --max-model-len 32768 \
+  --tensor-parallel-size 4</pre></div>
+    </div>
+    <p style="color:var(--muted)">Maps merge, lists replace, <code>null</code> deletes. Full rules: <a href="spec.md">spec.md §7</a> and <a href="recipes.md">recipes.md</a>.</p>
+  </section>
+
+  <section>
+    <h2>Read next</h2>
+    <p><a href="../README.md">README</a> · <a href="spec.md">Specification</a> · <a href="architecture.md">Architecture</a> · <a href="recipes.md">Recipes</a> · <a href="../CONTRIBUTING.md">Contributing</a> · <a href="https://blivioniag.github.io/gfx1030-wiki/">gfx1030 wiki</a></p>
+  </section>
+</main>
+<script>
+const steps = [
+  ["rdnactl", "just run it", "rdnactl        # status: GPUs, problems, best recipe, next command\nrdnactl up     # every step below, one confirmation, stops at root steps"],
+  ["doctor", "what is missing", "rdnactl doctor\n# fail = blocks a launch, warn = costs speed, each with the fix for your distro\nrdnactl doctor --json | jq '.checks[] | select(.status==\"fail\")'"],
+  ["hw / topo", "GPUs and PCIe", "rdnactl hw\nrdnactl topo --bandwidth"],
+  ["setup", "install the stack", "rdnactl setup plan --mode container\nrdnactl setup apply --mode container   # root steps are printed, never run"],
+  ["recipe", "pick and preview", "rdnactl recipe list\nrdnactl recipe plan flashnext-mtp2 --set PLE_QUANT_DIR=/data/ples_int4"],
+  ["serve", "start vLLM", "rdnactl serve flashnext-mtp2 --set PLE_QUANT_DIR=/data/ples_int4\nrdnactl ps\nrdnactl logs -f"],
+  ["tune", "TunableOp, power", "rdnactl tune tunableop status\nrdnactl tune power set 180"],
+  ["bench", "measure", "rdnactl bench --input-len 16384 --output-len 1024 --concurrency 1,8"],
+  ["dash", "watch", "rdnactl dash --listen 0.0.0.0:7860   # token printed at start"],
+];
+const flow = document.getElementById("flow"), cmd = document.getElementById("flowcmd");
+steps.forEach(([name, sub, text], i) => {
+  if (i) flow.insertAdjacentHTML("beforeend", '<span class="arrow">→</span>');
+  const el = document.createElement("div");
+  el.className = "step"; el.innerHTML = `<b>${name}</b><small>${sub}</small>`;
+  el.onclick = () => { document.querySelectorAll(".step").forEach(s => s.classList.remove("active")); el.classList.add("active"); cmd.textContent = text; };
+  flow.appendChild(el);
+  if (!i) el.click();
+});
+const desc = {
+  cli: "Router and one cmd_<name>.go per command. Parses flags, calls a domain package, prints text or --json.",
+  dashboard: "net/http server, token auth, SSE telemetry. Calls the same domain packages as the CLI.",
+  doctor: "Builds checks from host, gpu, rocm, topo and tuning. Status ok/warn/fail/skip with a fix.",
+  setup: "Ordered install steps per mode and package manager. Runs non-root steps only.",
+  recipe: "Loads YAML, resolves extends, applies --set, checks fit, selects GPUs, renders the plan.",
+  runner: "Starts the plan as a host process or a container. Run records, logs, stop.",
+  tuning: "TunableOp profiles keyed by rocBLAS sha256; GPU power cap.",
+  bench: "Streaming OpenAI benchmark: TTFT, ITL, tok/s per concurrency. Saves results.",
+  vllm: "Client for /health, /v1/models, /tokenize, /metrics.",
+  host: "Distro, package manager, CPU, RAM, groups, container engines.",
+  gpu: "GPUs from KFD + DRM sysfs; telemetry samples.",
+  rocm: "ROCm installs, tools, libraries; venv probe (torch, vllm, fork ops).",
+  topo: "PCIe tree, link classes, P2P, bandwidth.",
+  paths: "XDG config/state/data/cache. Never /tmp.",
+  execx: "External commands with timeouts.",
+  config: "~/.config/rdnactl/config.yaml defaults.",
+  "recipes/": "Built-in recipes and _fragments, embedded in the binary.",
+  "tunableop/": "TunableOp rows per rocBLAS build, embedded.",
+  "web/": "Dashboard HTML/CSS/JS, no build step, embedded.",
+};
+document.querySelectorAll(".pkg").forEach(p => p.onclick = () => {
+  document.querySelectorAll(".pkg").forEach(x => x.classList.remove("active"));
+  p.classList.add("active");
+  document.getElementById("pkgdesc").textContent = desc[p.textContent] || "";
+});
+</script>
+</body>
+</html>
