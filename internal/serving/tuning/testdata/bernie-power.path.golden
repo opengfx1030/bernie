@@ -1,0 +1,10 @@
+[Unit]
+Description=Apply bernie GPU power caps when the desired state changes
+
+[Path]
+PathExists="/etc/bernie/power.yaml"
+PathChanged="/etc/bernie/power.yaml"
+Unit=bernie-power.service
+
+[Install]
+WantedBy=multi-user.target
