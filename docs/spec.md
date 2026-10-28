@@ -1,4 +1,4 @@
-# rdnactl specification
+# bernie specification
 
 Status: draft 1 (2026-10-28). This document is the contract. Code, tests and
 the dashboard follow it. Change this file in the same pull request as the
@@ -9,11 +9,11 @@ sentence, active voice, defined terms only (see [Terms](#terms)).
 
 ## 1. Purpose
 
-rdnactl helps an operator run vLLM on AMD ROCm GPUs. It replaces the
+bernie helps an operator run vLLM on AMD ROCm GPUs. It replaces the
 serve scripts and `.env`
 recipes of the `opengfx1030/vllm-rdna` fork with one tool.
 
-rdnactl does these tasks:
+bernie does these tasks:
 
 1. Inspect the host: hardware, PCIe topology, ROCm, libraries, containers.
 2. Report what is missing, and give the fix for the host's package manager.
@@ -31,10 +31,10 @@ rdnactl does these tasks:
 - **Machine-readable.** Every command accepts `--json` and then writes exactly
   one JSON document to stdout. Agents and scripts use this mode.
 - **One static binary.** The binary embeds the built-in recipes, the TunableOp
-  rows and the dashboard assets. The target host needs no Python, Node or Go
-  to run rdnactl.
+  rows, the tuned-MoE configs, the device tables and the dashboard assets. The
+  target host needs no Python, Node or Go to run bernie.
 - **Read-only by default.** Inspection commands never change the host.
-  Commands that change the host print the plan first. rdnactl never runs
+  Commands that change the host print the plan first. bernie never runs
   `sudo`. Steps that need root are printed as commands for the operator.
 - **Data over code.** Model and hardware knowledge lives in recipes (YAML).
   Go code holds only generic mechanics.
@@ -45,12 +45,13 @@ rdnactl does these tasks:
   engine is a normal host: container checks are `skip`, never `fail`, and
   `up` selects host mode.
 - **Never break other platforms.** A recipe declares its GPU architectures.
-  rdnactl refuses to launch a recipe on GPUs that do not match.
+  bernie refuses to launch a recipe on GPUs that do not match.
 - **Many devices.** Support covers AMD RDNA GPUs from the Radeon PRO V620 and
-  RX 6800 XT (RDNA2, gfx103x) to the RX 7900 XTX (RDNA3, gfx110x) and later.
+  RX 6800 XT (RDNA2, gfx103x) to the RX 9070 XT (RDNA4, gfx12) and later.
   Device facts live in data tables, one file per GPU generation
-  (`internal/gpu/devices/rdna2.yaml`, `rdna3.yaml`, ...). Tuning data and
-  recipes are keyed by architecture. No Go code names a device.
+  (`internal/machine/gpu/devices/rdna2.yaml`, `rdna3.yaml`, ...; see
+  [§4.4](#44-device-tables)). Tuning data and recipes are keyed by
+  architecture. No Go code names a device.
 - **Lean, readable, segmented.** See [§2.1](#21-structure-rules).
 
 ### 2.1 Structure rules
@@ -66,13 +67,19 @@ needs a reason in its description.
 3. **Segmented.** A directory has at most 12 entries (not counting
    `testdata/`, `embed.go` and `README.md`). When a directory would grow
    past 12, split it by a real axis:
+   - `internal/` by role: `machine/` (host, gpu, rocm, topo), `serving/`
+     (recipe, runner, tuning, vllm, bench) and `support/` (execx, paths,
+     config, fixture). Packages that sit on top (`cli`, `flow`, `doctor`,
+     `setup`, `logdoc`) stay at the top. Group by role when `internal/`
+     passes 12 entries;
    - recipes by model family (`recipes/flashnext/`, `recipes/qwen-dense/`),
      shared fragments by concern (`recipes/_fragments/<concern>/`);
    - tuning data by architecture, then by build
      (`tunableop/gfx1030/<profile>/`, `tuned-moe/gfx1030/`);
-   - device tables by GPU generation;
-   - CLI commands stay one file per command; a command with sub-commands
-     gets its own sub-package folder only when its files exceed the limit.
+   - device tables by GPU generation
+     (`internal/machine/gpu/devices/<generation>.yaml`);
+   - CLI commands stay one file per command, in a family package
+     (`internal/cli/cmds/<family>/cmd_<name>.go`).
 4. **Keyed by device.** Data that depends on the GPU is stored under the
    architecture it applies to. A new architecture adds a folder. It never
    edits another architecture's files.
@@ -81,6 +88,10 @@ needs a reason in its description.
    entries. Each tuning profile carries its own `profile.json` manifest.
 6. **One owner per package.** A package has one responsibility that fits
    in one sentence at the top of its `doc.go` or main file.
+7. **Honest fixtures.** A test fixture that was not captured on a real host
+   is named `<name>-synthetic.tar.gz` and has a `SYNTHETIC` file at its root.
+   `internal/support/fixture/testdata/README.md` says which values are
+   captured and which are written by hand.
 
 ## Terms
 
@@ -96,6 +107,10 @@ needs a reason in its description.
 | run | One started plan. A run has a name, a record on disk and a log. |
 | check | One doctor test with a status: `ok`, `warn`, `fail` or `skip`. |
 | HIP index | The GPU index that `HIP_VISIBLE_DEVICES` uses. It is the order of GPU nodes in the KFD topology. |
+| arch | A gfx target name such as `gfx1030`, or a prefix such as `gfx103`. Data and recipes are keyed by arch. |
+| generation | A GPU family: `rdna2`, `rdna3`, `rdna3.5`, `rdna4`. One device-table file per generation. |
+| code target | The gfx target whose code objects a GPU runs. It is the GPU's own arch, or the arch of its `hsa_override`. |
+| device tables | The embedded YAML files in `internal/machine/gpu/devices/`. They hold the facts of each arch and each PCI device. |
 
 ## 3. Command surface
 
@@ -104,17 +119,30 @@ needs a reason in its description.
 The whole product is one file. The operator downloads it and runs it. No
 other file, script or compose file is required.
 
-- `rdnactl` with no arguments runs `rdnactl status`. It changes nothing.
+- `bernie` with no arguments runs `bernie status`. It changes nothing.
   It prints the GPUs, the doctor summary, the best recipe for this host,
   the running runs, and the one next command to type.
-- `rdnactl up [RECIPE]` does the full path in one command. It runs the
-  doctor, applies the setup steps that do not need root, selects the best
-  recipe that fits (or RECIPE), starts it, waits until `/health` answers,
-  and starts the dashboard. It stops before a step that needs root or an
-  input, and prints what the operator must do. It asks for confirmation
-  once, unless `--yes` is given.
+- `bernie up [RECIPE]` does the full path in one command:
+  1. It runs the doctor checks of the categories `gpu` and `kernel`. A `fail`
+     stops `up` with the fix commands.
+  2. It selects the best recipe that fits (or RECIPE): fit first, then
+     `priority`, then id. A recipe with a required input and no value is
+     skipped. A named recipe with a missing input stops `up`.
+  3. It selects the mode (flag, config, else `container` when the recipe has
+     an image and an engine is usable, else `host`).
+  4. It plans the setup steps. A pending root step stops `up` and prints the
+     commands.
+  5. It asks for confirmation once, unless `--yes` is given.
+  6. It applies the non-root steps, starts the run and waits until `/health`
+     answers (`--wait`, default 30 minutes).
+  7. It starts the dashboard on `--listen` (default `127.0.0.1:7860`), unless
+     `--no-dash` is given.
+
+  A stop before step 6 ("blocked") prints what the operator must do and
+  exits with code 3.
 - With `--json`, `status` and `up` write one JSON document. `up --json`
-  never prompts; it requires `--yes` to change the host.
+  never prompts; it requires `--yes` to change the host. A blocked `up`
+  writes `{"blocked": {"reason": "", "commands": []}}`.
 
 ### 3.2 Rules
 
@@ -127,43 +155,52 @@ other file, script or compose file is required.
 
 | Command | Changes host | Purpose |
 |---|---|---|
-| `rdnactl` / `rdnactl status` | no | Overview and the next command to type. |
-| `rdnactl up [RECIPE] [--set K=V]... [--mode M] [--yes]` | yes | Doctor → setup → best recipe → serve → dashboard. |
-| `rdnactl hw` | no | Hardware and OS inventory. |
-| `rdnactl topo [--bandwidth] [--venv DIR]` | no | PCIe tree, P2P matrix, link classes. Optional bandwidth test. |
-| `rdnactl doctor [--category C]... [--venv DIR]` | no | All checks. Exit 3 if one check fails. |
-| `rdnactl setup plan [--mode M]` | no | Ordered install steps for this host. |
-| `rdnactl setup apply [--mode M] [--step ID]... [--yes]` | yes | Run the steps that do not need root. Print the root steps. |
-| `rdnactl recipe list [--all]` | no | Recipes, with fit to this host. `--all` includes recipes that do not fit. |
-| `rdnactl recipe show <id>` | no | The merged recipe (after `extends`). |
-| `rdnactl recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
-| `rdnactl recipe plan <id> [--set K=V]... [--mode M]` | no | The plan, as an exact command and environment. |
-| `rdnactl serve <id> [--set K=V]... [--mode M] [--name N] [--foreground]` | yes | Start a run. |
-| `rdnactl ps` | no | Runs, with state and health. |
-| `rdnactl stop [NAME]` | yes | Stop a run (the only run if NAME is absent). |
-| `rdnactl logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
-| `rdnactl compose <id> [--set K=V]... [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
-| `rdnactl tune tunableop list` | no | Registered TunableOp profiles. |
-| `rdnactl tune tunableop status [--venv DIR]` | no | Loaded rocBLAS build, matching profile. |
-| `rdnactl tune tunableop env [--venv DIR] [--profile P] [--tuning]` | no* | `export` lines for TunableOp (*materializes rows). |
-| `rdnactl tune power status` | no | Power cap per GPU. |
-| `rdnactl tune power set <WATTS> [--gpu IDX]...` | yes | Set the power cap. Without root, print the command. |
-| `rdnactl bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
-| `rdnactl bench list` / `bench show <ID>` | no | Saved results. |
-| `rdnactl config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
-| `rdnactl dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
-| `rdnactl version` | no | Version. |
+| `bernie` / `bernie status` | no | Overview and the next command to type. |
+| `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D]` | yes | Doctor → setup → best recipe → serve → dashboard. |
+| `bernie hw` | no | Hardware and OS inventory. |
+| `bernie topo [--bandwidth] [--venv DIR]` | no | PCIe tree, P2P matrix, link classes. Optional bandwidth test. |
+| `bernie doctor [--category C]... [--venv DIR]` | no | All checks. Exit 3 if one check fails. |
+| `bernie doctor --log FILE\|-` / `doctor --run NAME` | no | Match a vLLM log against known failures ([§5.3](#53-log-doctor)). |
+| `bernie setup plan [--mode M]` | no | Ordered install steps for this host. |
+| `bernie setup apply [--mode M] [--step ID]... [--yes]` | yes | Run the steps that do not need root. Print the root steps. |
+| `bernie recipe list [--all]` | no | Recipes, with fit to this host. `--all` includes recipes that do not fit. |
+| `bernie recipe show <id>` | no | The merged recipe (after `extends`). |
+| `bernie recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
+| `bernie recipe plan <id> [--set K=V]... [--mode M] [--name N]` | no | The plan, as an exact command and environment. |
+| `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--dry-run]` | yes | Start a run. |
+| `bernie ps` | no | Runs, with state and health. |
+| `bernie stop [NAME]` | yes | Stop a run (the only run if NAME is absent). |
+| `bernie logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
+| `bernie compose <id> [--set K=V]... [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
+| `bernie tune tunableop list` | no | Registered TunableOp profiles. |
+| `bernie tune tunableop status [--venv DIR]` | no | Loaded rocBLAS build, matching profile. |
+| `bernie tune tunableop env [--venv DIR] [--profile P] [--tuning]` | no* | `export` lines for TunableOp (*materializes rows). |
+| `bernie tune power status` | no | Power cap per GPU. |
+| `bernie tune power set <WATTS> [--gpu IDX]...` | yes | Set the power cap. Without root, print the command. |
+| `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
+| `bernie bench list` / `bench show <ID>` | no | Saved results. |
+| `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
+| `bernie dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
+| `bernie version` | no | Version. |
+
+`recipe plan`, `serve` and `compose` share the launch flags: `--set`,
+`--mode`, `--name`, `--venv`, `--engine`, `--profile` (force a TunableOp
+profile), `--no-tunableop` and `--tuning`. `serve` adds `--foreground`,
+`--no-pull` and `--dry-run` (same output as `recipe plan`). `compose` writes
+container plans only. `setup plan` and `setup apply` also take `--venv`,
+`--image` and `--model`. `status` takes `--venv`.
 
 ## 4. Host inspection (`hw`, `topo`)
 
 ### 4.1 Sources
 
-rdnactl reads sysfs and procfs first. It runs external tools only to add
+bernie reads sysfs and procfs first. It runs external tools only to add
 information. A missing tool is a `skip`, not an error.
 
 | Data | Source |
 |---|---|
 | GPUs, gfx target, HIP index | `/sys/class/kfd/kfd/topology/nodes/*/properties` (`gfx_target_version`, `location_id`, `drm_render_minor`). Nodes with `simd_count > 0` are GPUs. |
+| GPU name | The DRM `product_name`. Consumer cards have none: the device tables by PCI device id ([§4.4](#44-device-tables)), else `AMD GPU <gfx>`. |
 | PCI address, VRAM, link | `/sys/class/drm/renderD<minor>/device` → `mem_info_vram_total`, `current_link_speed`, `current_link_width`, `numa_node`. |
 | Telemetry | `gpu_busy_percent`, `mem_info_vram_used`, `hwmon/*/temp*_input`, `power1_average`, `power1_cap`. |
 | PCIe tree | The real path of the PCI device in `/sys/devices`. |
@@ -208,6 +245,49 @@ pair.
 }
 ```
 
+### 4.4 Device tables
+
+Device facts live in embedded YAML files, one per GPU generation:
+`internal/machine/gpu/devices/<generation>.yaml`. The file stem equals the
+`generation` value. The loader walks the folder. A malformed file is a build
+defect: the tests catch it.
+
+```yaml
+generation: rdna2          # equals the file stem
+wave_size: 32
+triton_below: "3.9"        # optional: Triton from this version dropped the generation
+arches:                    # gfx targets of this generation
+  gfx1030: {family: navi21, bf16: none}
+  gfx1031: {family: navi22, bf16: none, hsa_override: "10.3.0"}
+  gfx1035: {family: yellow_carp, bf16: none, hsa_override: "10.3.0", integrated: true}
+devices:                   # PCI device ids, lower-case 0x%04x
+  - {ids: ["0x73a1"], name: Radeon PRO V620, gfx: gfx1030, power_cap_advice_w: 180}
+```
+
+| Field | Meaning |
+|---|---|
+| `bf16` | `native` (BF16 matrix instructions), `none`, or absent when unsourced. |
+| `hsa_override` | The `HSA_OVERRIDE_GFX_VERSION` that makes the arch run the code objects of a sibling arch of the same file. |
+| `integrated` | The arch is an APU. It shares memory with the CPU. |
+| `flash_attn` | The arch is on the FlashAttention ROCm allowlist. |
+| `power_cap_advice_w` | Recommended power cap of this device. Optional, only with a source. |
+
+Rules:
+
+- An arch name and a device id are unique across all files.
+- A device names an arch of its own file.
+- Every file lists its sources in a header comment.
+- A value without a source is left out. Absent means "unknown", not "no".
+
+Go code reads the tables only through `gpu.Lookup(deviceID)`,
+`gpu.LookupArch(gfx)` and `gpu.CodeTargets(gfxs)`. These users exist:
+
+| User | What it takes |
+|---|---|
+| `gpu.List` | The device name when the DRM node has no `product_name`. |
+| `doctor` | `gpu.supported.<gfx>`, `gpu.hsa_override.<gfx>`, `gpu.igpu`, the Triton check, the power-cap advice. |
+| `setup` | Code targets (wheels, build targets), the FlashAttention allowlist. |
+
 ## 5. Doctor
 
 ### 5.1 Check record
@@ -228,13 +308,13 @@ stability; `skip` means the check cannot run here.
 | Category | Checks |
 |---|---|
 | `os` | Distro and version known. Package manager known. Kernel version. |
-| `gpu` | `/dev/kfd` exists and is readable/writable. `/dev/dri/renderD*` exist. User is in `video` and `render`. At least one GPU. Each GPU arch is known; gfx1031/1032 and other RDNA2 parts get the `HSA_OVERRIDE_GFX_VERSION=10.3.0` advice. |
-| `kernel` | `amdgpu` is loaded. IOMMU mode from `/proc/cmdline` (`iommu=pt` advice for P2P). |
+| `gpu` | `/dev/kfd` exists and is readable/writable (`gpu.kfd`). `/dev/dri/renderD*` exist. User is in `video` and `render`. At least one GPU. One `gpu.supported.<gfx>` per gfx target on the host: `ok` when the target is in the device tables and a validated recipe lists it, `warn` when the target is in the tables but no validated recipe lists it, `warn` ("not in the device tables") when the tables do not know it (for example a CDNA target). One `gpu.hsa_override.<gfx>` (`warn`) per target whose table row has an `hsa_override`, with the `HSA_OVERRIDE_GFX_VERSION` advice. `gpu.igpu` warns when an integrated GPU mixes with discrete GPUs. |
+| `kernel` | `amdgpu` is loaded. IOMMU mode from `/proc/cmdline` (`iommu=pt` advice for P2P). PCIe links are gen4 x8 or better. |
 | `rocm` | ROCm installs found (`/opt/rocm*`, `/opt/rocm/core-*`, `/usr`) with versions. More than one install: `warn`. `rocminfo` lists the GPUs. `hipcc`, `amd-smi` or `rocm-smi` present. `librocblas.so.5` found. ROCm 7.2.1 to 7.13 with more than one GPU: `warn` (RCCL TP>1 deadlock range). |
-| `python` | With `--venv` (or the configured venv): Python version, `torch` imports, `torch.version.hip` set, GPU count matches, `vllm` imports, fork ops registered (`_rocm_C::*rdna*` schema count > 10). |
+| `python` | With `--venv` (or the configured venv): Python version, `torch` imports, `torch.version.hip` set, GPU count matches, `rocm-sdk-device` wheels match the GPU code targets, Triton is below the version that dropped a GPU generation (`triton_below` in the device tables; `fail`), `vllm` imports, fork ops registered (`_rocm_C::*rdna*` schema count > 10). |
 | `container` | `docker` or `podman` present, daemon or socket usable, compose present, rootless state, SELinux mode. |
 | `resources` | RAM. Free disk in the Hugging Face cache. `/dev/shm` size. |
-| `tuning` | TunableOp profile matches the loaded rocBLAS. Power cap per GPU (V620: 180 W advice). |
+| `tuning` | TunableOp profile matches the loaded rocBLAS. Power cap per GPU: `warn` when a cap is above the advice of the device table ([§9.2](#92-power)). |
 
 ### 5.3 Log doctor
 
@@ -258,19 +338,22 @@ and its line number. Lines are matched up to 1 MiB; a log can be any size.
 ```
 
 `matches` is `[]` when nothing matched. Exit code 3 when at least one rule
-matches. `serve` and `up` run the same scan on the log of a run that exits
-during startup and print the matches.
+matches. `serve` and `up` do not scan the log of a run that exits during
+startup. `up` reports the exit and `bernie logs NAME`. The operator then
+runs `doctor --run NAME`.
 
 ## 6. Setup
 
-`setup plan` returns ordered steps. Each step has this record:
+`setup plan` returns ordered steps. The steps read the GPU targets and the
+device tables ([§4.4](#44-device-tables)) to choose wheels and build targets.
+Each step has this record:
 
 ```json
 {"id": "venv.create", "title": "", "mode": "host|container|both",
  "root": false, "done": false, "commands": ["..."], "why": ""}
 ```
 
-`done` is true when the step's postcondition already holds (rdnactl checks it).
+`done` is true when the step's postcondition already holds (bernie checks it).
 `setup apply` runs, in order, the steps that are not done and do not need
 root. It stops at the first failure. It prints root steps and does not run
 them. `--yes` skips the confirmation prompt. `--step` limits the run to named
@@ -284,9 +367,9 @@ Steps (filtered by mode and host):
 | `rocm.runtime` | yes | host | Install the ROCm runtime with the package manager. |
 | `container.engine` | yes | container | Install Docker or Podman and compose. |
 | `venv.create` | no | host | Create the venv (`uv` if present, else `python3 -m venv`). |
-| `venv.torch` | no | host | Install `rocm-sdk`, `torch` and one `rocm-sdk-device-<gfx>` + `amd-torch-device-<gfx>` wheel per GPU type from the AMD multi-arch index `https://repo.amd.com/rocm/whl-multi-arch/`. gfx1031 to gfx1036 use the gfx1030 wheels. |
+| `venv.torch` | no | host | Install `rocm-sdk`, `torch` and one `rocm-sdk-device-<gfx>` + `amd-torch-device-<gfx>` wheel per code target from the AMD multi-arch index `https://repo.amd.com/rocm/whl-multi-arch/`. The code target of a GPU is its gfx target, or the target of its `hsa_override` ([§4.4](#44-device-tables)): gfx1031 to gfx1036 use the gfx1030 wheels. |
 | `causal-conv1d.build` | no | host | Build causal-conv1d from source for the host GPU targets. |
-| `flash-attn.build` | no | host | Only when a GPU on FlashAttention's arch list is present. gfx1030 is not on it. |
+| `flash-attn.build` | no | host | Only when a GPU has `flash_attn: true` in the device tables. gfx1030 does not. |
 | `vllm.build` | no | host | Clone the fork and build it in the venv. |
 | `image.pull` | no | container | Pull the recipe image. |
 | `model.download` | no | both | `hf download <repo>` into the Hugging Face cache. |
@@ -295,12 +378,23 @@ Steps (filtered by mode and host):
 
 ### 7.1 Files and lookup
 
-A recipe is one YAML file. The file name stem is the recipe id. rdnactl loads
-recipes in this order. A later file with the same id replaces an earlier one.
+A recipe is one YAML file. The file name stem is the recipe id. bernie loads
+recipes in layers, in this order:
 
 1. Built-in recipes (embedded from `recipes/`).
-2. `<config>/recipes/*.yaml`.
-3. Each directory in `$RDNACTL_RECIPES` (`:`-separated).
+2. `<config>/recipes/`.
+3. Each directory in `$BERNIE_RECIPES` (`:`-separated).
+4. The files and directories given to `recipe validate`.
+
+Rules:
+
+- Each directory is read recursively. Every `*.yaml` (and `*.yml` outside the
+  built-in tree) below it is a recipe. Folders only group files. The folder
+  never changes the id.
+- An id is unique inside one layer. Two files with the same id in one layer
+  are a load error. The error names both paths. The first file stays.
+- A later layer replaces an earlier recipe with the same id.
+
 
 A file that does not parse or validate is reported by `recipe list` and
 `recipe validate`. It is never dropped silently.
@@ -384,7 +478,7 @@ args:                           # vllm serve flags without the leading --
 
 ### 7.7 GPU selection
 
-When the plan has no `HIP_VISIBLE_DEVICES`, rdnactl selects GPUs:
+When the plan has no `HIP_VISIBLE_DEVICES`, bernie selects GPUs:
 
 1. Keep GPUs whose arch matches `requires.arch`.
 2. Need `requires.gpus` of them, else the recipe does not fit.
@@ -413,7 +507,7 @@ When the plan has no `HIP_VISIBLE_DEVICES`, rdnactl selects GPUs:
   is a local path, and `0` when it is a Hugging Face repo id.
 - Host mode needs the fork built in the venv for `requires.engine: vllm-rdna`.
   It is not "the container without Docker".
-- Venv: `--venv`, then `$RDNACTL_VENV`, then config `venv`, then `$VIRTUAL_ENV`.
+- Venv: `--venv`, then `$BERNIE_VENV`, then config `venv`, then `$VIRTUAL_ENV`.
 - `LD_LIBRARY_PATH` starts with the venv's ROCm wheel libraries when present:
   `_rocm_sdk_libraries/lib`, `_rocm_sdk_core/lib`,
   `_rocm_sdk_core/lib/{host-math,rocm_sysdeps,core}/lib`,
@@ -430,13 +524,13 @@ When the plan has no `HIP_VISIBLE_DEVICES`, rdnactl selects GPUs:
 The run command is:
 
 ```
-<engine> run -d --name rdnactl-<name> --label rdnactl.run=<name>
+<engine> run -d --name bernie-<name> --label bernie.run=<name>
   --network host --ipc host --shm-size <shm>
   --device /dev/kfd --device /dev/dri --group-add video --group-add render
   --security-opt seccomp=unconfined --security-opt label=disable
   -v <hf-cache>:/root/.cache/huggingface
-  -v <tunableop rows>:/rdnactl/tunableop:ro
-  -v <tuned-moe dir>:/rdnactl/tuned-moe:ro   (when the recipe sets VLLM_TUNED_CONFIG_FOLDER)
+  -v <tunableop rows>:/bernie/tunableop:ro
+  -v <tuned-moe dir>:/bernie/tuned-moe:ro   (when the recipe sets VLLM_TUNED_CONFIG_FOLDER)
   -v <path input>:<path input>         (one per path input)
   -e KEY=VALUE ...
   <image> serve <model> <args>
@@ -461,8 +555,17 @@ Rootless Podman uses `--group-add keep-groups` instead of the two group flags.
 the pull. Tags such as `v0.31.0-extras` are refreshed in place, so the tag
 alone does not identify the image.
 
-`ps` state: `running`, `starting` (process alive, `/health` not ready),
-`exited`. One name has one run. `serve` refuses a name that is running.
+`ps` state is derived from the process (or container) and `/health`. The
+state is not stored in `run.json`:
+
+| State | Meaning |
+|---|---|
+| `starting` | The process or container is alive. `/health` does not answer 200. |
+| `running` | The process or container is alive. `/health` answers 200. |
+| `exited` | The process or container is gone, whether `stop` ended it or it failed. |
+
+`doctor --run NAME` explains a failed start ([§5.3](#53-log-doctor)). One
+name has one run. `serve` refuses a name that is not `exited`.
 
 ## 9. Tuning
 
@@ -474,12 +577,12 @@ alone does not identify the image.
 - Profiles live in `tunableop/<arch>/<profile>/`, embedded in the binary. Each
   profile has a `profile.json` manifest (`name`, `arch`, `rocblas`, `rocm`,
   `torch`, `lib_sha256`, `rows_per_rank`, `status`, `covers`) and its
-  `tunableop_results<rank>.csv` files. There is no central registry: rdnactl
+  `tunableop_results<rank>.csv` files. There is no central registry: bernie
   discovers profiles by walking the embedded tree. `name` equals the folder
   name and is unique across architectures. `arch` lists gfx names or prefixes
   (`gfx1030`, `gfx103`, `gfx11`).
 - `env` and `serve` materialize the rows into `<data>/tunableop/<profile>/`.
-- Host mode: rdnactl hashes the loaded `librocblas.so.5` (venv wheel first,
+- Host mode: bernie hashes the loaded `librocblas.so.5` (venv wheel first,
   then `/opt/rocm/lib`) and selects the profile with the same sha256 prefix
   (12 hex) whose `arch` names the architecture of every selected GPU. An
   explicit profile must match both the hash and the architecture, else it is
@@ -492,21 +595,24 @@ alone does not identify the image.
 - Environment set: `PYTORCH_TUNABLEOP_ENABLED=1`, `PYTORCH_TUNABLEOP_TUNING`,
   `PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED=0`, `PYTORCH_TUNABLEOP_FILENAME`.
 - Tuned fused-MoE configs follow the same keying: `tuned-moe/<arch>/` holds a
-  flat folder of vLLM's `E=...json` files. Host mode sets
+  flat folder of vLLM's `E=...json` files. A folder name is a gfx name or a
+  prefix; the longest name that prefixes the GPU's gfx wins. Host mode sets
   `VLLM_TUNED_CONFIG_FOLDER` to the materialized folder of the selected GPUs'
-  architecture (`<data>/tuned-moe/<arch>`). An architecture without a folder
-  gets no variable.
+  architecture (`<data>/tuned-moe/<arch>`). An architecture without a folder,
+  and a selection that spans several architectures, gets no variable.
 
 ### 9.2 Power
 
 `tune power status` reads `power1_cap`, `power1_cap_min`, `power1_cap_max`.
 `tune power set` writes `power1_cap` (microwatts) when it runs as root. Else
-it prints the exact command. The recipe or the doctor gives the advice
-(V620: 180 W).
+it prints the exact command. The advice comes from the device tables
+([§4.4](#44-device-tables)): a row with `power_cap_advice_w` gives the
+recommended cap of that device (V620: 180 W). `doctor` compares each GPU's
+cap with it. A device without that field has no advice.
 
 ## 10. Benchmark
 
-`rdnactl bench` sends streaming requests to `/v1/completions`.
+`bernie bench` sends streaming requests to `/v1/completions`.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -523,7 +629,7 @@ it prints the exact command. The recipe or the doctor gives the advice
 Every prompt gets a unique salt so the prefix cache does not change the
 result. Prompts are sized with `/tokenize` when the server has it. Without
 it, the word count is an estimate and the real mean is in the result.
-With MTP, a chunk can carry several tokens. rdnactl divides the gap of a
+With MTP, a chunk can carry several tokens. bernie divides the gap of a
 chunk by its token count, so ITL is per token.
 
 Results go to `<state>/bench/<id>.json` (id = UTC timestamp + short hash).
@@ -545,12 +651,12 @@ A cell where every request fails makes `bench` exit 1 and saves nothing.
 
 ## 11. Dashboard
 
-`rdnactl dash` serves an embedded web UI and a JSON API. It listens on
+`bernie dash` serves an embedded web UI and a JSON API. It listens on
 `127.0.0.1:7860` by default. On a non-loopback address, every request needs
 the token (`Authorization: Bearer <t>` or the cookie set by `/?token=<t>`).
-The token is `--token`, else `$RDNACTL_DASH_TOKEN`, else a random token
+The token is `--token`, else `$BERNIE_DASH_TOKEN`, else a random token
 printed at start. POST and DELETE requests also need the header
-`X-Rdnactl: 1`. On a loopback address the `Host` header must be a loopback
+`X-Bernie: 1`. On a loopback address the `Host` header must be a loopback
 name (this blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
 
 | Method | Path | Body / output |
@@ -572,10 +678,10 @@ name (this blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
 
 | Name | Default | Override |
 |---|---|---|
-| config | `~/.config/rdnactl` | `$RDNACTL_CONFIG_DIR`, `$XDG_CONFIG_HOME` |
-| state | `~/.local/state/rdnactl` | `$RDNACTL_STATE_DIR`, `$XDG_STATE_HOME` |
-| data | `~/.local/share/rdnactl` | `$RDNACTL_DATA_DIR`, `$XDG_DATA_HOME` |
-| cache | `~/.cache/rdnactl` | `$RDNACTL_CACHE_DIR`, `$XDG_CACHE_HOME` |
+| config | `~/.config/bernie` | `$BERNIE_CONFIG_DIR`, `$XDG_CONFIG_HOME` |
+| state | `~/.local/state/bernie` | `$BERNIE_STATE_DIR`, `$XDG_STATE_HOME` |
+| data | `~/.local/share/bernie` | `$BERNIE_DATA_DIR`, `$XDG_DATA_HOME` |
+| cache | `~/.cache/bernie` | `$BERNIE_CACHE_DIR`, `$XDG_CACHE_HOME` |
 
 Config file `<config>/config.yaml`:
 
