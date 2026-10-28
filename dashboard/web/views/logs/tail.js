@@ -33,7 +33,7 @@ function logTail(options) {
   const paused = h("span.lg-paused", { hidden: true }, "Paused");
   const status = h("div.lg-status", { hidden: true });
   const empty = h("div.lg-empty", emptyState("No log yet.", "Start the server first, then follow its log here.", "bernie serve <recipe>"));
-  const linesBox = h("div.log-lines");
+  const linesBox = h("div.lg-lines");
   const box = h("div.log", { role: "log", "aria-live": "off", tabindex: "0" }, linesBox, empty);
   const followBtn = h("button.lg-follow", { type: "button", hidden: true, onclick: () => resume() }, "Follow");
   const firstErr = h("button.lg-first-error", { type: "button", hidden: true, onclick: () => jumpToError() }, "First error");

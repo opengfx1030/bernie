@@ -31,6 +31,7 @@ async function viewLogs(root) {
   logsTail = tail;
   let picked = null;
   let runs = [];
+  let headKind = "";   // the headline that owns the line under it
 
   const rescan = h("button.primary", { type: "button", onclick: () => refresh() }, "Re-scan");
   const download = h("button", { type: "button", disabled: true, onclick: () => {
@@ -51,30 +52,36 @@ async function viewLogs(root) {
    *  changes with every line, the headline does not. */
   function setLede(n) {
     download.disabled = n === 0;
-    if (!picked || picked.state !== "running") return;
+    if (headKind !== "running" || !picked || picked.state !== "running") return;
     const lede = head.querySelector(".lede");
     if (lede) lede.textContent = "The tail follows the log of " + picked.name + ". " + logCount(n) + " lines so far.";
   }
 
-  /** setHeadline says in one sentence what the log of the picked run is. */
+  /** setHeadline says in one sentence what the log of the picked run is. A
+   *  serving run keeps its headline: the known problems sit above the tail
+   *  and speak for themselves. */
   function setHeadline(run, matches) {
     const known = (matches || []).filter((m) => m.severity === "error");
-    if (known.length) {
-      setHead(head, "THE SERVER FAILED FOR A KNOWN REASON.",
-        "The log matched the rule " + known[0].id + ". The fix is above.");
-      return;
-    }
     if (run.state === "running") {
+      headKind = "running";
       setHead(head, "THE SERVER IS RUNNING.",
         "The tail follows the log of " + run.name + ". " + logCount(tail.count()) + " lines so far.");
       return;
     }
     if (run.state === "starting") {
+      headKind = "starting";
       setHead(head, "THE SERVER IS STARTING.",
         (run.phase && run.phase.sentence) || "The server is loading the model. The tail follows it.");
       return;
     }
+    if (known.length) {
+      headKind = "failed";
+      setHead(head, "THE SERVER FAILED FOR A KNOWN REASON.",
+        "The log matched the rule " + known[0].id + ". The fix is above.");
+      return;
+    }
     const age = run.started_at ? ago(run.started_at) : "";
+    headKind = "ended";
     setHead(head, "THE RUN ENDED" + (age ? " " + age.toUpperCase() : "."),
       "The log holds the last words of the server. The known problems are above.");
   }
@@ -126,6 +133,7 @@ async function viewLogs(root) {
     } catch (e) {
       put(runsBox, failed(e));
       put(findBox, emptyState("The findings could not be read.", "Try again."));
+      headKind = "error";
       setHead(head, "THE RUNS COULD NOT BE READ.", "Try again.");
       return;
     }
@@ -139,6 +147,7 @@ async function viewLogs(root) {
       logsRun = "";
       tail.close();
       download.disabled = true;
+      headKind = "none";
       setHead(head, "NO LOG YET.", "Start the server first, then follow its log here.");
       return;
     }
