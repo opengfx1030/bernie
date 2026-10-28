@@ -1,6 +1,8 @@
-// Package logdoc matches a vLLM serve log against a catalog of known
-// failures. Each rule has an id, a regular expression, a cause, a fix and a
-// documentation link. The catalog is embedded YAML (catalog.yaml).
+// Package logdoc reads a vLLM serve log. It matches the log against a
+// catalog of known failures: each rule has an id, a regular expression, a
+// cause, a fix and a documentation link. The catalog is embedded YAML
+// (catalog.yaml). The same package names the phase the server is in, from a
+// second catalogue (phase.yaml).
 //
 // The package returns data and never prints.
 package logdoc

@@ -176,7 +176,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 	}
 	res := &UpResult{Recipe: id, Mode: mode, Applied: apply, Run: rec, URL: rec.URL()}
 	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: bernie logs %s -f)\n", rec.Name, rec.Name)
-	if err := WaitHealthy(ctx, rec.Name, o.Wait); err != nil {
+	if err := WaitHealthy(ctx, rec.Name, o.Wait, log); err != nil {
 		return res, err
 	}
 	res.Healthy = true
@@ -185,32 +185,43 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 
 // WaitHealthy waits until the run answers /health (limit 0 = 30 minutes). A
 // run that exits first yields a *StartupExit with the known failures in its
-// log.
-func WaitHealthy(ctx context.Context, name string, limit time.Duration) error {
+// log. When progress is not nil, it gets one line per phase change: what the
+// server is doing now, in words (spec §3.1).
+func WaitHealthy(ctx context.Context, name string, limit time.Duration, progress io.Writer) error {
 	if limit == 0 {
 		limit = 30 * time.Minute
 	}
 	deadline := time.Now().Add(limit)
-	tick := time.NewTicker(3 * time.Second)
+	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
+	var printer phasePrinter
+	var rec runner.Record
+	next := time.Time{}
 	for {
-		runs, err := runner.List(ctx)
-		if err != nil {
-			return err
-		}
-		for _, s := range runs {
-			if s.Name != name {
-				continue
+		if time.Now().After(next) {
+			next = time.Now().Add(3 * time.Second)
+			runs, err := runner.List(ctx)
+			if err != nil {
+				return err
 			}
-			switch s.State {
-			case "running":
-				return nil
-			case "exited":
-				return &StartupExit{Name: name, Findings: Findings(ctx, s.Record)}
+			for _, s := range runs {
+				if s.Name != name {
+					continue
+				}
+				rec = s.Record
+				switch s.State {
+				case runner.StateRunning:
+					return nil
+				case runner.StateExited:
+					return &StartupExit{Name: name, Findings: Findings(ctx, s.Record)}
+				}
+			}
+			if time.Now().After(deadline) {
+				return fmt.Errorf("%s is not healthy after %s; see: bernie logs %s", name, limit, name)
 			}
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("%s is not healthy after %s; see: bernie logs %s", name, limit, name)
+		if ph, ok := Phase(ctx, rec); ok {
+			printer.print(name, ph)
 		}
 		select {
 		case <-ctx.Done():

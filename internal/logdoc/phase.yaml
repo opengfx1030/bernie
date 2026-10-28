@@ -1,0 +1,48 @@
+# Phases of a vLLM serve log. The last line of the tail that matches a rule
+# names the phase: what the server is doing now.
+#
+# id        <family>.<slug>, unique
+# match     Go (RE2) regular expression, matched against one log line. The
+#           patterns are literal text of real vLLM 0.31 serve logs.
+# sentence  one plain sentence: what the server is doing now
+# progress  optional regular expression with two groups: done and total
+# progress_sentence  the sentence with {done} and {total} filled in; required
+#           when progress is set
+#
+# Texts are written for this catalogue.
+phases:
+  - id: starting
+    match: 'vLLM server version|Initializing a V1 LLM engine|Starting vLLM API server'
+    sentence: 'Starting the server'
+
+  - id: loading-weights
+    match: 'Loading safetensors checkpoint shards:|Loading model weights|Loading weights took'
+    sentence: 'Loading the model weights'
+    progress: 'Completed\s*\|\s*(\d+)/(\d+)'
+    progress_sentence: 'Loading the model weights, {done} of {total} shards'
+
+  - id: compiling
+    match: 'Compiling a graph for compile range|torch\.compile took|Compiling model again'
+    sentence: 'Compiling the model (the first start is slow, later starts reuse the cache)'
+
+  - id: kv-cache
+    match: 'GPU KV cache size:'
+    sentence: 'Sizing the KV cache'
+
+  - id: warming-up
+    match: 'warmup run took|JIT kernel warmup|Warming up .*kernels'
+    sentence: 'Warming up the kernels'
+
+  - id: capturing-graphs
+    match: 'Capturing .*CUDA graphs|Graph capturing finished|Capturing model for speculator'
+    sentence: 'Capturing the graphs'
+    progress: '(\d+)/(\d+)\s*\['
+    progress_sentence: 'Capturing the graphs, {done} of {total}'
+
+  - id: ready
+    match: 'Application startup complete|Uvicorn running'
+    sentence: 'The server is ready and answers requests'
+
+  - id: failed
+    match: 'EngineCore encountered a fatal error'
+    sentence: 'The server failed during startup'

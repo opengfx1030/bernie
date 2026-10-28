@@ -123,14 +123,14 @@ func TestWaitHealthyReportsStartupExit(t *testing.T) {
 	writeRun(t, "plain", plainLog, 0, 18001)
 
 	var se *StartupExit
-	err := WaitHealthy(context.Background(), "oom", time.Minute)
+	err := WaitHealthy(context.Background(), "oom", time.Minute, nil)
 	if !errors.As(err, &se) || se.Name != "oom" || len(se.Findings) != 1 || se.Findings[0].ID != "memory.gpu-oom" {
 		t.Fatalf("WaitHealthy(oom) = %v", err)
 	}
 	if want := "oom exited during startup; see: bernie logs oom"; err.Error() != want {
 		t.Errorf("message = %q, want %q", err, want)
 	}
-	err = WaitHealthy(context.Background(), "plain", time.Minute)
+	err = WaitHealthy(context.Background(), "plain", time.Minute, nil)
 	if !errors.As(err, &se) || len(se.Findings) != 0 || err.Error() != "plain exited during startup; see: bernie logs plain" {
 		t.Errorf("WaitHealthy(plain) = %v (%+v)", err, se)
 	}
@@ -140,7 +140,7 @@ func TestWaitHealthyRunningIsNil(t *testing.T) {
 	stateEnv(t)
 	pid, port := liveVLLM(t)
 	writeRun(t, "live", oomLog, pid, port)
-	if err := WaitHealthy(context.Background(), "live", time.Minute); err != nil {
+	if err := WaitHealthy(context.Background(), "live", time.Minute, nil); err != nil {
 		t.Fatal(err)
 	}
 }

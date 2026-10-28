@@ -62,7 +62,7 @@ func init() {
 		}
 		if *wait > 0 && !*fg {
 			c.Logf("waiting for %s to answer /health (logs: bernie logs %s -f)", rec.Name, rec.Name)
-			if err := flow.WaitHealthy(c.Ctx, rec.Name, *wait); err != nil {
+			if err := flow.WaitHealthy(c.Ctx, rec.Name, *wait, c.Err); err != nil {
 				var se *flow.StartupExit
 				if errors.As(err, &se) && len(se.Findings) > 0 {
 					return c.ReportExit(se.Name, se.Findings)
@@ -219,6 +219,9 @@ func printRuns(w io.Writer, runs []flow.Run) {
 	}
 	tw.Flush()
 	for _, r := range runs {
+		if r.Phase != nil {
+			fmt.Fprintf(w, "%s: %s\n", r.Name, r.Phase.Sentence)
+		}
 		if len(r.Findings) > 0 {
 			fmt.Fprintf(w, "\n%s exited; known failures in its log:", r.Name)
 			cli.WriteMatches(w, r.Findings)
