@@ -265,29 +265,6 @@ func TestTelemetryStream(t *testing.T) {
 	}
 }
 
-func TestParseConcurrency(t *testing.T) {
-	for in, want := range map[string]string{"": "[1]", "null": "[1]", "[1,8]": "[1 8]", `"1, 4,16"`: "[1 4 16]", "[]": "[1]"} {
-		got, err := parseConcurrency(json.RawMessage(in))
-		if err != nil {
-			t.Errorf("%s: %v", in, err)
-			continue
-		}
-		if s := strings.Join(strings.Fields(strings.Trim(strings.ReplaceAll(fmtInts(got), ",", " "), "[]")), " "); "["+s+"]" != want {
-			t.Errorf("%s: got %v, want %s", in, got, want)
-		}
-	}
-	for _, bad := range []string{"[0]", `"1,x"`, "{}", "[-2]"} {
-		if _, err := parseConcurrency(json.RawMessage(bad)); err == nil {
-			t.Errorf("%s: want error", bad)
-		}
-	}
-}
-
-func fmtInts(v []int) string {
-	b, _ := json.Marshal(v)
-	return string(b)
-}
-
 // Every response, including errors, redirects and the HTML, is uncacheable.
 func TestNoStoreEverywhere(t *testing.T) {
 	tok := newServer(Options{Listen: "0.0.0.0:7860", Token: testToken}).handler()

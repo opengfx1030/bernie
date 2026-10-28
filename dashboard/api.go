@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,7 +15,6 @@ import (
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/support/redact"
 )
@@ -248,116 +246,6 @@ func (s *server) getTelemetry(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-	}
-}
-
-// GET /api/bench — `bernie bench list --json`.
-func (s *server) getBench(w http.ResponseWriter, r *http.Request) {
-	rs, err := app.BenchList()
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, rs)
-}
-
-// benchRequest mirrors the `bernie bench` flags. Absent fields take the CLI
-// defaults; concurrency is a list or a comma string ("1,8").
-type benchRequest struct {
-	URL         string          `json:"url"`
-	Model       string          `json:"model"`
-	InputLen    *int            `json:"input_len"`
-	OutputLen   *int            `json:"output_len"`
-	Concurrency json.RawMessage `json:"concurrency"`
-	NumPrompts  int             `json:"num_prompts"`
-	Warmup      *int            `json:"warmup"`
-	Seed        int64           `json:"seed"`
-	Tag         string          `json:"tag"`
-	Recall      bool            `json:"recall"`
-}
-
-func (b benchRequest) options() (bench.Options, error) {
-	o := bench.Options{URL: b.URL, Model: b.Model, Tag: b.Tag, NumPrompts: b.NumPrompts, Seed: b.Seed,
-		Recall:   b.Recall,
-		InputLen: bench.DefaultInputLen, OutputLen: bench.DefaultOutputLen, Warmup: bench.DefaultWarmup}
-	if b.InputLen != nil {
-		o.InputLen = *b.InputLen
-	}
-	if b.OutputLen != nil {
-		o.OutputLen = *b.OutputLen
-	}
-	if b.Warmup != nil {
-		o.Warmup = *b.Warmup
-	}
-	conc, err := parseConcurrency(b.Concurrency)
-	if err != nil {
-		return o, err
-	}
-	o.Concurrency = conc
-	if o.InputLen < 1 || o.OutputLen < 1 {
-		return o, errors.New("input_len and output_len must be positive")
-	}
-	if o.NumPrompts < 0 || o.Warmup < 0 {
-		return o, errors.New("num_prompts and warmup must not be negative")
-	}
-	return o, nil
-}
-
-func parseConcurrency(raw json.RawMessage) ([]int, error) {
-	raw = bytes.TrimSpace(raw)
-	if len(raw) == 0 || string(raw) == "null" {
-		return []int{1}, nil
-	}
-	var list []int
-	if err := json.Unmarshal(raw, &list); err != nil {
-		var str string
-		if json.Unmarshal(raw, &str) != nil {
-			return nil, errors.New(`concurrency must be a list of integers or a string like "1,8"`)
-		}
-		for _, f := range strings.Split(str, ",") {
-			n, err := strconv.Atoi(strings.TrimSpace(f))
-			if err != nil {
-				return nil, fmt.Errorf("concurrency: %q is not a positive integer", f)
-			}
-			list = append(list, n)
-		}
-	}
-	if len(list) == 0 {
-		return []int{1}, nil
-	}
-	for _, n := range list {
-		if n < 1 {
-			return nil, fmt.Errorf("concurrency: %d is not a positive integer", n)
-		}
-	}
-	return list, nil
-}
-
-// POST /api/bench — `bernie bench …`: runs, saves and returns the result.
-// One benchmark runs at a time; a second request gets 409.
-func (s *server) postBench(w http.ResponseWriter, r *http.Request) {
-	var req benchRequest
-	if !decodeBody(w, r, &req) {
-		return
-	}
-	o, err := req.options()
-	if err != nil {
-		httpError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	res, _, err := app.Bench(r.Context(), o, s.o.Log)
-	var saveErr *app.SaveError
-	switch {
-	case errors.Is(err, app.ErrBenchBusy):
-		httpError(w, http.StatusConflict, err.Error())
-	case errors.Is(err, app.ErrAllFailed):
-		httpError(w, http.StatusBadGateway, err.Error()+app.FirstCellError(res))
-	case errors.As(err, &saveErr):
-		httpError(w, http.StatusInternalServerError, err.Error())
-	case err != nil:
-		httpError(w, http.StatusBadGateway, err.Error())
-	default:
-		writeJSON(w, http.StatusOK, res)
 	}
 }
 

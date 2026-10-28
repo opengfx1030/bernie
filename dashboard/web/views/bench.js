@@ -102,7 +102,11 @@ function benchBest(cells, get) {
 }
 
 async function viewBench(root) {
+  const head = stateHead("Bench");
   const f = (name, attrs) => h("input", Object.assign({ name, id: "b-" + name }, attrs));
+  const suiteSel = benchSuiteSelect();
+  benchLoadSuites(suiteSel);
+  const suiteRun = h("button", { type: "button", id: "b-suite-run" }, "Run PR suite");
   const form = h("form.f",
     h("label", { for: "b-url" }, "URL"), f("url", { placeholder: "the only running run, else http://127.0.0.1:8000" }),
     h("label", { for: "b-model" }, "Model"), f("model", { placeholder: "first id of /v1/models" }),
@@ -115,8 +119,10 @@ async function viewBench(root) {
     h("label", { for: "b-tag" }, "Tag"), f("tag", { placeholder: "free label" }),
     h("label", { for: "b-recall" }, "Recall check"), f("recall", { type: "checkbox" }),
     h("div.hint", "Hide a short random fact in every prompt and check that the reply holds it."),
-    h("div.full.row", h("button.primary", { type: "submit" }, "Run benchmark"), h("span.small.muted.status")));
-    const result = h("div.card", cardHead("Result", "/api/bench"), h("div.empty", "Run a benchmark or pick one from the history."));
+    h("label", { for: "b-suite" }, "Suite"), suiteSel,
+    h("div.hint", "A suite decides the cells, the repetitions and the recall gate. The cell fields above are ignored."),
+    h("div.full.row", h("button.primary", { type: "submit" }, "Run benchmark"), suiteRun, h("span.small.muted.status")));
+    const result = h("div.card", cardHead("Result", "/api/bench"), emptyState("No result yet.", "A benchmark measures the tokens per second of a running server. Run one above, or pick a saved result from the history."));
     const hist = h("div.card", cardHead("History", "/api/bench"), loading());
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -127,20 +133,32 @@ async function viewBench(root) {
       body[el.name] = el.type === "number" ? Number(el.value) : el.value;
     }
     if (body.concurrency) body.concurrency = String(body.concurrency).split(",").map((s) => Number(s.trim())).filter((n) => n > 0);
+    if (suiteSel.value) {
+      // The suite decides the cells: the cell flags of the form do not
+      // apply.
+      body.suite = suiteSel.value;
+      delete body.input_len; delete body.output_len; delete body.concurrency; delete body.warmup; delete body.recall;
+    }
     const btn = form.querySelector("button");
     const st = form.querySelector(".status");
     btn.disabled = true;
     put(st, h("span.spin"), " running… (this takes minutes)");
     try {
       const r = await api("/api/bench", { method: "POST", body });
-      put(result, h("h3", "Result " + r.id), h("div.small.muted", `${r.model} @ ${r.url}`), h("div.small.muted", METRIC_HELP), cellsView(r.cells), recallNote(r.cells));
+      benchResultCard(result, r);
       st.textContent = "done";
       loadHistory(hist, result);
     } catch (err) { st.textContent = ""; put(result, failed(err)); }
     btn.disabled = false;
   });
-  put(root, h("div.cols", h("div.card", cardHead("Run benchmark", "/api/bench"), form), hist), h("div.gap"), result);
-  loadHistory(hist, result);
+  // The button belongs to the form, so it is wired before the form lands
+  // in the document: a lookup by id would find nothing yet.
+  suiteRun.addEventListener("click", () => {
+    suiteSel.value = "pr";
+    form.requestSubmit();
+  });
+  put(root, head, h("div.cols", h("div.card", cardHead("Run benchmark", "/api/bench"), form), hist), h("div.gap"), result);
+  loadHistory(hist, result, head);
 }
 
 /** benchGPUText names the GPUs used by a saved result. */
@@ -154,7 +172,7 @@ function benchGPUText(r) {
 function benchRow(r, result) {
   const cells = r.cells || [];
   return h("tr.click", {
-    onclick: () => put(result, h("h3", "Result " + r.id), h("div.small.muted", `${r.model} @ ${r.url} · ${new Date(r.time).toLocaleString()}`), h("div.small.muted", METRIC_HELP), cellsView(cells), recallNote(cells)),
+    onclick: () => benchResultCard(result, r),
   },
     h("td.small", ago(r.time)), h("td", r.tag || ""), h("td", r.model),
     h("td.small", benchGPUText(r)),
@@ -165,14 +183,17 @@ function benchRow(r, result) {
     h("td.num", recallText(resultRecall(r))));
 }
 
-async function loadHistory(card, result) {
+async function loadHistory(card, result, head) {
   try {
     const d = await api("/api/bench");
     const list = (Array.isArray(d) ? d : (d && d.results) || []).slice().sort((a, b) => new Date(b.time) - new Date(a.time));
-    if (!list.length) { put(card, cardHead("History", "/api/bench"), h("div.empty", "No saved results.")); return; }
+    const last = list.length ? benchBest(list[0].cells || [], (c) => c.output_tok_s) : null;
+    if (head) setHead(head, last ? "The last benchmark reached " + num(last, 1) + " tok/s" : (list.length ? "The last benchmark has no output rate" : "No benchmark yet"),
+      list.length ? "A benchmark measures the tokens per second of a running server. The table below holds every saved result." : "A benchmark measures the tokens per second of a running server. Run one above to fill this table.");
+    if (!list.length) { put(card, cardHead("History", "/api/bench"), emptyState("No saved result yet.", "Every benchmark is saved with its workload, so two results can be compared only when they measured the same thing.")); return; }
     put(card, cardHead("History", "/api/bench"), h("div.scroll", h("table",
       h("thead", h("tr", h("th", "When"), h("th", "Tag"), h("th", "Model"), h("th", "GPUs"), h("th.num", "Conc."),
         h("th.num", "Best output tok/s"), h("th.num", "Best decode tok/s"), h("th.num", "Best prefill tok/s"), h("th.num", "Recall"))),
       h("tbody", list.map((r) => benchRow(r, result))))));
-  } catch (e) { put(card, h("h2", "History"), failed(e)); }
+  } catch (e) { put(card, cardHead("History", "/api/bench"), failed(e)); }
 }
