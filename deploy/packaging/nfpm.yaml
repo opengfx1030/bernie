@@ -1,0 +1,34 @@
+# nfpm config for the .rpm and .deb packages (https://nfpm.goreleaser.com).
+# Run from the repository root through `make packages`. Variables:
+#   NFPM_ARCH     amd64 | arm64
+#   NFPM_VERSION  package version without the leading "v"
+# The package holds one static binary and its documents. It has no scripts:
+# bernie never changes users, groups or GPU settings on its own.
+name: bernie
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${NFPM_VERSION}
+section: utils
+priority: optional
+maintainer: bernie maintainers <bernie@users.noreply.github.com>
+vendor: opengfx1030
+homepage: https://github.com/opengfx1030/bernie
+license: Apache-2.0
+description: |-
+  Run vLLM on AMD ROCm GPUs without the guesswork.
+  One static binary: checks the host, installs the stack, serves recipes,
+  tunes, benchmarks and shows a web dashboard. Every command has --json output.
+contents:
+  - src: dist/bernie-linux-${NFPM_ARCH}
+    dst: /usr/bin/bernie
+    expand: true
+    file_info:
+      mode: 0755
+  - src: LICENSE
+    dst: /usr/share/doc/bernie/LICENSE
+    file_info:
+      mode: 0644
+  - src: README.md
+    dst: /usr/share/doc/bernie/README.md
+    file_info:
+      mode: 0644
