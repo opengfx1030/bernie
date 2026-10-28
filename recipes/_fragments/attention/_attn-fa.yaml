@@ -14,3 +14,8 @@ env:
   FLASH_ATTENTION_TRITON_AMD_ENABLE: null
 args:
   attention-backend: RDNA_ATTN
+
+why:
+  env.VLLM_USE_RDNA2_FA: "Pins the fork's FA-RDNA2 attention backend on gfx10x."
+  env.VLLM_FA_RDNA2_GQA_DECODE: "Uses the grouped-query decode kernel validated with FA-RDNA2."
+  args.attention-backend: "Selects the fork's RDNA2 attention backend instead of the generic ROCm path."

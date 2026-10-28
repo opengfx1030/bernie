@@ -14,3 +14,7 @@ requires:
 env:
   VLLM_PLE_CPU_OFFLOAD: "1"
   VLLM_PLE_OFFLOAD_READY_TIMEOUT: "3600"
+
+why:
+  env.VLLM_PLE_CPU_OFFLOAD: "Serves the PLE table through the CPU sidecar when pinned host memory is unavailable."
+  env.VLLM_PLE_OFFLOAD_READY_TIMEOUT: "Allows the sidecar enough time to map and validate a large table."

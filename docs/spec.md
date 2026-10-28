@@ -178,6 +178,7 @@ other file, script or compose file is required.
 | `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D]` | yes | Doctor → setup → best recipe → serve → dashboard. |
 | `bernie hw` | no | Hardware and OS inventory. |
 | `bernie topo [--bandwidth] [--venv DIR]` | no | PCIe tree, P2P matrix, link classes. Optional bandwidth test. |
+| `bernie topo --check [--recipe ID]` | no | P2P readiness checklist ([§4.5](#45-p2p-readiness-checklist)). Exit 3 if an item fails. |
 | `bernie doctor [--category C]... [--venv DIR]` | no | All checks. Exit 3 if one check fails. |
 | `bernie doctor --log FILE\|-` / `doctor --run NAME` | no | Match a vLLM log against known failures ([§5.3](#53-log-doctor)). |
 | `bernie setup plan [--mode M]` | no | Ordered install steps for this host. |
@@ -231,6 +232,7 @@ information. A missing tool is a `skip`, not an error.
 | PCIe tree | The real path of the PCI device in `/sys/devices`. |
 | P2P | `nodes/<n>/io_links` and `nodes/<n>/p2p_links`. |
 | OS | `/etc/os-release`, `uname`, `/proc/cmdline`, `/proc/meminfo`, `/proc/cpuinfo`. |
+| GPU group ids | the owner of `/dev/kfd` and `/dev/dri/*` (stat), else `getent group video` and `getent group render`, else `/etc/group`. |
 
 `gfx_target_version` `100300` is `gfx1030`. The rule: major = v/10000,
 minor = (v/100)%100, step = v%100; name = `gfx` + major + minor + step, with
@@ -549,13 +551,13 @@ and `args` array unchanged. It adds a `settings` array with one object per
 annotated setting:
 
 ```json
-{"key": "env.GPU_MAX_HW_QUEUES", "value": "4",
+{"setting": "env.GPU_MAX_HW_QUEUES", "value": "4",
  "why": "Four queues avoid skew in the persistent fork kernels."}
 ```
 
-The `settings` array is sorted by `key`. `value` is the final rendered value
-as a string. The array is absent when the recipe has no reasons, so a legacy
-recipe keeps the same plan JSON. The MCP `recipe_plan` tool and the
+The `settings` array is sorted by `setting`. `value` is the final rendered
+value as a string. The array is absent when the recipe has no reasons, so a
+legacy recipe keeps the same plan JSON. The MCP `recipe_plan` tool and the
 dashboard use this same plan document.
 
 ## 8. Runs
@@ -592,7 +594,7 @@ The run command is:
 ```
 <engine> run -d --name bernie-<name> --label bernie.run=<name>
   --network host --ipc host --shm-size <shm>
-  --device /dev/kfd --device /dev/dri --group-add video --group-add render
+  --device /dev/kfd --device /dev/dri --group-add <gid> --group-add <gid>
   --security-opt seccomp=unconfined --security-opt label=disable
   -v <hf-cache>:/root/.cache/huggingface
   -v <tunableop rows>:/bernie/tunableop:ro
@@ -602,9 +604,24 @@ The run command is:
   <image> serve <model> <args>
 ```
 
-Rootless Podman uses `--group-add keep-groups` instead of the two group flags.
-`compose` writes the same plan as a Compose file that works with
-`docker compose`, `podman compose` and `podman-compose`.
+The group flags carry the numeric ids of the GPU groups of the host, never
+the names. The engine resolves a group name inside the image, and the image
+has no `/etc/group` to resolve it in. bernie reads the ids from the owner of
+the device nodes (`/dev/kfd`, `/dev/dri/renderD*`, `/dev/dri/card*`), and
+falls back to the group database (`getent group video`, `getent group
+render`, then `/etc/group`). The plan carries the ids and their source in
+`group_add`:
+
+```json
+"group_add": [{"role": "video", "gid": 39, "source": "/dev/dri/card0"},
+              {"role": "render", "gid": 105, "source": "/dev/kfd"}]
+```
+
+Rootless Podman uses `--group-add keep-groups` instead of the group flags.
+Its container runs in its own user namespace, where a group id of the host
+is not mapped: only the groups of the user are. `compose` writes the same
+plan as a Compose file that works with `docker compose`, `podman compose`
+and `podman-compose`.
 
 ### 8.3 Run record
 

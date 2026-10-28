@@ -44,3 +44,15 @@ args:
   enable-auto-tool-choice: true
   tool-call-parser: qwen3_coder
   reasoning-parser: qwen3
+
+why:
+  args.host: "Serves the production agent service on every host interface."
+  args.max-model-len: null
+  args.max-num-seqs: "Six sessions stay below the eight-sequence limit that can corrupt the hybrid recurrent state."
+  args.kv-cache-memory-bytes: "Reserves 7 GB per card for the production KV cache."
+  args.gpu-memory-utilization: "Leaves 90% of VRAM for weights, the KV cache and graph memory."
+  args.trust-remote-code: "The model repository needs its custom model code."
+  args.enable-prompt-tokens-details: "Returns the prompt token details used by agent clients."
+  args.enable-auto-tool-choice: "Lets the server select a tool from the model's tool output."
+  args.tool-call-parser: "Parses this model's Qwen3 Coder tool calls."
+  args.reasoning-parser: "Exposes the model's reasoning output separately from the answer."

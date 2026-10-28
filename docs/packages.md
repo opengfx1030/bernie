@@ -41,6 +41,9 @@ type Info struct { Hostname, Kernel, PkgManager, Virtualization string
 func Probe(ctx context.Context, root string) (Info, error)   // root "/" in production
 func Preferred(engines []Engine, name string) (Engine, bool)
 func InstallCommand(pm, feature string) string               // package-manager fix text
+
+type DeviceGroup struct { Role string; GID int; Source string }
+func GPUGroups(ctx context.Context, root string) []DeviceGroup  // numeric ids of the GPU groups
 ```
 
 ## machine/rocm
@@ -119,7 +122,7 @@ type Plan struct { Recipe, Name, Mode, Entrypoint, Model, ServedName, Host strin
     Env map[string]string; Args []string; Settings []Setting; GPUs []int; HIPDevices, GPUSelectReason string
     Image, ShmSize, TunableOpProfile, TunableOpRows string; PathInputs []string
     Mounts []Mount; Warnings []string; Exec *Exec }
-type Setting struct { Key, Value, Why string }
+type Setting struct { Setting, Value, Why string }
 type PlanOptions struct { Mode, Name string; Sets []string; GPUs []gpu.GPU; Topo *topo.Topology;
     TunedMoE func(gfx string) (string, error) }
 func BuildPlan(r *Recipe, o PlanOptions) (*Plan, error)

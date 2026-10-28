@@ -63,13 +63,15 @@ type Plan struct {
 	Env   map[string]string `json:"env"`
 	Unset []string          `json:"unset,omitempty"`
 	// Args follow "serve": the model, then flags sorted by name.
-	Args            []string `json:"args"`
-	GPUs            []int    `json:"gpus"`
-	HIPDevices      string   `json:"hip_devices"`
-	GPUSelectReason string   `json:"gpu_select_reason"`
-	Image           string   `json:"image,omitempty"`
-	ShmSize         string   `json:"shm_size,omitempty"`
-	Pull            bool     `json:"pull"`
+	Args []string `json:"args"`
+	// Settings holds the settings with a recipe-provided reason.
+	Settings        []Setting `json:"settings,omitempty"`
+	GPUs            []int     `json:"gpus"`
+	HIPDevices      string    `json:"hip_devices"`
+	GPUSelectReason string    `json:"gpu_select_reason"`
+	Image           string    `json:"image,omitempty"`
+	ShmSize         string    `json:"shm_size,omitempty"`
+	Pull            bool      `json:"pull"`
 	// TunableOpProfile is the selected profile; TunableOpRows its host
 	// directory (empty: no rows, or the per-user fallback).
 	TunableOpProfile string   `json:"tunableop_profile,omitempty"`
@@ -159,6 +161,7 @@ func BuildPlan(r *Recipe, o PlanOptions) (*Plan, error) {
 			return nil, err
 		}
 	}
+	planSettings(r, p, interp)
 	return p, nil
 }
 

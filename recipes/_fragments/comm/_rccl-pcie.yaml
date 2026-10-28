@@ -15,3 +15,11 @@ env:
   NCCL_PROTO: Simple
   RCCL_MSCCL_ENABLE: "0"
   HSA_FORCE_FINE_GRAIN_PCIE: "1"
+
+why:
+  env.NCCL_P2P_LEVEL: "Lets RCCL use peer memory across the PCIe switches in this topology."
+  env.RCCL_P2P_NET_DISABLE: "Keeps RCCL on the local PCIe path instead of the socket transport."
+  env.RCCL_P2P_BATCH_ENABLE: "Batches small peer transfers to reduce PCIe and RCCL overhead."
+  env.NCCL_PROTO: "Simple avoids the LL and LL128 protocols that can deadlock on RDNA PCIe."
+  env.RCCL_MSCCL_ENABLE: "MSCCL is for multi-node fabrics; this plan uses one host."
+  env.HSA_FORCE_FINE_GRAIN_PCIE: "Enables the fine-grained host mappings used by the fork's PCIe collectives."

@@ -54,3 +54,16 @@ args:
   mm-processor-kwargs: null
   language-model-only: true
   skip-mm-profiling: true
+
+why:
+  env.VLLM_PP_LAYER_PARTITION: "Splits the model evenly across the three pipeline stages."
+  env.VLLM_RDNA_DENSE_INT8: "Uses the fork's INT8 dense shadow for pipeline-parallel stages."
+  env.VLLM_RDNA_DENSE_INT8_ONLY: "Drops the FP16 dense copy so each stage fits in 30 GB of VRAM."
+  env.GPU_MAX_HW_QUEUES: "Keeps the launcher's two queues for this TP1 and PP3 profile."
+  args.tensor-parallel-size: "Uses one tensor-parallel rank per pipeline stage."
+  args.pipeline-parallel-size: "Spreads the model over three GPUs with one rank per stage."
+  args.kv-cache-memory-bytes: null
+  args.enable-expert-parallel: null
+  args.gpu-memory-utilization: "Uses 95% of VRAM so vLLM can size the KV cache after profiling."
+  args.language-model-only: "Skips the vision encoder, which does not fit beside these pipeline stages."
+  args.skip-mm-profiling: "Skips the vision profiling pass that the text-only plan cannot fit."

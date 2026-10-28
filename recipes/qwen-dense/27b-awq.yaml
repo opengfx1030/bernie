@@ -100,3 +100,18 @@ args:
   language-model-only: true
   limit-mm-per-prompt: {image: 1}
   mm-processor-kwargs: {max_pixels: 1605632}
+
+why:
+  env.VLLM_RDNA2_W4A8_SDOT4: "Uses INT8-activation prefill GEMMs while decode stays W4A16."
+  env.VLLM_USE_V2_MODEL_RUNNER: "The V2 runner is the production path for hybrid models on gfx1030."
+  env.VLLM_USE_AOT_COMPILE: "Uses per-rank JIT because a shared AOT graph can carry rank-zero buffers."
+  env.VLLM_DISABLE_COMPILE_CACHE: "Keeps compiled artifacts from being shared between TP ranks."
+  env.VLLM_RDNA_FUSED_SE: "Fuses the shared expert on the validated W4A16 path."
+  env.VLLM_FORCE_CUSTOM_ALL_REDUCE: "Leaves the stock custom all-reduce off; the fork's one-shot path handles small messages."
+  env.VLLM_RDNA_DECODE_STALL_MS: "Leaves the decode-stall cap off because it cost prefill throughput in the measured dense profile."
+  args.max-num-seqs: "Eight request slots match the validated dense serving profile."
+  args.max-num-batched-tokens: "Covers two 1024-token state blocks for the FP16 KV cache."
+  args.kv-cache-memory-bytes: "Reserves 8 GB per card for the validated dense profile."
+  args.compilation-config: "Uses full decode graphs with piecewise graphs and capture widths 1, 2, 4 and 8."
+  args.enable-prefix-caching: "Reuses the aligned recurrent conversation state."
+  args.mamba-cache-mode: "Keeps the recurrent cache on the model's state-block grid."

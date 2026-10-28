@@ -62,3 +62,16 @@ args:
   trust-remote-code: true
   enable-prefix-caching: true
   mamba-cache-mode: align
+
+why:
+  env.VLLM_USE_V2_MODEL_RUNNER: "The V2 runner is the production path for hybrid models on gfx1030."
+  env.VLLM_USE_AOT_COMPILE: "Uses per-rank JIT because a shared AOT graph can carry rank-zero buffers."
+  env.VLLM_DISABLE_COMPILE_CACHE: "Keeps compiled artifacts from being shared between TP ranks."
+  env.VLLM_RDNA_DECODE_STALL_MS: "Bounds decode gaps during long prefills at the measured 250 ms budget."
+  args.max-model-len: "Uses the validated 20K context for this EXL3 checkpoint."
+  args.max-num-seqs: "Eight request slots match the validated dense serving profile."
+  args.max-num-batched-tokens: "Keeps prefill chunks on the 1024-token recurrent-state boundary."
+  args.kv-cache-memory-bytes: "Reserves 6 GB per card for this 20K-context profile."
+  args.compilation-config: "Uses the validated full-plus-piecewise graph mode and capture widths 1, 2, 4 and 8."
+  args.enable-prefix-caching: "Reuses the aligned recurrent conversation state."
+  args.mamba-cache-mode: "Keeps the recurrent cache on the model's state-block grid."

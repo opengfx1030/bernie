@@ -11,3 +11,8 @@ env:
   FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
 args:
   attention-backend: TRITON_ATTN
+
+why:
+  env.VLLM_USE_RDNA2_FA: "Leaves FA-RDNA2 off so the Triton AMD attention path is selected."
+  env.FLASH_ATTENTION_TRITON_AMD_ENABLE: "Enables the Triton AMD flash-attention path for gfx1030."
+  args.attention-backend: "Selects the portable Triton attention backend for this profile."

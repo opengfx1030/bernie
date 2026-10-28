@@ -24,3 +24,6 @@ inputs:
     path: true
 env:
   VLLM_PLE_QUANT_DIR: ${PLE_QUANT_DIR}
+
+why:
+  env.VLLM_PLE_QUANT_DIR: "Loads the INT4 PLE n-gram table from pinned host memory instead of the much larger BF16 table."
