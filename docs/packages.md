@@ -331,6 +331,10 @@ func Load() (Config, error); func Save(c Config) error
 func (c Config) ResolveVenv(flag string) string
 func (c Config) ResolveVenvInfo(flag string) VenvResolution   // path, source and candidates
 type VenvResolution struct { Path, Source string; Candidates []string }
+// pyenv: the layout of a venv on disk, without starting its Python
+func SitePackages(venv string) []string
+func SearchPaths(venv string) []string
+func HasModule(venv, module string) bool
 // fixture: test host snapshots
 func Root(tb testing.TB, name string) string
 ```
