@@ -109,3 +109,16 @@ func TestLoadDuplicateIDInOneTreeNamesBothPaths(t *testing.T) {
 		t.Errorf("kept %s, want the first file %s", got, first)
 	}
 }
+
+func TestValidatedArchs(t *testing.T) {
+	got := ValidatedArchs(Load())
+	if len(got) == 0 {
+		t.Fatal("no validated architecture in the built-in recipes")
+	}
+	for i, a := range got {
+		if i > 0 && got[i-1] >= a {
+			t.Errorf("not sorted and distinct: %v", got)
+		}
+	}
+	t.Logf("validated archs: %v", got)
+}

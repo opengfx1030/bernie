@@ -49,8 +49,8 @@ type Report struct {
 
 // Options select the host root, the venv for python checks and the
 // categories (all when empty). HFHome overrides the Hugging Face cache root
-// ($HF_HOME, else ~/.cache/huggingface). ValidatedArchs are the gfx targets
-// that have validated recipes; the caller reads them from the recipe set
+// ($HF_HOME, else ~/.cache/huggingface). ValidatedArchs are the gfx names or
+// prefixes (as in a recipe's requires.arch) of the validated recipes; the caller reads them from the recipe set
 // (doctor does not import recipe).
 type Options struct {
 	Root           string
