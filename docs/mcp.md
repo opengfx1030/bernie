@@ -64,12 +64,18 @@ Read-only by default. Each tool returns the document of its command as
 | `bench_compare` | `bench compare <a> <b>`: the verdict of two saved results |
 | `tunableop_status`, `power_status` | `tune tunableop status`, `tune power service status` |
 | `onboarding_status` | `status --steps`: the onboarding checklist of this host |
+| `jobs` | the onboarding jobs of this host: the id, the step, the state and the progress of every job, newest first |
 
 An agent should start with `status`, then `doctor` and `recipe_plan`.
 `onboarding_status` gives the ordered steps from a bare machine to a serving
 model: it is the shortest way to see what is missing. The agent runs the
 steps with `setup_apply` and `serve`; a step that needs root comes back as a
 command to run.
+
+A step of the checklist names the job that made it (`job_id`, `job_state`),
+and `jobs` lists the jobs of this host. The id of a job re-attaches to its
+output: the dashboard replays the buffered lines of the job from the
+beginning, so a page that reloads finds the whole output again.
 
 The tools see only the GPUs the environment leaves visible
 (`HIP_VISIBLE_DEVICES`, `ROCR_VISIBLE_DEVICES`; spec §7.7). A restriction

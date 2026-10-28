@@ -60,6 +60,12 @@ func OnboardingJobLog(id string) ([]string, error) {
 	return onboarding.JobLog(id)
 }
 
+// OnboardingJobs returns the jobs of this host, newest first. The limit
+// caps the list; a limit below one means the default.
+func OnboardingJobs(limit int) []onboarding.JobSummary {
+	return onboarding.JobSummaries(limit)
+}
+
 // SmokeOptions are the inputs of the smoke check.
 type SmokeOptions struct {
 	URL    string // base URL of the server; "" = the running run

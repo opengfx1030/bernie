@@ -55,6 +55,26 @@ func (s *Stream) Event(name, data string) error {
 	return s.write(b.Bytes())
 }
 
+// EventID writes one event with an id. The id lets a client that
+// re-attaches ask for the events after the last one it saw: it sends the id
+// back in the Last-Event-ID header.
+func (s *Stream) EventID(id, name, data string) error {
+	var b bytes.Buffer
+	b.Grow(len(id) + len(name) + len(data) + 24)
+	b.WriteString("id: ")
+	b.WriteString(id)
+	b.WriteByte('\n')
+	if name != "" {
+		b.WriteString("event: ")
+		b.WriteString(name)
+		b.WriteByte('\n')
+	}
+	b.WriteString("data: ")
+	b.WriteString(data)
+	b.WriteString("\n\n")
+	return s.write(b.Bytes())
+}
+
 // Comment writes an SSE comment.
 func (s *Stream) Comment(text string) error {
 	return s.write([]byte(": " + text + "\n\n"))

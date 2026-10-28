@@ -66,6 +66,7 @@ func Register(mux *http.ServeMux, o Options) {
 	mux.HandleFunc("GET /api/bench/{id}/events", h.getBenchEvents)
 	mux.HandleFunc("GET /api/onboarding", h.getOnboarding)
 	mux.HandleFunc("POST /api/onboarding/{step}/run", h.postOnboardingRun)
+	mux.HandleFunc("GET /api/jobs", h.getJobs)
 	mux.HandleFunc("GET /api/jobs/{id}", h.getJob)
 	mux.HandleFunc("GET /api/jobs/{id}/events", h.getJobEvents)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {

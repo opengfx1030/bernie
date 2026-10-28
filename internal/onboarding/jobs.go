@@ -290,6 +290,41 @@ func parseBytes(s string) (int64, bool) {
 	return int64(n * float64(mult)), true
 }
 
+// JobSummary is the list document of a job: the id, the step, the state and
+// the progress. The page re-attaches to a job with its id.
+type JobSummary struct {
+	ID         string       `json:"id"`
+	Step       string       `json:"step"`
+	State      string       `json:"state"`
+	StartedAt  time.Time    `json:"started_at"`
+	FinishedAt *time.Time   `json:"finished_at,omitempty"`
+	Phase      string       `json:"phase,omitempty"`
+	Progress   *JobProgress `json:"progress,omitempty"`
+}
+
+// DefaultJobLimit is the number of jobs the list answers.
+const DefaultJobLimit = 50
+
+// JobSummaries returns the jobs of this host, newest first, at most limit of
+// them. A limit below one means the default.
+func JobSummaries(limit int) []JobSummary {
+	if limit < 1 {
+		limit = DefaultJobLimit
+	}
+	jobs := RecentJobs()
+	out := make([]JobSummary, 0, min(len(jobs), limit))
+	for _, j := range jobs {
+		if len(out) == limit {
+			break
+		}
+		out = append(out, JobSummary{
+			ID: j.ID, Step: j.Step, State: j.State, StartedAt: j.StartedAt,
+			FinishedAt: j.FinishedAt, Phase: j.Phase, Progress: j.Progress,
+		})
+	}
+	return out
+}
+
 // RecentJobs returns the jobs of this host, newest first. A job that was
 // running when the process ended is marked failed.
 func RecentJobs() []Job {
@@ -333,12 +368,16 @@ func JobLog(id string) ([]string, error) {
 
 // lastJob returns the newest job of a step, or nil.
 func lastJob(jobs []Job, step string) *Job {
+	var newest *Job
 	for i := range jobs {
-		if jobs[i].Step == step {
-			return &jobs[i]
+		if jobs[i].Step != step {
+			continue
+		}
+		if newest == nil || jobs[i].StartedAt.After(newest.StartedAt) {
+			newest = &jobs[i]
 		}
 	}
-	return nil
+	return newest
 }
 
 // jobDir is <state>/jobs/<id>.
