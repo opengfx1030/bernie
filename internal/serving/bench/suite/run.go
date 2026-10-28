@@ -154,6 +154,8 @@ func workload(s *Suite, o bench.Options, base *bench.Workload) *bench.Workload {
 	w.SuiteID = s.ID
 	w.SuiteDigest = s.Digest()
 	w.Kind = KindThroughput
+	w.CompareBand = s.Compare.Band
+	w.CompareSteady = s.Compare.Steady
 	for _, g := range s.Groups {
 		for _, c := range g.Concurrency {
 			if !slices.Contains(w.Concurrency, c) {

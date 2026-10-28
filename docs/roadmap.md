@@ -43,6 +43,12 @@ Each item has a spec section and one test that proves it.
   cell that lost a request is `incomplete`: its numbers stay, but no
   verdict uses them. The result records the power cap and the clocks of
   the cards. Spec [§10.2](spec.md#102-suites).
+- **Bench verdict.** `bernie bench compare` says, for every metric of every
+  cell, whether the second run is better, the same or worse. The noise
+  band comes from the suite and from the spread of the repetitions, and an
+  arm whose repetitions disagree gets no verdict. A failed recall or an
+  incomplete cell makes the whole comparison invalid. Spec
+  [§10.3](spec.md#103-the-verdict).
 - **ECC check.** The doctor check `gpu.ecc.<hip index>` reads the RAS
   counters of every card: `ok` when ECC is on and the card counted no
   memory error, `warn` when ECC is off on a card that has it or when the

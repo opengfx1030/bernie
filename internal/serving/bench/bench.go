@@ -147,6 +147,10 @@ type Workload struct {
 	SuiteDigest string `json:"suite_digest,omitempty"`
 	// Kind is what the cells assert: "throughput" or "check".
 	Kind string `json:"kind,omitempty"`
+	// CompareBand and CompareSteady are the thresholds of the verdict
+	// between two runs of this workload.
+	CompareBand   float64 `json:"compare_band,omitempty"`
+	CompareSteady float64 `json:"compare_steady,omitempty"`
 }
 
 // SuiteRef names the suite that produced a result.

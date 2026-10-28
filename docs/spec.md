@@ -1226,6 +1226,41 @@ The fingerprint of a result records the power cap and the clocks of the
 cards of the run, when the host publishes them. They say what the cards
 did while the benchmark ran.
 
+### 10.3 The verdict
+
+`bernie bench compare <id-a> <id-b>` says, for every metric of every cell,
+whether the second run is better, the same or worse than the first. The
+metrics are the five groups of §10.1: the prefill speed, the decode speed,
+the time to first token, the inter-token latency and the output rate. A
+rate is better when it is bigger, a latency when it is smaller.
+
+The rules:
+
+- The two results must measure the same workload. Otherwise the comparison
+  is refused (exit 1, "workload differs").
+- A recall that failed, a cell that lost a request (`incomplete`) and a
+  cell that only one of the runs has make the comparison invalid. No
+  verdict is issued for it.
+- The noise band of a metric is the wider of the band of the suite and the
+  spread the two arms measured.
+- The repetitions of an arm must agree within `compare.steady`. An arm
+  whose repetitions disagree gets no verdict for that metric: the metric
+  is `noisy`.
+- A metric is `worse` when the ratio of the two runs is beyond the band and
+  every ratio of a repetition of the second run to a repetition of the
+  first is on the same side. It is `better` when the same holds in the
+  other direction. Otherwise it is `same`.
+
+The exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | The comparison is valid and no metric is worse. |
+| 3 | A metric is worse. The table is printed. |
+| 1 | The comparison could not decide: the results are not comparable, a cell is incomplete, the recall failed or a metric was too noisy. |
+
+`--band P` replaces the band of the suite.
+
 ## 11. Dashboard
 
 `bernie dash` serves an embedded web UI and a JSON API. It listens on
