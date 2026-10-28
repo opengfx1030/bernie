@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/opengfx1030/rdnactl/internal/config"
 	"github.com/opengfx1030/rdnactl/internal/gpu"
@@ -78,14 +79,7 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 	}
 
 	sets := append(append([]string{}, cfg.Set...), o.Sets...)
-	var tunedMoE string
-	if mode == recipe.ModeHost {
-		if tunedMoE, err = tuning.MaterializeTunedMoE(); err != nil {
-			return nil, fmt.Errorf("tuned MoE configs: %w", err)
-		}
-	}
-
-	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Mode: mode, Name: o.Name, Sets: sets, GPUs: gpus, Topo: tp, TunedMoEDir: tunedMoE})
+	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Mode: mode, Name: o.Name, Sets: sets, GPUs: gpus, Topo: tp, TunedMoE: tuning.MaterializeTunedMoE})
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +97,7 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 		containerMounts(p)
 	}
 	if !o.NoTunableOp {
-		if err := applyTunableOp(p, venv, o.Profile, o.Tuning); err != nil {
+		if err := applyTunableOp(p, gpu.Archs(gpus, p.GPUs), venv, o.Profile, o.Tuning); err != nil {
 			return nil, err
 		}
 	}
@@ -159,10 +153,11 @@ func containerMounts(p *recipe.Plan) {
 	p.Env["VLLM_TUNED_CONFIG_FOLDER"] = containerTunedMoE
 }
 
-// applyTunableOp selects the profile (host: by the loaded rocBLAS hash;
-// container: the recipe's profile), materializes its rows and merges the
-// TunableOp environment. Variables the recipe or --set gave win.
-func applyTunableOp(p *recipe.Plan, venv, explicit string, tune bool) error {
+// applyTunableOp selects the profile (host: by the loaded rocBLAS hash and
+// the architecture of the selected GPUs, archs; container: the recipe's
+// profile), materializes its rows and merges the TunableOp environment.
+// Variables the recipe or --set gave win.
+func applyTunableOp(p *recipe.Plan, archs []string, venv, explicit string, tune bool) error {
 	var prof *tuning.Profile
 	var env map[string]string
 	if p.Mode == recipe.ModeContainer {
@@ -174,7 +169,7 @@ func applyTunableOp(p *recipe.Plan, venv, explicit string, tune bool) error {
 			p.Warnings = append(p.Warnings, "recipe names no TunableOp profile for its image; TunableOp is off")
 			return nil
 		}
-		pr, err := tuning.Select("", name)
+		pr, err := tuning.Select("", name, archs)
 		if err != nil {
 			return err
 		}
@@ -193,13 +188,17 @@ func applyTunableOp(p *recipe.Plan, venv, explicit string, tune bool) error {
 		if err != nil {
 			return fmt.Errorf("hash %s: %w", lib, err)
 		}
-		prof, err = tuning.Select(sha, explicit)
+		prof, err = tuning.Select(sha, explicit, archs)
 		if err != nil {
 			return err
 		}
 		if prof == nil {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("no TunableOp profile matches %s (sha256 %s); using per-user rows %s",
-				lib, sha[:tuning.SHAPrefix], tuning.PerUserFile()))
+			on := ""
+			if len(archs) > 0 {
+				on = " on " + strings.Join(archs, "/")
+			}
+			p.Warnings = append(p.Warnings, fmt.Sprintf("no TunableOp profile matches %s (sha256 %s)%s; using per-user rows %s",
+				lib, sha[:tuning.SHAPrefix], on, tuning.PerUserFile()))
 		}
 	}
 	if prof != nil {
