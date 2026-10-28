@@ -11,6 +11,7 @@ import (
 	_ "github.com/opengfx1030/bernie/internal/cli/cmds/dashcmd"
 	_ "github.com/opengfx1030/bernie/internal/cli/cmds/health"
 	_ "github.com/opengfx1030/bernie/internal/cli/cmds/inventory"
+	_ "github.com/opengfx1030/bernie/internal/cli/cmds/mcpcmd"
 	_ "github.com/opengfx1030/bernie/internal/cli/cmds/serving"
 	_ "github.com/opengfx1030/bernie/internal/cli/cmds/tunecmd"
 )
