@@ -149,6 +149,33 @@ body.shell {
   flex-wrap: wrap;
 }
 
+/* ---------- the skip link and the data age ---------- */
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 40;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.skip:focus {
+  left: 8px;
+  top: 8px;
+}
+
+.pill-age {
+  font-size: var(--small);
+  color: var(--muted);
+}
+
+.pill-age.stale { color: var(--warn); }
+
 /* ---------- the content column ---------- */
 
 .content {

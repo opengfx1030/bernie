@@ -131,19 +131,50 @@ function setTabCount(tab, n) {
 
 /* ---------- the keyboard shortcuts ---------- */
 
+const SHORTCUT_KEY = "bernie.shortcuts";
+
 const SHORTCUTS = [
+  ["Left and Right", "move between the tabs"],
+  ["Home and End", "the first and the last tab"],
   ["g then s", "the Setup tab"],
   ["g then d", "the Dashboard tab"],
   ["g then b", "the Benchmark tab"],
   ["g then l", "the Logs tab"],
   ["g then c", "the Classic tab"],
-  ["Left and Right", "move between the tabs"],
 ];
 
+/** shortcutsOn says whether the letter shortcuts are on. They are off until
+ *  the reader turns them on (WCAG 2.1.4: a shortcut of letters must be
+ *  disable-able). */
+function shortcutsOn() {
+  try { return localStorage.getItem(SHORTCUT_KEY) === "1"; } catch (e) { return false; }
+}
+
+/** setShortcuts remembers the choice of the reader. */
+function setShortcuts(on) {
+  try { localStorage.setItem(SHORTCUT_KEY, on ? "1" : "0"); } catch (e) { /* the page still works */ }
+}
+
+/** shortcutsText is the panel of the `?` mark: the keys of the page and the
+ *  switch that turns the letter shortcuts on. */
 function shortcutsText() {
+  const on = shortcutsOn();
+  const label = on ? "Turn the letter shortcuts off" : "Turn the letter shortcuts on";
+  const toggle = h("button.small", {
+    type: "button",
+    "aria-pressed": String(on),
+    onclick: (ev) => {
+      const next = !shortcutsOn();
+      setShortcuts(next);
+      ev.target.setAttribute("aria-pressed", String(next));
+      ev.target.textContent = next ? "Turn the letter shortcuts off" : "Turn the letter shortcuts on";
+    },
+  }, label);
   return h("div",
     h("b", "The keyboard"),
-    h("dl", SHORTCUTS.flatMap(([k, v]) => [h("dt", h("kbd", k)), h("dd", v)])));
+    h("dl", SHORTCUTS.flatMap(([k, v]) => [h("dt", h("kbd", k)), h("dd", v)])),
+    h("div.row", toggle),
+    h("p.small.muted", "The letter shortcuts are off until you turn them on."));
 }
 
 /* ---------- the theme ---------- */
@@ -207,7 +238,9 @@ function toggleAdvanced() {
 /* ---------- the run status pill ---------- */
 
 /** setRunPill paints the answer to "is something serving?" in the footer of
- *  the rail. The word carries the meaning; the colour only helps. */
+ *  the rail. The word carries the meaning; the colour only helps. The pill
+ *  only changes when the state changes: a live region that speaks every five
+ *  seconds is a failure of its own. */
 function setRunPill(runs) {
   const pill = $("#runpill");
   if (!pill) return;
@@ -232,11 +265,31 @@ function setRunPill(runs) {
     word = "stopped"; icon = "✕"; tone = "fail";
     sentence = phaseSentence(exited[0], "The run has stopped.");
   }
-  pill.className = "pill " + tone;
-  pill.querySelector(".pill-icon").textContent = icon;
-  pill.querySelector(".pill-word").textContent = word;
-  pill.setAttribute("title", word + " — " + sentence);
-  pill.setAttribute("aria-label", word + " — " + sentence);
+  if (pill.dataset.state !== word) {
+    pill.dataset.state = word;
+    pill.className = "pill " + tone;
+    pill.querySelector(".pill-icon").textContent = icon;
+    pill.querySelector(".pill-word").textContent = word;
+    pill.setAttribute("title", word + " — " + sentence);
+    pill.setAttribute("aria-label", word + " — " + sentence);
+  }
+  setPillAge();
+}
+
+/** setPillAge writes how old the numbers are. It sits outside the live
+ *  region: the age moves every second and must not be announced. */
+function setPillAge() {
+  const age = $("#pillage");
+  if (!age) return;
+  const last = state.lastUpdate || 0;
+  if (!last) {
+    age.textContent = "no data yet";
+    age.classList.add("stale");
+    return;
+  }
+  const old = state.stale || (Date.now() - last) > STALE_MS;
+  age.textContent = old ? "stale — updated " + ago(last) : "updated " + ago(last);
+  age.classList.toggle("stale", old);
 }
 
 /** phaseSentence is the sentence of the phase of a run. */
