@@ -295,6 +295,8 @@ is.
 | G8 | The KV cache of the live run | it exists | `GET /api/telemetry`, `runs[].stats.kv_cache_usage` (a fraction from 0 to 1) | none |
 | G9 | The ECC state of a card | it exists | `GET /api/doctor`, the check whose id is `gpu.ecc.<hip index>` | none |
 | G10 | The endpoint and the age of a run | they exist | `GET /api/runs`, `url`, `started_at` | none |
+| G11 | The receipt of a comparison | the compare endpoint answers the table only | `GET /api/bench/compare?a=ID&b=ID&format=markdown` answers `text/markdown`: the same text as `bernie bench compare A B --markdown` |
+| G12 | The A/B run | the CLI has it, the API does not | `POST /api/bench/ab` with `{"base": "flashnext", "cand": "http://127.0.0.1:8001"}` answers `202` and `{"id": "b-7f3a"}`; the job endpoints of G7 carry it |
 
 Rules for the new endpoints: they live in `dashboard/`, they call the same
 `internal/app` function as the matching command, they answer the same JSON

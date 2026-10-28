@@ -1,0 +1,109 @@
+# Dashboard v3 — the Setup tab
+
+Part of the design of the dashboard. The main file is
+[../design-dashboard.md](../design-dashboard.md); the components are in
+[components.md](components.md).
+
+The question of the tab: **what do I do to make this box serve?**
+
+Wireframes: `design/setup-1280.svg` (the machine that is ready), 
+`design/setup-390.svg` (the same at 390 px),
+`design/setup-blocked-1280.svg` (a step that needs root and a step that
+runs).
+
+## The order of the page
+
+1. The state headline and the actions of the tab.
+2. The hero: the plan in words on the left, the facts on the right.
+3. The section `THE PATH TO A SERVING MODEL`: the step timeline.
+4. The section `THE RECIPE`: the chooser and the plan.
+5. The section `DOCTOR`: the findings.
+6. The section `ADVANCED`: the raw documents and the commands.
+
+## The widgets
+
+| # | Widget | Data source | Refresh | Empty copy | Error copy |
+|---|---|---|---|---|---|
+| 1 | The state headline and the lede | `GET /api/onboarding` → `next`, `steps[].state` | on open, after every job event, and every 15 s while a job runs | `BERNIE IS CHECKING THE HOST.` with the lede `Reading the host. The checklist arrives in a moment.` | `The state of this machine is unknown.` and the lede `The dashboard could not read /api/onboarding.` plus `Try again` |
+| 2 | The primary action | the same document, `next` | with the headline | the button is replaced by the sentence `Nothing is left to do.` | the button is disabled and reads `Try again` |
+| 3 | The facts strip | `GET /api/onboarding` → `facts[]` (G1); `GET /api/hw` and `GET /api/doctor` fill it until G1 lands | on open and every 15 s | the strip is hidden and the hero shows only the plan | one fact shows `–` and the reason `The dashboard could not read the host.` |
+| 4 | The step timeline | `GET /api/onboarding` → `steps[]` | on open and after every job event | `There is no checklist on this host.` and `The checklist is the ordered list of steps that lead from a bare machine to a serving model. It comes from the doctor report, the setup plan and the runs.` plus the command `bernie status --steps` | `The dashboard could not read the checklist.` plus `Try again` |
+| 5 | The model download progress | the job of the `model` step: `GET /api/jobs/{id}` → `progress` (G2) and `GET /api/jobs/{id}/events` | the job stream, every event | the step says `The model is not on this host yet.` | the step says `The download stopped.` and shows the last line of the job |
+| 6 | The recipe chooser | `GET /api/recipes` → `recipes[]`, `errors[]` | on open | `There is no recipe to serve.` and `A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository.` | the load errors are listed under the heading `LOAD ERRORS`, one line per file |
+| 7 | The fit of a recipe | the same document, `recipes[].fit` | with the chooser | the recipe says `fit: unknown` and `No GPU data on this host.` | the recipe says `fit: unknown` and the reason of the error |
+| 8 | The plan of the picked recipe | `GET /api/recipes/{id}/plan?set=K=V&mode=host` → `settings[]` (the setting, the value and the reason), `adjustments[]`, the command, the GPU selection | on open, and again when the mode or an override changes | `The plan is not ready.` and the reason of the failure | `The plan could not be built.` plus `Try again` |
+| 9 | The mode switch | `GET /api/recipes/{id}/plan?mode=host|container` | on change | the segmented control shows one segment only when the recipe has no other mode | the switch keeps the old mode and the card shows the error |
+| 10 | The doctor findings | `GET /api/doctor` → `checks[]`, `summary` | on open and on `Re-run` | `The doctor found nothing to report.` and `Every check of the host passed.` | `The doctor could not run.` plus the command `bernie doctor` and `Try again` |
+| 11 | The verify step and the `Try it` box | `POST /api/smoke` (G3) | on demand | the box is disabled with the sentence `Start the server first.` | the box shows `The server did not answer.` and the reason |
+| 12 | The stale banner | `GET /api/onboarding` → `stale`, `facts_age_s` | with the document | the banner is hidden | the banner is hidden |
+| 13 | The Advanced panel | `GET /api/onboarding`, `GET /api/recipes`, `GET /api/doctor` | on open | the panel holds the empty answer of the endpoint | the panel holds the error answer |
+
+## The steps of the timeline
+
+The eight steps of the checklist of spec §3.3, in this order, and the three
+extras after them:
+
+| Order | Id | Title | What the row shows |
+|---|---|---|---|
+| 1 | `hardware` | The cards are there | the doctor checks of the `gpu` category |
+| 2 | `access` | The groups are right | the `gpu.groups` check and its fix |
+| 3 | `rocm` | The ROCm tools work | the `rocm` category and its fix |
+| 4 | `python-env` | The Python environment is ready | the `python` category and the venv it used |
+| 5 | `model` | The model is on the disk | the download progress and its sentence |
+| 6 | `recipe` | A recipe fits | the fit of the best recipe and the reason |
+| 7 | `serve` | The server answers | the state of the run and its phase |
+| 8 | `verify` | The server answers a request | the `Try it` box |
+| 9 | `bench` | The speed is measured | a link to the Benchmark tab |
+| 10 | `tuning` | The kernels are tuned | a link to the Dashboard tab |
+| 11 | `power` | The power caps are set | a link to the Dashboard tab |
+
+A step that bernie can do has a `Run` button. A step that needs root has
+the command and a copy button, and no button at all: bernie never runs a
+command as root.
+
+## The headline and its action
+
+| State of the host | The headline | The lede | The primary action |
+|---|---|---|---|
+| The checklist is on its way | `BERNIE IS CHECKING THE HOST.` | `Reading the host. The checklist arrives in a moment.` | none |
+| There is no GPU bernie can use | `THIS BOX HAS NO GPU FOR BERNIE.` | `bernie needs an AMD card with /dev/kfd. The doctor report says what is missing.` | `Read the doctor report` (a ghost link to the doctor card) |
+| Steps are left | `N STEPS LEFT BEFORE THIS BOX CAN SERVE.` | `The venv, the ROCm wheels and the model are not there yet. Two steps need root; you will run those yourself.` | `Set up this machine` |
+| A step runs | `SETTING UP THIS BOX.` | the phase sentence of the step, for example `Downloading the model weights, 2 of 5 shards` | `Run the rest of the steps` |
+| The path is complete and nothing serves | `THIS BOX IS READY TO SERVE.` | `Everything bernie needs is in place. Start the server and it answers on port 18096.` | `Start the server` |
+| A run answers | `THIS BOX IS SERVING.` | `The model answers on port 18096. Try it, or read the logs.` | `Try it` (the smoke box) |
+
+`N` is the number of steps of the path that are neither done nor skipped.
+The lede never names a mechanism: it names the state and the consequence.
+
+## The recipe chooser
+
+The chooser is a list of radio cards, one per recipe, each with the name,
+the status (`validated`, `experimental`, `reference`), the number of GPUs
+it wants, its arch and its fit. A recipe that does not fit says why in one
+line: `no: 4 GPUs of gfx1030 are needed, this host has 2`.
+
+The plan card under the chooser holds:
+
+| Part | Data |
+|---|---|
+| The launch command | `plan.command`, in a command block with a copy button |
+| The GPU selection | `plan.gpus` and the reason of the selection |
+| The settings | `plan.settings[]`: the setting path, the value and the reason, one row per setting |
+| The adjustments | `plan.adjustments[]`: what the plan changed to fit, and why |
+| The mode | a segmented control: `host` and `container` |
+
+The `Start the server` button is the primary action of the plan card when
+the tab has no other primary action. It is the only other filled button of
+the tab, and it is disabled while the plan is not ready.
+
+## The copy of the tab
+
+| Place | The text |
+|---|---|
+| The plan sentence of the hero | `bernie picked the setup that fits this host. Anything that needs a password is shown as a command to paste.` |
+| The step that needs root | `This step needs root. Run it in a terminal, then re-check.` |
+| The button of a step that is done | `Run again` |
+| The button of the doctor card | `Re-run` |
+| The try-it box | `Ask the server something.` and the placeholder `What is the capital of Portugal?` |
+| The answer of the try-it box | the text of the reply, then `214 ms to the first token · 56.1 tok/s` |
+| The section `DOCTOR` when all is well | `Every check of the host passed.` |
