@@ -1,0 +1,309 @@
+/* The Classic tab: the original dashboard design of the reference web UI
+   (vllm-rdna-dash by CrispyGinger, used with permission), recovered as it
+   is, so the owner and the author of the reference can put it next to our own
+   Dashboard tab and compare.
+
+   Two rules make this file different from the other stylesheets:
+
+   1. It is scoped. Every selector starts with .classic, so nothing here can
+      reach another tab, and another tab cannot reach this one.
+   2. It writes no colour of its own. The palette of the reference already
+      lives in css/tokens.css: the tokens carry the reference colours (the
+      dark #0e0e10 surfaces, the #ff3b30 accent, the #ffd21f key, the four
+      series colours) and this file only reads them. The reference's own
+      --line-2 (#3a3a41) is the shell's --border-strong here, because that is
+      the value that keeps a 3:1 edge on a control.
+
+   The type is the reference's stack: the self-hosted Montserrat, Inter and
+   JetBrains Mono of web/fonts (SIL Open Font License). No CDN and no request
+   outside this host. */
+
+.classic {
+  color: var(--text);
+  font: var(--body)/1.5 var(--font-body);
+}
+
+/* ---------- the display type ---------- */
+.classic .punch {
+  font: italic 900 clamp(38px, 6vw, 74px)/0.95 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  margin: 0 0 14px;
+  text-shadow: var(--punch);
+}
+.classic .punch .key { color: var(--key); }
+.classic .punch.sm { font-size: clamp(30px, 4.2vw, 50px); text-shadow: var(--punch-sm); }
+.classic .slam { animation: classic-slam 340ms cubic-bezier(.2, .9, .25, 1.15) both; }
+.classic .slam:nth-child(2) { animation-delay: 70ms; }
+@keyframes classic-slam {
+  from { opacity: 0; transform: translateX(-28px) skewX(-10deg); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .classic .slam { animation: none; }
+}
+
+/* ---------- the small parts ---------- */
+.classic .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.classic .muted { color: var(--muted); }
+.classic .empty { color: var(--muted); padding: 18px 0; }
+.classic .eyebrow {
+  font: 800 12px/1 var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+.classic .mono { font-family: var(--font-mono); font-size: 13px; }
+
+/* ---------- the buttons ---------- */
+.classic .btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  border: 0; border-radius: 10px; cursor: pointer;
+  padding: 12px 20px; font: 700 15px/1 var(--font-display);
+  background: var(--text); color: var(--bg);
+}
+.classic .btn:hover { filter: brightness(1.08); }
+.classic .btn.go {
+  font: italic 900 18px/1 var(--font-display);
+  text-transform: uppercase; letter-spacing: 0.01em;
+  padding: 18px 28px; background: var(--key); color: #0b0b0b;
+  box-shadow: 4px 4px 0 var(--accent);
+}
+.classic .btn.go:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--accent); }
+.classic .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.classic .ghost {
+  background: transparent; border: 1px solid var(--border-strong);
+  border-radius: 8px; padding: 7px 12px; cursor: pointer; color: var(--text-2);
+}
+.classic .ghost:hover { color: var(--text); border-color: var(--text-2); }
+.classic .ghost.small { font-size: 13px; padding: 5px 10px; }
+
+/* ---------- the status pills: icon + label, never colour alone ---------- */
+.classic .pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 600 12px/1 var(--font-body); padding: 5px 9px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text); white-space: nowrap;
+}
+.classic .pill::before { font-size: 11px; }
+.classic .pill.ok::before { content: "✓"; color: var(--ok); }
+.classic .pill.info::before { content: "i"; font-weight: 800; color: var(--info); }
+.classic .pill.warn::before { content: "!"; font-weight: 800; color: var(--warn); }
+.classic .pill.rec::before { content: "★"; color: var(--key); }
+.classic .pill.fail::before { content: "✕"; color: var(--fail); }
+.classic .pill.run::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  border: 2px solid var(--info); border-right-color: transparent;
+  animation: classic-spin 0.8s linear infinite;
+}
+.classic .pill.idle::before { content: "○"; color: var(--muted); }
+@keyframes classic-spin { to { transform: rotate(360deg); } }
+
+/* ---------- the command block ---------- */
+.classic .cmd {
+  position: relative; background: var(--surface); border-radius: 8px;
+  padding: 10px 70px 10px 12px; margin: 6px 0 0;
+  white-space: pre; overflow-x: auto; font: 13px/1.55 var(--font-mono); color: var(--text);
+}
+.classic .cmd .copy { position: absolute; top: 6px; right: 6px; }
+
+/* ---------- the panels ---------- */
+.classic .panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: 20px 22px; min-width: 0;
+}
+.classic .panel-head {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 14px; flex-wrap: wrap;
+}
+.classic .panel-head h2 { font: 700 15px/1.2 var(--font-display); margin: 0; letter-spacing: -0.005em; }
+.classic .panel-head .muted { font-size: 13px; }
+.classic .panel-head .seg { margin-left: auto; }
+.classic .grid2 {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 16px; margin-top: 16px;
+}
+
+/* ---------- the hero ---------- */
+.classic .hero-panel {
+  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr);
+  gap: 28px; padding: 24px 28px;
+  background: radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--key) 9%, transparent), transparent 55%), var(--surface);
+}
+.classic .hero-top { margin-bottom: 14px; }
+.classic .hero-top .spacer { flex: 1; }
+.classic .hero-panel .punch { margin: 0 0 6px; font-size: clamp(40px, 5.4vw, 68px); }
+.classic .hero-sub { margin: 0 0 14px; color: var(--text-2); font-size: 16px; }
+.classic .hero-sub b { color: var(--text); }
+.classic .hero-r {
+  border-left: 1px solid var(--border); padding-left: 28px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.classic .hero-r .eyebrow { margin-bottom: 8px; }
+.classic .hero-num {
+  font: italic 900 64px/1 var(--font-display); letter-spacing: -0.03em;
+  color: var(--key); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.classic .hero-num small {
+  font: 700 15px var(--font-display); font-style: normal;
+  color: var(--muted); margin-left: 8px; letter-spacing: 0;
+}
+.classic .hero-note { font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 18px; }
+.classic #dh-spark .spark, .classic .hero-spark .spark { height: 44px; margin-top: 10px; }
+.classic .chip {
+  display: inline-flex; align-items: center; background: var(--surface-2);
+  border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--text-2);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+.classic .warn-panel { margin-top: 16px; border-color: color-mix(in srgb, var(--serious) 45%, var(--border)); }
+
+/* ---------- the tiles ---------- */
+.classic .tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 138px), 1fr));
+  gap: 16px; margin-top: 16px;
+}
+.classic .tile {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px 18px 12px; display: flex; flex-direction: column; min-width: 0;
+}
+.classic .tile-l {
+  font-size: 13px; color: var(--text-2); font-weight: 500;
+  display: flex; align-items: center; gap: 6px;
+}
+.classic .tile-n {
+  font: italic 900 30px/1.05 var(--font-display); letter-spacing: -0.02em;
+  margin: 8px 0 2px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.classic .tile-n small {
+  font: 700 13px var(--font-display); font-style: normal;
+  color: var(--muted); margin-left: 5px; letter-spacing: 0;
+}
+.classic .tile-s { font-size: 12.5px; color: var(--muted); }
+.classic .tile-n.idle, .classic .hero-num.idle { opacity: .55; }
+.classic .tile-sp { margin-top: auto; padding-top: 10px; }
+.classic .spark { display: block; width: 100%; height: 34px; }
+.classic .q {
+  display: inline-grid; place-items: center; width: 15px; height: 15px;
+  border-radius: 50%; border: 1px solid var(--border-strong); color: var(--muted);
+  font: 700 9.5px/1 var(--font-body); font-style: normal; cursor: help; flex: none;
+}
+.classic .q:hover, .classic .q:focus-visible { color: var(--text); border-color: var(--text-2); }
+
+/* ---------- the charts ---------- */
+.classic .chart { width: 100%; }
+.classic .chart svg { display: block; width: 100%; overflow: visible; }
+.classic .chart .axis text, .classic .chart text { fill: var(--muted); font: 11px var(--font-body); }
+.classic .chart .grid line { stroke: var(--border); }
+.classic .legend {
+  display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px;
+  color: var(--text-2); margin: 0 0 8px;
+}
+.classic .legend i {
+  display: inline-block; width: 12px; height: 3px;
+  border-radius: 2px; vertical-align: middle; margin-right: 6px;
+}
+.classic .chart-title { font-weight: 600; margin: 0 0 4px; }
+.classic .chart-sub { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+
+/* ---------- the GPU cards ---------- */
+.classic > .panel-head { margin: 30px 0 14px; }
+.classic > .panel-head h2 {
+  font: italic 900 22px/1 var(--font-display);
+  text-transform: uppercase; letter-spacing: -0.01em;
+}
+.classic .chart text { font-size: 12px; }
+.classic .gpu-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 16px;
+}
+.classic .gpu-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  padding: 18px 18px 12px; min-width: 0;
+}
+.classic .gpu-card.idle { opacity: 0.6; }
+.classic .gpu-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; margin-bottom: 14px;
+}
+.classic .gpu-name { font: italic 900 20px/1 var(--font-display); text-transform: uppercase; }
+.classic .small-t { font-size: 12.5px; margin-top: 3px; }
+.classic .gpu-mid { display: grid; grid-template-columns: 84px 1fr; gap: 16px; align-items: center; }
+.classic .ring-wrap { position: relative; width: 84px; height: 84px; display: grid; place-items: center; }
+.classic .ring { position: absolute; inset: 0; width: 84px; height: 84px; }
+.classic .ring-wrap .ring-n + .ring-l { line-height: 1; }
+.classic .ring-n {
+  font: italic 900 22px/1 var(--font-display); margin-top: -10px;
+  font-variant-numeric: tabular-nums;
+}
+.classic .ring-n small { font: 700 11px var(--font-display); font-style: normal; color: var(--muted); }
+.classic .ring-l {
+  position: absolute; bottom: 22px; font-size: 10.5px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.classic .gpu-stats { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.classic .stat { margin: 0 0 12px; }
+.classic .gpu-stats .stat { margin: 0; }
+.classic .stat-h { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text-2); }
+.classic .stat-h b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.classic .stat-row { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.classic .stat-row.big { font-size: 14px; margin-top: 4px; }
+.classic .meter {
+  position: relative; height: 8px; background: var(--surface-2);
+  border-radius: 4px; overflow: hidden; margin-top: 5px;
+}
+.classic .meter > i {
+  position: absolute; inset: 0 auto 0 0; background: var(--series-1);
+  border-radius: 4px; transition: width 400ms;
+}
+.classic .meter.mem > i { background: var(--series-3); }
+.classic .meter.pow > i { background: var(--series-4); }
+.classic .mval { font-size: 13px; color: var(--text-2); }
+.classic .temp-hot { color: var(--serious); }
+.classic .gpu-spark { margin-top: 12px; }
+
+/* ---------- the segmented control ---------- */
+.classic .seg { display: inline-flex; background: var(--surface-2); border-radius: 9px; padding: 3px; }
+.classic .seg button {
+  border: 0; background: transparent; padding: 5px 12px; border-radius: 7px;
+  cursor: pointer; color: var(--text-2); font-size: 13px; font-weight: 600;
+}
+.classic .seg button.on { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .25); }
+
+/* ---------- the tooltip of the charts ---------- */
+.classic .tip {
+  position: fixed; z-index: 50; max-width: 320px; background: var(--text); color: var(--bg);
+  padding: 9px 11px; border-radius: 8px; font-size: 13px; line-height: 1.45;
+  pointer-events: none; box-shadow: 0 6px 24px rgba(0, 0, 0, .3);
+}
+.classic .tip b { display: block; margin-bottom: 2px; }
+.classic .tip .row { display: flex; gap: 6px; align-items: baseline; }
+
+/* ---------- the intro of the tab ---------- */
+.classic .sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.classic .classic-intro {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
+  margin: 0 0 22px; color: var(--text-2); font-size: 14px;
+}
+.classic .classic-intro a { color: var(--info); text-underline-offset: 3px; }
+.classic .classic-note {
+  color: var(--muted); font-size: 12.5px; margin: 6px 0 0;
+}
+
+/* ---------- the narrow window ---------- */
+@media (max-width: 860px) {
+  .classic .tiles { grid-template-columns: 1fr 1fr; }
+  .classic .tile { margin-right: 0; padding-right: 12px; }
+  .classic .tile-n { font-size: 26px; }
+}
+@media (max-width: 760px) {
+  .classic .hero-panel { grid-template-columns: 1fr; padding: 20px; }
+  .classic .hero-r {
+    border-left: 0; padding-left: 0; border-top: 1px solid var(--border); padding-top: 18px;
+  }
+  .classic .hero-num { font-size: 52px; }
+  .classic .panel { padding: 16px; }
+  .classic .tile { padding: 14px; }
+  .classic .tile-n { font-size: 24px; }
+  .classic .cmd { padding-right: 12px; white-space: pre-wrap; word-break: break-word; }
+}
