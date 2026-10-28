@@ -55,6 +55,44 @@ func TestBuiltInSuitesLoad(t *testing.T) {
 	if _, ok := byID["smoke"]; !ok {
 		t.Errorf("the built-in suites %v lack the smoke suite", ids(all))
 	}
+	ladder, ok := byID["long-context"]
+	if !ok {
+		t.Errorf("the built-in suites %v lack the long-context suite", ids(all))
+		return
+	}
+	// A ladder is a set of groups with growing prompt lengths: the
+	// dashboard draws it as the length curve.
+	if len(ladder.Groups) < 3 {
+		t.Errorf("the long-context suite has %d groups, want a ladder of at least 3", len(ladder.Groups))
+	}
+	last := 0
+	for _, g := range ladder.Groups {
+		if g.InputLen <= last {
+			t.Errorf("the group %q is %d tokens, the one before it was %d: the ladder must grow", g.Name, g.InputLen, last)
+		}
+		last = g.InputLen
+	}
+}
+
+// TestTheLadderSuiteHoldsTheRecallGate checks that the ladder is a gate and
+// not only a speed: a cell that does not repeat the hidden fact says
+// nothing about the prefill.
+func TestTheLadderSuiteHoldsTheRecallGate(t *testing.T) {
+	s, err := Get("long-context")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Recall {
+		t.Error("the long-context suite does not turn on the recall gate")
+	}
+	for _, g := range s.Groups {
+		if g.Kind != KindThroughput {
+			t.Errorf("the group %q has the kind %q", g.Name, g.Kind)
+		}
+		if len(g.Concurrency) != 1 || g.Concurrency[0] != 1 {
+			t.Errorf("the group %q has the levels %v, want one level", g.Name, g.Concurrency)
+		}
+	}
 }
 
 // TestTheSuiteListCarriesTheDigest checks that `bench suites` publishes the

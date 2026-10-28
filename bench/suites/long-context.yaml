@@ -1,0 +1,54 @@
+# The long-context ladder: the same cell at growing prompt lengths. It
+# shows where the prefill of the card breaks, and the dashboard draws it as
+# the length curve. The server must run with prefix caching off, otherwise
+# a long prompt comes from the cache and the cell measures nothing.
+# See docs/spec.md §10.
+schema: 1
+id: long-context
+name: Long context ladder
+description: >-
+  One cell per prompt length, from 2k to 16k tokens, at the level 1. It
+  shows how the prefill and the time to first token grow with the prompt.
+reps: 2
+warmup: 1
+seed: 1234
+recall: true
+request_timeout_s: 3600
+cooldown_s: 5
+size_tolerance_percent: 2
+defaults:
+  requests: 2
+compare:
+  # The ladder runs long: a change of at most 3 % is noise.
+  band: 0.03
+  # The repetitions of one tier must agree within 5 %.
+  steady: 0.95
+groups:
+  - name: 2k
+    kind: throughput
+    input_len: 2048
+    output_len: 512
+    concurrency: [1]
+    reps: 2
+    est_s: 40
+  - name: 4k
+    kind: throughput
+    input_len: 4096
+    output_len: 512
+    concurrency: [1]
+    reps: 2
+    est_s: 60
+  - name: 8k
+    kind: throughput
+    input_len: 8192
+    output_len: 512
+    concurrency: [1]
+    reps: 2
+    est_s: 90
+  - name: 16k
+    kind: throughput
+    input_len: 16384
+    output_len: 512
+    concurrency: [1]
+    reps: 2
+    est_s: 150

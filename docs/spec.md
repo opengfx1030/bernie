@@ -1219,7 +1219,11 @@ comparison invalid, like a failed recall. The `kind` of the workload is
 The built-in `pr` suite has the fixed cells of a pull request: 1024 prompt
 tokens and 512 output tokens at the levels 1, 4 and 8, and 16384 prompt
 tokens and 1024 output tokens at the same levels. The built-in `smoke`
-suite has one short cell: it proves that the server answers.
+suite has one short cell: it proves that the server answers. The built-in
+`long-context` suite is a ladder: one cell per prompt length, from 2048 to
+16384 tokens, at the level 1. It shows how the prefill and the time to
+first token grow with the prompt, and the dashboard draws it as the length
+curve.
 
 The digest of a suite is the sha256 of its canonical form. Every result of
 a suite run carries the digest, so two runs of different suites are never
