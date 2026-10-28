@@ -204,11 +204,27 @@ stability; `skip` means the check cannot run here.
 ### 5.3 Log doctor
 
 `doctor --log FILE|-` and `doctor --run NAME` match a vLLM log against a
-catalog of known failures. Each rule has an id, a regular expression, a
-cause, a fix and a `doc` link. The report lists the matched rules with the
-first matching line. The catalog is data (embedded YAML), not code. `serve`
-and `up` run it on the log of a run that exits during startup and print the
-matches. Exit code 3 when at least one rule matches.
+catalog of known failures. `-` reads standard input. `--run` reads the `log`
+file of the run record (`<state>/runs/<name>/run.json`, `serve.log` in the run
+directory when that file is gone). For a container run it reads the engine's
+`logs` output. `--log` and `--run` exclude each other and `--category` and
+`--venv`. With either flag, `doctor` prints only the log findings and runs no
+host checks.
+
+Each rule has an id (`<family>.<slug>`), a severity (`error` or `warn`), a
+regular expression (Go RE2, matched per line), a cause, a fix and a `doc`
+link. The catalog is data (embedded YAML, `internal/logdoc/catalog.yaml`), not
+code. The report lists each matched rule once, with the first matching line
+and its line number. Lines are matched up to 1 MiB; a log can be any size.
+
+```json
+{"matches": [{"id": "memory.kv-too-small", "severity": "error", "pattern": "...",
+              "cause": "", "fix": "", "doc": "https://...", "line": "", "line_no": 82}]}
+```
+
+`matches` is `[]` when nothing matched. Exit code 3 when at least one rule
+matches. `serve` and `up` run the same scan on the log of a run that exits
+during startup and print the matches.
 
 ## 6. Setup
 
