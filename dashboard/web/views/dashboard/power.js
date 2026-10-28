@@ -70,7 +70,7 @@ async function savePowerDesired(gpu, watts) {
     await api("/api/power", { method: "PUT", body: { gpu, watts } });
     toast("Desired power cap saved. The service will apply it.", true);
     await loadPower();
-    renderPower($("#tab-gpus"));
+    renderPower(gpusRoot);
   } catch (e) {
     toast("Power cap not saved: " + e.message);
   }

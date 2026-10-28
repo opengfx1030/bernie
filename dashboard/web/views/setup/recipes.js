@@ -3,7 +3,7 @@
 
 const recipeUI = { list: null, sel: null };
 
-async function viewRecipes(root) {
+async function renderSetupRecipes(root) {
   put(root, loading());
   const head = stateHead("Recipes");
   try {
@@ -70,7 +70,7 @@ function showRecipe(card, r) {
     try {
       const rec = await api("/api/runs", { method: "POST", body: { recipe: r.id, set: collect(), mode: mode.value, name: name.value } });
       toast(`Started run ${rec.name} on port ${rec.port}.`, true);
-      location.hash = "#runs";
+      location.hash = "#logs";
     } catch (e) { toast("Start failed: " + e.message); }
     ev.target.disabled = false;
   };

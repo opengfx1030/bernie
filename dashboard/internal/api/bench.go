@@ -1,4 +1,4 @@
-package dashboard
+package api
 
 import (
 	"bytes"
@@ -9,55 +9,56 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 )
 
 // GET /api/bench — `bernie bench list --json`.
-func (s *server) getBench(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getBench(w http.ResponseWriter, r *http.Request) {
 	rs, err := app.BenchList()
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, rs)
+	httpjson.Write(w, http.StatusOK, rs)
 }
 
 // GET /api/bench/suites — the built-in suites with their digest.
-func (s *server) getBenchSuites(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getBenchSuites(w http.ResponseWriter, r *http.Request) {
 	all, err := suite.List()
 	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, all)
+	httpjson.Write(w, http.StatusOK, all)
 }
 
 // GET /api/bench/compare?a=ID&b=ID — the verdict of two saved results.
-func (s *server) getBenchCompare(w http.ResponseWriter, r *http.Request) {
+func (h *handler) getBenchCompare(w http.ResponseWriter, r *http.Request) {
 	a := r.URL.Query().Get("a")
 	b := r.URL.Query().Get("b")
 	if a == "" || b == "" {
-		httpError(w, http.StatusBadRequest, "a and b must name two results")
+		httpjson.Error(w, http.StatusBadRequest, "a and b must name two results")
 		return
 	}
 	first, err := bench.Get(a)
 	if err != nil {
-		httpError(w, http.StatusNotFound, err.Error())
+		httpjson.Error(w, http.StatusNotFound, err.Error())
 		return
 	}
 	second, err := bench.Get(b)
 	if err != nil {
-		httpError(w, http.StatusNotFound, err.Error())
+		httpjson.Error(w, http.StatusNotFound, err.Error())
 		return
 	}
 	cmp, err := suite.Compare(first, second)
 	if err != nil {
-		httpError(w, http.StatusBadRequest, err.Error())
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, suite.Judge(cmp, 0))
+	httpjson.Write(w, http.StatusOK, suite.Judge(cmp, 0))
 }
 
 // benchRequest mirrors the `bernie bench` flags. Absent fields take the CLI
@@ -146,33 +147,33 @@ func parseConcurrency(raw json.RawMessage) ([]int, error) {
 
 // POST /api/bench — `bernie bench …`: runs, saves and returns the result.
 // One benchmark runs at a time; a second request gets 409.
-func (s *server) postBench(w http.ResponseWriter, r *http.Request) {
+func (h *handler) postBench(w http.ResponseWriter, r *http.Request) {
 	var req benchRequest
-	if !decodeBody(w, r, &req) {
+	if !httpjson.Decode(w, r, &req) {
 		return
 	}
 	o, err := req.options()
 	if err != nil {
-		httpError(w, http.StatusBadRequest, err.Error())
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var res *bench.Result
 	if o.Suite != "" {
-		res, _, err = app.BenchSuite(r.Context(), o.Suite, o, s.o.Log)
+		res, _, err = app.BenchSuite(r.Context(), o.Suite, o, h.log)
 	} else {
-		res, _, err = app.Bench(r.Context(), o, s.o.Log)
+		res, _, err = app.Bench(r.Context(), o, h.log)
 	}
 	var saveErr *app.SaveError
 	switch {
 	case errors.Is(err, app.ErrBenchBusy):
-		httpError(w, http.StatusConflict, err.Error())
+		httpjson.Error(w, http.StatusConflict, err.Error())
 	case errors.Is(err, app.ErrAllFailed):
-		httpError(w, http.StatusBadGateway, err.Error()+app.FirstCellError(res))
+		httpjson.Error(w, http.StatusBadGateway, err.Error()+app.FirstCellError(res))
 	case errors.As(err, &saveErr):
-		httpError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 	case err != nil:
-		httpError(w, http.StatusBadGateway, err.Error())
+		httpjson.Error(w, http.StatusBadGateway, err.Error())
 	default:
-		writeJSON(w, http.StatusOK, res)
+		httpjson.Write(w, http.StatusOK, res)
 	}
 }

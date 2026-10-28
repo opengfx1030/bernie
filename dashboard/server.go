@@ -1,12 +1,8 @@
-// Package dashboard serves the bernie web UI and its JSON API (spec §11).
-// It is a view over the domain packages: every endpoint calls the same code
-// as the matching CLI command and returns the same JSON.
 package dashboard
 
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +12,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/opengfx1030/bernie/dashboard/internal/api"
+	"github.com/opengfx1030/bernie/dashboard/internal/auth"
+	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
+	"github.com/opengfx1030/bernie/dashboard/internal/telemetry"
 	"github.com/opengfx1030/bernie/internal/mcp"
 )
 
@@ -43,6 +43,15 @@ type Options struct {
 
 // DefaultListen is the loopback address of spec §11.
 const DefaultListen = "127.0.0.1:7860"
+
+// cookieName holds the dashboard token after the operator visits /?token=….
+const cookieName = auth.CookieName
+
+// NewToken returns a random 128-bit hex token.
+func NewToken() string { return auth.NewToken() }
+
+// IsLoopback reports whether the listen address binds only to loopback.
+func IsLoopback(listen string) bool { return auth.IsLoopback(listen) }
 
 // Serve listens and serves until ctx is done, then shuts down gracefully.
 func Serve(ctx context.Context, o Options) error {
@@ -121,17 +130,17 @@ func displayAddr(a net.Addr, listen string) string {
 
 type server struct {
 	o       Options
-	tele    *hub
-	sampler sampler
+	tele    *telemetry.Hub
+	sampler *telemetry.Sampler
 	mcp     http.Handler // nil unless the dashboard listens on loopback
 }
 
 func newServer(o Options) *server {
-	s := &server{o: o}
+	s := &server{o: o, sampler: &telemetry.Sampler{}}
 	if o.Listen == "" || IsLoopback(o.Listen) {
 		s.mcp = mcp.New(mcp.Options{Write: o.MCPWrite && o.Token != "", Transport: "http", Version: o.Version, Log: o.Log}).Handler(o.Token)
 	}
-	s.tele = newHub(time.Second, s.sampleTelemetry)
+	s.tele = telemetry.NewHub(time.Second, s.sampler.Sample)
 	return s
 }
 
@@ -141,46 +150,20 @@ func (s *server) handler() http.Handler {
 	web, _ := fs.Sub(webFS, "web")
 	static := http.FileServerFS(web)
 	mux.Handle("GET /{$}", withCSP(static))
-	mux.Handle("GET /app.js", withCSP(static))
-	mux.Handle("GET /tokens.css", withCSP(static))
-	mux.Handle("GET /layout.css", withCSP(static))
-	mux.Handle("GET /components.css", withCSP(static))
-	mux.Handle("GET /bench.css", withCSP(static))
-	mux.Handle("GET /boot.js", withCSP(static))
-	mux.Handle("GET /views/{file}", withCSP(static))
+	mux.Handle("GET /css/{file}", withCSP(static))
+	mux.Handle("GET /js/{file}", withCSP(static))
+	mux.Handle("GET /components/{file}", withCSP(static))
+	mux.Handle("GET /views/{tab}/{file}", withCSP(static))
 
-	mux.HandleFunc("GET /api/hw", s.getHW)
-	mux.HandleFunc("GET /api/topo", s.getTopo)
-	mux.HandleFunc("GET /api/topo/check", s.getTopoCheck)
-	mux.HandleFunc("GET /api/doctor", s.getDoctor)
-	mux.HandleFunc("GET /api/recipes", s.getRecipes)
-	mux.HandleFunc("GET /api/recipes/{id}/plan", s.getPlan)
-	mux.HandleFunc("GET /api/runs", s.getRuns)
-	mux.HandleFunc("POST /api/runs", s.postRun)
-	mux.HandleFunc("DELETE /api/runs/{name}", s.deleteRun)
-	mux.HandleFunc("GET /api/runs/{name}/logs", s.getLogs)
-	mux.HandleFunc("GET /api/telemetry", s.getTelemetry)
-	mux.HandleFunc("GET /api/power", s.getPower)
-	mux.HandleFunc("PUT /api/power", s.putPower)
-	mux.HandleFunc("GET /api/bench", s.getBench)
-	mux.HandleFunc("GET /api/bench/suites", s.getBenchSuites)
-	mux.HandleFunc("GET /api/bench/compare", s.getBenchCompare)
-	mux.HandleFunc("POST /api/bench", s.postBench)
-	mux.HandleFunc("GET /api/onboarding", s.getOnboarding)
-	mux.HandleFunc("POST /api/onboarding/{step}/run", s.postOnboardingRun)
-	mux.HandleFunc("GET /api/jobs/{id}", s.getJob)
-	mux.HandleFunc("GET /api/jobs/{id}/events", s.getJobEvents)
-	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		httpError(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
-	})
-	g := newGuard(s.o.Token, mux)
+	api.Register(mux, api.Options{Log: s.o.Log, Telemetry: s.tele})
+	g := auth.New(s.o.Token, mux)
 	// /mcp has its own guard (spec §13.10): the dashboard cookie and the
 	// X-Bernie rule do not apply to it.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/mcp" {
 			g.ServeHTTP(w, r)
 		} else if s.mcp == nil {
-			httpError(w, http.StatusNotFound, "/mcp is served on loopback addresses only")
+			httpjson.Error(w, http.StatusNotFound, "/mcp is served on loopback addresses only")
 		} else {
 			s.mcp.ServeHTTP(w, r)
 		}
@@ -195,21 +178,78 @@ func withCSP(h http.Handler) http.Handler {
 	})
 }
 
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(code)
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(v)
+// Starter starts a dashboard in the background of a command: `up` starts it
+// while the server loads the model, `serve --dash` starts it next to the run
+// (spec §3.1). The dashboard is not listening until Start is called.
+type Starter struct {
+	o Options
+	h *Handle
 }
 
-// httpError writes the CLI's --json failure shape: {"error": "...", "exit_code": N}.
-func httpError(w http.ResponseWriter, code int, msg string) {
-	exit := 1
-	if code == http.StatusBadRequest {
-		exit = 2
+// NewStarter returns a starter for a dashboard with these options.
+func NewStarter(o Options) *Starter { return &Starter{o: o} }
+
+// Start starts the dashboard and returns when it listens. A bind error (the
+// port is in use) comes back as an error; no dashboard runs then.
+func (s *Starter) Start(ctx context.Context) error {
+	h, err := Start(ctx, s.o)
+	if err != nil {
+		return err
 	}
-	writeJSON(w, code, map[string]any{"error": msg, "exit_code": exit})
+	s.h = h
+	return nil
 }
+
+// Wait blocks until the dashboard stops (Ctrl-C) and returns its error. It
+// returns nil when no dashboard runs.
+func (s *Starter) Wait() error {
+	if s.h == nil {
+		return nil
+	}
+	return s.h.Wait()
+}
+
+// Handle is a dashboard that serves in the background.
+type Handle struct {
+	url  string
+	done chan error
+}
+
+// Start serves the dashboard in the background and returns when it listens.
+// The URL to open goes to Options.Ready (the caller prints it). A bind error
+// comes back as an error and no dashboard runs then.
+func Start(ctx context.Context, o Options) (*Handle, error) {
+	h := &Handle{done: make(chan error, 1)}
+	ready := make(chan string, 1)
+	caller := o.Ready
+	o.Ready = func(url string) {
+		ready <- url
+		if caller != nil {
+			caller(url)
+		}
+	}
+	go func() { h.done <- Serve(ctx, o) }()
+	select {
+	case url := <-ready:
+		h.url = url
+		return h, nil
+	case err := <-h.done:
+		select {
+		case url := <-ready: // the server stopped right after it listened
+			h.url = url
+			return h, nil
+		default:
+		}
+		if err == nil {
+			err = errors.New("the dashboard stopped before it was ready")
+		}
+		return nil, err
+	}
+}
+
+// URL is the address to open (with the token in token mode).
+func (h *Handle) URL() string { return h.url }
+
+// Wait blocks until the dashboard stops and returns its error. A stop by
+// Ctrl-C is not an error.
+func (h *Handle) Wait() error { return <-h.done }

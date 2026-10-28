@@ -5,45 +5,51 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>bernie</title>
-<link rel="stylesheet" href="tokens.css">
-<link rel="stylesheet" href="layout.css">
-<link rel="stylesheet" href="components.css">
-<link rel="stylesheet" href="bench.css">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/bench.css">
 <link rel="icon" href="data:,">
 </head>
 <body>
 <header class="top">
   <div class="brand"><span class="logo">bernie</span><span id="hostname" class="muted"></span><span id="gpunote" class="muted"></span></div>
   <nav id="tabs" role="tablist">
-    <a href="#home" role="tab" data-tab="home">Home</a>
-    <a href="#gpus" role="tab" data-tab="gpus">GPUs</a>
-    <a href="#topology" role="tab" data-tab="topology">Topology</a>
-    <a href="#recipes" role="tab" data-tab="recipes">Recipes</a>
-    <a href="#runs" role="tab" data-tab="runs">Runs</a>
-    <a href="#bench" role="tab" data-tab="bench">Bench</a>
+    <a href="#setup" role="tab" data-tab="setup">Setup</a>
+    <a href="#dashboard" role="tab" data-tab="dashboard">Dashboard</a>
+    <a href="#benchmark" role="tab" data-tab="benchmark">Benchmark</a>
+    <a href="#logs" role="tab" data-tab="logs">Logs</a>
   </nav>
   <span id="live" class="live" title="telemetry stream">●</span>
 </header>
 <main>
-  <section id="tab-home" class="tab" hidden></section>
-  <section id="tab-gpus" class="tab" hidden></section>
-  <section id="tab-topology" class="tab" hidden></section>
-  <section id="tab-recipes" class="tab" hidden></section>
-  <section id="tab-runs" class="tab" hidden></section>
-  <section id="tab-bench" class="tab" hidden></section>
+  <section id="tab-setup" class="tab" data-tab-panel="setup" hidden></section>
+  <section id="tab-dashboard" class="tab" data-tab-panel="dashboard" hidden></section>
+  <section id="tab-benchmark" class="tab" data-tab-panel="benchmark" hidden></section>
+  <section id="tab-logs" class="tab" data-tab-panel="logs" hidden></section>
 </main>
 <div id="toast" role="status" aria-live="polite" hidden></div>
-<script src="app.js"></script>
-<script src="views/home.js"></script>
-<script src="views/home_steps.js"></script>
-<script src="views/home_advanced.js"></script>
-<script src="views/gpus.js"></script>
-<script src="views/gpus_power.js"></script>
-<script src="views/topology.js"></script>
-<script src="views/recipes.js"></script>
-<script src="views/runs.js"></script>
-<script src="views/bench.js"></script>
-<script src="views/bench-suite.js"></script>
-<script src="boot.js"></script>
+<script src="js/core.js"></script>
+<script src="components/command.js"></script>
+<script src="components/cards.js"></script>
+<script src="components/charts.js"></script>
+<script src="components/metrics.js"></script>
+<script src="components/runs.js"></script>
+<script src="components/timeline.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/data.js"></script>
+<script src="views/setup/setup.js"></script>
+<script src="views/setup/steps.js"></script>
+<script src="views/setup/advanced.js"></script>
+<script src="views/setup/recipes.js"></script>
+<script src="views/dashboard/dashboard.js"></script>
+<script src="views/dashboard/gpus.js"></script>
+<script src="views/dashboard/power.js"></script>
+<script src="views/dashboard/topology.js"></script>
+<script src="views/dashboard/overview.js"></script>
+<script src="views/benchmark/benchmark.js"></script>
+<script src="views/benchmark/suites.js"></script>
+<script src="views/logs/logs.js"></script>
+<script src="js/boot.js"></script>
 </body>
 </html>

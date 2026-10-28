@@ -17,16 +17,17 @@ view of the CLI. It adds no logic.
    code. The UI follows the endpoint, not the other way round.
 3. **No dependencies.** No npm, no bundler, no framework, no CDN, no web
    fonts. The UI is plain HTML, CSS and JavaScript embedded with `go:embed`.
-4. **No `innerHTML`.** Build DOM with `h()` in `web/app.js`. Server data is
+4. **No `innerHTML`.** Build DOM with `h()` in `web/js/app.js`. Server data is
    text.
 5. **Writes are guarded.** Every POST and DELETE keeps the `X-Bernie` header
    check and the token rules in `auth.go`. Never loosen them.
 6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
 7. **One question per tab.** Do not add a seventh tab for a feature that fits
    an existing one. Do not put two questions in one tab.
-8. **Files stay small.** One file per tab in `web/views/`. A view file that
-   reaches 400 lines is split by card (`views/<tab>_<card>.js`) and loaded from
-   `index.html`. Go files follow the repo limit.
+8. **Files stay small.** One file per tab in `web/views/<tab>/`. A view file
+   that reaches 400 lines is split by card
+   (`web/views/<tab>/<tab>_<card>.js`) and loaded from `index.html`. Go files
+   follow the repo limit.
 9. **Same names as the CLI.** A field on the page has the JSON name of the
    CLI output.
 

@@ -1,4 +1,6 @@
-package dashboard
+// Package telemetry samples the live host once and shares it with every
+// dashboard viewer.
+package telemetry
 
 import (
 	"context"
@@ -6,10 +8,10 @@ import (
 	"time"
 )
 
-// hub runs one sampler goroutine for all telemetry subscribers. The sampler
+// Hub runs one sampler goroutine for all telemetry subscribers. The sampler
 // starts with the first subscriber and stops when the last one leaves, so an
 // idle dashboard reads no sysfs and polls no vLLM server.
-type hub struct {
+type Hub struct {
 	interval time.Duration
 	sample   func(ctx context.Context) []byte // one JSON document
 
@@ -19,14 +21,15 @@ type hub struct {
 	cancel context.CancelFunc
 }
 
-func newHub(interval time.Duration, sample func(context.Context) []byte) *hub {
-	return &hub{interval: interval, sample: sample, subs: map[chan []byte]struct{}{}}
+// NewHub returns a shared telemetry hub.
+func NewHub(interval time.Duration, sample func(context.Context) []byte) *Hub {
+	return &Hub{interval: interval, sample: sample, subs: map[chan []byte]struct{}{}}
 }
 
-// subscribe returns a channel of samples and a function that unsubscribes.
+// Subscribe returns a channel of samples and a function that unsubscribes.
 // The channel holds one value; a slow reader skips samples, it never blocks
 // the sampler.
-func (h *hub) subscribe() (<-chan []byte, func()) {
+func (h *Hub) Subscribe() (<-chan []byte, func()) {
 	ch := make(chan []byte, 1)
 	h.mu.Lock()
 	h.subs[ch] = struct{}{}
@@ -53,14 +56,14 @@ func (h *hub) subscribe() (<-chan []byte, func()) {
 	}
 }
 
-// running reports whether the sampler goroutine is active.
-func (h *hub) running() bool {
+// Running reports whether the sampler goroutine is active.
+func (h *Hub) Running() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.cancel != nil
 }
 
-func (h *hub) run(ctx context.Context) {
+func (h *Hub) run(ctx context.Context) {
 	t := time.NewTicker(h.interval)
 	defer t.Stop()
 	for {

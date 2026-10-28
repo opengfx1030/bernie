@@ -101,8 +101,8 @@ function benchBest(cells, get) {
   return best > 0 ? best : null;
 }
 
-async function viewBench(root) {
-  const head = stateHead("Bench");
+async function viewBenchmark(root) {
+  const head = stateHead("Benchmark");
   const f = (name, attrs) => h("input", Object.assign({ name, id: "b-" + name }, attrs));
   const suiteSel = benchSuiteSelect();
   benchLoadSuites(suiteSel);
