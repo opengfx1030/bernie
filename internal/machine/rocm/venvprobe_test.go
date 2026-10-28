@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeVenv writes a venv whose Python prints the probe line and counts its
@@ -68,6 +69,30 @@ func TestProbeVenvProbesAgainWhenTheVenvChanges(t *testing.T) {
 	ProbeVenv(context.Background(), venv)
 	if n := runs(t, counter); n != 2 {
 		t.Errorf("the probe ran %d times, want 2", n)
+	}
+}
+
+func TestProbeVenvTimesOut(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	old := venvProbeTimeout
+	venvProbeTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { venvProbeTimeout = old })
+	venv := t.TempDir()
+	counter := filepath.Join(t.TempDir(), "runs")
+	if err := os.MkdirAll(filepath.Join(venv, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\necho run >> " + counter + "\nsleep 30\n"
+	if err := os.WriteFile(filepath.Join(venv, "bin", "python"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	rep := ProbeVenv(context.Background(), venv)
+	if rep.Err == "" {
+		t.Error("a probe that runs too long has no error")
+	}
+	if time.Since(start) > 5*time.Second {
+		t.Error("the probe did not stop at its timeout")
 	}
 }
 

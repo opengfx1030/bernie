@@ -26,8 +26,8 @@ const (
 	InstallsTTL = 10 * time.Minute
 )
 
-// venvProbeTimeout bounds the probe script of a venv.
-const venvProbeTimeout = 30 * time.Second
+// venvProbeTimeout bounds the probe script of a venv. The tests lower it.
+var venvProbeTimeout = 30 * time.Second
 
 // Tools probed on PATH (then in the install bin dirs).
 var Tools = []string{"rocminfo", "hipcc", "amd-smi", "rocm-smi", "rocm-bandwidth-test"}
