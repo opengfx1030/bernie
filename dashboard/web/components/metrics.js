@@ -187,14 +187,14 @@ function cellFlags(c) {
 function metricHead(withServer) {
   const cols = METRIC_COLS.filter((c) => c.key !== "server" || withServer);
   const top = h("tr", cols.map((c) => h("th", {
-    class: c.left ? "l" : "n", colspan: c.span || 1,
+    class: c.left ? "" : "num", colspan: c.span || 1,
   }, c.label, c.unit ? h("small", c.unit) : null)));
   const bottom = [];
   for (const c of cols) {
     if (c.span && c.span > 1) {
-      for (const w of ["mean", "p50", "p95"]) bottom.push(h("th", { class: "n" }, w));
+      for (const w of ["mean", "p50", "p95"]) bottom.push(h("th", { class: "num" }, w));
     } else {
-      bottom.push(h("th", { class: c.left ? "l" : "n" }, ""));
+      bottom.push(h("th", { class: c.left ? "" : "num" }, ""));
     }
   }
   return h("thead", top, h("tr", bottom));
@@ -250,8 +250,8 @@ function cellsTable(cells) {
  *  carries the meaning alone. */
 function verdictChip(v) {
   const d = VERDICTS[v];
-  if (!d) return h("span.chip.skip", "–");
-  return h("span.chip." + d.tone, d.icon + " " + d.word);
+  if (!d) return h("span.pill.verdict.skip", "–");
+  return h("span.pill.verdict." + d.tone, d.icon + " " + d.word);
 }
 
 /** compareGroups picks, for every group of the comparison, the cell with the

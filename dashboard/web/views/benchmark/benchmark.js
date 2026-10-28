@@ -14,7 +14,7 @@ const benchState = {
 
 /** benchSection is one section of the tab: its label and what it holds. */
 function benchSection(label, ...body) {
-  return h("section.bench-section", h("h2.bench-label", label), ...body);
+  return h("section.section", h("h2.section-label", label), ...body);
 }
 
 /** benchFailed says what could not be read and offers to read it again. */
@@ -39,6 +39,19 @@ function benchSuiteLine(r) {
     " · version " + (r.suite.version || 1);
 }
 
+/** benchCards counts the cards a result ran on. The fingerprint names them
+ *  as "2x Radeon PRO W7800, 8x RADEON PRO V620". */
+function benchCards(fp) {
+  const s = (fp && fp.gpus) || "";
+  if (!s) return null;
+  let n = 0, found = false;
+  for (const part of s.split(",")) {
+    const m = part.trim().match(/^(\d+)\s*x\s/i);
+    if (m) { n += Number(m[1]); found = true; }
+  }
+  return found ? n : null;
+}
+
 /** benchHeadline writes the state headline of the tab: what the last
  *  benchmark reached and what it measured. */
 function benchHeadline(head, results) {
@@ -52,13 +65,13 @@ function benchHeadline(head, results) {
   const out = benchBest(cells, (c) => c.output_tok_s);
   const prefill = benchBest(cells, (c) => (c.prefill || {}).agg_tok_s);
   const decode = benchBest(cells, (c) => (c.decode || {}).agg_tok_s);
-  const cards = (last.fingerprint && last.fingerprint.gpus) || "–";
+  const cards = benchCards(last.fingerprint);
   const title = out
     ? "The last benchmark reached " + benchNum(out, 1) + " tok/s."
     : "The last benchmark has no output rate.";
-  const lede = "The " + benchSuiteOf(last) + " suite measured " + cells.length + " cells on " +
-    cards + " cards. The prefill was " + benchNum(prefill, 0) + " tok/s and the decode " +
-    benchNum(decode, 1) + " tok/s.";
+  const lede = "The " + benchSuiteOf(last) + " suite measured " + cells.length + " cells" +
+    (cards ? " on " + cards + " cards" : "") + ". The prefill was " + benchNum(prefill, 0) +
+    " tok/s and the decode " + benchNum(decode, 1) + " tok/s.";
   setHead(head, title, lede);
 }
 
@@ -239,8 +252,11 @@ async function viewBenchmark(root) {
       const cmp = await api("/api/bench/compare?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b));
       benchState.compare = cmp;
       if (cmp.valid === false) {
-        put(cmpOut, h("div.err", h("b", "These two runs measured different things."),
-          h("p.small", (cmp.reasons || []).join(" · ") || "The suite, the digest or the workload is not the same.")));
+        // The two runs measured the same thing, but the comparison could
+        // not decide: the reasons say why.
+        put(cmpOut, h("div",
+          h("p.small.muted", (cmp.reasons || []).join(" · ") || "The comparison could not decide."),
+          barCompare(cmp)));
       } else {
         put(cmpOut, barCompare(cmp));
       }
