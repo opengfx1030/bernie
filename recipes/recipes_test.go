@@ -113,7 +113,7 @@ func TestFlashnextMTP2MatchesFork(t *testing.T) {
 		t.Fatal(err)
 	}
 	gpus, tp := host(t)
-	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Sets: []string{"PLE_QUANT_DIR=/x"}, GPUs: gpus, Topo: tp})
+	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Sets: []string{"PLE_QUANT_DIR=/x"}, GPUs: gpus, Topo: tp, TunedMoEDir: "/data/tuned-moe"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestFlashnextMTP2MatchesFork(t *testing.T) {
 		"VLLM_RDNA_AR_MAX_KB": "64", "VLLM_RDNA_AR_ONESHOT_KB": "64", "VLLM_RDNA_AR_PACE": "0",
 		"VLLM_RDNA_DENSE_GEMV": "0", "VLLM_RDNA_DENSE_INT8": "0", "VLLM_RDNA_DENSE_INT8_ONLY": "0",
 		"VLLM_RDNA_FUSED_SE": "1", "VLLM_ROCM_USE_AITER": "0", "VLLM_ROCM_USE_AITER_MOE": "0",
-		"VLLM_TUNED_CONFIG_FOLDER": "/src/vllm/tuned-moe", "VLLM_USE_RDNA2_FA": "1",
+		"VLLM_TUNED_CONFIG_FOLDER": "/data/tuned-moe", "VLLM_USE_RDNA2_FA": "1",
 		"VLLM_USE_V2_MODEL_RUNNER": "1", "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
 		"HF_HUB_OFFLINE": "0", "TRANSFORMERS_OFFLINE": "0", "HIP_VISIBLE_DEVICES": "2,3,4,5",
 	}

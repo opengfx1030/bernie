@@ -26,6 +26,11 @@ const DefaultPort = 8000
 // DefaultShmSize is the container shared memory size when the recipe sets none.
 const DefaultShmSize = "16g"
 
+// ImageTunedMoE is the fork's tuned MoE config folder inside the vllm-rdna
+// image. A host plan replaces it with PlanOptions.TunedMoEDir: a container
+// path never reaches a host process.
+const ImageTunedMoE = "/src/vllm/tuned-moe"
+
 const gib = 1 << 30
 
 // Exec is the exact process a plan starts: argv, the environment added to
@@ -79,11 +84,13 @@ type Plan struct {
 
 // PlanOptions are the inputs of BuildPlan. Sets are applied in order (config
 // defaults first, then --set). GPUs nil means no GPU data (no selection).
+// TunedMoEDir is the host copy of the tuned MoE configs (host mode).
 type PlanOptions struct {
-	Mode, Name string
-	Sets       []string
-	GPUs       []gpu.GPU
-	Topo       *topo.Topology
+	Mode, Name  string
+	Sets        []string
+	GPUs        []gpu.GPU
+	Topo        *topo.Topology
+	TunedMoEDir string
 }
 
 // Override is one parsed --set.
@@ -335,6 +342,14 @@ func BuildPlan(r *Recipe, o PlanOptions) (*Plan, error) {
 	if mode == ModeHost {
 		// Host mode selects the profile from the loaded rocBLAS (runner).
 		p.Image, p.ShmSize, p.Pull, p.TunableOpProfile = "", "", false, ""
+		if p.Env["VLLM_TUNED_CONFIG_FOLDER"] == ImageTunedMoE {
+			if o.TunedMoEDir != "" {
+				p.Env["VLLM_TUNED_CONFIG_FOLDER"] = o.TunedMoEDir
+			} else {
+				delete(p.Env, "VLLM_TUNED_CONFIG_FOLDER")
+				p.Warnings = append(p.Warnings, "tuned MoE configs not materialized: VLLM_TUNED_CONFIG_FOLDER dropped")
+			}
+		}
 	}
 
 	if err := selectGPUs(r, p, o); err != nil {
