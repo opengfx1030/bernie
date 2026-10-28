@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# TUNED_CONFIG=1 of serve_rdna.sh: the fork's tuned MoE kernel configs.
+# The configs live in <fork tree>/tuned-moe. The vllm-rdna image clones the
+# fork to /src/vllm, so the default fits container mode. In host mode set the
+# path of your checkout once: rdnactl config set set FORK_TREE=/path/to/vllm-rdna
+# (or --set FORK_TREE=...). A missing folder only costs MoE speed.
+schema: 1
+name: Tuned MoE configs
+description: Points VLLM_TUNED_CONFIG_FOLDER at the fork's tuned-moe folder.
+inputs:
+  FORK_TREE:
+    description: vllm-rdna source tree that holds tuned-moe/ (the image has it at /src/vllm)
+    default: /src/vllm
+env:
+  VLLM_TUNED_CONFIG_FOLDER: ${FORK_TREE}/tuned-moe

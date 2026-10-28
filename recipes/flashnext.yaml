@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Flash-Next AWQ-W4A16 production serve (no MTP), TP4/EP4 on gfx1030.
+# Fork recipe: tools/rdna/recipes/flashnext.env. Reference:
+# tools/rdna/serve_gfx1030_flashnext.sh (validated 2026-09-17; and the
+# 2026-09-27 MTP comparison where MTP=0 wins at 8x1k/512 c=8).
+# Kept separate from flashnext-mtp0 because this profile runs the full agentic
+# tool/reasoning stack on port 18094 (0.0.0.0) with 6 in-flight sequences;
+# those serving keys (features, host, port, sequences, KV, GPU memory, max
+# length) are its only deltas. Runner/graph/attention and the whole
+# performance env block match flashnext-mtp0 (fused shared expert, tuned MoE
+# configs, TunableOp profile, rdna_ar one-shot).
+#
+# Override any key, e.g.
+#   rdnactl serve flashnext --set PLE_QUANT_DIR=/data/ples_int4 \
+#     --set args.port=18100 --set args.kv-cache-memory-bytes=6000000000
+schema: 1
+extends: [_flashnext-common]
+name: Qwen3.8 Flash-Next AWQ-W4A16, production agentic serve
+description: >-
+  Flash-Next AWQ-W4A16 on 4x gfx1030 with tool calling (qwen3_coder),
+  reasoning parser, prompt token details, 6 sequences and the model's own
+  context length, listening on 0.0.0.0:18094. Validated 2026-09-17 on 4x
+  Radeon PRO V620.
+status: validated
+priority: 32
+tags: [qwen, flash-next, moe, awq, tools, reasoning]
+
+args:
+  host: 0.0.0.0
+  port: 18094
+  max-model-len: null          # the model's own context
+  prefill-schedule-interval: null
+  max-num-seqs: 6
+  kv-cache-memory-bytes: 7000000000
+  gpu-memory-utilization: 0.90
+  distributed-timeout-seconds: 1800
+  # FEATURES="trust-remote-code prefix-caching mamba-align prompt-tokens-details
+  #           auto-tool reasoning expert-parallel vision-cap"
+  trust-remote-code: true
+  enable-prompt-tokens-details: true
+  enable-auto-tool-choice: true
+  tool-call-parser: qwen3_coder
+  reasoning-parser: qwen3

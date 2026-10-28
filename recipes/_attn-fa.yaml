@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# ATTN=fa of serve_rdna.sh (rdna_select_attention fa): FA-RDNA2 attention.
+schema: 1
+name: FA-RDNA2 attention
+description: >-
+  RDNA_ATTN backend with the fork's FA-RDNA2 kernels and GQA decode. Removes
+  FLASH_ATTENTION_TRITON_AMD_ENABLE (the image sets it).
+env:
+  VLLM_USE_RDNA2_FA: "1"
+  VLLM_FA_RDNA2_GQA_DECODE: "1"
+  FLASH_ATTENTION_TRITON_AMD_ENABLE: null
+args:
+  attention-backend: RDNA_ATTN

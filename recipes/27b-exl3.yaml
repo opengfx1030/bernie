@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Qwen3.8-27B-exl3-3.00bpw (mul1, TP=4) on gfx1030.
+# Fork recipe: tools/rdna/recipes/27b-exl3.env. Reference:
+# tools/rdna/serve_gfx1030_exl3_27b.sh (derived from the validated
+# bench_results/2026-10-01_exl3-27b-mul1-tp4 recipe).
+# FULL_AND_PIECEWISE cudagraphs by default (validated on v0.31, 4x V620).
+# Without graphs (the fork's EAGER=1):
+#   --set args.compilation-config=null --set args.enforce-eager=true
+# The fork validated a local copy of Qwen3.8-27B-exl3-3.00bpw; point at yours
+# with --set model.source=/path/to/Qwen3.8-27B-exl3-3.00bpw.
+schema: 1
+extends: [_base, _attn-fa, _rdna-ar, _rccl-pcie]
+name: Qwen3.8-27B EXL3 3.00 bpw, TP4
+description: >-
+  Qwen3.8-27B exllamav3 3.00 bpw (mul1) on 4x gfx1030 with FA-RDNA2,
+  FULL_AND_PIECEWISE graphs, 20K context and a 250 ms decode-stall cap.
+  Validated on vLLM v0.31 with 4x Radeon PRO V620.
+status: validated
+priority: 28
+entrypoint: api
+tags: [qwen, dense, exl3]
+
+model:
+  source: quark75/Qwen3.8-27B-EXL3-3.0bpw
+  served_name: exl3-27b-mul1
+
+requires:
+  gpus: 4
+  vram_gib: 28
+
+env:
+  VLLM_USE_V2_MODEL_RUNNER: "1"
+  VLLM_USE_AOT_COMPILE: "0"
+  VLLM_DISABLE_COMPILE_CACHE: "1"
+  # TP=4 allreduce: rdna_ar one-shot up to 64 KiB (decode / small verify
+  # steps), RCCL PXB + Simple above. The stock custom-AR force flag stays off.
+  VLLM_FORCE_CUSTOM_ALL_REDUCE: "0"
+  # Decode-stall cap (dense hybrid): bound prefill tokens in steps that carry
+  # decodes. 27B AWQ TP=4 (2026-10-10): max decode gap during a 16k prefill
+  # 2672 -> 320 ms, 1k c=8 TTFT 4.0 -> 2.8 s; cost 16k/1k c=8 aggregate output
+  # 41.2 -> 38.0 tok/s (-8 %), TTFT 40 -> 49 s. Set 0 to disable.
+  # (fork docs/rdna2/mixed-batch-stall-probe.md)
+  VLLM_RDNA_DECODE_STALL_MS: "250"
+
+args:
+  port: 18105
+  max-model-len: 20480
+  max-num-seqs: 8
+  max-num-batched-tokens: 2048
+  kv-cache-memory-bytes: 6000000000
+  gpu-memory-utilization: 0.90
+  compilation-config:
+    cudagraph_mode: FULL_AND_PIECEWISE
+    cudagraph_capture_sizes: [1, 2, 4, 8]
+    compile_ranges_endpoints: []
+  # FEATURES="language-model-only skip-mm-profiling trust-remote-code prefix-caching mamba-align"
+  language-model-only: true
+  skip-mm-profiling: true
+  trust-remote-code: true
+  enable-prefix-caching: true
+  mamba-cache-mode: align

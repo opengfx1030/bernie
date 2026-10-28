@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Flash-Next EXL3 (turboderp/Qwen3.8-Flash-Next-exl3, exllamav3 >= 1.4.5) on
+# gfx1030, TP4, no MTP. Fork recipe: tools/rdna/recipes/flashnext-exl3.env.
+# Same serving profile as `flashnext`, with:
+# - PLE=exl3: the n-gram table ships as ngram_embedding.safetensors and the CPU
+#   sidecar mmaps and decodes it (32.6 GB at ng5, page cache only).
+# - Expert parallel on: EXL3 rotates 128-wide blocks of the 640-wide expert
+#   intermediate axis, so TP=4 cannot split an expert (160 per rank); with EP
+#   every rank holds whole experts and the shared expert is replicated.
+# - Fused shared expert and tuned MoE configs off: those are W4A16 MoE paths,
+#   EXL3 experts run through Exl3MoEMethod.
+# Host mode only: the v0.31.0-extras image does not have the EXL3 MoE path.
+#
+#   rdnactl serve flashnext-exl3 --set model.source=/path/to/Qwen3.8-Flash-Next-exl3-3.05bpw
+schema: 1
+extends: [flashnext, _ple-exl3]
+name: Qwen3.8 Flash-Next EXL3 3.05 bpw, TP4/EP4
+description: >-
+  Flash-Next EXL3 (exllamav3 weights, PLE table from the checkpoint through
+  the CPU sidecar) on 4x gfx1030 with the flashnext agentic serving profile.
+  Not validated in the fork. Host mode only.
+status: experimental
+priority: 12
+tags: [qwen, flash-next, moe, exl3, tools, reasoning]
+
+model:
+  source: turboderp/Qwen3.8-Flash-Next-exl3
+  revision: 3.05bpw_h5_ng5
+  served_name: flash-next-exl3
+
+container: null
+
+env:
+  # EXL3 prefill decodes into a module-level scratch tensor; the shared AOT
+  # cache would replay one rank's device-bound copy on the others (as 27b-exl3).
+  VLLM_USE_AOT_COMPILE: "0"
+  VLLM_DISABLE_COMPILE_CACHE: "1"
+  VLLM_ROCM_MOE_PREFILL: "0"
+  VLLM_GDN_HIP_PREFILL: "0"
+  VLLM_RDNA_FUSED_SE: "0"
+  # TUNED_CONFIG=0
+  VLLM_TUNED_CONFIG_FOLDER: null

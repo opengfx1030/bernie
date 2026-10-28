@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# PLE=exl3 of serve_rdna.sh: exllamav3 checkpoints ship the n-gram table as
+# ngram_embedding.safetensors. The CPU sidecar memory-maps and decodes it
+# (32.6 GB at ng5, page cache only). No PLE_QUANT_DIR: listed after a recipe
+# that uses _ple-int4, this fragment removes that input and its RAM floor.
+schema: 1
+name: Flash-Next PLE table, EXL3 sidecar
+description: PLE n-gram table from the EXL3 checkpoint, served by the CPU sidecar.
+requires:
+  ram_gib: null
+inputs:
+  PLE_QUANT_DIR: null
+env:
+  VLLM_PLE_QUANT_DIR: null
+  VLLM_PLE_CPU_OFFLOAD: "1"
+  VLLM_PLE_OFFLOAD_READY_TIMEOUT: "3600"

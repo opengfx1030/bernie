@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# RCCL over PCIe: the block shared by 27b-exl3, dsv4-flash and full.
+# P2P level pxb lets RCCL use peer-to-peer across PCIe switches; full narrows
+# it to pix (same switch).
+schema: 1
+name: RCCL over PCIe
+description: RCCL peer-to-peer over PCIe, Simple protocol, no MSCCL, fine-grained PCIe memory.
+env:
+  NCCL_P2P_LEVEL: pxb
+  RCCL_P2P_NET_DISABLE: "1"
+  RCCL_P2P_BATCH_ENABLE: "1"
+  NCCL_PROTO: Simple
+  RCCL_MSCCL_ENABLE: "0"
+  HSA_FORCE_FINE_GRAIN_PCIE: "1"

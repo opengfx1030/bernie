@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Production full-HIP serve: breakable FULL_AND_PIECEWISE graphs (FA-RDNA2 +
+# W4A16 + HIP KV + HIP GDN). Fork recipe: tools/rdna/recipes/full.env.
+# Reference: tools/rdna/serve_gfx1030_full.sh (greedy PASS 3/3 on
+# Qwen3.8-27B-AWQ-INT4, TP=2, 2026-09-09).
+# No host argument: this config lets vLLM bind its default host.
+# Keep max-model-len at 32768 or more (the fork's MIN_MAXLEN floor).
+#
+# Override any key, e.g.
+#   rdnactl serve full --set env.HIP_VISIBLE_DEVICES=2,3 \
+#     --set args.max-model-len=32768 --set args.kv-cache-memory-bytes=6000000000
+#
+# Decode-stall cap: off here. On 27B at TP=2 every step is ~2x slower than at
+# TP=4, so the 250 ms budget forces tiny 16k prefill chunks: 16k/1k c=8
+# aggregate output 22.7 -> 19.6 tok/s, TTFT 135 -> 200 s, ITL median 80 -> 211
+# ms (2026-10-11). The TP=4 dense recipes keep it on. To opt in:
+# --set env.VLLM_RDNA_DECODE_STALL_MS=250 (fork docs/rdna2/mixed-batch-stall-probe.md)
+schema: 1
+extends: [_base, _rdna-ar, _rccl-pcie]
+name: Qwen3.8-27B AWQ-INT4 full-HIP, TP2
+description: >-
+  Qwen3.8-27B AWQ-INT4 on 2x gfx1030 with the full HIP path (FA-RDNA2, W4A16,
+  HIP KV, HIP GDN), breakable FULL_AND_PIECEWISE graphs, 16-token blocks and
+  200K context. Greedy PASS 3/3 on 2026-09-09.
+status: validated
+priority: 20
+tags: [qwen, dense, awq]
+
+model:
+  source: cyankiwi/Qwen3.8-27B-AWQ-INT4
+
+requires:
+  gpus: 2
+  vram_gib: 28
+
+env:
+  VLLM_USE_V2_MODEL_RUNNER: "1"
+  VLLM_USE_RDNA2_FA: "1"
+  VLLM_USE_AOT_COMPILE: "0"
+  VLLM_DISABLE_COMPILE_CACHE: "1"
+  FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
+  VLLM_USE_BREAKABLE_CUDAGRAPH: "1"
+  # GQA multi-head prefill attention (validated faster than varlen/splitk).
+  VLLM_FA_RDNA2_GQA_MODE: subgroup
+  # RCCL over PCIe, same switch only.
+  NCCL_P2P_LEVEL: pix
+  # All-reduce: one-shot up to 64 KiB, RCCL above.
+  VLLM_FORCE_CUSTOM_ALL_REDUCE: "0"
+  # ALLOC_CONF=auto without PLE CPU offload.
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+
+args:
+  host: null
+  port: 18094
+  tensor-parallel-size: 2
+  max-model-len: 200000
+  block-size: 16
+  max-num-seqs: 6
+  max-num-batched-tokens: 2048
+  kv-cache-memory-bytes: 7000000000
+  gpu-memory-utilization: 0.90
+  distributed-timeout-seconds: 1800
+  compilation-config:
+    cudagraph_mode: FULL_AND_PIECEWISE
+    compile_ranges_endpoints: []
+  # FEATURES="prefix-caching language-model-only skip-mm-profiling trust-remote-code"
+  enable-prefix-caching: true
+  language-model-only: true
+  skip-mm-profiling: true
+  trust-remote-code: true

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Shared Flash-Next AWQ-W4A16 serving profile, TP4/EP4 on 4x gfx1030
+# (Radeon PRO V620, 32 GB). This is the common part of the fork recipes
+# flashnext-mtp0, flashnext-mtp2, flashnext and flashnext-dflash2; the
+# variants extend it.
+#
+# Fork differences carried here:
+# - PLE: the fork default is PLE=bf16 (~95 GB host RAM). rdnactl defaults to
+#   PLE=int4 (_ple-int4, ~30 GB) and asks for PLE_QUANT_DIR. See _ple-int4.yaml
+#   for int4-disk and bf16.
+schema: 1
+extends: [_base, _attn-fa, _rdna-ar, _tuned-moe, _ple-int4]
+name: Flash-Next AWQ-W4A16 common profile
+description: >-
+  Qwen3.8 Flash-Next AWQ-W4A16 on 4x gfx1030: V2 model runner, FA-RDNA2,
+  FULL_AND_PIECEWISE graphs (inductor mode 3), 1024-token blocks with
+  mamba-aligned prefix caching, expert parallel, rdna_ar one-shot.
+tags: [qwen, flash-next, moe, awq]
+
+model:
+  source: wtdcode/Qwen3.8-Flash-Next-AWQ-W4A16
+  served_name: flash-next
+
+requires:
+  gpus: 4
+  vram_gib: 28
+
+env:
+  VLLM_USE_V2_MODEL_RUNNER: "1"
+  VLLM_GDN_HIP_PREFILL: "1"
+  VLLM_RDNA_FUSED_SE: "1"
+  VLLM_RDNA_DENSE_INT8: "0"
+  VLLM_RDNA_DENSE_INT8_ONLY: "0"
+  VLLM_RDNA_DENSE_GEMV: "0"
+  VLLM_RDNA_AR_BLOCKS: "0"
+  VLLM_RDNA_AR_PACE: "0"
+  HSA_FORCE_FINE_GRAIN_PCIE: "1"
+  HSA_ENABLE_SDMA: "0"
+  # 4 HW queues (launcher default 2): neutral with the fork kernels off, and
+  # it removes the per-rank skew that queue sharing at 2 causes with the
+  # rdna_mono_* kernels on.
+  GPU_MAX_HW_QUEUES: "4"
+  OMP_NUM_THREADS: "4"
+  TOKENIZERS_PARALLELISM: "false"
+  PYTHONFAULTHANDLER: "1"
+  VLLM_CAUSAL_CONV1D_RDNA2_FWD: "0"
+  VLLM_CAUSAL_CONV1D_RDNA2_UPDATE: "0"
+  VLLM_ENABLE_STARTUP_PLAN: "0"
+  # Decode-stall cap: opt-in (16k c=8 output -13 % for a 505 -> 341 ms max
+  # decode gap). See docs/rdna2/mixed-batch-stall-probe.md "Decode-stall cap"
+  # in the fork. To opt in:
+  #   --set env.VLLM_RDNA_DECODE_STALL_MS=250 --set env.VLLM_DECODE_STALL_MAX_OVERHEAD=1.0
+
+args:
+  port: 18096
+  tensor-parallel-size: 4
+  max-model-len: 262144
+  block-size: 1024
+  max-num-seqs: 8
+  max-num-batched-tokens: 2048
+  long-prefill-token-threshold: 0
+  prefill-schedule-interval: 1
+  kv-cache-memory-bytes: 4026531840
+  compilation-config:
+    mode: 3
+    cudagraph_mode: FULL_AND_PIECEWISE
+    cudagraph_capture_sizes: [1, 2, 4, 8]
+    compile_ranges_endpoints: []
+  # FEATURES="expert-parallel prefix-caching mamba-align vision-cap"
+  enable-expert-parallel: true
+  enable-prefix-caching: true
+  mamba-cache-mode: align
+  limit-mm-per-prompt: {image: 1}
+  mm-processor-kwargs: {max_pixels: 1605632}

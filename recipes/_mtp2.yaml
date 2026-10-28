@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# MTP=2 of serve_rdna.sh (rdna_mtp_args 2): multi-token prediction with two
+# speculative tokens. The CUDA-graph capture ladder follows the decode width
+# (num_speculative_tokens + 1 = 3) x {1, 2, 4, 8}.
+# Other widths: set args.speculative-config.num_speculative_tokens=N and
+# args.compilation-config.cudagraph_capture_sizes=[(N+1)*1,(N+1)*2,(N+1)*4,(N+1)*8].
+schema: 1
+name: MTP speculative decode, 2 tokens
+description: MTP speculative decoding with 2 tokens and the matching CUDA-graph capture sizes.
+args:
+  speculative-config:
+    method: mtp
+    num_speculative_tokens: 2
+    use_local_argmax_reduction: true
+  compilation-config:
+    cudagraph_capture_sizes: [3, 6, 12, 24]

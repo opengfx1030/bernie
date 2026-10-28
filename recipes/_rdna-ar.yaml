@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# rdna_ar: the fork's one-shot all-reduce. One-shot up to 64 KiB, RCCL above;
+# two-shot is not boot-safe under PCIe load. Without PCIe P2P (the fork's
+# P2P=0), set env.VLLM_RDNA_AR=0 and env.NCCL_P2P_DISABLE=1.
+schema: 1
+name: RDNA one-shot all-reduce
+description: Fork all-reduce (rdna_ar) for messages up to 64 KiB; RCCL above.
+env:
+  VLLM_RDNA_AR: "1"
+  VLLM_RDNA_AR_MAX_KB: "64"
+  VLLM_RDNA_AR_ONESHOT_KB: "64"

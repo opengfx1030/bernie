@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Flash-Next AWQ-W4A16, MTP=2, pipeline-parallel over 3 gfx1030 cards (TP1/PP3).
+# Fork recipe: tools/rdna/recipes/flashnext-pp3-mtp2.env.
+# Profile follows alanoo81/flashnext-v620-pp3: partition 17,17,14 (the drafter
+# sits on the last stage), 4 sequences, text-only, 262K, KV sized from free
+# memory with the CUDA-graph estimate off.
+# 30 GB cards: GPU memory 0.975 is what fits one full 262K request (stage 0
+# has 2.91 GiB for KV, 2.83 needed; at 0.95 vLLM caps the length at ~188K).
+# max-num-batched-tokens 2112 = the 2048-token mamba block + 4 seqs x 3 MTP
+# tokens: at 2048 the decode tokens leave less than one block per step and
+# 16K c=4 admits only 3.
+# Needs the W4A16 drafter checkpoint (tools/rdna/quant_mtp_experts.py in the
+# fork): the bf16 drafter experts do not fit the last stage. Use it up to ~4
+# streams; beyond that flashnext-pp3 (MTP=0) gives more aggregate throughput.
+# Same PLE / dense INT8 / text-only notes as flashnext-pp3. Host mode only.
+#
+#   rdnactl serve flashnext-pp3-mtp2 --set MODEL=/path/to/mtpq-model \
+#     --set PLE_QUANT_DIR=/path/to/ples_int4
+schema: 1
+extends: [flashnext-pp3, _mtp2]
+name: Qwen3.8 Flash-Next AWQ-W4A16, MTP=2, TP1/PP3
+description: >-
+  Flash-Next AWQ-W4A16 with a W4A16-quantized MTP drafter, pipeline-parallel
+  over 3 gfx1030 cards (layers 17,17,14), 4 sequences, text only, 262K
+  context. Needs the locally quantized drafter checkpoint. Host mode only.
+status: experimental
+priority: 10
+entrypoint: api
+tags: [qwen, flash-next, moe, awq, pipeline-parallel, mtp]
+
+model:
+  source: ${MODEL}
+
+inputs:
+  MODEL:
+    description: Flash-Next AWQ-W4A16 checkpoint with W4A16 MTP drafter experts (fork tools/rdna/quant_mtp_experts.py)
+    required: true
+    path: true
+
+env:
+  VLLM_PP_LAYER_PARTITION: "17,17,14"
+  VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "0"
+
+args:
+  port: 18097
+  max-num-seqs: 4
+  max-num-batched-tokens: 2112
+  gpu-memory-utilization: 0.975
+  compilation-config:
+    cudagraph_capture_sizes: [3, 6, 12]

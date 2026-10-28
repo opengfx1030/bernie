@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# ATTN=triton of serve_rdna.sh (rdna_select_attention triton).
+schema: 1
+name: Triton attention
+description: TRITON_ATTN backend with the Triton AMD flash-attention path; FA-RDNA2 off.
+env:
+  VLLM_USE_RDNA2_FA: "0"
+  FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
+args:
+  attention-backend: TRITON_ATTN

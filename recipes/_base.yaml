@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Shared base of every RDNA fork recipe.
+# Port of rdna_init() in tools/rdna/rdna_launcher_common.sh and of the fixed
+# arguments of tools/rdna/serve_rdna.sh (opengfx1030/vllm-rdna, rdna_extras).
+#
+# Not ported, on purpose (rdnactl owns these):
+# - LD_LIBRARY_PATH, VLLM_CACHE_ROOT, TRITON_CACHE_DIR, TORCHINDUCTOR_CACHE_DIR,
+#   TORCH_EXTENSIONS_DIR: the host runner sets them per run (spec 8.1).
+# - HIP_VISIBLE_DEVICES: rdnactl selects the GPUs (spec 7.7). The fork
+#   default was 0,1,2,3.
+# - PYTHONPATH=<fork tree>: the venv has the fork installed (editable).
+# - ROCM_HOME/ROCM_PATH/HIP_PATH/HIP_ROOT_DIR: the host runner sets them from
+#   the detected ROCm install (the fork hard-coded /opt/rocm/core-7.14). The
+#   container image sets its own.
+# - HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE: set per plan (see env below).
+schema: 1
+name: RDNA fork base
+description: >-
+  Shared environment and fixed vLLM arguments of the opengfx1030/vllm-rdna
+  launcher (rdna_init): spawn workers, no AITER, no hipBLASLt, FP16 weights.
+
+requires:
+  arch: [gfx1030]
+  engine: vllm-rdna
+
+container:
+  image: docker.io/blivioniag/vllm-rdna:v0.31.0-extras
+  tunableop_profile: rocm7.14-rocblas5.5
+  shm_size: 16g
+  pull: true
+
+env:
+  # HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE are set per plan by rdnactl: 1 for a
+  # local model path, 0 for a Hugging Face repo id (the fork always used 1).
+  VLLM_WORKER_MULTIPROC_METHOD: spawn
+  GPU_MAX_HW_QUEUES: "2"
+  # Serving never attaches a GPU profiler: keep the HIP/HSA runtimes from
+  # registering with rocprofiler (no tool init, no queue interception).
+  ROCPROFILER_REGISTER_ENABLED: "0"
+  VLLM_ROCM_USE_AITER: "0"
+  VLLM_ROCM_USE_AITER_MOE: "0"
+  TORCH_BLAS_PREFER_HIPBLASLT: "0"
+  VLLM_BATCH_INVARIANT: "0"
+
+args:
+  host: 127.0.0.1
+  port: 18094
+  tensor-parallel-size: 4
+  dtype: float16
+  max-num-seqs: 8
+  # Launcher default for an FP16 KV cache (block 1024: two blocks per step).
+  max-num-batched-tokens: 2048

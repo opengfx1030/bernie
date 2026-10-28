@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# PLE=int4-disk of serve_rdna.sh: the INT4 table from PLE_QUANT_DIR is
+# memory-mapped from disk and served by the CPU sidecar (page cache only).
+# Use it on hosts without ~30 GB of free RAM for the pinned table.
+schema: 1
+extends: [_ple-int4]
+name: Flash-Next PLE table, INT4 from disk
+description: INT4 PLE n-gram table memory-mapped from PLE_QUANT_DIR, served by the CPU sidecar.
+requires:
+  ram_gib: null
+env:
+  VLLM_PLE_CPU_OFFLOAD: "1"
+  VLLM_PLE_OFFLOAD_READY_TIMEOUT: "3600"

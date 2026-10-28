@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Flash-Next AWQ-W4A16 + MTP=0 (plain decode), TP4/EP4 on gfx1030.
+# Fork recipe: tools/rdna/recipes/flashnext-mtp0.env. Reference:
+# tools/rdna/serve_gfx1030_flashnext_mtp.sh (validated 2026-09-27).
+# MTP=0 wins at 8x1k/512 c=8.
+# PLE n-gram table: INT4 from PLE_QUANT_DIR (see _ple-int4.yaml for
+# int4-disk and bf16).
+#
+# Override any key, e.g.
+#   rdnactl serve flashnext-mtp0 --set PLE_QUANT_DIR=/data/ples_int4 \
+#     --set args.max-model-len=32768 --set args.port=18100
+schema: 1
+extends: [_flashnext-common]
+name: Qwen3.8 Flash-Next AWQ-W4A16, MTP=0, TP4/EP4
+description: >-
+  Flash-Next AWQ-W4A16 on 4x gfx1030 with plain decode (no speculation).
+  Validated 2026-09-27 on 4x Radeon PRO V620; MTP=0 wins at 8x1k/512 c=8.
+  262K context, 8 sequences, 3.75 GiB KV cache per GPU.
+status: validated
+priority: 35
+entrypoint: api
+tags: [qwen, flash-next, moe, awq]

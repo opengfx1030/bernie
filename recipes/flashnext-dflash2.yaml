@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# Flash-Next AWQ-W4A16 + Inco DFlash2, TP4/EP4 on gfx1030.
+# Fork recipe: tools/rdna/recipes/flashnext-dflash2.env.
+# The DFlash2 checkpoint is a drafter, not the target model. vLLM downloads it
+# at start (the model is a repo id, so the plan has HF_HUB_OFFLINE=0); with a
+# local target model the plan is offline, so download the drafter first
+# (`hf download incoai/Qwen3.8-Flash-Next-DFlash2`) or use a local drafter path:
+#   --set args.speculative-config.model=/path/to/DFlash2
+# DFLASH_TOKENS=3 (default) favors 1k/512 c=8; 2 favors 16k/1k c=8:
+#   --set args.speculative-config.num_speculative_tokens=2 \
+#   --set 'args.compilation-config.cudagraph_capture_sizes=[3,6,12,24]'
+# The capture ladder is the verification width (tokens + 1) x {1, 2, 4, 8}.
+# Flash-Next's QSA owner uses native HIP sparse decode under MonoKernel.
+# FA-RDNA2 is available for ordinary attention; this QSA checkpoint bypasses it.
+# DFlash2's BF16, non-causal sliding-window draft uses FA-RDNA2 via RDNA_ATTN.
+# Host mode only: --monokernel is not in the v0.31.0-extras image.
+schema: 1
+extends: [_flashnext-common]
+name: Qwen3.8 Flash-Next AWQ-W4A16 + DFlash2 drafter, TP4/EP4
+description: >-
+  Flash-Next AWQ-W4A16 on 4x gfx1030 with the incoai DFlash2 BF16 drafter (3
+  speculative tokens), MonoKernel and native HIP QSA decode. Text only. The
+  canonical TunableOp profile carries the drafter's BF16 GEMM rows. Host mode
+  only.
+status: experimental
+priority: 15
+entrypoint: api
+tags: [qwen, flash-next, moe, awq, speculative, dflash]
+
+container: null
+
+env:
+  RDNA_DFLASH2_DRAFT_BF16: "1"
+  VLLM_RDNA_QSA_HIP: "1"
+
+args:
+  speculative-config:
+    method: dflash
+    model: incoai/Qwen3.8-Flash-Next-DFlash2
+    num_speculative_tokens: 3
+    attention_backend: RDNA_ATTN
+  compilation-config:
+    cudagraph_capture_sizes: [4, 8, 16, 32]
+  # FEATURES="expert-parallel prefix-caching mamba-align language-model-only skip-mm-profiling"
+  language-model-only: true
+  skip-mm-profiling: true
+  limit-mm-per-prompt: null
+  mm-processor-kwargs: null
+  # EXTRA_ARGS=--monokernel
+  monokernel: true

@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+#
+# PLE=int4 of serve_rdna.sh: the Flash-Next PLE n-gram table as INT4, held in
+# pinned host RAM (~30 GB). The fork default PLE=bf16 needs ~95 GB host RAM.
+#
+# Other PLE modes, as overrides on a recipe that extends this fragment:
+# - int4-disk (table memory-mapped, served by the CPU sidecar, page cache only):
+#     --set env.VLLM_PLE_CPU_OFFLOAD=1 --set env.VLLM_PLE_OFFLOAD_READY_TIMEOUT=3600
+# - bf16 (upstream pinned BF16 table, ~95 GB host RAM):
+#     --set inputs.PLE_QUANT_DIR=null --set env.VLLM_PLE_QUANT_DIR=null
+schema: 1
+name: Flash-Next PLE table, INT4
+description: >-
+  INT4 PLE n-gram table from PLE_QUANT_DIR (a ples_int4 directory with
+  META.json) in pinned host RAM.
+requires:
+  ram_gib: 48
+inputs:
+  PLE_QUANT_DIR:
+    description: ples_int4 directory (has META.json) from primitive-ai/Qwen3.8-Flash-Next-PLE-quant
+    required: true
+    path: true
+env:
+  VLLM_PLE_QUANT_DIR: ${PLE_QUANT_DIR}
