@@ -361,7 +361,7 @@ async function setupFactList(doc) {
 
 /** setupFact is one fact: its name, its value and the reason under it. */
 function setupFact(fact) {
-  const row = factRow(fact.label || fact.key || "", fact.value, fact.why);
+  const row = factRow(fact.label || fact.id || "", fact.value, fact.why);
   row.classList.add("setup-fact");
   return row;
 }
@@ -385,16 +385,16 @@ function setupFactsFromHost(hw, doctor) {
     if (gpus.length === 1 && archs.length === 1) why = "one recipe family fits them all";
     if (gpus.length > 1 && archs.length === 1) why = "every card is " + archs[0] + ", so one recipe family fits them all";
     if (gpus.length && archs.length > 1) why = "the cards use " + archs.length + " architectures";
-    facts.push({ key: "gpus", label: "GPUs", value: value, why: why });
+    facts.push({ id: "gpus", label: "GPUs", value: value, why: why });
 
     const ram = hw.host && hw.host.ram_bytes;
-    facts.push({ key: "memory", label: "Memory", value: ram ? bytes(ram) : "–", why: setupMemoryWhy(hw) });
+    facts.push({ id: "memory", label: "Memory", value: ram ? bytes(ram) : "–", why: setupMemoryWhy(hw) });
 
     const engines = (hw.host && hw.host.engines) || [];
     const usable = engines.filter((e) => e.usable);
     const engine = usable[0] || engines[0];
     facts.push({
-      key: "engine",
+      id: "engine",
       label: "Engine",
       value: engine ? (engine.name + (engine.version ? " " + engine.version : "")) : "–",
       why: usable.length ? "the image is used" : "the server runs on the host",
@@ -403,7 +403,7 @@ function setupFactsFromHost(hw, doctor) {
   if (doctor) {
     const rocm = (doctor.checks || []).find((c) => c.category === "rocm");
     facts.push({
-      key: "rocm",
+      id: "rocm",
       label: "ROCm",
       value: rocm ? rocm.status : "–",
       why: rocm ? (rocm.detail || rocm.title) : "The doctor could not read the host.",
