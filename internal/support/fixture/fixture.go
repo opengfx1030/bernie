@@ -79,6 +79,8 @@ func extract(archive, dir string) error {
 }
 
 // Write creates files under root for synthetic test trees: path -> content.
+// It also writes the SYNTHETIC marker at the root of the tree, so that a
+// hand-written tree is never mistaken for a captured one (spec §2.1).
 func Write(tb testing.TB, root string, files map[string]string) {
 	tb.Helper()
 	for p, content := range files {
@@ -87,6 +89,12 @@ func Write(tb testing.TB, root string, files map[string]string) {
 			tb.Fatal(err)
 		}
 		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			tb.Fatal(err)
+		}
+	}
+	marker := filepath.Join(root, "SYNTHETIC")
+	if _, err := os.Stat(marker); err != nil {
+		if err := os.WriteFile(marker, []byte("Synthetic tree, written by hand in a test.\n"), 0o644); err != nil {
 			tb.Fatal(err)
 		}
 	}

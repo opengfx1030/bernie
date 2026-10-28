@@ -60,10 +60,12 @@ done
 dev_files="vendor device subsystem_vendor subsystem_device class revision
 mem_info_vram_total mem_info_vram_used mem_info_vis_vram_total
 current_link_speed current_link_width max_link_speed max_link_width numa_node
-product_name product_number gpu_busy_percent power_dpm_force_performance_level"
+product_name product_number gpu_busy_percent power_dpm_force_performance_level
+pp_dpm_sclk pp_dpm_mclk"
 hwmon_files="name power1_cap power1_cap_min power1_cap_max power1_cap_default
-power1_average power1_input power1_label temp1_input temp1_label temp2_input
-temp2_label temp3_input temp3_label"
+power1_average power1_input power1_label temp1_input temp1_label temp1_crit
+temp2_input temp2_label temp2_crit temp3_input temp3_label temp3_crit"
+ras_files="umc_err_count features event_state version schema"
 
 for node in "$kfd"/topology/nodes/*; do
 	props="$node/properties"
@@ -73,6 +75,7 @@ for node in "$kfd"/topology/nodes/*; do
 	link_chain "/sys/class/drm/renderD$minor" >/dev/null
 	dev=$(link_chain "/sys/class/drm/renderD$minor/device")
 	for f in $dev_files; do copy_file "$dev/$f"; done
+	for f in $ras_files; do copy_file "$dev/ras/$f"; done
 	for h in "$dev"/hwmon/hwmon*; do
 		[ -d "$h" ] || continue
 		for f in $hwmon_files; do copy_file "$h/$f"; done
@@ -91,6 +94,7 @@ done
 copy_file "$(link_chain /etc/os-release)"
 for f in /proc/cmdline /proc/meminfo /proc/sys/kernel/osrelease \
 	/proc/sys/kernel/hostname /sys/fs/selinux/enforce /sys/module/amdgpu/initstate \
+	/sys/module/amdgpu/parameters/ras_enable \
 	/sys/class/dmi/id/sys_vendor /sys/class/dmi/id/product_name /sys/hypervisor/type; do
 	[ -e "$f" ] && copy_file "$(link_chain "$f")"
 done
