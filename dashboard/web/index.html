@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>rdnactl</title>
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">rdnactl</span><span id="hostname" class="muted"></span></div>
+  <nav id="tabs" role="tablist">
+    <a href="#overview" role="tab" data-tab="overview">Overview</a>
+    <a href="#gpus" role="tab" data-tab="gpus">GPUs</a>
+    <a href="#topology" role="tab" data-tab="topology">Topology</a>
+    <a href="#recipes" role="tab" data-tab="recipes">Recipes</a>
+    <a href="#runs" role="tab" data-tab="runs">Runs</a>
+    <a href="#bench" role="tab" data-tab="bench">Bench</a>
+  </nav>
+  <span id="live" class="live" title="telemetry stream">●</span>
+</header>
+<main>
+  <section id="tab-overview" class="tab" hidden></section>
+  <section id="tab-gpus" class="tab" hidden></section>
+  <section id="tab-topology" class="tab" hidden></section>
+  <section id="tab-recipes" class="tab" hidden></section>
+  <section id="tab-runs" class="tab" hidden></section>
+  <section id="tab-bench" class="tab" hidden></section>
+</main>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
