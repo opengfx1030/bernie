@@ -205,6 +205,11 @@ func TestDownloadModelResumes(t *testing.T) {
 	if !strings.Contains(log.String(), "continues") {
 		t.Errorf("no resume in the log:\n%s", log.String())
 	}
+	// the bytes of the earlier download count too
+	want := "done, " + humanBytes(int64(len(s.files["config.json"])+len(s.files["model.safetensors"])))
+	if !strings.Contains(log.String(), want) {
+		t.Errorf("the total misses the resumed bytes, want %q:\n%s", want, log.String())
+	}
 }
 
 // A server that ignores the Range request starts the file over.
