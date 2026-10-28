@@ -26,11 +26,14 @@ services:
     devices:
       - /dev/kfd
       - /dev/dri
-    # The image has no video/render group names: use the numeric host ids.
+    # The image has no /etc/group: a group name does not resolve there.
+    # Use the numeric ids of the GPU groups of THIS host.
+    #   getent group video      -> VIDEO_GID
+    #   getent group render     -> RENDER_GID
     #   stat -c %g /dev/kfd /dev/dri/renderD128 /dev/dri/card0
     group_add:
-      - "${VIDEO_GID:-44}"
-      - "${RENDER_GID:-105}"
+      - "${VIDEO_GID:?set VIDEO_GID to the numeric id of the video group}"
+      - "${RENDER_GID:?set RENDER_GID to the numeric id of the render group}"
     security_opt:
       - label=disable
       - seccomp=unconfined
