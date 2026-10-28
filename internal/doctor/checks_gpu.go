@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/gpu"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
 )
 
 func gpuChecks(in inputs) []Check {
@@ -104,7 +104,7 @@ func archOrder(gpus []gpu.GPU) []string {
 // supportChecks reports, per distinct gfx target of the host, whether the
 // device tables know it and whether recipes are validated on it
 // (gpu.supported.<gfx>), and the HSA override the table prescribes
-// (gpu.hsa_override.<gfx>). The device facts come from internal/gpu/devices.
+// (gpu.hsa_override.<gfx>). The device facts come from internal/machine/gpu/devices.
 func supportChecks(in inputs) []Check {
 	const cat = "gpu"
 	var out []Check

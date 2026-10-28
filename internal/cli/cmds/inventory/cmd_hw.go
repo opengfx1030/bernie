@@ -6,8 +6,8 @@ import (
 	"io"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/gpu"
-	"github.com/opengfx1030/rdnactl/internal/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
 )
 
 // hwReport is the `hw --json` document (spec §4.3).

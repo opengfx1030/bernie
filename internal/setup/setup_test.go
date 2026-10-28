@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/fixture"
-	"github.com/opengfx1030/rdnactl/internal/host"
-	"github.com/opengfx1030/rdnactl/internal/rocm"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
+	"github.com/opengfx1030/rdnactl/internal/support/fixture"
 )
 
 func withWhich(t *testing.T, bins ...string) {

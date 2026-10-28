@@ -6,7 +6,7 @@ import (
 	"io"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/config"
+	"github.com/opengfx1030/rdnactl/internal/support/config"
 )
 
 func init() {

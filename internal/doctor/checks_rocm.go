@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/host"
-	"github.com/opengfx1030/rdnactl/internal/rocm"
+	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
 )
 
 func rocmChecks(in inputs) []Check {

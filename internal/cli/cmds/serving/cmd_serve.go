@@ -9,9 +9,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/config"
-	"github.com/opengfx1030/rdnactl/internal/recipe"
-	"github.com/opengfx1030/rdnactl/internal/runner"
+	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
+	"github.com/opengfx1030/rdnactl/internal/serving/runner"
+	"github.com/opengfx1030/rdnactl/internal/support/config"
 )
 
 func init() {

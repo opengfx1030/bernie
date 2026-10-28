@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/gpu"
-	"github.com/opengfx1030/rdnactl/internal/runner"
-	"github.com/opengfx1030/rdnactl/internal/vllm"
+	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/rdnactl/internal/serving/runner"
+	"github.com/opengfx1030/rdnactl/internal/serving/vllm"
 )
 
 // telemetry is one event of GET /api/telemetry.

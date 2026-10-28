@@ -45,14 +45,14 @@ Requirements: Go 1.23 or later. No other toolchain. No CGO.
    logs on stdout. Keep JSON field names stable (snake_case).
 5. **Read-only by default.** Inspection commands never change the host.
    Never call `sudo`. Print root steps as commands.
-6. **No `/tmp`.** Use `internal/paths`. Hosts reboot; `/tmp` is wiped.
+6. **No `/tmp`.** Use `internal/support/paths`. Hosts reboot; `/tmp` is wiped.
 7. **Data over code.** Model, flag and env knowledge goes in `recipes/`.
    Do not add model-specific branches to Go code.
 8. **Never break other platforms.** A recipe declares `requires.arch`. Keep
    CDNA (AITER) and NVIDIA concerns out of RDNA defaults.
 9. **Dependencies.** The only third-party module is `gopkg.in/yaml.v3`. Ask a
    maintainer before you add one.
-10. **No external calls in probes without a timeout.** Use `internal/execx`.
+10. **No external calls in probes without a timeout.** Use `internal/support/execx`.
 11. **Structure.** Follow spec §2.1: files ≤ 400 lines, directories ≤ 12
     entries, data keyed by GPU architecture (`<kind>/<arch>/...`), embedded
     trees discovered by walking, no code that names a device. Split by a real

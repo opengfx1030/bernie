@@ -33,6 +33,6 @@ tuned-moe/
    (`AMD_Radeon_Pro_V620`). Use a `dtype` such as `int4_w4a16` or `fp8_w8a8`.
    Add `,block_shape=[128,128]` after `dtype` for block-quantized models.
 3. Keep the folder flat. Do not add sub-folders.
-4. Run `go test ./internal/tuning/...`.
+4. Run `go test ./internal/serving/tuning/...`.
 
 No Go code changes. The embedded tree is discovered by walking it.

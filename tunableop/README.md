@@ -71,7 +71,7 @@ source <tree>/tools/rdna2_028/tunableop_env.sh
 configure_tunableop <librocblas.so.5 path> <tunableop dir> [profile]
 ```
 
-rdnactl does the same in Go (`internal/tuning`):
+rdnactl does the same in Go (`internal/serving/tuning`):
 
 * **auto (default, no explicit profile)** — pick the profile whose
   `lib_sha256[:12]` equals `sha256(loaded librocblas.so.5)[:12]` **and** whose

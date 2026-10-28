@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/config"
 	"github.com/opengfx1030/rdnactl/internal/doctor"
-	"github.com/opengfx1030/rdnactl/internal/execx"
 	"github.com/opengfx1030/rdnactl/internal/logdoc"
-	"github.com/opengfx1030/rdnactl/internal/paths"
-	"github.com/opengfx1030/rdnactl/internal/recipe"
+	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
+	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/rdnactl/internal/support/execx"
+	"github.com/opengfx1030/rdnactl/internal/support/paths"
 )
 
 func init() {
