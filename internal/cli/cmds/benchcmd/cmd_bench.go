@@ -55,7 +55,10 @@ func init() {
 	suites := &cli.Command{Name: "suites", Summary: "List the built-in bench suites"}
 	suites.Run = func(c *cli.Context, args []string) error { return runSuites(c, suites, args) }
 
-	cmd.Subs = []*cli.Command{list, show, compare, suites}
+	ab := &cli.Command{Name: "ab", Summary: "Run a baseline and a candidate back to back and tell the verdict", Usage: "--base ARM --cand ARM [--suite NAME]"}
+	ab.Run = func(c *cli.Context, args []string) error { return runAB(c, ab, args) }
+
+	cmd.Subs = []*cli.Command{list, show, compare, suites, ab}
 	cli.Register(cmd)
 }
 
