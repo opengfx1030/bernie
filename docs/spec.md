@@ -146,12 +146,19 @@ other file, script or compose file is required.
 
 ### 3.2 Rules
 
-- `--json` and `--help` can be anywhere on the command line.
+- `--json` can be anywhere before a `--`. After `--` everything is
+  positional and kept verbatim. A `--json` that directly follows a flag
+  (`--set --json`) is that flag's value if the flag takes a value. Otherwise
+  it is the global flag.
+- Explicit help (`--help`, `-h`, `help`) is printed on stdout and exits 0.
 - Diagnostics and progress go to stderr.
 - Flags and positional arguments can be in any order.
 - Exit codes: `0` success, `1` runtime failure, `2` usage error,
-  `3` checks failed (the report is still printed).
-- With `--json`, a failure writes `{"error": "...", "exit_code": N}`.
+  `3` checks failed (the report is still printed, with no error envelope).
+- A bad flag or a usage error prints one `bernie: <message>` line on stderr
+  and exits 2. With `--json`, it writes the error envelope
+  `{"error": "...", "exit_code": 2}` instead.
+- With `--json`, a runtime failure writes `{"error": "...", "exit_code": 1}`.
 
 | Command | Changes host | Purpose |
 |---|---|---|
