@@ -1,12 +1,6 @@
 "use strict";
-// ---------- Bench suites, the verdict and the length curve ----------
-
-/** benchSuiteSelect is the suite picker of the run form. */
-function benchSuiteSelect() {
-  const sel = h("select", { name: "suite", id: "b-suite" });
-  put(sel, h("option", { value: "" }, "no suite (the cells of the form)"));
-  return sel;
-}
+// The Benchmark tab: the suite cards, the live progress, the history, the
+// A/B run and the Advanced panel. See docs/design/benchmark.md.
 
 /** benchSuiteCells counts the cells of a suite. */
 function benchSuiteCells(s) {
@@ -15,170 +9,192 @@ function benchSuiteCells(s) {
   return n;
 }
 
-/** benchLoadSuites fills the suite picker with the built-in suites. */
-async function benchLoadSuites(sel) {
-  try {
-    const list = await api("/api/bench/suites");
-    for (const s of list || []) {
-      put(sel, h("option", { value: s.id }, `${s.id} — ${s.name} (${benchSuiteCells(s)} cells)`));
-    }
-  } catch (e) {
-    // The form still runs a plain benchmark without a suite.
-  }
+/** benchSuiteEstS is the rough wall time of a suite in seconds. */
+function benchSuiteEstS(s) {
+  let n = 0;
+  for (const g of (s && s.groups) || []) n += (g.est_s || 0) * (g.reps || 1);
+  return n;
 }
 
-/** benchResultCard is the content of the result card: the numbers of the
- *  run, the suite line, the measurement gates, the context-length curve
- *  and the compare control. The metric help, the cell tables and the
- *  recall note come from bench.js. */
-function benchResultCard(card, r) {
-  put(card,
-    h("h3", "Result " + r.id),
-    h("div.small.muted", `${r.model} @ ${r.url}`),
-    benchSuiteLine(r),
-    h("div.small.muted", METRIC_HELP),
-    cellsView(r.cells),
-    recallNote(r.cells),
-    benchFlags(r.cells),
-    benchCurve(r.cells),
-    benchCompareControl(r));
+/** benchMinutes turns a number of seconds into a short time. */
+function benchMinutes(s) {
+  if (!s) return "–";
+  if (s < 60) return s + " s";
+  const m = Math.round(s / 60);
+  return m + " min";
 }
 
-/** benchSuiteLine names the suite of a result. */
-function benchSuiteLine(r) {
-  if (!r || !r.suite) return null;
-  return h("div.small.muted", `Suite ${r.suite.id} · digest ${String(r.suite.digest || "").slice(0, 12)} · version ${r.suite.version}`);
-}
-
-/** benchFlags names the measurement gates of the cells that failed. */
-function benchFlags(cells) {
-  const bad = (cells || []).filter((c) => c.size_valid === false || c.output_valid === false || c.stream_incremental === false);
-  if (!bad.length) return null;
-  const parts = [];
-  for (const c of bad) {
-    const why = [];
-    if (c.size_valid === false) why.push(`prompt ${num(c.input_size_percent, 1)} % off the requested size`);
-    if (c.output_valid === false) why.push("the replies repeat one word");
-    if (c.stream_incremental === false) why.push("the server buffered the whole answer");
-    parts.push(`${c.group ? c.group + " " : ""}c=${c.concurrency}: ${why.join(", ")}`);
-  }
-  return h("div.finding",
-    h("div", h("b", "The measurement is not a speed number")),
-    h("div.small.muted", parts.join(" · ")));
-}
-
-/** benchVerdict is the table of the verdict of two runs. */
-function benchVerdict(v) {
-  if (!v) return null;
-  const rows = [];
-  for (const cv of v.cells || []) {
-    for (const m of cv.metrics || []) {
-      rows.push(h("tr",
-        h("td", `${cv.group ? cv.group + " " : ""}c=${cv.concurrency}`),
-        h("td", m.label),
-        h("td.num", num(m.base, 2)),
-        h("td.num", num(m.cand, 2)),
-        h("td.num", (m.delta_pct > 0 ? "+" : "") + num(m.delta_pct, 1) + " %"),
-        h("td", h("span.chip." + m.verdict, m.verdict))));
-    }
-  }
-  const head = h("div",
-    h("h3", "Verdict"),
-    h("div.small.muted", `${v.summary.better} better, ${v.summary.same} same, ${v.summary.worse} worse, ${v.summary.noisy} noisy · recall ${v.summary.recall_ok ? "ok" : "failed"}`));
-  if (!rows.length) {
-    return h("div", head, h("div.empty", "No metric could be compared."));
-  }
-  const notes = (v.reasons || []).map((r) => h("div.small.muted", r));
-  return h("div", head, h("div.scroll", h("table",
-    h("thead", h("tr", h("th", "cell"), h("th", "metric"), h("th.num", "base"), h("th.num", "cand"), h("th.num", "delta"), h("th", "verdict"))),
-    h("tbody", rows))), ...notes);
-}
-
-/** benchCompareControl lets the operator compare the shown result with a
- *  saved one. It returns the block; the verdict lands in the card. */
-function benchCompareControl(r, onVerdict) {
-  const sel = h("select", { id: "b-compare" });
-  const out = h("div");
-  const btn = h("button", { type: "button" }, "Compare");
-  btn.addEventListener("click", async () => {
-    const id = sel.value;
-    if (!id || !r || !r.id) return;
-    btn.disabled = true;
-    put(out, loading());
-    try {
-      const v = await api(`/api/bench/compare?a=${encodeURIComponent(r.id)}&b=${encodeURIComponent(id)}`);
-      put(out, benchVerdict(v));
-    } catch (e) {
-      put(out, failed(e));
-    }
-    btn.disabled = false;
+/** benchSuiteCard is one suite: a radio, the name, what it measures, the
+ *  number of cells, the estimated time and the digest in mono. */
+function benchSuiteCard(s, picked, onPick) {
+  const id = "bench-suite-" + s.id;
+  const digest = s.digest || "";
+  const radio = h("input.bench-radio", {
+    type: "radio", name: "bench-suite", id: id, value: s.id, checked: picked,
   });
-  const block = h("div.row",
-    h("label", { for: "b-compare" }, "Compare to"), sel, btn);
-  api("/api/bench").then((list) => {
-    const results = (Array.isArray(list) ? list : []).slice().sort((a, b) => new Date(b.time) - new Date(a.time));
-    for (const s of results) {
-      if (r && s.id === r.id) continue;
-      put(sel, h("option", { value: s.id }, `${s.id} · ${s.tag || s.model}`));
-    }
-  }).catch(() => {});
-  return h("div", block, out);
+  radio.addEventListener("change", () => onPick(s.id));
+  return h("label.bench-suite", { for: id, class: picked ? "bench-suite picked" : "bench-suite" },
+    radio,
+    h("div.bench-suite-body",
+      h("p.bench-suite-name", s.name || s.id),
+      h("p.bench-suite-desc", s.description || ""),
+      h("p.bench-suite-meta",
+        benchSuiteCells(s) + " cells · about " + benchMinutes(benchSuiteEstS(s))),
+      h("p.bench-suite-digest",
+        h("code", "digest: " + (digest ? digest.slice(0, 12) : "unknown")),
+        copyBtn(digest || "unknown", "Copy the digest"))));
 }
 
-/** benchCurve draws the context-length curve of a result: the prefill
- *  speed and the time to first token of every group. It is plain SVG: no
- *  library and no innerHTML. */
-function benchCurve(cells) {
-  const groups = [];
-  const seen = new Set();
-  for (const c of cells || []) {
-    const key = c.group || "";
-    const len = c.input_len || 0;
-    if (!len || seen.has(key)) continue;
-    seen.add(key);
-    // The lowest concurrency of a group is the cleanest measurement.
-    const best = groups.find((g) => g.group === key);
-    if (!best) groups.push({ group: key, len, cell: c });
-    else if ((c.concurrency || 0) < (best.cell.concurrency || 0)) best.cell = c;
+/** benchSuiteCards is the section of the suites: one radio card each. */
+function benchSuiteCards(list, picked, onPick) {
+  if (!list || !list.length) {
+    return emptyState("There is no suite to run.",
+      "The built-in suites live in bench/suites/. One of them is the set of cells a pull request must pass.");
   }
-  if (groups.length < 2) return null;
-  groups.sort((a, b) => a.len - b.len);
-  const prefill = groups.map((g) => (g.cell.prefill || {}).agg_tok_s || 0);
-  const ttft = groups.map((g) => ((g.cell.ttft_s || {}).p50 || 0) * 1000);
-  const maxP = Math.max(...prefill, 1);
-  const maxT = Math.max(...ttft, 1);
-  const w = 360, hgt = 190, left = 46, right = 46, top = 26, bottom = 34;
-  const plotW = w - left - right, plotH = hgt - top - bottom;
-  const x = (i) => left + (groups.length === 1 ? plotW / 2 : (plotW * i) / (groups.length - 1));
-  const yP = (v) => top + plotH - (plotH * v) / maxP;
-  const yT = (v) => top + plotH - (plotH * v) / maxT;
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", `0 0 ${w} ${hgt}`);
-  svg.setAttribute("class", "curve");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "The prefill speed and the time to first token of every group");
-  const add = (name, attrs, text) => {
-    const el = document.createElementNS("http://www.w3.org/2000/svg", name);
-    for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
-    if (text != null) el.textContent = text;
-    svg.appendChild(el);
-    return el;
+  return h("div.bench-suites", list.map((s) => benchSuiteCard(s, s.id === picked, onPick)));
+}
+
+/** benchProgress is the live progress of a run: one sentence and one bar. */
+function benchProgress() {
+  const sentence = h("p.bench-progress-sentence", { "aria-live": "polite" }, "");
+  const fill = h("i");
+  const bar = h("div.bench-bar", {
+    role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0",
+  }, fill);
+  const log = h("p.small.muted.bench-progress-log", "");
+  const el = h("div.card.bench-card.bench-progress", { hidden: true }, sentence, bar, log);
+  let start = Date.now();
+  return {
+    el: el,
+    /** show writes the state of the job: the phase, the numbers and the bar. */
+    show(job) {
+      el.hidden = false;
+      if (!start) start = Date.now();
+      const done = job.done || 0;
+      const total = job.total || 0;
+      const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+      fill.style.width = pct + "%";
+      bar.setAttribute("aria-valuenow", String(pct));
+      const secs = Math.round((Date.now() - start) / 1000);
+      const phase = job.phase || (total ? "Cell " + done + " of " + total : "Starting…");
+      const rate = job.tok_s ? " · " + benchNum(job.tok_s, 1) + " tok/s" : "";
+      sentence.textContent = phase + rate + " · " + secs + " s so far.";
+    },
+    /** log writes one line of the run under the sentence. */
+    log(text) {
+      if (text) log.textContent = String(text);
+    },
+    /** fail says that the run stopped and shows the last line. */
+    fail(text) {
+      el.hidden = false;
+      sentence.textContent = "The run stopped.";
+      log.textContent = String(text || "");
+    },
+    /** hide takes the card away. */
+    hide() {
+      el.hidden = true;
+      start = 0;
+    },
   };
-  // The axes.
-  add("line", { x1: left, y1: top, x2: left, y2: top + plotH, class: "axis" });
-  add("line", { x1: left, y1: top + plotH, x2: left + plotW, y2: top + plotH, class: "axis" });
-  add("text", { x: 4, y: top + 8, class: "axis-label" }, `prefill ${num(maxP, 0)} tok/s`);
-  add("text", { x: w - 4, y: top + 8, class: "axis-label", "text-anchor": "end" }, `TTFT ${num(maxT, 0)} ms`);
-  // The series.
-  const points = (vals, y) => vals.map((v, i) => `${x(i)},${y(v)}`).join(" ");
-  add("polyline", { points: points(prefill, yP), class: "series-1" });
-  add("polyline", { points: points(ttft, yT), class: "series-2" });
-  groups.forEach((g, i) => {
-    add("circle", { cx: x(i), cy: yP(prefill[i]), r: 4, class: "series-1" });
-    add("circle", { cx: x(i), cy: yT(ttft[i]), r: 4, class: "series-2" });
-    add("text", { x: x(i), y: hgt - 16, class: "axis-label", "text-anchor": "middle" }, g.group || `${g.len}`);
-    add("text", { x: x(i), y: hgt - 4, class: "axis-label", "text-anchor": "middle" }, `${g.len} tok`);
+}
+
+/** benchBest returns the largest value a field of the cells of a result has. */
+function benchBest(cells, get) {
+  let best = 0;
+  for (const c of cells || []) {
+    const v = get(c);
+    if (v != null && v > best) best = v;
+  }
+  return best > 0 ? best : null;
+}
+
+/** benchSuiteOf names the suite of a saved result. */
+function benchSuiteOf(r) {
+  if (r && r.suite && r.suite.id) return r.suite.id;
+  return (r && r.tag) || "–";
+}
+
+/** benchHistoryRow is one saved result of the history table. */
+function benchHistoryRow(r, verdict, onPick) {
+  const cells = r.cells || [];
+  const tr = h("tr",
+    h("td.small", ago(r.time)),
+    h("td", benchSuiteOf(r)),
+    h("td.small", r.model || "–"),
+    h("td.num", benchNum(benchBest(cells, (c) => c.output_tok_s), 1)),
+    h("td.num", benchNum(benchBest(cells, (c) => (c.prefill || {}).agg_tok_s), 1)),
+    h("td.num", benchNum(benchBest(cells, (c) => (c.decode || {}).agg_tok_s), 1)),
+    h("td.num", cells.length),
+    h("td", verdict ? verdictChip(verdict) : h("span.muted", "–")));
+  if (onPick) {
+    tr.classList.add("click");
+    tr.addEventListener("click", () => onPick(r));
+  }
+  return tr;
+}
+
+/** benchHistory is the table of the saved results. */
+function benchHistory(list, verdicts, onPick) {
+  if (!list || !list.length) {
+    return emptyState("No saved result yet.",
+      "Every benchmark is saved with its workload, so two results can be compared only when they measured the same thing.");
+  }
+  return h("div.scroll", h("table.bench-table",
+    h("thead", h("tr",
+      h("th.l", "WHEN"), h("th.l", "SUITE"), h("th.l", "MODEL"),
+      h("th.n", "OUT TOK/S"), h("th.n", "PREFILL"), h("th.n", "DECODE"),
+      h("th.n", "CELLS"), h("th.l", "VERDICT"))),
+    h("tbody", list.map((r) => benchHistoryRow(r, verdicts && verdicts[r.id], onPick)))));
+}
+
+/** benchAB is the A/B run: the two arms and the button that starts it. */
+function benchAB(onRun) {
+  const base = h("input", { type: "text", id: "bench-ab-base", placeholder: "flashnext" });
+  const cand = h("input", { type: "text", id: "bench-ab-cand", placeholder: "http://127.0.0.1:8001" });
+  const btn = h("button.primary", { type: "button" }, "Run the A/B");
+  const out = h("div.bench-ab-out");
+  const form = h("form.bench-ab",
+    h("label", { for: "bench-ab-base" }, "Base"), base,
+    h("label", { for: "bench-ab-cand" }, "Cand"), cand,
+    btn);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!base.value.trim() || !cand.value.trim()) {
+      put(out, h("p.small.muted", "An A/B run needs both arms: a recipe id or the URL of a server."));
+      return;
+    }
+    onRun(base.value.trim(), cand.value.trim(), out, btn);
   });
-  const legend = h("div.small.muted", "● prefill tok/s (left) · ● TTFT p50 ms (right) · the lowest concurrency of every group");
-  return h("div", h("h3", "Context length"), svg, legend);
+  btn.addEventListener("click", () => form.requestSubmit());
+  return h("div.card.bench-card",
+    h("p.small.muted", "An A/B run measures one server, then the other, then the first again."),
+    form, out);
+}
+
+/** benchAdvanced is the panel with the raw JSON of the endpoints of the tab
+ *  and the commands that produce the same documents. */
+function benchAdvanced(docs) {
+  const body = h("div.bench-advanced-body", { hidden: true });
+  for (const d of docs || []) {
+    body.appendChild(h("div.bench-advanced-doc",
+      h("p.bench-advanced-head",
+        h("a.json-link", { href: d.path, target: "_blank", rel: "noopener noreferrer" }, "json"),
+        h("code", d.path)),
+      h("pre.bench-json", d.text || ""),
+      copyBtn(d.text || "", "Copy the JSON")));
+  }
+  if (docs && docs.length) {
+    body.appendChild(h("div.bench-advanced-cmds",
+      h("p.eyebrow", "The same things in the command line"),
+      cmdBlock("bernie bench list"),
+      cmdBlock("bernie bench suites"),
+      cmdBlock("bernie bench compare A B")));
+  }
+  const btn = h("button", { type: "button", "aria-expanded": "false" }, "Advanced");
+  btn.addEventListener("click", () => {
+    const open = body.hidden;
+    body.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  return { el: h("div.card.bench-card.bench-advanced", btn, body), btn: btn };
 }
