@@ -301,7 +301,7 @@ func (j *benchJob) progress(line string) {
 		j.group = g
 	}
 	if c, ok := between(line, "c=", " "); ok {
-		if n, err := strconv.Atoi(c); err == nil {
+		if n, err := strconv.Atoi(strings.Trim(c, "[],")); err == nil {
 			j.level = n
 		}
 	}
