@@ -1,4 +1,4 @@
-# Writing rdnactl recipes
+# Writing bernie recipes
 
 This document tells you how to write a recipe. The contract is
 [spec.md §7](spec.md#7-recipes). If the two disagree, spec.md is correct.
@@ -18,18 +18,18 @@ hardware it needs, the environment and the `vllm serve` flags.
 - An id uses lowercase letters, digits, `.`, `_` and `-`.
 - A file whose id starts with `_` is a fragment. A fragment is a shared part.
   You cannot plan or serve a fragment. Other recipes use it through `extends`.
-- rdnactl turns a recipe into a plan: `rdnactl recipe plan <id>`. The plan is
-  the exact command and environment. `rdnactl serve <id>` starts the plan.
+- bernie turns a recipe into a plan: `bernie recipe plan <id>`. The plan is
+  the exact command and environment. `bernie serve <id>` starts the plan.
 
-## 2. Where rdnactl finds recipes
+## 2. Where bernie finds recipes
 
-rdnactl loads recipes in this order. A later file with the same id replaces
+bernie loads recipes in this order. A later file with the same id replaces
 an earlier one.
 
 1. The built-in recipes (embedded from `recipes/` in the source tree).
-2. `<config>/recipes/` (default `~/.config/rdnactl/recipes/`).
-3. Each directory in `$RDNACTL_RECIPES` (`:`-separated).
-4. The files given to `rdnactl recipe validate FILE...`.
+2. `<config>/recipes/` (default `~/.config/bernie/recipes/`).
+3. Each directory in `$BERNIE_RECIPES` (`:`-separated).
+4. The files given to `bernie recipe validate FILE...`.
 
 Directories are read recursively: every `*.yaml` and `*.yml` file below them
 is a recipe. Group your own recipes in sub-directories as you like. Inside one
@@ -37,7 +37,7 @@ directory tree an id may appear once. A file in a later directory replaces an
 earlier recipe with the same id.
 
 A file that does not load is listed by `recipe list` and `recipe validate`.
-rdnactl does not drop it silently.
+bernie does not drop it silently.
 
 To change a built-in recipe, do not copy it. Write a new file that extends
 it (see [§5](#5-extends-and-merge-rules)).
@@ -121,10 +121,10 @@ x `data-parallel-size` when the recipe sets one of them.
 - A recipe without `container` runs in host mode only. Use this when the
   published image lacks a feature that the recipe needs. `--mode container`
   then fails with a clear message.
-- The default mode is the config `mode`. When it is empty, rdnactl uses
+- The default mode is the config `mode`. When it is empty, bernie uses
   container mode if the recipe has an image and Docker or Podman is usable.
   Else it uses host mode.
-- In host mode, rdnactl selects the TunableOp profile from the loaded
+- In host mode, bernie selects the TunableOp profile from the loaded
   `librocblas.so.5` and the architecture of the selected GPUs. In container
   mode, it uses `container.tunableop_profile`.
 - In host mode, `VLLM_TUNED_CONFIG_FOLDER` (from `_tuned-moe`) points to the
@@ -133,7 +133,7 @@ x `data-parallel-size` when the recipe sets one of them.
 
 ## 4. Arguments
 
-rdnactl renders `args` in key order:
+bernie renders `args` in key order:
 
 | Value | Flag |
 |---|---|
@@ -147,7 +147,7 @@ Example: `speculative-config: {method: mtp, num_speculative_tokens: 2}` gives
 
 ## 5. Extends and merge rules
 
-`extends` lists fragments or recipes. rdnactl merges the parents depth first,
+`extends` lists fragments or recipes. bernie merges the parents depth first,
 left to right, then the file itself. A cycle or a missing parent is an error.
 
 Merge rules:
@@ -162,7 +162,7 @@ Merge rules:
 Example: run `flashnext` with 4 sequences and no tool parser.
 
 ```yaml
-# ~/.config/rdnactl/recipes/flashnext-small.yaml
+# ~/.config/bernie/recipes/flashnext-small.yaml
 schema: 1
 extends: [flashnext]
 name: Flash-Next, 4 sequences, no tools
@@ -182,8 +182,8 @@ args:
 - The value comes from `--set NAME=VALUE`, then from `default`.
 - A `required` input without a value stops the plan. The message names the
   `--set` to give.
-- A `path` input is a host path. rdnactl warns when it does not exist. In
-  container mode, rdnactl mounts it at the same path.
+- A `path` input is a host path. bernie warns when it does not exist. In
+  container mode, bernie mounts it at the same path.
 
 ## 7. Overrides
 
@@ -194,19 +194,19 @@ args:
 - A dotted key sets a field: `--set args.max-model-len=32768`,
   `--set env.GPU_MAX_HW_QUEUES=2`, `--set args.enforce-eager=true`. The
   value is parsed as YAML. `null` deletes the key.
-- `set:` in `config.yaml` holds default overrides. rdnactl applies them before
+- `set:` in `config.yaml` holds default overrides. bernie applies them before
   the `--set` flags. A later override wins.
 - Change the GPUs with `--set env.HIP_VISIBLE_DEVICES=4,5,6,7`. Otherwise
-  rdnactl selects them (spec §7.7): matching arch, one PCIe switch, lowest
+  bernie selects them (spec §7.7): matching arch, one PCIe switch, lowest
   HIP indices.
 
 ## 8. Check your recipe
 
 ```sh
-rdnactl recipe validate ~/.config/rdnactl/recipes/flashnext-small.yaml
-rdnactl recipe show flashnext-small        # the merged recipe
-rdnactl recipe plan flashnext-small        # env + command, GPU selection, warnings
-rdnactl recipe plan flashnext-small --json # the plan for scripts
+bernie recipe validate ~/.config/bernie/recipes/flashnext-small.yaml
+bernie recipe show flashnext-small        # the merged recipe
+bernie recipe plan flashnext-small        # env + command, GPU selection, warnings
+bernie recipe plan flashnext-small --json # the plan for scripts
 ```
 
 ## 9. Layout of the built-in tree
@@ -243,7 +243,7 @@ recipes/
 | `_attn-triton` | `_fragments/attention/` | Triton attention (`TRITON_ATTN`), FA-RDNA2 off. |
 | `_rccl-pcie` | `_fragments/comm/` | RCCL over PCIe: P2P level `pxb`, Simple protocol, no MSCCL, fine-grained PCIe memory. |
 | `_rdna-ar` | `_fragments/comm/` | The fork's one-shot all-reduce up to 64 KiB, RCCL above. |
-| `_tuned-moe` | `_fragments/tuning/` | `VLLM_TUNED_CONFIG_FOLDER` for the tuned fused-MoE configs. In container mode it is `/src/vllm/tuned-moe` in the image. In host mode rdnactl writes the embedded folder of the selected GPUs' architecture to `<data>/tuned-moe/<arch>` and uses that directory. |
+| `_tuned-moe` | `_fragments/tuning/` | `VLLM_TUNED_CONFIG_FOLDER` for the tuned fused-MoE configs. In container mode it is `/src/vllm/tuned-moe` in the image. In host mode bernie writes the embedded folder of the selected GPUs' architecture to `<data>/tuned-moe/<arch>` and uses that directory. |
 | `_ple-int4` | `_fragments/ple/` | Flash-Next PLE n-gram table, INT4, in pinned host RAM. Needs input `PLE_QUANT_DIR`. |
 | `_ple-int4-disk` | `_fragments/ple/` | The INT4 table memory-mapped from disk through the CPU sidecar (no RAM floor). |
 | `_ple-exl3` | `_fragments/ple/` | The PLE table from an EXL3 checkpoint through the CPU sidecar. Removes `PLE_QUANT_DIR`. |
@@ -255,7 +255,7 @@ recipes/
 The 11 recipes come from `tools/rdna/recipes/*.env` of the
 `opengfx1030/vllm-rdna` fork. The fork comments are kept in the files. All
 11 declare `requires.arch: [gfx1030]`: the fork kernels are validated on
-gfx1030 only. `rdnactl recipe plan` on another architecture refuses with the
+gfx1030 only. `bernie recipe plan` on another architecture refuses with the
 arch it needs.
 
 | Recipe | Path under `recipes/` | GPUs | Modes | What it is |
@@ -272,19 +272,19 @@ arch it needs.
 | `full` | `qwen-dense/` | 2 | host, container | Qwen3.8-27B AWQ-INT4, full HIP path, TP2. Validated. |
 | `dsv4-flash` | `deepseek/` | 4 | host, container | DeepSeek-V4-Flash K128 (fp8 + MXFP4 experts), TP4. Needs input `MODEL`. Experimental. |
 
-`rdnactl recipe list` shows the fit of each recipe on this host.
+`bernie recipe list` shows the fit of each recipe on this host.
 
 ## 12. Differences from the fork launcher
 
-`rdnactl recipe plan` gives the same vLLM flags and kernel environment as
+`bernie recipe plan` gives the same vLLM flags and kernel environment as
 `PRINT=1 bash tools/rdna/serve_rdna.sh RECIPE=<id>`. These differences are on
 purpose:
 
-- GPUs: rdnactl selects GPUs of the recipe's arch on one PCIe switch. The
+- GPUs: bernie selects GPUs of the recipe's arch on one PCIe switch. The
   fork uses `0,1,2,3` by default.
-- Caches: rdnactl uses `<cache>/runs/<name>/` per run. The fork uses
+- Caches: bernie uses `<cache>/runs/<name>/` per run. The fork uses
   `<tree>/cache/`.
-- `PYTHONPATH`: rdnactl does not set it. The venv has vLLM installed. The run
+- `PYTHONPATH`: bernie does not set it. The venv has vLLM installed. The run
   directory is the working directory.
 - `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE`: `0` for a repo id (downloads
   allowed), `1` for a local path. The fork always sets `1`. Set
@@ -293,7 +293,25 @@ purpose:
   sets the same variables when it starts, but its `PRINT=1` output omits them.
 - `VLLM_PP_LAYER_PARTITION`: the plan shows it. The fork exports it but its
   `PRINT=1` output omits it.
-- `VLLM_TUNED_CONFIG_FOLDER`: in host mode it points to rdnactl's copy of the
+- `VLLM_TUNED_CONFIG_FOLDER`: in host mode it points to bernie's copy of the
   same files for the selected GPUs' architecture, not to the fork tree.
-- `ROCM_HOME`, `ROCM_PATH`, `HIP_PATH`, `HIP_ROOT_DIR`: rdnactl uses the
+- `ROCM_HOME`, `ROCM_PATH`, `HIP_PATH`, `HIP_ROOT_DIR`: bernie uses the
   newest ROCm install it detects, as a resolved path.
+
+## 13. Recipes for another GPU architecture
+
+A recipe runs on the architectures in `requires.arch`. To run a recipe on a
+new architecture:
+
+1. Add the architecture to the device tables. See
+   [extending.md](extending.md#2-how-to-add-a-new-gpu-generation).
+2. Write a new recipe that extends the old one. Set its own `requires.arch`.
+   Do not edit the validated recipe.
+3. Put settings that hold only on that architecture in a fragment under
+   `recipes/_fragments/arch/`.
+4. Use `status: experimental`. Change it to `validated` only with a
+   `bernie bench --json` result from real hardware.
+
+`bernie doctor` reads the validated architectures from the recipes
+(`gpu.supported.<gfx>`). A new `validated` recipe makes the architecture
+`ok`. No other file lists it.
