@@ -1,9 +1,9 @@
-// bernie dashboard. Vanilla JS, no build step, no dependencies.
-// This file holds the small DOM and formatting primitives shared by the shell,
-// the components and the per-tab views.
+// bernie dashboard: the DOM and the formatting primitives.
+// Every element of the page is built here. There is no innerHTML anywhere:
+// the server sends text, and the text goes into the page as text.
 "use strict";
 
-/** h("div.card", {onclick}, child, ...) builds DOM without innerHTML (no XSS). */
+/** h("div.card", {onclick}, child, ...) builds a DOM node without markup. */
 function h(spec, attrs, ...kids) {
   const [tag, ...cls] = spec.split(".");
   const el = document.createElement(tag || "div");
@@ -23,6 +23,7 @@ function h(spec, attrs, ...kids) {
   return el;
 }
 
+/** add appends children to a node: nodes go in as they are, text as text. */
 function add(el, kids) {
   for (const k of kids.flat(Infinity)) {
     if (k == null || k === false) continue;
@@ -30,11 +31,14 @@ function add(el, kids) {
   }
 }
 
+/** put empties a node and fills it again. */
 function put(el, ...kids) { el.replaceChildren(); add(el, kids); return el; }
+
 const $ = (sel) => document.querySelector(sel);
 
 const GiB = 1024 ** 3;
 
+/** bytes writes a size in the unit a person reads: 24 GiB. */
 function bytes(n) {
   if (!n) return "0";
   const u = ["B", "KiB", "MiB", "GiB", "TiB"];
@@ -43,6 +47,7 @@ function bytes(n) {
   return (n >= 100 || i === 0 ? n.toFixed(0) : n.toFixed(1)) + " " + u[i];
 }
 
+/** num writes a number with one decimal, or a dash when there is none. */
 function num(v, d = 1) {
   if (v == null || v === "") return "–";
   if (typeof v !== "number") return String(v);
@@ -50,6 +55,7 @@ function num(v, d = 1) {
   return v.toFixed(d);
 }
 
+/** ago writes how long ago a time was. */
 function ago(t) {
   const s = (Date.now() - new Date(t).getTime()) / 1000;
   if (!isFinite(s)) return "";
@@ -59,5 +65,8 @@ function ago(t) {
   return Math.round(s / 86400) + " d ago";
 }
 
+/** badge is a word in a colour: the state of a run or of a check. */
 function badge(status) { return h("span.badge", { class: "b-" + status }, status || "?"); }
+
+/** sh quotes one word of a command for a shell. */
 function sh(a) { return /^[\w@%+=:,./-]+$/.test(a) ? a : "'" + a.replace(/'/g, "'\\''") + "'"; }
