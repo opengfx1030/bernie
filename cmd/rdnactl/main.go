@@ -7,6 +7,12 @@ import (
 	"os"
 
 	"github.com/opengfx1030/rdnactl/internal/cli"
+	_ "github.com/opengfx1030/rdnactl/internal/cli/cmds/benchcmd"
+	_ "github.com/opengfx1030/rdnactl/internal/cli/cmds/dashcmd"
+	_ "github.com/opengfx1030/rdnactl/internal/cli/cmds/health"
+	_ "github.com/opengfx1030/rdnactl/internal/cli/cmds/inventory"
+	_ "github.com/opengfx1030/rdnactl/internal/cli/cmds/serving"
+	_ "github.com/opengfx1030/rdnactl/internal/cli/cmds/tunecmd"
 )
 
 func main() {

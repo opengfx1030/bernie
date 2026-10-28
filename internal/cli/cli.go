@@ -242,3 +242,11 @@ type MultiFlag []string
 
 func (m *MultiFlag) String() string     { return strings.Join(*m, ",") }
 func (m *MultiFlag) Set(v string) error { *m = append(*m, v); return nil }
+
+// OrDash renders an empty string as "-" in human tables.
+func OrDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}

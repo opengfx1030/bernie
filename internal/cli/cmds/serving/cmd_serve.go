@@ -1,7 +1,8 @@
-package cli
+package serving
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,22 +15,22 @@ import (
 )
 
 func init() {
-	serve := &Command{Name: "serve", Summary: "Start a run of a recipe",
+	serve := &cli.Command{Name: "serve", Summary: "Start a run of a recipe",
 		Usage: "<id> [--set KEY=VALUE]... [--mode host|container] [--name N] [--venv DIR] [--engine E] [--foreground] [--no-pull] [--dry-run]"}
-	serve.Run = func(c *Context, args []string) error {
+	serve.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(serve)
 		var o runner.PrepareOptions
-		var sets MultiFlag
+		var sets cli.MultiFlag
 		prepareFlags(fs, &o, &sets)
 		fg := fs.Bool("foreground", false, "stay attached; Ctrl-C stops the server")
 		noPull := fs.Bool("no-pull", false, "container mode: start the local image without pulling")
 		dry := fs.Bool("dry-run", false, "print the plan and start nothing (same as recipe plan)")
-		pos, err := Parse(fs, args)
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
-			return Usagef("serve needs exactly one recipe id")
+			return cli.Usagef("serve needs exactly one recipe id")
 		}
 		o.Recipe, o.Sets = pos[0], sets
 		p, err := runner.Prepare(c.Ctx, o)
@@ -65,11 +66,11 @@ func init() {
 			fmt.Fprintf(w, "stop: rdnactl stop %s\n", rec.Name)
 		})
 	}
-	Register(serve)
+	cli.Register(serve)
 
-	ps := &Command{Name: "ps", Summary: "Runs, with state and health"}
-	ps.Run = func(c *Context, args []string) error {
-		if _, err := Parse(c.Flags(ps), args); err != nil {
+	ps := &cli.Command{Name: "ps", Summary: "Runs, with state and health"}
+	ps.Run = func(c *cli.Context, args []string) error {
+		if _, err := cli.Parse(c.Flags(ps), args); err != nil {
 			return err
 		}
 		runs, err := runner.List(c.Ctx)
@@ -78,16 +79,16 @@ func init() {
 		}
 		return c.Emit(runs, func(w io.Writer) { printRuns(w, runs) })
 	}
-	Register(ps)
+	cli.Register(ps)
 
-	stop := &Command{Name: "stop", Summary: "Stop a run (the only running one if NAME is absent)", Usage: "[NAME]"}
-	stop.Run = func(c *Context, args []string) error {
-		pos, err := Parse(c.Flags(stop), args)
+	stop := &cli.Command{Name: "stop", Summary: "Stop a run (the only running one if NAME is absent)", Usage: "[NAME]"}
+	stop.Run = func(c *cli.Context, args []string) error {
+		pos, err := cli.Parse(c.Flags(stop), args)
 		if err != nil {
 			return err
 		}
 		if len(pos) > 1 {
-			return Usagef("stop takes at most one run name")
+			return cli.Usagef("stop takes at most one run name")
 		}
 		name := ""
 		if len(pos) == 1 {
@@ -100,19 +101,19 @@ func init() {
 			fmt.Fprintln(w, "stopped")
 		})
 	}
-	Register(stop)
+	cli.Register(stop)
 
-	logs := &Command{Name: "logs", Summary: "Show the log of a run", Usage: "[NAME] [-f] [--tail N]"}
-	logs.Run = func(c *Context, args []string) error {
+	logs := &cli.Command{Name: "logs", Summary: "Show the log of a run", Usage: "[NAME] [-f] [--tail N]"}
+	logs.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(logs)
 		follow := fs.Bool("f", false, "follow the log")
 		tail := fs.Int("tail", 100, "last N lines (0 = all)")
-		pos, err := Parse(fs, args)
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) > 1 {
-			return Usagef("logs takes at most one run name")
+			return cli.Usagef("logs takes at most one run name")
 		}
 		name := ""
 		if len(pos) == 1 {
@@ -121,25 +122,25 @@ func init() {
 		// The log is text; --json does not apply to a stream.
 		return runner.Logs(c.Ctx, name, *follow, *tail, c.Out)
 	}
-	Register(logs)
+	cli.Register(logs)
 
-	compose := &Command{Name: "compose", Summary: "Write a compose.yml for a container plan",
+	compose := &cli.Command{Name: "compose", Summary: "Write a compose.yml for a container plan",
 		Usage: "<id> [--set KEY=VALUE]... [--name N] [-o FILE]"}
-	compose.Run = func(c *Context, args []string) error {
+	compose.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(compose)
 		var o runner.PrepareOptions
-		var sets MultiFlag
+		var sets cli.MultiFlag
 		prepareFlags(fs, &o, &sets)
 		out := fs.String("o", "", "write to FILE (default: stdout)")
-		pos, err := Parse(fs, args)
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
-			return Usagef("compose needs exactly one recipe id")
+			return cli.Usagef("compose needs exactly one recipe id")
 		}
 		if o.Mode != "" && o.Mode != recipe.ModeContainer {
-			return Usagef("compose writes a container plan; drop --mode %s", o.Mode)
+			return cli.Usagef("compose writes a container plan; drop --mode %s", o.Mode)
 		}
 		o.Recipe, o.Sets, o.Mode = pos[0], sets, recipe.ModeContainer
 		p, err := runner.Prepare(c.Ctx, o)
@@ -171,7 +172,7 @@ func init() {
 		}
 		return c.Emit(map[string]string{"compose": string(b)}, func(w io.Writer) { w.Write(b) })
 	}
-	Register(compose)
+	cli.Register(compose)
 }
 
 func short(digest string) string {

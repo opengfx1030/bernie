@@ -1,9 +1,10 @@
-package cli
+package serving
 
 import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"os"
 	"slices"
@@ -20,13 +21,13 @@ import (
 )
 
 func init() {
-	cmd := &Command{Name: "recipe", Summary: "List, show, validate and plan recipes"}
+	cmd := &cli.Command{Name: "recipe", Summary: "List, show, validate and plan recipes"}
 
-	list := &Command{Name: "list", Summary: "Recipes with their fit to this host", Usage: "[--all]"}
-	list.Run = func(c *Context, args []string) error {
+	list := &cli.Command{Name: "list", Summary: "Recipes with their fit to this host", Usage: "[--all]"}
+	list.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(list)
 		all := fs.Bool("all", false, "include recipes that do not fit this host")
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		gpus, _ := gpu.List("/")
@@ -34,14 +35,14 @@ func init() {
 		return c.Emit(l, func(w io.Writer) { printRecipeList(w, l, *all) })
 	}
 
-	show := &Command{Name: "show", Summary: "The merged recipe (after extends)", Usage: "<id>"}
-	show.Run = func(c *Context, args []string) error {
-		pos, err := Parse(c.Flags(show), args)
+	show := &cli.Command{Name: "show", Summary: "The merged recipe (after extends)", Usage: "<id>"}
+	show.Run = func(c *cli.Context, args []string) error {
+		pos, err := cli.Parse(c.Flags(show), args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
-			return Usagef("recipe show needs exactly one recipe id")
+			return cli.Usagef("recipe show needs exactly one recipe id")
 		}
 		r, err := recipe.Load().Resolve(pos[0])
 		if err != nil {
@@ -60,9 +61,9 @@ func init() {
 		})
 	}
 
-	validate := &Command{Name: "validate", Summary: "Validate recipe files, or all loaded recipes", Usage: "[FILE]..."}
-	validate.Run = func(c *Context, args []string) error {
-		files, err := Parse(c.Flags(validate), args)
+	validate := &cli.Command{Name: "validate", Summary: "Validate recipe files, or all loaded recipes", Usage: "[FILE]..."}
+	validate.Run = func(c *cli.Context, args []string) error {
+		files, err := cli.Parse(c.Flags(validate), args)
 		if err != nil {
 			return err
 		}
@@ -77,24 +78,24 @@ func init() {
 			return err
 		}
 		if bad > 0 {
-			return ChecksFailed("%d of %d recipes are not valid", bad, len(rep))
+			return cli.ChecksFailed("%d of %d recipes are not valid", bad, len(rep))
 		}
 		return nil
 	}
 
-	plan := &Command{Name: "plan", Summary: "The plan: exact environment and command",
+	plan := &cli.Command{Name: "plan", Summary: "The plan: exact environment and command",
 		Usage: "<id> [--set KEY=VALUE]... [--mode host|container] [--name N] [--venv DIR] [--engine E]"}
-	plan.Run = func(c *Context, args []string) error {
+	plan.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(plan)
 		var o runner.PrepareOptions
-		var sets MultiFlag
+		var sets cli.MultiFlag
 		prepareFlags(fs, &o, &sets)
-		pos, err := Parse(fs, args)
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
-			return Usagef("recipe plan needs exactly one recipe id")
+			return cli.Usagef("recipe plan needs exactly one recipe id")
 		}
 		o.Recipe, o.Sets = pos[0], sets
 		p, err := runner.Prepare(c.Ctx, o)
@@ -104,12 +105,12 @@ func init() {
 		return c.Emit(p, func(w io.Writer) { printPlan(w, p) })
 	}
 
-	cmd.Subs = []*Command{list, show, validate, plan}
-	Register(cmd)
+	cmd.Subs = []*cli.Command{list, show, validate, plan}
+	cli.Register(cmd)
 }
 
 // prepareFlags are the flags shared by recipe plan, serve and compose.
-func prepareFlags(fs *flag.FlagSet, o *runner.PrepareOptions, sets *MultiFlag) {
+func prepareFlags(fs *flag.FlagSet, o *runner.PrepareOptions, sets *cli.MultiFlag) {
 	fs.Var(sets, "set", "override: INPUT=VALUE or section.key=VALUE (YAML value), repeatable")
 	fs.StringVar(&o.Mode, "mode", "", "host or container (default: config, else container when the recipe has an image and an engine is usable)")
 	fs.StringVar(&o.Name, "name", "", "run name (default: recipe id)")

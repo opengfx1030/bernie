@@ -9,7 +9,7 @@ a bug.
 ```mermaid
 flowchart TB
   subgraph Front["Front ends"]
-    CLI["internal/cli<br/>cmd_*.go (one file per command)"]
+    CLI["internal/cli<br/>cmds/&lt;family&gt;/cmd_*.go (one file per command)"]
     DASH["dashboard<br/>net/http + embedded web/"]
   end
   subgraph Core["Domain packages (no I/O formatting)"]
@@ -67,7 +67,7 @@ Rules:
 rdnactl/
 ├── cmd/rdnactl/        main.go only: calls cli.Main
 ├── internal/
-│   ├── cli/            router, --json/exit-code contract, cmd_<feature>.go
+│   ├── cli/            router, --json/exit-code contract; cmds/<family>/cmd_<feature>.go
 │   ├── paths/          XDG config/state/data/cache resolution
 │   ├── execx/          bounded exec of external tools
 │   ├── config/         <config>/config.yaml load/save

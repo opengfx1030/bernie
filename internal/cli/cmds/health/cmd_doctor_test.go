@@ -1,10 +1,11 @@
-package cli
+package health
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,9 +20,9 @@ const (
 func logDoctor(t *testing.T, json bool, file, run string) (out string, code int, err error) {
 	t.Helper()
 	var buf bytes.Buffer
-	c := &Context{Ctx: context.Background(), Out: &buf, Err: &buf, JSON: json}
+	c := &cli.Context{Ctx: context.Background(), Out: &buf, Err: &buf, JSON: json}
 	err = doctorLog(c, file, run)
-	var ee *ExitError
+	var ee *cli.ExitError
 	if errors.As(err, &ee) {
 		code = ee.Code
 	}
@@ -45,8 +46,8 @@ func TestDoctorLogFile(t *testing.T) {
 	ok := writeFile(t, filepath.Join(dir, "ok.log"), healthyLog)
 
 	out, code, _ := logDoctor(t, false, bad, "")
-	if code != ExitChecks {
-		t.Errorf("failing log: exit %d, want %d", code, ExitChecks)
+	if code != cli.ExitChecks {
+		t.Errorf("failing log: exit %d, want %d", code, cli.ExitChecks)
 	}
 	for _, want := range []string{"kernels.invalid-image", "(line 2)", "fix:", "doc:", "hipErrorInvalidImage"} {
 		if !strings.Contains(out, want) {
@@ -70,7 +71,7 @@ func TestDoctorLogFile(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &rep); err != nil {
 		t.Fatalf("json: %v\n%s", err, out)
 	}
-	if code != ExitChecks || len(rep.Matches) != 1 || rep.Matches[0].ID != "kernels.invalid-image" || rep.Matches[0].LineNo != 2 || rep.Matches[0].Fix == "" {
+	if code != cli.ExitChecks || len(rep.Matches) != 1 || rep.Matches[0].ID != "kernels.invalid-image" || rep.Matches[0].LineNo != 2 || rep.Matches[0].Fix == "" {
 		t.Errorf("json report = %+v (exit %d)", rep, code)
 	}
 
@@ -93,8 +94,8 @@ func TestDoctorLogRun(t *testing.T) {
 	elsewhere := writeFile(t, filepath.Join(t.TempDir(), "custom.log"), failingLog)
 	rec, _ := json.Marshal(map[string]string{"name": "a", "log": elsewhere})
 	writeFile(t, filepath.Join(run("a"), "run.json"), string(rec))
-	if _, code, _ := logDoctor(t, false, "", "a"); code != ExitChecks {
-		t.Errorf("run a: exit %d, want %d", code, ExitChecks)
+	if _, code, _ := logDoctor(t, false, "", "a"); code != cli.ExitChecks {
+		t.Errorf("run a: exit %d, want %d", code, cli.ExitChecks)
 	}
 
 	// The recorded file is gone: fall back to serve.log in the run directory.

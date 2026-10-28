@@ -1,7 +1,8 @@
-package cli
+package tunecmd
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"os"
 	"sort"
@@ -16,12 +17,12 @@ import (
 )
 
 func init() {
-	tune := &Command{Name: "tune", Summary: "TunableOp rows and GPU power cap"}
-	top := &Command{Name: "tunableop", Summary: "TunableOp profiles (rows per rocBLAS build)"}
+	tune := &cli.Command{Name: "tune", Summary: "TunableOp rows and GPU power cap"}
+	top := &cli.Command{Name: "tunableop", Summary: "TunableOp profiles (rows per rocBLAS build)"}
 
-	list := &Command{Name: "list", Summary: "Registered TunableOp profiles"}
-	list.Run = func(c *Context, args []string) error {
-		if _, err := Parse(c.Flags(list), args); err != nil {
+	list := &cli.Command{Name: "list", Summary: "Registered TunableOp profiles"}
+	list.Run = func(c *cli.Context, args []string) error {
+		if _, err := cli.Parse(c.Flags(list), args); err != nil {
 			return err
 		}
 		ps, err := tuning.Profiles()
@@ -39,11 +40,11 @@ func init() {
 		})
 	}
 
-	status := &Command{Name: "status", Summary: "Loaded rocBLAS build and its matching profile", Usage: "[--venv DIR]"}
-	status.Run = func(c *Context, args []string) error {
+	status := &cli.Command{Name: "status", Summary: "Loaded rocBLAS build and its matching profile", Usage: "[--venv DIR]"}
+	status.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(status)
 		venvFlag := fs.String("venv", "", "venv (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		st, err := tunableOpStatus(*venvFlag)
@@ -65,13 +66,13 @@ func init() {
 		})
 	}
 
-	env := &Command{Name: "env", Summary: "export lines for TunableOp (materializes the rows)", Usage: "[--venv DIR] [--profile P] [--tuning]"}
-	env.Run = func(c *Context, args []string) error {
+	env := &cli.Command{Name: "env", Summary: "export lines for TunableOp (materializes the rows)", Usage: "[--venv DIR] [--profile P] [--tuning]"}
+	env.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(env)
 		venvFlag := fs.String("venv", "", "venv (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
 		profile := fs.String("profile", "", "explicit profile (validated against the loaded rocBLAS)")
 		tune := fs.Bool("tuning", false, "online tuning into the per-user rows file")
-		if _, err := Parse(fs, args); err != nil {
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
 		st, err := tunableOpStatus(*venvFlag)
@@ -105,12 +106,12 @@ func init() {
 			}
 		})
 	}
-	top.Subs = []*Command{list, status, env}
+	top.Subs = []*cli.Command{list, status, env}
 
-	power := &Command{Name: "power", Summary: "GPU power cap"}
-	pstatus := &Command{Name: "status", Summary: "Power cap per GPU"}
-	pstatus.Run = func(c *Context, args []string) error {
-		if _, err := Parse(c.Flags(pstatus), args); err != nil {
+	power := &cli.Command{Name: "power", Summary: "GPU power cap"}
+	pstatus := &cli.Command{Name: "status", Summary: "Power cap per GPU"}
+	pstatus.Run = func(c *cli.Context, args []string) error {
+		if _, err := cli.Parse(c.Flags(pstatus), args); err != nil {
 			return err
 		}
 		gpus, err := gpu.List("/")
@@ -127,28 +128,28 @@ func init() {
 			tw.Flush()
 		})
 	}
-	pset := &Command{Name: "set", Summary: "Set the power cap (prints the command without root)", Usage: "<WATTS> [--gpu IDX]..."}
-	pset.Run = func(c *Context, args []string) error {
+	pset := &cli.Command{Name: "set", Summary: "Set the power cap (prints the command without root)", Usage: "<WATTS> [--gpu IDX]..."}
+	pset.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(pset)
-		var idxFlags MultiFlag
+		var idxFlags cli.MultiFlag
 		fs.Var(&idxFlags, "gpu", "HIP index, repeatable (default: all GPUs)")
-		pos, err := Parse(fs, args)
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
-			return Usagef("tune power set needs WATTS")
+			return cli.Usagef("tune power set needs WATTS")
 		}
 		watts, err := strconv.ParseFloat(pos[0], 64)
 		if err != nil || watts <= 0 {
-			return Usagef("WATTS: %q is not a positive number", pos[0])
+			return cli.Usagef("WATTS: %q is not a positive number", pos[0])
 		}
 		var idx []int
 		for _, s := range idxFlags {
 			for _, f := range strings.Split(s, ",") {
 				n, err := strconv.Atoi(strings.TrimSpace(f))
 				if err != nil || n < 0 {
-					return Usagef("--gpu: %q is not a HIP index", f)
+					return cli.Usagef("--gpu: %q is not a HIP index", f)
 				}
 				idx = append(idx, n)
 			}
@@ -173,10 +174,10 @@ func init() {
 			}
 		})
 	}
-	power.Subs = []*Command{pstatus, pset}
+	power.Subs = []*cli.Command{pstatus, pset}
 
-	tune.Subs = []*Command{top, power}
-	Register(tune)
+	tune.Subs = []*cli.Command{top, power}
+	cli.Register(tune)
 }
 
 // tunableOpState is `tune tunableop status`.

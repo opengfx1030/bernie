@@ -1,7 +1,8 @@
-package cli
+package inventory
 
 import (
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"text/tabwriter"
 
@@ -16,9 +17,9 @@ type hwReport struct {
 }
 
 func init() {
-	cmd := &Command{Name: "hw", Summary: "Hardware and OS inventory", Usage: ""}
-	cmd.Run = func(c *Context, args []string) error {
-		if _, err := Parse(c.Flags(cmd), args); err != nil {
+	cmd := &cli.Command{Name: "hw", Summary: "Hardware and OS inventory", Usage: ""}
+	cmd.Run = func(c *cli.Context, args []string) error {
+		if _, err := cli.Parse(c.Flags(cmd), args); err != nil {
 			return err
 		}
 		h, err := host.Probe(c.Ctx, "/")
@@ -35,21 +36,21 @@ func init() {
 		r := hwReport{Host: h, GPUs: gpus}
 		return c.Emit(r, func(w io.Writer) { printHW(w, r) })
 	}
-	Register(cmd)
+	cli.Register(cmd)
 }
 
 func printHW(w io.Writer, r hwReport) {
 	h := r.Host
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(tw, "host\t%s\n", h.Hostname)
-	fmt.Fprintf(tw, "os\t%s (kernel %s, pkg %s)\n", orDash(h.OS.Pretty), orDash(h.Kernel), orDash(h.PkgManager))
+	fmt.Fprintf(tw, "os\t%s (kernel %s, pkg %s)\n", cli.OrDash(h.OS.Pretty), cli.OrDash(h.Kernel), cli.OrDash(h.PkgManager))
 	if h.CPU.Threads > 0 {
 		fmt.Fprintf(tw, "cpu\t%s (%d sockets, %d cores, %d threads)\n", h.CPU.Model, h.CPU.Sockets, h.CPU.Cores, h.CPU.Threads)
 	} else {
 		fmt.Fprintf(tw, "cpu\t-\n")
 	}
 	fmt.Fprintf(tw, "ram\t%s\n", gibStr(h.RAMBytes))
-	fmt.Fprintf(tw, "virt\t%s\n", orDash(h.Virtualization))
+	fmt.Fprintf(tw, "virt\t%s\n", cli.OrDash(h.Virtualization))
 	for _, e := range h.Engines {
 		state := "usable"
 		if !e.Usable {
@@ -58,7 +59,7 @@ func printHW(w io.Writer, r hwReport) {
 		if e.Rootless {
 			state += ", rootless"
 		}
-		fmt.Fprintf(tw, "engine\t%s %s (%s; compose: %s)\n", e.Name, e.Version, state, orDash(e.Compose))
+		fmt.Fprintf(tw, "engine\t%s %s (%s; compose: %s)\n", e.Name, e.Version, state, cli.OrDash(e.Compose))
 	}
 	tw.Flush()
 	fmt.Fprintln(w)
@@ -80,11 +81,4 @@ func gibStr(b uint64) string {
 		return "-"
 	}
 	return fmt.Sprintf("%.1f GiB", float64(b)/(1<<30))
-}
-
-func orDash(s string) string {
-	if s == "" {
-		return "-"
-	}
-	return s
 }

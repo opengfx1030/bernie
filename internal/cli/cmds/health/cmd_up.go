@@ -1,8 +1,9 @@
-package cli
+package health
 
 import (
 	"errors"
 	"fmt"
+	"github.com/opengfx1030/rdnactl/internal/cli"
 	"io"
 	"os"
 	"time"
@@ -12,11 +13,11 @@ import (
 )
 
 func init() {
-	cmd := &Command{Name: "up", Summary: "Doctor, setup, best recipe, serve and dashboard in one command",
+	cmd := &cli.Command{Name: "up", Summary: "Doctor, setup, best recipe, serve and dashboard in one command",
 		Usage: "[RECIPE] [--set KEY=VALUE]... [--mode host|container] [--yes] [--no-dash]"}
-	cmd.Run = func(c *Context, args []string) error {
+	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
-		var sets MultiFlag
+		var sets cli.MultiFlag
 		fs.Var(&sets, "set", "override: INPUT=VALUE or section.key=VALUE, repeatable")
 		mode := fs.String("mode", "", "host or container (default: config; else container when the recipe and an engine allow it)")
 		venv := fs.String("venv", "", "host-mode venv")
@@ -26,12 +27,12 @@ func init() {
 		noDash := fs.Bool("no-dash", false, "do not start the dashboard after the server is healthy")
 		listen := fs.String("listen", "127.0.0.1:7860", "dashboard listen address")
 		wait := fs.Duration("wait", 30*time.Minute, "how long to wait for /health")
-		pos, err := Parse(fs, args)
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) > 1 {
-			return Usagef("up takes at most one recipe id")
+			return cli.Usagef("up takes at most one recipe id")
 		}
 		o := flow.UpOptions{Sets: sets, Mode: *mode, Venv: *venv, Engine: *engine, Name: *name, Yes: *yes, Wait: *wait}
 		if len(pos) == 1 {
@@ -51,7 +52,7 @@ func init() {
 					fmt.Fprintf(c.Err, "  %s\n", cmd)
 				}
 			}
-			return &ExitError{Code: ExitChecks, Err: errors.New("")}
+			return &cli.ExitError{Code: cli.ExitChecks, Err: errors.New("")}
 		}
 		if err != nil {
 			return err
@@ -65,7 +66,7 @@ func init() {
 		return dashboard.Serve(c.Ctx, dashboard.Options{Listen: *listen, Log: c.Err,
 			Ready: func(url string) { fmt.Fprintf(c.Out, "dashboard: %s\n", url) }})
 	}
-	Register(cmd)
+	cli.Register(cmd)
 }
 
 func printUp(w io.Writer, r *flow.UpResult) {
