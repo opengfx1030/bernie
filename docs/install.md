@@ -118,10 +118,15 @@ docker run -d --name bernie-dash \
 Notes:
 
 - **GPU access.** `/dev/kfd` and `/dev/dri` belong to the groups `render` and
-  `video`. The image has no such group names, so use the numeric group ids
-  of your host.
+  `video`. The image has no `/etc/group`, so a group name does not resolve
+  in it: use the numeric group ids of your host.
+  `getent group video` and `getent group render` print them.
+  `stat -c %g /dev/kfd /dev/dri/renderD128 /dev/dri/card0` prints the owner
+  of every device node.
 - **Rootless Podman.** Use `--group-add keep-groups --user 0:0` instead. The
-  container root is your own user on the host.
+  container root is your own user on the host. Its user namespace does not
+  map the group ids of the host, so `keep-groups` is the only way to keep
+  the access to the GPU devices.
 - **Data.** `/data` holds config, state, data and cache
   (`BERNIE_CONFIG_DIR`, `BERNIE_STATE_DIR`, `BERNIE_DATA_DIR`,
   `BERNIE_CACHE_DIR`).
@@ -167,3 +172,28 @@ make image            # container image (docker or podman)
 
 `make dist` builds both `linux/amd64` and `linux/arm64`. Set `VERSION=v1.2.3`
 to override the version taken from `git describe`.
+
+## 6. Download a model
+
+`bernie setup apply --model <repo>` puts the files of a Hugging Face repo
+in the cache: `$HF_HOME/hub`, else `~/.cache/huggingface/hub`. A container
+run mounts the same cache, so host and container mode share the model.
+
+```bash
+bernie setup plan --model Qwen/Qwen3-8B          # the plan, nothing changes
+bernie setup apply --model Qwen/Qwen3-8B --yes   # the download
+```
+
+The download continues where it stopped. An interrupted download keeps its
+partial file, and the next run asks for the rest with a `Range` request.
+The checksum of every file is checked before it is moved in place. The
+progress is one line every two seconds, and one at the end:
+
+```
+model.download: 1.8 GB of 2.3 GB (78%) at 45.2 MB/s
+model.download: done, 2.3 GB in 51s (45.4 MB/s)
+```
+
+`HF_TOKEN` authenticates for a private repo. `HF_ENDPOINT` points at a
+mirror. The `hf` tool of the `huggingface_hub` package does the same job by
+hand: `hf download <repo>`.
