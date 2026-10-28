@@ -1,0 +1,90 @@
+/* The styles of the Logs tab (design/logs.md). Every colour comes from the
+   tokens of css/tokens.css; this file never writes one. The log surface has
+   its own tokens so that it stays near-black in both palettes.
+   The near-black log surface and the bar on the left of a finding follow
+   vllm-rdna-dash by CrispyGinger, used with permission. */
+
+[hidden] { display: none !important; }
+
+/* ---- the sections ------------------------------------------------------ */
+.lg-section { border-top: 1px solid var(--border); padding: 24px 0 0; margin-top: 24px; }
+.lg-section-title { font: 600 13px/1 var(--font-body); letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 12px; }
+
+/* ---- the pills --------------------------------------------------------- */
+.lg-pill { gap: 5px; }
+.lg-pill-icon { font-weight: 700; }
+.lg-pill-fail { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 45%, transparent); }
+.lg-pill-warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.lg-pill-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.lg-pill-skip { color: var(--skip); border-color: color-mix(in srgb, var(--skip) 45%, transparent); }
+.lg-pill-running { color: var(--info); border-color: color-mix(in srgb, var(--info) 45%, transparent); }
+
+/* ---- the picker of the run --------------------------------------------- */
+.lg-runs { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.lg-run { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
+.lg-run:hover { border-color: var(--muted); }
+.lg-run.on { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+.lg-run input { margin: 3px 0 0; flex: none; }
+.lg-run-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lg-run-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.lg-run-age { font-size: 12px; color: var(--muted); }
+.lg-run-phase { font-size: 12px; color: var(--text-2); }
+
+/* ---- the known problems ------------------------------------------------ */
+.lg-finding { padding: 10px 12px; margin-bottom: 10px; background: var(--surface);
+  border: 1px solid var(--border); border-left: 3px solid var(--fail); border-radius: var(--radius-sm); }
+.lg-finding-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.lg-rule { font: 600 12.5px var(--font-mono); overflow-wrap: anywhere; }
+.lg-line-no { font-size: 12px; color: var(--muted); }
+.lg-cause { margin: 0 0 6px; color: var(--text-2); }
+.lg-fix { margin: 0 0 6px; }
+.lg-finding-foot { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.lg-doc { font-size: 12.5px; color: var(--text-2); }
+.lg-doc:hover { color: var(--text); }
+
+/* ---- the tail ---------------------------------------------------------- */
+.lg-tailcard { display: flex; flex-direction: column; gap: 8px; }
+.lg-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.lg-count, .lg-paused { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lg-paused { color: var(--warn); font-weight: 600; }
+.lg-search { flex: 0 1 210px; }
+.lg-tailwrap { position: relative; }
+.log { height: 340px; overflow: auto; padding: 6px 0; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--log-bg, var(--surface-2)); color: var(--log-fg, var(--text)); font: 12.5px/1.5 var(--font-mono); }
+.log-line { display: flex; gap: 10px; padding: 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-line:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
+.lg-no { flex: none; min-width: 6ch; text-align: right; color: var(--log-muted, var(--muted));
+  font-variant-numeric: tabular-nums; opacity: .8; }
+.lg-lvl { flex: none; min-width: 5ch; font-weight: 700; color: var(--log-muted, var(--muted)); }
+.lg-text { flex: 1; min-width: 0; }
+.log-line.lg-info .lg-text { color: var(--log-fg, var(--text)); }
+.log-line.lg-warn .lg-text, .log-line.lg-warn .lg-lvl { color: var(--log-warn, var(--warn)); }
+.log-line.lg-error .lg-text, .log-line.lg-error .lg-lvl { color: var(--log-error, var(--fail)); }
+.lg-hit { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+.lg-empty { padding: 12px; }
+.lg-follow { position: absolute; right: 10px; bottom: 10px; box-shadow: var(--shadow-1); }
+.lg-status { display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: var(--text-2); }
+
+/* ---- the level filter -------------------------------------------------- */
+.lg-filter { display: inline-flex; }
+.lg-seg { position: relative; padding: 3px 10px; cursor: pointer; font-size: 12px;
+  border: 1px solid var(--border); border-left-width: 0; color: var(--muted); }
+.lg-seg:first-child { border-left-width: 1px; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.lg-seg:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.lg-seg input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.lg-seg.on { background: var(--surface-3); color: var(--text); font-weight: 600; }
+.lg-seg:focus-within span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- narrow screens ---------------------------------------------------- */
+@media (max-width: 639px) {
+  .lg-toolbar { gap: 8px; }
+  .lg-search { flex: 1 1 100%; }
+  .lg-filter { order: 3; }
+  .log { height: 300px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-hit { transition: none; }
+}
