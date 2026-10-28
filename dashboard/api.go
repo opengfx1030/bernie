@@ -26,7 +26,11 @@ const root = "/"
 
 // listGPUs returns the KFD GPUs; a host without KFD has none (not an error).
 func listGPUs() ([]gpu.GPU, error) {
-	gpus, err := gpu.List(root)
+	vis, err := gpu.Visible(root)
+	if gpu.Restricted(err) {
+		return []gpu.GPU{}, err // the restriction names a GPU this host does not have
+	}
+	gpus := vis.GPUs
 	if errors.Is(err, fs.ErrNotExist) {
 		return []gpu.GPU{}, nil
 	}
@@ -82,7 +86,12 @@ func (s *server) getDoctor(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/recipes — `bernie recipe list --all --json`.
 func (s *server) getRecipes(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, app.RecipeList(true))
+	l, err := app.RecipeList(true)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, l)
 }
 
 // GET /api/recipes/{id}/plan?set=K=V&mode=M — `bernie recipe plan --json`.

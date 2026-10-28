@@ -149,7 +149,16 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 		go func() { defer wg.Done(); f() }()
 	}
 	run(func() { in.host, _ = host.Probe(ctx, root) }) // best-effort, never fails
-	run(func() { in.gpus, in.gpuErr = gpu.List(root) })
+	run(func() {
+		// Only the GPUs the environment leaves visible are checked
+		// (spec §7.7).
+		vis, err := gpu.Visible(root)
+		if gpu.Restricted(err) {
+			in.gpuErr = err // the restriction names a GPU this host does not have
+			return
+		}
+		in.gpus, in.gpuErr = vis.GPUs, err
+	})
 	if need("rocm", "python", "tuning") {
 		run(func() { in.rocm = rocm.Probe(ctx, root) })
 	}

@@ -70,7 +70,11 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		return nil, err
 	}
 	h, _ := host.Probe(ctx, "/")
-	gpus, _ := gpu.List("/")
+	vis, err := gpu.Visible("/")
+	if gpu.Restricted(err) {
+		return nil, err // the restriction names a GPU this host does not have
+	}
+	gpus := vis.GPUs
 	if len(gpus) == 0 {
 		return nil, &Blocked{Reason: "no AMD GPU found", Commands: []string{"bernie doctor"}}
 	}

@@ -53,12 +53,18 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 
 	var gpus []gpu.GPU
 	var tp *topo.Topology
-	if g, err := gpu.List("/"); err == nil {
-		gpus = g
-		if t, err := topo.Discover("/", g); err == nil {
+	// Only the GPUs the environment leaves visible are used (spec §7.7).
+	vis, verr := gpu.Visible("/")
+	if gpu.Restricted(verr) {
+		return nil, verr // the restriction names a GPU this host does not have
+	}
+	if vis.GPUs != nil {
+		gpus = vis.GPUs
+		if t, err := topo.Discover("/", gpus); err == nil {
 			tp = &t
 		}
 	}
+	restriction := vis.Restriction.Note()
 
 	var warnings []string
 	mode := o.Mode
@@ -79,7 +85,7 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 	}
 
 	sets := append(append([]string{}, cfg.Set...), o.Sets...)
-	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Mode: mode, Name: o.Name, Sets: sets, GPUs: gpus, Topo: tp, TunedMoE: tuning.MaterializeTunedMoE})
+	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Mode: mode, Name: o.Name, Sets: sets, GPUs: gpus, Topo: tp, TunedMoE: tuning.MaterializeTunedMoE, Restriction: restriction})
 	if err != nil {
 		return nil, err
 	}

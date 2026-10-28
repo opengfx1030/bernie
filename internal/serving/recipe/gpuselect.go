@@ -29,6 +29,9 @@ func selectGPUs(r *Recipe, p *Plan, o PlanOptions) error {
 			for _, i := range idx {
 				g, ok := byIdx[i]
 				if !ok {
+					if o.Restriction != "" {
+						return fmt.Errorf("HIP_VISIBLE_DEVICES: GPU %d is not available to bernie (%s)", i, o.Restriction)
+					}
 					return fmt.Errorf("HIP_VISIBLE_DEVICES: GPU %d does not exist on this host", i)
 				}
 				if !gpu.ArchMatch(r.Requires.Arch, g.GFX) {

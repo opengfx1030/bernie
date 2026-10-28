@@ -30,7 +30,11 @@ type P2PChecklistReport struct {
 
 // P2PChecklist builds the P2P readiness checklist of this host.
 func P2PChecklist(ctx context.Context, o P2PChecklistOptions) (P2PChecklistReport, error) {
-	gpus, err := gpu.List(root)
+	vis, err := gpu.Visible(root)
+	if gpu.Restricted(err) {
+		return P2PChecklistReport{}, err
+	}
+	gpus := vis.GPUs
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return P2PChecklistReport{}, err

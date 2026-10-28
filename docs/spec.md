@@ -303,6 +303,9 @@ pair.
 degrees Celsius, keyed by the hwmon label. It is absent when the device
 tables do not know the card.
 
+`restriction` says that the environment limits the GPUs bernie uses
+([§7.7](#77-gpu-selection)). It is absent when nothing is restricted.
+
 ### 4.4 Device tables
 
 Device facts live in embedded YAML files, one per GPU generation:
@@ -655,6 +658,27 @@ When the plan has no `HIP_VISIBLE_DEVICES`, bernie selects GPUs:
 
 `recipe plan` shows the selection and the reason.
 
+#### The visible GPUs
+
+`HIP_VISIBLE_DEVICES` and `ROCR_VISIBLE_DEVICES` limit the GPUs of the
+host. When one of them is set in the environment of bernie, bernie
+considers only the GPUs it names: the fit of a recipe, the selection, the
+plan, `status`, `hw` and `doctor` all see the visible set only.
+
+- The value is a comma list of HIP indices: the numbering of the KFD
+  topology, the same numbering bernie writes into `HIP_VISIBLE_DEVICES` of
+  the child process. A UUID or any other form is ignored with a warning.
+- The first variable that is set wins.
+- An index the host does not have is an error. The command stops and says
+  which index is wrong.
+- The plan keeps the host numbering: with `HIP_VISIBLE_DEVICES=8` the plan
+  of a one-GPU recipe selects GPU 8 and writes `HIP_VISIBLE_DEVICES=8` for
+  the child process.
+- `--set env.HIP_VISIBLE_DEVICES=...` still wins over the selection, but
+  it must name visible GPUs. A GPU outside the restriction is an error.
+- `status`, `hw` and `recipe plan` say in one line that a restriction is
+  active: `GPUs limited to 8 by HIP_VISIBLE_DEVICES`.
+
 ### 7.8 Fit
 
 `recipe list` gives each recipe a fit: `fits`, `no` (with reasons), or
@@ -968,6 +992,8 @@ name (this blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
 ([§3.1](#31-the-default-run-the-binary)). The Runs tab then shows the run
 as `starting`, with the phase sentence of its log and the log itself. The
 page asks for nothing that a run without a health answer does not have.
+The header says when the environment limits the GPUs bernie uses
+([§7.7](#77-gpu-selection)).
 
 Rules for responses and tokens:
 

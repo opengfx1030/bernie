@@ -64,6 +64,10 @@ Read-only by default. Each tool returns the document of its command as
 
 An agent should start with `status`, then `doctor` and `recipe_plan`.
 
+The tools see only the GPUs the environment leaves visible
+(`HIP_VISIBLE_DEVICES`, `ROCR_VISIBLE_DEVICES`; spec §7.7). A restriction
+that names a GPU the host does not have is an error, like in the CLI.
+
 ## Write mode
 
 The tools that change the host (`serve`, `stop`, `bench_run`, `setup_apply`,
