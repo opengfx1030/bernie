@@ -74,6 +74,13 @@ func SetPower(gpus []gpu.GPU, idx []int, watts float64) ([]string, error) {
 	return setPower("/", gpus, idx, watts, os.Geteuid() == 0)
 }
 
+// PowerCommands returns the commands that set the cap, as SetPower prints them
+// for a non-root user, whatever the caller's uid. It writes nothing and
+// validates the target like SetPower.
+func PowerCommands(gpus []gpu.GPU, idx []int, watts float64) ([]string, error) {
+	return setPower("/", gpus, idx, watts, false)
+}
+
 func setPower(root string, gpus []gpu.GPU, idx []int, watts float64, isRoot bool) ([]string, error) {
 	if watts <= 0 || math.IsNaN(watts) || math.IsInf(watts, 0) {
 		return nil, fmt.Errorf("power cap must be a positive number of watts")

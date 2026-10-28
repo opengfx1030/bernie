@@ -18,9 +18,17 @@ import (
 // schemas never depend on run logs, recipes or any other host data.
 type spec struct {
 	name, desc string
+	// write marks a tool that changes the host. The annotations below are
+	// hints for the client; the write gate and the confirm token are the
+	// real controls.
+	write                              bool
+	destructive, idempotent, openWorld bool
 }
 
 func (sp spec) annotations() *sdk.ToolAnnotations {
+	if sp.write {
+		return &sdk.ToolAnnotations{DestructiveHint: &sp.destructive, IdempotentHint: sp.idempotent, OpenWorldHint: &sp.openWorld}
+	}
 	f := false
 	return &sdk.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, DestructiveHint: &f, OpenWorldHint: &f}
 }
@@ -41,6 +49,9 @@ type handler[In any] func(ctx context.Context, c *call, in In) (any, error)
 // then refined by tweak); Out is the canonical output type, used only for
 // the output schema. The result is redacted before it leaves the process.
 func addTool[In, Out any](s *Server, sp spec, tweak func(*jsonschema.Schema), h handler[In]) {
+	if sp.write && !s.o.Write {
+		return
+	}
 	in := schemaFor[In]()
 	if tweak != nil {
 		tweak(in)
@@ -50,11 +61,28 @@ func addTool[In, Out any](s *Server, sp spec, tweak func(*jsonschema.Schema), h 
 		c := &call{s: s, name: sp.name, req: req, ctx: ctx, start: time.Now()}
 		out, err := h(ctx, c, args)
 		if err == nil {
-			out, err = redact.JSON(out)
+			out, err = redactOutput(out)
 		}
 		c.finish(args, err)
 		return nil, out, err
 	})
+}
+
+// tokened is an outcome that carries a confirm token.
+type tokened interface{ confirmToken() string }
+
+// redactOutput redacts a result. A confirm token is a secret-looking field
+// the client needs, so it is put back after the redaction.
+func redactOutput(out any) (any, error) {
+	tok := ""
+	if t, ok := out.(tokened); ok {
+		tok = t.confirmToken()
+	}
+	g, err := redact.JSON(out)
+	if m, ok := g.(map[string]any); ok && tok != "" && err == nil {
+		m["confirm_token"] = tok
+	}
+	return g, err
 }
 
 // call is the state of one tool call, for the audit record and progress.
