@@ -38,6 +38,12 @@ func Apply(ctx context.Context, steps []Step, only []string, log io.Writer) erro
 			rootSteps = append(rootSteps, s)
 		default:
 			fmt.Fprintf(log, "== %s: %s\n", s.ID, s.Title)
+			if s.Download != nil {
+				if err := downloadModel(ctx, newHubClient(), s.Download, log); err != nil {
+					return fmt.Errorf("step %s: %w", s.ID, err)
+				}
+				continue
+			}
 			for _, c := range s.Commands {
 				if strings.HasPrefix(strings.TrimSpace(c), "#") {
 					fmt.Fprintf(log, "%s\n", c)

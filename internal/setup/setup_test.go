@@ -132,8 +132,10 @@ func TestPlanFreshHost(t *testing.T) {
 	if c := m["container.engine"].Commands; c[0] != "sudo apt install -y docker.io docker-compose-v2" || len(c) != 3 {
 		t.Errorf("container.engine = %v", c)
 	}
-	if m["model.download"].Commands[0] != "hf download Qwen/Qwen3-8B" || m["model.download"].Mode != "both" {
+	if d := m["model.download"].Download; d == nil || d.Repo != "Qwen/Qwen3-8B" || m["model.download"].Mode != "both" {
 		t.Errorf("model.download = %+v", m["model.download"])
+	} else if !strings.HasSuffix(d.HubCache, "/hub") || d.ResumeBytes != 0 {
+		t.Errorf("model.download = %+v", d)
 	}
 	if got := idsOf(Plan(context.Background(), h, rocm.Report{}, Options{Mode: "container", Venv: venv})); got != "groups container.engine image.pull" {
 		t.Errorf("container steps = %s", got)
@@ -142,9 +144,18 @@ func TestPlanFreshHost(t *testing.T) {
 
 func TestModelCached(t *testing.T) {
 	hub := t.TempDir()
-	fixture.Write(t, hub, map[string]string{"models--org--name/snapshots/abc/config.json": "{}"})
+	fixture.Write(t, hub, map[string]string{
+		"models--org--name/refs/main":                 "abc",
+		"models--org--name/snapshots/abc/config.json": "{}",
+	})
 	if !modelCached(hub, "org/name") || modelCached(hub, "org/other") {
 		t.Error("modelCached wrong")
+	}
+	// A snapshot without the ref is an interrupted download.
+	partial := t.TempDir()
+	fixture.Write(t, partial, map[string]string{"models--org--name/snapshots/abc/config.json": "{}"})
+	if modelCached(partial, "org/name") {
+		t.Error("modelCached must be false without refs/main")
 	}
 }
 

@@ -1,6 +1,8 @@
 // Package setup builds the ordered install plan of spec §6 and runs its
 // non-root steps. Every step carries a postcondition check (Done) so a
-// re-run only does what is missing.
+// re-run only does what is missing. The model step downloads the files of
+// a Hugging Face repo into the cache itself, so an interrupted download
+// continues where it stopped.
 package setup
 
 import (
@@ -40,6 +42,9 @@ type Step struct {
 	Done     bool     `json:"done"`
 	Commands []string `json:"commands"`
 	Why      string   `json:"why"`
+	// Download is set on the model.download step: bernie downloads the
+	// files of the repo itself, so an interrupted download continues.
+	Download *Download `json:"download,omitempty"`
 }
 
 // Options select the mode ("host", "container", "" = both), the venv, the
