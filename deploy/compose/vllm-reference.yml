@@ -1,25 +1,25 @@
-# Reference Compose file for rdnactl (docs/spec.md 8.2).
-# It is `rdnactl compose flashnext-mtp2` with the host paths replaced by
-# variables. Prefer `rdnactl compose <recipe> -o compose.yml`: it selects the
+# Reference Compose file for bernie (docs/spec.md 8.2).
+# It is `bernie compose flashnext-mtp2` with the host paths replaced by
+# variables. Prefer `bernie compose <recipe> -o compose.yml`: it selects the
 # GPUs, mounts the path inputs and the TunableOp rows of this host.
 #
 # Variables:
 #   PLE_QUANT_DIR        ples_int4 directory (has META.json) of
 #                        primitive-ai/Qwen3.8-Flash-Next-PLE-quant. Required.
-#   HIP_VISIBLE_DEVICES  four gfx1030 GPUs on one PCIe switch (`rdnactl topo`).
+#   HIP_VISIBLE_DEVICES  four gfx1030 GPUs on one PCIe switch (`bernie topo`).
 #   HF_CACHE             Hugging Face cache (default ~/.cache/huggingface).
-#   RDNACTL_TUNABLEOP    materialized TunableOp rows: run
-#                        `rdnactl tune tunableop env --profile rocm7.14-rocblas5.5` once.
+#   BERNIE_TUNABLEOP    materialized TunableOp rows: run
+#                        `bernie tune tunableop env --profile rocm7.14-rocblas5.5` once.
 #
 # Start: docker compose -f compose.yml up -d   (or podman compose / podman-compose)
 # Rootless Podman: replace group_add with [keep-groups].
-name: rdnactl-flashnext-mtp2
+name: bernie-flashnext-mtp2
 services:
   vllm:
     image: docker.io/blivioniag/vllm-rdna:v0.31.0-extras
-    container_name: rdnactl-flashnext-mtp2
+    container_name: bernie-flashnext-mtp2
     labels:
-      rdnactl.run: flashnext-mtp2
+      bernie.run: flashnext-mtp2
     network_mode: host
     ipc: host
     shm_size: 16g
@@ -34,8 +34,8 @@ services:
       - label=disable
     volumes:
       - ${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface
-      - ${RDNACTL_TUNABLEOP:-${HOME}/.local/share/rdnactl/tunableop}:/rdnactl/tunableop:ro
-      - ${PLE_QUANT_DIR:?set PLE_QUANT_DIR to the ples_int4 directory}:/rdnactl/ple:ro
+      - ${BERNIE_TUNABLEOP:-${HOME}/.local/share/bernie/tunableop}:/bernie/tunableop:ro
+      - ${PLE_QUANT_DIR:?set PLE_QUANT_DIR to the ples_int4 directory}:/bernie/ple:ro
     environment:
       FLASH_ATTENTION_TRITON_AMD_ENABLE: ""
       GPU_MAX_HW_QUEUES: "4"
@@ -46,7 +46,7 @@ services:
       OMP_NUM_THREADS: "4"
       PYTHONFAULTHANDLER: "1"
       PYTORCH_TUNABLEOP_ENABLED: "1"
-      PYTORCH_TUNABLEOP_FILENAME: /rdnactl/tunableop/rocm7.14-rocblas5.5/tunableop_results.csv
+      PYTORCH_TUNABLEOP_FILENAME: /bernie/tunableop/rocm7.14-rocblas5.5/tunableop_results.csv
       PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED: "0"
       PYTORCH_TUNABLEOP_TUNING: "0"
       ROCPROFILER_REGISTER_ENABLED: "0"
@@ -59,7 +59,7 @@ services:
       VLLM_ENABLE_STARTUP_PLAN: "0"
       VLLM_FA_RDNA2_GQA_DECODE: "1"
       VLLM_GDN_HIP_PREFILL: "1"
-      VLLM_PLE_QUANT_DIR: /rdnactl/ple
+      VLLM_PLE_QUANT_DIR: /bernie/ple
       VLLM_RDNA_AR: "1"
       VLLM_RDNA_AR_BLOCKS: "0"
       VLLM_RDNA_AR_MAX_KB: "64"

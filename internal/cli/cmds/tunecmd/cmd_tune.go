@@ -2,7 +2,7 @@ package tunecmd
 
 import (
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
 	"sort"
@@ -10,10 +10,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
-	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 func init() {
@@ -43,7 +43,7 @@ func init() {
 	status := &cli.Command{Name: "status", Summary: "Loaded rocBLAS build and its matching profile", Usage: "[--venv DIR]"}
 	status.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(status)
-		venvFlag := fs.String("venv", "", "venv (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
+		venvFlag := fs.String("venv", "", "venv (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func init() {
 	env := &cli.Command{Name: "env", Summary: "export lines for TunableOp (materializes the rows)", Usage: "[--venv DIR] [--profile P] [--tuning]"}
 	env.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(env)
-		venvFlag := fs.String("venv", "", "venv (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
+		venvFlag := fs.String("venv", "", "venv (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 		profile := fs.String("profile", "", "explicit profile (validated against the loaded rocBLAS)")
 		tune := fs.Bool("tuning", false, "online tuning into the per-user rows file")
 		if _, err := cli.Parse(fs, args); err != nil {

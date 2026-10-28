@@ -21,7 +21,7 @@ tunableop/
 ```
 
 Every profile has its own `profile.json`. There is no central registry:
-rdnactl finds the profiles by walking the embedded tree. To add a profile,
+bernie finds the profiles by walking the embedded tree. To add a profile,
 create `tunableop/<arch>/<profile>/` with the files above. No Go code and no
 index change. A new architecture is a new `<arch>/` folder; it never edits
 another architecture's files.
@@ -71,7 +71,7 @@ source <tree>/tools/rdna2_028/tunableop_env.sh
 configure_tunableop <librocblas.so.5 path> <tunableop dir> [profile]
 ```
 
-rdnactl does the same in Go (`internal/serving/tuning`):
+bernie does the same in Go (`internal/serving/tuning`):
 
 * **auto (default, no explicit profile)** — pick the profile whose
   `lib_sha256[:12]` equals `sha256(loaded librocblas.so.5)[:12]` **and** whose
@@ -81,10 +81,10 @@ rdnactl does the same in Go (`internal/serving/tuning`):
   receives gfx1030 rows, even with the same rocBLAS wheel. No match: the
   per-user path is the fallback.
 * **explicit (`--profile <name>` or the third argument of the helper)** —
-  force a named profile. rdnactl **validates its `lib_sha256` against the
+  force a named profile. bernie **validates its `lib_sha256` against the
   loaded library and its `arch` against the selected GPUs, and fails the launch
   loudly on mismatch**. A mismatched set can never run silently. (The shell
-  helper's `TUNABLEOP_ALLOW_MISMATCH=1` escape hatch is not in rdnactl.)
+  helper's `TUNABLEOP_ALLOW_MISMATCH=1` escape hatch is not in bernie.)
 
 A healthy auto-selecting start logs:
 

@@ -22,7 +22,7 @@ const (
 	MetricSpecAcceptedToken = "vllm:spec_decode_num_accepted_tokens_total"
 )
 
-// Stats are the vLLM gauges and counters rdnactl shows, summed over all label
+// Stats are the vLLM gauges and counters bernie shows, summed over all label
 // sets (for example several model_name values).
 type Stats struct {
 	RequestsRunning  float64 `json:"requests_running"`

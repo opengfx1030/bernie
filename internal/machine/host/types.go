@@ -2,7 +2,7 @@
 // RAM, user groups, kernel command line and container engines.
 package host
 
-// OSRelease is the subset of /etc/os-release rdnactl uses.
+// OSRelease is the subset of /etc/os-release bernie uses.
 type OSRelease struct {
 	ID        string `json:"id"`
 	IDLike    string `json:"id_like"`

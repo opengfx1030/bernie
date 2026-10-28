@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
 )
 
 func pythonChecks(in inputs) []Check {
@@ -16,7 +16,7 @@ func pythonChecks(in inputs) []Check {
 		return []Check{check(cat, "venv", Skip, "Python venv", "no venv: pass --venv DIR or set venv in the config").with("", docHostVenv)}
 	}
 	v := in.venvRep
-	setupFix := "rdnactl setup apply --mode host"
+	setupFix := "bernie setup apply --mode host"
 	if v.Python == "" && v.Torch == "" {
 		return []Check{check(cat, "venv", Fail, "Python venv", v.Err).with(setupFix, docHostVenv)}
 	}
@@ -27,12 +27,12 @@ func pythonChecks(in inputs) []Check {
 		out = append(out, check(cat, "version", Warn, "Python version", v.Python+": the wheels and images target 3.12").with("uv venv --python 3.12 "+in.venv, docHostVenv))
 	}
 	if v.Torch == "" {
-		out = append(out, check(cat, "torch", Fail, "torch imports", v.Err).with("rdnactl setup apply --step venv.torch", docHostVenv))
+		out = append(out, check(cat, "torch", Fail, "torch imports", v.Err).with("bernie setup apply --step venv.torch", docHostVenv))
 		return out
 	}
 	out = append(out, check(cat, "torch", OK, "torch imports", v.Torch))
 	if v.HIP == "" {
-		out = append(out, check(cat, "torch_hip", Fail, "torch.version.hip is set", "torch "+v.Torch+" is not a ROCm build").with("rdnactl setup apply --step venv.torch", docGeneral))
+		out = append(out, check(cat, "torch_hip", Fail, "torch.version.hip is set", "torch "+v.Torch+" is not a ROCm build").with("bernie setup apply --step venv.torch", docGeneral))
 	} else {
 		out = append(out, check(cat, "torch_hip", OK, "torch.version.hip is set", "HIP "+v.HIP))
 	}
@@ -55,7 +55,7 @@ func pythonChecks(in inputs) []Check {
 		if len(missing) > 0 {
 			out = append(out, check(cat, "device_wheels", Warn, "ROCm device wheels match the GPUs",
 				"missing rocm-sdk-device wheels for "+strings.Join(missing, ", ")+" (hipErrorInvalidImage at kernel launch)").
-				with("rdnactl setup apply --step venv.torch", docHostVenv))
+				with("bernie setup apply --step venv.torch", docHostVenv))
 		} else {
 			out = append(out, check(cat, "device_wheels", OK, "ROCm device wheels match the GPUs", strings.Join(targets, ", ")))
 		}
@@ -64,7 +64,7 @@ func pythonChecks(in inputs) []Check {
 		out = append(out, tritonCheck(in, tv))
 	}
 	if v.VLLM == "" {
-		out = append(out, check(cat, "vllm", Fail, "vllm imports", v.Err).with("rdnactl setup apply --step vllm.build", docHostVenv))
+		out = append(out, check(cat, "vllm", Fail, "vllm imports", v.Err).with("bernie setup apply --step vllm.build", docHostVenv))
 		return out
 	}
 	out = append(out, check(cat, "vllm", OK, "vllm imports", v.VLLM))
@@ -73,7 +73,7 @@ func pythonChecks(in inputs) []Check {
 	} else {
 		out = append(out, check(cat, "rdna_ops", Warn, "vllm-rdna ops are registered",
 			fmt.Sprintf("%d _rocm_C rdna ops (need > 10 for vllm-rdna recipes)", v.RDNAOps)).
-			with("rdnactl setup apply --step vllm.build", docHostVenv))
+			with("bernie setup apply --step vllm.build", docHostVenv))
 	}
 	return out
 }

@@ -161,7 +161,7 @@ func ParseMemTotal(s string) uint64 {
 	return 0
 }
 
-// Virtualization names the container or hypervisor rdnactl runs in, with
+// Virtualization names the container or hypervisor bernie runs in, with
 // systemd-detect-virt names; "none" on bare metal.
 func Virtualization(root string, cpu CPU) string {
 	if exists(filepath.Join(root, ".dockerenv")) {

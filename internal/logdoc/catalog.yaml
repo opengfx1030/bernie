@@ -50,7 +50,7 @@ rules:
     severity: error
     pattern: 'invalid device ordinal|hipErrorNoDevice|hipErrorInvalidDevice'
     cause: A requested GPU index does not exist. HIP_VISIBLE_DEVICES, tensor-parallel size or the recipe GPU list names a missing GPU.
-    fix: List the GPUs with rdnactl hw. Set HIP_VISIBLE_DEVICES to existing indices. Lower the tensor-parallel size.
+    fix: List the GPUs with bernie hw. Set HIP_VISIBLE_DEVICES to existing indices. Lower the tensor-parallel size.
     doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/general.html
 
   - id: gpu.world-size
@@ -121,7 +121,7 @@ rules:
     severity: error
     pattern: '(libamdhip64|librocblas|libhsa-runtime64|libMIOpen|libhipblaslt)[^ ]*: cannot open shared object file'
     cause: The dynamic loader cannot find a ROCm library. The wheel library directories are not on LD_LIBRARY_PATH.
-    fix: Put the venv _rocm_sdk_libraries/lib and _rocm_sdk_core/lib directories first on LD_LIBRARY_PATH. Let rdnactl serve set it.
+    fix: Put the venv _rocm_sdk_libraries/lib and _rocm_sdk_core/lib directories first on LD_LIBRARY_PATH. Let bernie serve set it.
     doc: https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
 
   - id: kernels.slow-linear-kernel
@@ -222,7 +222,7 @@ rules:
     severity: error
     pattern: '(NCCL|RCCL) WARN .*(HIP|Cuda) failure|ncclUnhandledCudaError|ncclSystemError|ncclInternalError'
     cause: RCCL hit a HIP error. P2P between the GPUs is broken or blocked by PCIe ACS.
-    fix: Set NCCL_P2P_DISABLE=1 and retry. Check P2P with rdnactl topo. Pin ROCm 7.2.0 or 7.14.0.
+    fix: Set NCCL_P2P_DISABLE=1 and retry. Check P2P with bernie topo. Pin ROCm 7.2.0 or 7.14.0.
     doc: https://blivioniag.github.io/gfx1030-wiki/tuning/p2p.html
 
   - id: rccl.collective-timeout
@@ -236,7 +236,7 @@ rules:
     severity: error
     pattern: 'rdna_ar: WEDGED'
     cause: The one-shot RDNA all-reduce lost a peer flag and disabled itself. Collectives fall back to RCCL.
-    fix: Retry with VLLM_RDNA_AR=0. Check P2P between the named ranks with rdnactl topo. Use TP inside one PCIe switch.
+    fix: Retry with VLLM_RDNA_AR=0. Check P2P between the named ranks with bernie topo. Use TP inside one PCIe switch.
     doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#rdna-ar-silent-hang
 
   - id: engine.rpc-timeout

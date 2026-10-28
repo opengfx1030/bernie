@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
 	"slices"
@@ -14,10 +14,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
 )
 
 func init() {
@@ -114,7 +114,7 @@ func prepareFlags(fs *flag.FlagSet, o *runner.PrepareOptions, sets *cli.MultiFla
 	fs.Var(sets, "set", "override: INPUT=VALUE or section.key=VALUE (YAML value), repeatable")
 	fs.StringVar(&o.Mode, "mode", "", "host or container (default: config, else container when the recipe has an image and an engine is usable)")
 	fs.StringVar(&o.Name, "name", "", "run name (default: recipe id)")
-	fs.StringVar(&o.Venv, "venv", "", "host-mode venv (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
+	fs.StringVar(&o.Venv, "venv", "", "host-mode venv (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 	fs.StringVar(&o.Engine, "engine", "", "docker or podman (default: config, else the first usable)")
 	fs.StringVar(&o.Profile, "profile", "", "force a TunableOp profile (validated against the loaded rocBLAS in host mode)")
 	fs.BoolVar(&o.NoTunableOp, "no-tunableop", false, "do not set TunableOp")
@@ -145,7 +145,7 @@ func printRecipeList(w io.Writer, l recipe.Listing, all bool) {
 		if all {
 			fmt.Fprintln(w, "no recipes")
 		} else {
-			fmt.Fprintln(w, "no recipe fits this host; see rdnactl recipe list --all")
+			fmt.Fprintln(w, "no recipe fits this host; see bernie recipe list --all")
 		}
 	}
 	if len(l.Errors) > 0 {

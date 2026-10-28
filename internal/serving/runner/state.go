@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // List returns every recorded run with its state, oldest first.
@@ -110,7 +110,7 @@ func resolveName(ctx context.Context, name string) (*Record, error) {
 		if len(runs) == 1 {
 			return &runs[0].Record, nil
 		}
-		return nil, fmt.Errorf("no running run; give a NAME (rdnactl ps)")
+		return nil, fmt.Errorf("no running run; give a NAME (bernie ps)")
 	}
 	names := make([]string, len(live))
 	for i, s := range live {

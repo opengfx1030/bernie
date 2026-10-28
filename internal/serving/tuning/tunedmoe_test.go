@@ -6,7 +6,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	tunedmoe "github.com/opengfx1030/rdnactl/tuned-moe"
+	tunedmoe "github.com/opengfx1030/bernie/tuned-moe"
 )
 
 func TestTunedMoEArchLookup(t *testing.T) {

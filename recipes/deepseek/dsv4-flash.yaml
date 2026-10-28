@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # DeepSeek-V4-Flash (K128) on gfx1030: fp8 dense + MXFP4 experts
 # (I8 [N, K/2] + F8_E8M0 [N, K/32] scales -> MXF4_RDNA2 MoE).
@@ -23,7 +23,7 @@
 # 8 sequences run c=8 without queueing (4e9 would sit at ~64%).
 #
 # Override any key, e.g. TP=8:
-#   rdnactl serve dsv4-flash --set MODEL=/models/dsv4-k128 \
+#   bernie serve dsv4-flash --set MODEL=/models/dsv4-k128 \
 #     --set args.tensor-parallel-size=8 --set requires.gpus=8
 schema: 1
 extends: [_base, _rdna-ar, _rccl-pcie, _tuned-moe]

@@ -17,8 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/vllm"
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/serving/vllm"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // Defaults of spec §10.

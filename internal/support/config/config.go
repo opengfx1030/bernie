@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // Config is the content of config.yaml.
@@ -147,10 +147,10 @@ func setOverride(list []string, value string) []string {
 	return out
 }
 
-// ResolveVenv applies the venv order of spec §8.1: flag, $RDNACTL_VENV,
+// ResolveVenv applies the venv order of spec §8.1: flag, $BERNIE_VENV,
 // config venv, $VIRTUAL_ENV. "" when none is set.
 func (c Config) ResolveVenv(flag string) string {
-	for _, v := range []string{flag, os.Getenv("RDNACTL_VENV"), c.Venv, os.Getenv("VIRTUAL_ENV")} {
+	for _, v := range []string{flag, os.Getenv("BERNIE_VENV"), c.Venv, os.Getenv("VIRTUAL_ENV")} {
 		if v != "" {
 			return expandHome(v)
 		}

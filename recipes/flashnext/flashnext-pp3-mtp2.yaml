@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # Flash-Next AWQ-W4A16, MTP=2, pipeline-parallel over 3 gfx1030 cards (TP1/PP3).
 # Fork recipe: tools/rdna/recipes/flashnext-pp3-mtp2.env.
@@ -17,7 +17,7 @@
 # streams; beyond that flashnext-pp3 (MTP=0) gives more aggregate throughput.
 # Same PLE / dense INT8 / text-only notes as flashnext-pp3. Host mode only.
 #
-#   rdnactl serve flashnext-pp3-mtp2 --set MODEL=/path/to/mtpq-model \
+#   bernie serve flashnext-pp3-mtp2 --set MODEL=/path/to/mtpq-model \
 #     --set PLE_QUANT_DIR=/path/to/ples_int4
 schema: 1
 extends: [flashnext-pp3, _mtp2]

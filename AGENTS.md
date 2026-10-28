@@ -11,20 +11,20 @@ are in [docs/roadmap.md](docs/roadmap.md).
 
 ## 1. What this repo is
 
-rdnactl is a Go CLI with an embedded dashboard. It checks, sets up, tunes,
+bernie is a Go CLI with an embedded dashboard. It checks, sets up, tunes,
 serves and benchmarks vLLM on AMD ROCm GPUs. The spec is the
 contract. The code follows the spec.
 
-The product surface is one binary. `rdnactl` with no arguments shows the
-host status and the next command. `rdnactl up` runs the whole path. Every
+The product surface is one binary. `bernie` with no arguments shows the
+host status and the next command. `bernie up` runs the whole path. Every
 other command is a step of that path. Keep it that way: a new feature is a
 step `up` can call, not a new tool, script or required file.
 
 ## 2. Commands you need
 
 ```bash
-make build        # bin/rdnactl for this machine
-make linux        # bin/rdnactl-linux-amd64 (static, CGO_ENABLED=0)
+make build        # bin/bernie for this machine
+make linux        # bin/bernie-linux-amd64 (static, CGO_ENABLED=0)
 make test         # go test ./...
 make lint         # gofmt check + go vet
 make check        # lint + test (run before every commit)
@@ -40,7 +40,7 @@ Requirements: Go 1.23 or later. No other toolchain. No CGO.
    packages return structs and never print. `internal/cli` and `dashboard`
    only parse input and format output.
 3. **One file per command.** Add a command as `internal/cli/cmds/<family>/cmd_<name>.go`
-   with `cli.Register` in `init()`. Do not edit `cli.go` for a new command (a new family package is blank-imported in `cmd/rdnactl/main.go`).
+   with `cli.Register` in `init()`. Do not edit `cli.go` for a new command (a new family package is blank-imported in `cmd/bernie/main.go`).
 4. **`--json` is an API.** Every command supports it. Never put progress or
    logs on stdout. Keep JSON field names stable (snake_case).
 5. **Read-only by default.** Inspection commands never change the host.

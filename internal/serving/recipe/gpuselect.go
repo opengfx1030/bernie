@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/topo"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/topo"
 )
 
 // selectGPUs applies spec §7.7 and sets HIP_VISIBLE_DEVICES.

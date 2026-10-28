@@ -1,4 +1,4 @@
-// Package recipes embeds the built-in rdnactl recipes. A file is one recipe;
+// Package recipes embeds the built-in bernie recipes. A file is one recipe;
 // its stem is the recipe id, which is unique across the whole tree. The tree
 // is grouped by model family (flashnext/, qwen-dense/, deepseek/) and shared
 // fragments by concern (_fragments/<concern>/). Files whose id starts with

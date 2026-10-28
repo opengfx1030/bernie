@@ -2,16 +2,16 @@ package serving
 
 import (
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
 	"path/filepath"
 	"text/tabwriter"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/runner"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 func init() {
@@ -61,9 +61,9 @@ func init() {
 				who = fmt.Sprintf("container %s (%s)", rec.Container, short(rec.ImageDigest))
 			}
 			fmt.Fprintf(w, "started %s: %s, %s mode, GPUs %s\n", rec.Name, who, rec.Mode, p.HIPDevices)
-			fmt.Fprintf(w, "url:  %s (rdnactl ps shows when /health answers)\n", rec.URL())
-			fmt.Fprintf(w, "log:  rdnactl logs %s -f\n", rec.Name)
-			fmt.Fprintf(w, "stop: rdnactl stop %s\n", rec.Name)
+			fmt.Fprintf(w, "url:  %s (bernie ps shows when /health answers)\n", rec.URL())
+			fmt.Fprintf(w, "log:  bernie logs %s -f\n", rec.Name)
+			fmt.Fprintf(w, "stop: bernie stop %s\n", rec.Name)
 		})
 	}
 	cli.Register(serve)

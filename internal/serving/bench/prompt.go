@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/vllm"
+	"github.com/opengfx1030/bernie/internal/serving/vllm"
 )
 
 //go:embed words.txt

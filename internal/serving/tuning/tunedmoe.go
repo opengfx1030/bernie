@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
-	tunedmoe "github.com/opengfx1030/rdnactl/tuned-moe"
+	"github.com/opengfx1030/bernie/internal/support/paths"
+	tunedmoe "github.com/opengfx1030/bernie/tuned-moe"
 )
 
 // TunedMoEDir is the root MaterializeTunedMoE writes below: <data>/tuned-moe.

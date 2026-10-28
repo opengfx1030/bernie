@@ -10,9 +10,9 @@ You need Go 1.23 or later. You do not need Node. You do not need a GPU: the
 page shows empty states without one.
 
 ```bash
-git clone https://github.com/opengfx1030/rdnactl && cd rdnactl
+git clone https://github.com/opengfx1030/bernie && cd bernie
 make build
-./bin/rdnactl dash          # open http://127.0.0.1:7860
+./bin/bernie dash          # open http://127.0.0.1:7860
 ```
 
 The files in `web/` are embedded at build time. After you edit them, run

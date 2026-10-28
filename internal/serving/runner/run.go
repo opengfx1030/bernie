@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // Run states (spec §8.3).
@@ -97,7 +97,7 @@ func writeRecord(r *Record) error {
 func Start(ctx context.Context, p *recipe.Plan, o StartOptions) (*Record, error) {
 	if prev, err := readRecord(p.Name); err == nil {
 		if st := state(ctx, prev); st != StateExited {
-			return nil, fmt.Errorf("run %s is %s (pid %d %s); stop it first (rdnactl stop %s) or use --name", p.Name, st, prev.PID, prev.Container, p.Name)
+			return nil, fmt.Errorf("run %s is %s (pid %d %s); stop it first (bernie stop %s) or use --name", p.Name, st, prev.PID, prev.Container, p.Name)
 		}
 	}
 	dir, err := paths.Ensure(RunDir(p.Name))
@@ -133,7 +133,7 @@ func startHost(ctx context.Context, p *recipe.Plan, o StartOptions, rec *Record,
 		return nil, err
 	}
 	defer logf.Close()
-	fmt.Fprintf(logf, "# rdnactl %s: %s\n", rec.StartedAt.Format(time.RFC3339), shellJoin(ex.Argv))
+	fmt.Fprintf(logf, "# bernie %s: %s\n", rec.StartedAt.Format(time.RFC3339), shellJoin(ex.Argv))
 
 	cmd := exec.Command(ex.Argv[0], ex.Argv[1:]...)
 	cmd.Dir = ex.Dir

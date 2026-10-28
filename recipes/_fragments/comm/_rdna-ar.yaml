@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # rdna_ar: the fork's one-shot all-reduce. One-shot up to 64 KiB, RCCL above;
 # two-shot is not boot-safe under PCIe load. Without PCIe P2P (the fork's

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # PLE=exl3 of serve_rdna.sh: exllamav3 checkpoints ship the n-gram table as
 # ngram_embedding.safetensors. The CPU sidecar memory-maps and decodes it

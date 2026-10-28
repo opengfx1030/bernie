@@ -106,14 +106,14 @@ func TestResolveVenv(t *testing.T) {
 		name, flag, envVenv, cfg, virtualEnv, want string
 	}{
 		{"flag first", "/flag", "/env", "/cfg", "/active", "/flag"},
-		{"then RDNACTL_VENV", "", "/env", "/cfg", "/active", "/env"},
+		{"then BERNIE_VENV", "", "/env", "/cfg", "/active", "/env"},
 		{"then config", "", "", "~/cfg", "/active", filepath.Join(home, "cfg")},
 		{"then VIRTUAL_ENV", "", "", "", "/active", "/active"},
 		{"none", "", "", "", "", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("RDNACTL_VENV", tt.envVenv)
+			t.Setenv("BERNIE_VENV", tt.envVenv)
 			t.Setenv("VIRTUAL_ENV", tt.virtualEnv)
 			if got := (Config{Venv: tt.cfg}).ResolveVenv(tt.flag); got != tt.want {
 				t.Errorf("got %q, want %q", got, tt.want)

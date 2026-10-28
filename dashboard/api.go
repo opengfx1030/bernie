@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/doctor"
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/machine/topo"
-	"github.com/opengfx1030/rdnactl/internal/serving/bench"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/runner"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/topo"
+	"github.com/opengfx1030/bernie/internal/serving/bench"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 // root is the host filesystem root the probes read ("/" in production).
@@ -38,7 +38,7 @@ func listGPUs() ([]gpu.GPU, error) {
 	return gpus, err
 }
 
-// GET /api/hw — `rdnactl hw --json`.
+// GET /api/hw — `bernie hw --json`.
 func (s *server) getHW(w http.ResponseWriter, r *http.Request) {
 	h, err := host.Probe(r.Context(), root)
 	if err != nil {
@@ -56,7 +56,7 @@ func (s *server) getHW(w http.ResponseWriter, r *http.Request) {
 	}{h, gpus})
 }
 
-// GET /api/topo — `rdnactl topo --json` (no bandwidth test: it loads the GPUs).
+// GET /api/topo — `bernie topo --json` (no bandwidth test: it loads the GPUs).
 func (s *server) getTopo(w http.ResponseWriter, r *http.Request) {
 	gpus, err := listGPUs()
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *server) getTopo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, t)
 }
 
-// GET /api/doctor — `rdnactl doctor --json` (all categories, configured venv).
+// GET /api/doctor — `bernie doctor --json` (all categories, configured venv).
 func (s *server) getDoctor(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	cfg, err := config.Load()
@@ -89,7 +89,7 @@ func (s *server) getDoctor(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rep)
 }
 
-// GET /api/recipes — `rdnactl recipe list --all --json`.
+// GET /api/recipes — `bernie recipe list --all --json`.
 func (s *server) getRecipes(w http.ResponseWriter, r *http.Request) {
 	set := recipe.Load()
 	var gpus []gpu.GPU
@@ -103,7 +103,7 @@ func (s *server) getRecipes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, recipe.List(set, gpus, ram, true))
 }
 
-// GET /api/recipes/{id}/plan?set=K=V&mode=M — `rdnactl recipe plan --json`.
+// GET /api/recipes/{id}/plan?set=K=V&mode=M — `bernie recipe plan --json`.
 func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	p, err := runner.Prepare(r.Context(), runner.PrepareOptions{
@@ -116,7 +116,7 @@ func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
 	writeRedacted(w, http.StatusOK, p)
 }
 
-// GET /api/runs — `rdnactl ps --json`.
+// GET /api/runs — `bernie ps --json`.
 func (s *server) getRuns(w http.ResponseWriter, r *http.Request) {
 	runs, err := runner.List(r.Context())
 	if err != nil {
@@ -137,7 +137,7 @@ type runRequest struct {
 	Name   string   `json:"name"`
 }
 
-// POST /api/runs — `rdnactl serve <recipe> --set … --mode … --name …`.
+// POST /api/runs — `bernie serve <recipe> --set … --mode … --name …`.
 func (s *server) postRun(w http.ResponseWriter, r *http.Request) {
 	var req runRequest
 	if !decodeBody(w, r, &req) {
@@ -158,22 +158,22 @@ func (s *server) postRun(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	fmt.Fprintf(s.o.Log, "rdnactl dash: started run %s (recipe %s, port %d)\n", rec.Name, rec.Recipe, rec.Port)
+	fmt.Fprintf(s.o.Log, "bernie dash: started run %s (recipe %s, port %d)\n", rec.Name, rec.Recipe, rec.Port)
 	writeRedacted(w, http.StatusCreated, rec)
 }
 
-// DELETE /api/runs/{name} — `rdnactl stop <name>`.
+// DELETE /api/runs/{name} — `bernie stop <name>`.
 func (s *server) deleteRun(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if err := runner.Stop(context.WithoutCancel(r.Context()), name); err != nil {
 		httpError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	fmt.Fprintf(s.o.Log, "rdnactl dash: stopped run %s\n", name)
+	fmt.Fprintf(s.o.Log, "bernie dash: stopped run %s\n", name)
 	writeJSON(w, http.StatusOK, map[string]any{"name": name, "stopped": true})
 }
 
-// GET /api/runs/{name}/logs?tail=N — `rdnactl logs <name> -f`, one SSE event
+// GET /api/runs/{name}/logs?tail=N — `bernie logs <name> -f`, one SSE event
 // per line. The stream ends with an "end" event when the log stops (the run
 // exited); a failure sends an "error" event with the message.
 func (s *server) getLogs(w http.ResponseWriter, r *http.Request) {
@@ -263,7 +263,7 @@ func (s *server) getTelemetry(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GET /api/bench — `rdnactl bench list --json`.
+// GET /api/bench — `bernie bench list --json`.
 func (s *server) getBench(w http.ResponseWriter, r *http.Request) {
 	rs, err := bench.List()
 	if err != nil {
@@ -276,7 +276,7 @@ func (s *server) getBench(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rs)
 }
 
-// benchRequest mirrors the `rdnactl bench` flags. Absent fields take the CLI
+// benchRequest mirrors the `bernie bench` flags. Absent fields take the CLI
 // defaults; concurrency is a list or a comma string ("1,8").
 type benchRequest struct {
 	URL         string          `json:"url"`
@@ -346,7 +346,7 @@ func parseConcurrency(raw json.RawMessage) ([]int, error) {
 	return list, nil
 }
 
-// POST /api/bench — `rdnactl bench …`: runs, saves and returns the result.
+// POST /api/bench — `bernie bench …`: runs, saves and returns the result.
 // One benchmark runs at a time; a second request gets 409.
 func (s *server) postBench(w http.ResponseWriter, r *http.Request) {
 	var req benchRequest

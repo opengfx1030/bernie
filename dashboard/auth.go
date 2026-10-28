@@ -11,7 +11,7 @@ import (
 )
 
 // cookieName holds the dashboard token after the operator visits /?token=….
-const cookieName = "rdnactl_token"
+const cookieName = "bernie_token"
 
 // NewToken returns a random 128-bit hex token.
 func NewToken() string {
@@ -42,7 +42,7 @@ func IsLoopback(listen string) bool {
 //     and redirects to strip the token from the URL.
 //   - loopback mode (token == ""): the Host header must name a loopback host,
 //     which blocks DNS-rebinding pages from reaching the API.
-//   - POST and DELETE need `X-Rdnactl: 1` in both modes (CSRF guard).
+//   - POST and DELETE need `X-Bernie: 1` in both modes (CSRF guard).
 type guard struct {
 	tokenSum [32]byte
 	token    bool
@@ -88,17 +88,17 @@ func (g *guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if !g.authorized(r) {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
-				w.Header().Set("WWW-Authenticate", `Bearer realm="rdnactl"`)
+				w.Header().Set("WWW-Authenticate", `Bearer realm="bernie"`)
 			}
-			httpError(w, http.StatusUnauthorized, "token required: open the URL printed by `rdnactl dash` (…/?token=…) or send Authorization: Bearer <token>")
+			httpError(w, http.StatusUnauthorized, "token required: open the URL printed by `bernie dash` (…/?token=…) or send Authorization: Bearer <token>")
 			return
 		}
 	} else if !loopbackHost(r.Host) {
 		httpError(w, http.StatusForbidden, "host header is not a loopback name")
 		return
 	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Header.Get("X-Rdnactl") != "1" {
-		httpError(w, http.StatusForbidden, "missing header X-Rdnactl: 1")
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Header.Get("X-Bernie") != "1" {
+		httpError(w, http.StatusForbidden, "missing header X-Bernie: 1")
 		return
 	}
 	g.next.ServeHTTP(w, r)

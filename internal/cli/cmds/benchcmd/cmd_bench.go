@@ -2,13 +2,13 @@ package benchcmd
 
 import (
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/bench"
+	"github.com/opengfx1030/bernie/internal/serving/bench"
 )
 
 func init() {
@@ -146,7 +146,7 @@ func fingerprintLine(fp map[string]string) string {
 
 func printBenchList(w io.Writer, rs []bench.Result) {
 	if len(rs) == 0 {
-		fmt.Fprintln(w, "no bench results (run `rdnactl bench`)")
+		fmt.Fprintln(w, "no bench results (run `bernie bench`)")
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)

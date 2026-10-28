@@ -13,9 +13,9 @@ Status: draft 1. We revisit this page when the UI changes.
 ## Run it
 
 ```bash
-rdnactl dash                       # http://127.0.0.1:7860, this machine only
-rdnactl dash --listen 0.0.0.0:7860 # other machines: a token is required
-rdnactl up                         # starts it at the end of the setup path
+bernie dash                       # http://127.0.0.1:7860, this machine only
+bernie dash --listen 0.0.0.0:7860 # other machines: a token is required
+bernie up                         # starts it at the end of the setup path
 ```
 
 On a non-loopback address the server prints a token. Open the page with
@@ -56,7 +56,7 @@ flowchart LR
 |---|---|
 | `dashboard.go` | `Serve`: listener, routes, graceful stop |
 | `api.go` | One handler per endpoint in spec §11 |
-| `auth.go` | Token, loopback Host check, `X-Rdnactl` header on writes |
+| `auth.go` | Token, loopback Host check, `X-Bernie` header on writes |
 | `hub.go`, `telemetry.go`, `sse.go` | 1 Hz samples and event streams |
 | `redact.go` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
@@ -110,7 +110,7 @@ minute. An agent can read the same page as text.
 ## Safe by default
 
 - Loopback only unless you pass `--listen`. Non-loopback needs a token.
-- Writes need the `X-Rdnactl: 1` header. A form on another site cannot send it.
+- Writes need the `X-Bernie: 1` header. A form on another site cannot send it.
 - The page builds DOM with `h()` and never uses `innerHTML`. Server data is
   text, never markup.
 - `redact.go` removes tokens and keys from every response.

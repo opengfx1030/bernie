@@ -1,4 +1,4 @@
-// Package dashboard serves the rdnactl web UI and its JSON API (spec §11).
+// Package dashboard serves the bernie web UI and its JSON API (spec §11).
 // It is a view over the domain packages: every endpoint calls the same code
 // as the matching CLI command and returns the same JSON.
 package dashboard
@@ -68,7 +68,7 @@ func Serve(ctx context.Context, o Options) error {
 	if o.Ready != nil {
 		o.Ready(url)
 	} else {
-		fmt.Fprintf(o.Log, "rdnactl dash: listening on %s\n", url)
+		fmt.Fprintf(o.Log, "bernie dash: listening on %s\n", url)
 	}
 
 	errc := make(chan error, 1)

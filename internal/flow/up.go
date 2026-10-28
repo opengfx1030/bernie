@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/doctor"
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/runner"
-	"github.com/opengfx1030/rdnactl/internal/setup"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/setup"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 // Blocked means `up` stopped before a step it must not run itself: a step
@@ -67,7 +67,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 	h, _ := host.Probe(ctx, "/")
 	gpus, _ := gpu.List("/")
 	if len(gpus) == 0 {
-		return nil, &Blocked{Reason: "no AMD GPU found", Commands: []string{"rdnactl doctor"}}
+		return nil, &Blocked{Reason: "no AMD GPU found", Commands: []string{"bernie doctor"}}
 	}
 
 	// 1. Hardware access problems are not fixable by up.
@@ -92,7 +92,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 	if id == "" {
 		id = pick(recipe.List(set, gpus, h.RAMBytes, false), o.Sets)
 		if id == "" {
-			return nil, &Blocked{Reason: "no recipe fits this host", Commands: []string{"rdnactl recipe list --all"}}
+			return nil, &Blocked{Reason: "no recipe fits this host", Commands: []string{"bernie recipe list --all"}}
 		}
 		fmt.Fprintf(log, "up: best recipe for this host: %s\n", id)
 	}
@@ -104,7 +104,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		if in.Required && in.Default == "" && !hasSet(o.Sets, name) {
 			return nil, &Blocked{
 				Reason:   fmt.Sprintf("recipe %s needs input %s: %s", id, name, in.Description),
-				Commands: []string{fmt.Sprintf("rdnactl up %s --set %s=<value>", id, name)},
+				Commands: []string{fmt.Sprintf("bernie up %s --set %s=<value>", id, name)},
 			}
 		}
 	}
@@ -143,14 +143,14 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		apply = append(apply, s.ID)
 	}
 	if len(rootCmds) > 0 {
-		return nil, &Blocked{Reason: "steps that need root are pending; run them, then run `rdnactl up` again", Commands: rootCmds}
+		return nil, &Blocked{Reason: "steps that need root are pending; run them, then run `bernie up` again", Commands: rootCmds}
 	}
 
 	// 5. One confirmation.
 	if !o.Yes {
 		prompt := fmt.Sprintf("Run setup steps [%s] and start %s (%s mode)?", strings.Join(apply, ", "), id, mode)
 		if o.Confirm == nil {
-			return nil, &Blocked{Reason: "confirmation required; re-run with --yes", Commands: []string{"rdnactl up " + id + " --yes"}}
+			return nil, &Blocked{Reason: "confirmation required; re-run with --yes", Commands: []string{"bernie up " + id + " --yes"}}
 		}
 		if !o.Confirm(prompt) {
 			return nil, &Blocked{Reason: "declined"}
@@ -189,7 +189,7 @@ func waitHealthy(ctx context.Context, name string, limit time.Duration, log io.W
 	deadline := time.Now().Add(limit)
 	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
-	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: rdnactl logs %s -f)\n", name, name)
+	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: bernie logs %s -f)\n", name, name)
 	for {
 		runs, err := runner.List(ctx)
 		if err != nil {
@@ -203,11 +203,11 @@ func waitHealthy(ctx context.Context, name string, limit time.Duration, log io.W
 			case "running":
 				return nil
 			case "exited":
-				return fmt.Errorf("%s exited during startup; see: rdnactl logs %s", name, name)
+				return fmt.Errorf("%s exited during startup; see: bernie logs %s", name, name)
 			}
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("%s is not healthy after %s; see: rdnactl logs %s", name, limit, name)
+			return fmt.Errorf("%s is not healthy after %s; see: bernie logs %s", name, limit, name)
 		}
 		select {
 		case <-ctx.Done():

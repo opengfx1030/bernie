@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/topo"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
-	"github.com/opengfx1030/rdnactl/recipes"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/topo"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
+	"github.com/opengfx1030/bernie/recipes"
 )
 
 // The 11 recipes ported from opengfx1030/vllm-rdna tools/rdna/recipes.

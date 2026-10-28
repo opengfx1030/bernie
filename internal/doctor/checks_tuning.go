@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/serving/tuning"
 )
 
 func tuningChecks(in inputs) []Check {
@@ -25,7 +25,7 @@ func tuningChecks(in inputs) []Check {
 	default:
 		out = append(out, check(cat, "tunableop", Warn, "TunableOp profile matches the loaded rocBLAS",
 			fmt.Sprintf("no registered profile for %s (sha %s, %d profiles known); rows go to %s", in.rocblas, in.libSHA[:tuning.SHAPrefix], len(in.profiles), tuning.PerUserFile())).
-			with("rdnactl tune tunableop env --tuning  # tune rows once for this rocBLAS build", docMismatch))
+			with("bernie tune tunableop env --tuning  # tune rows once for this rocBLAS build", docMismatch))
 	}
 	out = append(out, powerCheck(in))
 	return out
@@ -58,7 +58,7 @@ func powerCheck(in inputs) Check {
 	var fixes []string
 	for _, w := range order {
 		n, _ := strconv.Atoi(w)
-		fixes = append(fixes, fmt.Sprintf("rdnactl tune power set %d --gpu %s", n, strings.Join(idx[n], " --gpu ")))
+		fixes = append(fixes, fmt.Sprintf("bernie tune power set %d --gpu %s", n, strings.Join(idx[n], " --gpu ")))
 	}
 	return check("tuning", "power", Warn, title, strings.Join(high, "; ")).with(strings.Join(fixes, " && "), docPower)
 }

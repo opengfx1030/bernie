@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # RCCL over PCIe: the block shared by 27b-exl3, dsv4-flash and full.
 # P2P level pxb lets RCCL use peer-to-peer across PCIe switches; full narrows

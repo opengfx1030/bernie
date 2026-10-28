@@ -21,10 +21,10 @@ func resourceChecks(in inputs) []Check {
 		out = append(out, check(cat, "disk", Skip, "Free disk in the Hugging Face cache", in.hfCache+": unknown"))
 	case free < 20*gib:
 		out = append(out, check(cat, "disk", Fail, "Free disk in the Hugging Face cache", fmt.Sprintf("%s: %.0f GiB free", in.hfCache, float64(free)/gib)).
-			with("Free space or set hf_home in the config (rdnactl config set hf_home DIR).", ""))
+			with("Free space or set hf_home in the config (bernie config set hf_home DIR).", ""))
 	case free < 100*gib:
 		out = append(out, check(cat, "disk", Warn, "Free disk in the Hugging Face cache", fmt.Sprintf("%s: %.0f GiB free (large models need 100+ GiB)", in.hfCache, float64(free)/gib)).
-			with("Free space or set hf_home in the config (rdnactl config set hf_home DIR).", ""))
+			with("Free space or set hf_home in the config (bernie config set hf_home DIR).", ""))
 	default:
 		out = append(out, check(cat, "disk", OK, "Free disk in the Hugging Face cache", fmt.Sprintf("%s: %.0f GiB free", in.hfCache, float64(free)/gib)))
 	}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # capture-fixture.sh NAME [OUTDIR]
 #
-# Copies the sysfs/procfs subset that rdnactl reads into NAME.tar.gz (in
+# Copies the sysfs/procfs subset that bernie reads into NAME.tar.gz (in
 # OUTDIR, default: the current directory). The archive is a root tree:
 #   NAME/sys/..., NAME/proc/..., NAME/etc/os-release
 # Symlinks keep their relative targets, so the tree resolves like the real
@@ -13,7 +13,7 @@ set -euo pipefail
 name=${1:?usage: capture-fixture.sh NAME [OUTDIR]}
 outdir=${2:-$PWD}
 mkdir -p "$outdir"
-stage=$(mktemp -d "$outdir/.rdnactl-fixture.XXXXXX")
+stage=$(mktemp -d "$outdir/.bernie-fixture.XXXXXX")
 trap 'rm -rf "$stage"' EXIT
 dst="$stage/$name"
 mkdir -p "$dst"

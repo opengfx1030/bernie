@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
 )
 
 func (p planner) python() string { return filepath.Join(p.o.Venv, "bin", "python") }

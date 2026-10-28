@@ -7,8 +7,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/opengfx1030/rdnactl/tunableop"
-	tunedmoe "github.com/opengfx1030/rdnactl/tuned-moe"
+	"github.com/opengfx1030/bernie/tunableop"
+	tunedmoe "github.com/opengfx1030/bernie/tuned-moe"
 )
 
 const (

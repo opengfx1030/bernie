@@ -1,4 +1,4 @@
-module github.com/opengfx1030/rdnactl
+module github.com/opengfx1030/bernie
 
 go 1.23
 
