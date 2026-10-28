@@ -50,6 +50,7 @@ func Register(mux *http.ServeMux, o Options) {
 	mux.HandleFunc("GET /api/runs/{name}/logs", h.getLogs)
 	mux.HandleFunc("GET /api/telemetry", h.getTelemetry)
 	mux.HandleFunc("GET /api/gpus/history", h.getHistory)
+	mux.HandleFunc("POST /api/smoke", h.postSmoke)
 	mux.HandleFunc("GET /api/power", h.getPower)
 	mux.HandleFunc("PUT /api/power", h.putPower)
 	mux.HandleFunc("GET /api/bench", h.getBench)
