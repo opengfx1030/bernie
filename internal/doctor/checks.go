@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/opengfx1030/rdnactl/internal/gpu"
@@ -37,9 +38,6 @@ var (
 )
 
 const gib = 1 << 30
-
-// V620PowerAdviceW is the power cap advised for Radeon Pro V620.
-const V620PowerAdviceW = 180
 
 // evaluate runs every check on the gathered inputs.
 func evaluate(in inputs) []Check {
@@ -110,25 +108,6 @@ func osChecks(in inputs) []Check {
 
 // ---- gpu ----
 
-// rdna2Cousins run gfx1030 code objects with HSA_OVERRIDE_GFX_VERSION=10.3.0.
-var rdna2Cousins = map[string]bool{"gfx1031": true, "gfx1032": true, "gfx1033": true, "gfx1034": true, "gfx1035": true, "gfx1036": true}
-
-// integrated lists APU (iGPU) targets; they shift HIP indices.
-var integrated = map[string]bool{"gfx902": true, "gfx90c": true, "gfx1033": true, "gfx1035": true, "gfx1036": true, "gfx1103": true, "gfx1150": true, "gfx1151": true, "gfx1152": true}
-
-// archKnown reports architectures ROCm supports (RDNA2-4, CDNA).
-func archKnown(gfx string) bool {
-	switch {
-	case gfx == "gfx1030", rdna2Cousins[gfx]:
-		return true
-	case strings.HasPrefix(gfx, "gfx11"), strings.HasPrefix(gfx, "gfx12"):
-		return true
-	case gfx == "gfx908", gfx == "gfx90a", gfx == "gfx942", gfx == "gfx950":
-		return true
-	}
-	return false
-}
-
 func gpuChecks(in inputs) []Check {
 	const cat = "gpu"
 	d := in.devices
@@ -181,22 +160,10 @@ func gpuChecks(in inputs) []Check {
 		return out
 	}
 	out = append(out, check(cat, "count", OK, "At least one GPU", fmt.Sprintf("%d GPUs: %s", len(in.gpus), archSummary(in.gpus))).with("", docHardware))
-	for _, gfx := range archOrder(in.gpus) {
-		id := "arch." + gfx
-		title := gfx + " is supported"
-		switch {
-		case rdna2Cousins[gfx]:
-			out = append(out, check(cat, id, Warn, title, "RDNA2 part without its own ROCm code objects; it runs gfx1030 code").
-				with("Set HSA_OVERRIDE_GFX_VERSION=10.3.0 in the serve environment (recipe env or --set env.HSA_OVERRIDE_GFX_VERSION=10.3.0).", docHSA))
-		case archKnown(gfx):
-			out = append(out, check(cat, id, OK, title, ""))
-		default:
-			out = append(out, check(cat, id, Warn, title, "unknown architecture for ROCm/vLLM").with("", docHardware))
-		}
-	}
+	out = append(out, supportChecks(in)...)
 	var igpu, dgpu []string
 	for _, g := range in.gpus {
-		if integrated[g.GFX] {
+		if a, _ := gpu.LookupArch(g.GFX); a.Integrated {
 			igpu = append(igpu, fmt.Sprint(g.HIPIndex))
 		} else {
 			dgpu = append(dgpu, fmt.Sprint(g.HIPIndex))
@@ -473,7 +440,8 @@ func pythonChecks(in inputs) []Check {
 	}
 	if in.site != "" && dirExists(filepath.Join(in.site, "_rocm_sdk_core")) {
 		var missing []string
-		for _, gfx := range archOrder(in.gpus) {
+		targets := gpu.CodeTargets(archOrder(in.gpus))
+		for _, gfx := range targets {
 			if m, _ := filepath.Glob(filepath.Join(in.site, "rocm_sdk_device_"+gfx+"-*.dist-info")); len(m) == 0 {
 				missing = append(missing, gfx)
 			}
@@ -483,16 +451,11 @@ func pythonChecks(in inputs) []Check {
 				"missing rocm-sdk-device wheels for "+strings.Join(missing, ", ")+" (hipErrorInvalidImage at kernel launch)").
 				with("rdnactl setup apply --step venv.torch", docHostVenv))
 		} else {
-			out = append(out, check(cat, "device_wheels", OK, "ROCm device wheels match the GPUs", strings.Join(archOrder(in.gpus), ", ")))
+			out = append(out, check(cat, "device_wheels", OK, "ROCm device wheels match the GPUs", strings.Join(targets, ", ")))
 		}
 	}
 	if tv := tritonVersion(in.site); tv != "" {
-		if rocm.CompareVersions(tv, "3.9") >= 0 && hasRDNA2(in.gpus) {
-			out = append(out, check(cat, "triton", Fail, "Triton supports RDNA2", "triton "+tv+" removed RDNA1/RDNA2 support").
-				with(in.venv+"/bin/pip install triton==3.7.1", docHostVenv))
-		} else {
-			out = append(out, check(cat, "triton", OK, "Triton supports RDNA2", "triton "+tv))
-		}
+		out = append(out, tritonCheck(in, tv))
 	}
 	if v.VLLM == "" {
 		out = append(out, check(cat, "vllm", Fail, "vllm imports", v.Err).with("rdnactl setup apply --step vllm.build", docHostVenv))
@@ -522,13 +485,16 @@ func tritonVersion(site string) string {
 	return v
 }
 
-func hasRDNA2(gpus []gpu.GPU) bool {
-	for _, g := range gpus {
-		if strings.HasPrefix(g.GFX, "gfx103") || strings.HasPrefix(g.GFX, "gfx101") {
-			return true
+// tritonCheck fails when the installed Triton dropped a generation the host has.
+func tritonCheck(in inputs, tv string) Check {
+	const title = "Triton supports the GPU generations"
+	for _, gfx := range archOrder(in.gpus) {
+		if a, ok := gpu.LookupArch(gfx); ok && a.TritonBelow != "" && rocm.CompareVersions(tv, a.TritonBelow) >= 0 {
+			return check("python", "triton", Fail, title, fmt.Sprintf("triton %s removed %s support (%s)", tv, a.Label(), gfx)).
+				with(in.venv+"/bin/pip install triton==3.7.1", docHostVenv)
 		}
 	}
-	return false
+	return check("python", "triton", OK, title, "triton "+tv)
 }
 
 // ---- container ----
@@ -638,27 +604,38 @@ func tuningChecks(in inputs) []Check {
 			fmt.Sprintf("no registered profile for %s (sha %s, %d profiles known); rows go to %s", in.rocblas, in.libSHA[:tuning.SHAPrefix], len(in.profiles), tuning.PerUserFile())).
 			with("rdnactl tune tunableop env --tuning  # tune rows once for this rocBLAS build", docMismatch))
 	}
-	var high []string
-	var caps []string
-	var idx []string
-	for _, g := range in.gpus {
-		caps = append(caps, fmt.Sprintf("%d:%.0fW", g.HIPIndex, g.PowerCapW))
-		if isV620(g) && g.PowerCapW > V620PowerAdviceW {
-			high = append(high, fmt.Sprintf("GPU %d %.0f W", g.HIPIndex, g.PowerCapW))
-			idx = append(idx, fmt.Sprint(g.HIPIndex))
-		}
-	}
-	switch {
-	case len(in.gpus) == 0:
-		out = append(out, check(cat, "power", Skip, "Power cap per GPU", "no GPUs"))
-	case len(high) > 0:
-		out = append(out, check(cat, "power", Warn, "Power cap per GPU",
-			fmt.Sprintf("V620 above %d W: %s", V620PowerAdviceW, strings.Join(high, ", "))).
-			with(fmt.Sprintf("rdnactl tune power set %d --gpu %s", V620PowerAdviceW, strings.Join(idx, " --gpu ")), docPower))
-	default:
-		out = append(out, check(cat, "power", OK, "Power cap per GPU", strings.Join(caps, " ")).with("", docPower))
-	}
+	out = append(out, powerCheck(in))
 	return out
 }
 
-func isV620(g gpu.GPU) bool { return g.DeviceID == "0x73a1" || g.DeviceID == "0x73ae" }
+// powerCheck compares each GPU's power cap with the advice of its device
+// table row (only rows with a sourced advice have one).
+func powerCheck(in inputs) Check {
+	const title = "Power cap per GPU"
+	if len(in.gpus) == 0 {
+		return check("tuning", "power", Skip, title, "no GPUs")
+	}
+	var caps, high, order []string
+	idx := map[int][]string{}
+	for _, g := range in.gpus {
+		caps = append(caps, fmt.Sprintf("%d:%.0fW", g.HIPIndex, g.PowerCapW))
+		d, ok := gpu.Lookup(g.DeviceID)
+		if !ok || d.PowerCapAdviceW == 0 || g.PowerCapW <= float64(d.PowerCapAdviceW) {
+			continue
+		}
+		high = append(high, fmt.Sprintf("%s above %d W: GPU %d %.0f W", d.Name, d.PowerCapAdviceW, g.HIPIndex, g.PowerCapW))
+		if len(idx[d.PowerCapAdviceW]) == 0 {
+			order = append(order, fmt.Sprint(d.PowerCapAdviceW))
+		}
+		idx[d.PowerCapAdviceW] = append(idx[d.PowerCapAdviceW], fmt.Sprint(g.HIPIndex))
+	}
+	if len(high) == 0 {
+		return check("tuning", "power", OK, title, strings.Join(caps, " ")).with("", docPower)
+	}
+	var fixes []string
+	for _, w := range order {
+		n, _ := strconv.Atoi(w)
+		fixes = append(fixes, fmt.Sprintf("rdnactl tune power set %d --gpu %s", n, strings.Join(idx[n], " --gpu ")))
+	}
+	return check("tuning", "power", Warn, title, strings.Join(high, "; ")).with(strings.Join(fixes, " && "), docPower)
+}

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/opengfx1030/rdnactl/internal/execx"
+	"github.com/opengfx1030/rdnactl/internal/gpu"
 	"github.com/opengfx1030/rdnactl/internal/host"
 	"github.com/opengfx1030/rdnactl/internal/paths"
 	"github.com/opengfx1030/rdnactl/internal/rocm"
@@ -52,7 +53,8 @@ type Step struct {
 // image, an optional model to download, the source dir for git checkouts
 // (default <data>/src) and the Hugging Face cache root (default $HF_HOME,
 // else ~/.cache/huggingface). GPUArchs are the host gfx targets (from
-// gpu.List), used for device wheels and build targets; default gfx1030.
+// gpu.List), used for device wheels and build targets. Without GPUs the plan
+// has no device wheels and no build target.
 type Options struct {
 	Mode, Venv, Image, ModelRepo string
 	SrcDir, HFHome               string
@@ -74,11 +76,8 @@ func Plan(ctx context.Context, h host.Info, r rocm.Report, o Options) []Step {
 	if o.SrcDir == "" {
 		o.SrcDir = filepath.Join(paths.Data(), "src")
 	}
-	if len(o.GPUArchs) == 0 {
-		o.GPUArchs = []string{"gfx1030"}
-	}
-	o.GPUArchs = buildArchs(o.GPUArchs)
-	pl := planner{ctx: ctx, h: h, r: r, o: o, site: sitePackages(o.Venv)}
+	o.GPUArchs = uniq(o.GPUArchs)
+	pl := planner{ctx: ctx, h: h, r: r, o: o, site: sitePackages(o.Venv), targets: gpu.CodeTargets(o.GPUArchs)}
 	all := []Step{
 		pl.groups(), pl.rocmRuntime(), pl.containerEngine(),
 		pl.venvCreate(), pl.venvTorch(), pl.causalConv1D(), pl.flashAttn(), pl.vllmBuild(),
@@ -102,24 +101,13 @@ type planner struct {
 	r    rocm.Report
 	o    Options
 	site string
+	// targets are the code-object targets of the GPUs (an HSA override
+	// target replaces the real one): wheels and build targets use them.
+	targets []string
 }
 
 // which resolves a tool on PATH; tests replace it.
 var which = execx.Which
-
-// buildArchs maps host targets to build/wheel targets: RDNA2 parts without
-// their own code objects (gfx1031-gfx1036) run gfx1030 code
-// (HSA_OVERRIDE_GFX_VERSION=10.3.0).
-func buildArchs(in []string) []string {
-	out := make([]string, 0, len(in))
-	for _, a := range in {
-		if strings.HasPrefix(a, "gfx103") {
-			a = "gfx1030"
-		}
-		out = append(out, a)
-	}
-	return uniq(out)
-}
 
 func (p planner) groups() Step {
 	return Step{
@@ -227,22 +215,42 @@ func (p planner) venvCreate() Step {
 
 func (p planner) venvTorch() Step {
 	done := p.has("torch-*+rocm*.dist-info")
-	devices := []string{}
-	for _, gfx := range p.o.GPUArchs {
+	cmds := []string{
+		p.pipInstall() + " --pre --index-url " + WheelIndex + " " + strings.Join([]string{shq(TorchPin), shq(TorchVisionPin), shq(TorchAudioPin), shq(TritonPin)}, " "),
+	}
+	var devices []string
+	for _, gfx := range p.targets {
 		devices = append(devices, shq("rocm-sdk-device-"+gfx+"=="+ROCmWheel), shq("amd-torch-device-"+gfx+"=="+strings.TrimPrefix(TorchPin, "torch==")))
 		if !p.has("rocm_sdk_device_" + gfx + "-*.dist-info") {
 			done = false
 		}
 	}
+	why := "torch and the ROCm runtime come from AMD's multi-arch index; "
+	if len(devices) > 0 {
+		cmds = append(cmds, p.pipInstall()+" --index-url "+WheelIndex+" "+strings.Join(devices, " "))
+		why += "the device wheels add the code objects for " + strings.Join(p.targets, ", ") + ". "
+	} else {
+		why += "no GPU was found, so no device wheels are planned. "
+	}
+	why += "Triton is pinned to " + strings.TrimPrefix(TritonPin, "triton==") + "."
+	if a, ok := p.tritonDropped(); ok {
+		why += " Triton " + a.TritonBelow + " removed " + a.Label() + "."
+	}
 	return Step{
 		ID: "venv.torch", Title: "Install ROCm " + ROCmWheel + " wheels and torch", Mode: "host",
-		Done: done,
-		Commands: []string{
-			p.pipInstall() + " --pre --index-url " + WheelIndex + " " + strings.Join([]string{shq(TorchPin), shq(TorchVisionPin), shq(TorchAudioPin), shq(TritonPin)}, " "),
-			p.pipInstall() + " --index-url " + WheelIndex + " " + strings.Join(devices, " "),
-		},
-		Why: "torch and the ROCm runtime come from AMD's multi-arch index; the device wheels add the code objects for " + strings.Join(p.o.GPUArchs, ", ") + ". Triton stays at 3.7.1 (3.9 removed RDNA2).",
+		Done: done, Commands: cmds, Why: why,
 	}
+}
+
+// tritonDropped returns the arch of a host GPU whose generation newer Triton
+// releases dropped (the device tables say which).
+func (p planner) tritonDropped() (gpu.Arch, bool) {
+	for _, gfx := range p.o.GPUArchs {
+		if a, ok := gpu.LookupArch(gfx); ok && a.TritonBelow != "" {
+			return a, true
+		}
+	}
+	return gpu.Arch{}, false
 }
 
 // rocmHome is the newest install with hipcc (TheRock trees preferred on
@@ -261,28 +269,28 @@ func (p planner) rocmHome() string {
 	return "/opt/rocm"
 }
 
-func (p planner) archList() string { return strings.Join(p.o.GPUArchs, ";") }
+func (p planner) archList() string { return strings.Join(p.targets, ";") }
 
 func (p planner) causalConv1D() Step {
+	build := ""
+	if len(p.targets) > 0 {
+		build = "HIP_ARCHITECTURES=" + shq(p.archList()) + " "
+	}
 	return Step{
 		ID: "causal-conv1d.build", Title: "Build causal-conv1d from source", Mode: "host",
 		Done: p.has("causal_conv1d-*.dist-info"),
 		Commands: []string{
-			"CAUSAL_CONV1D_FORCE_BUILD=TRUE HIP_ARCHITECTURES=" + shq(p.archList()) + " ROCM_PATH=" + shq(p.rocmHome()) + " " +
+			"CAUSAL_CONV1D_FORCE_BUILD=TRUE " + build + "ROCM_PATH=" + shq(p.rocmHome()) + " " +
 				p.pipInstall() + " --no-build-isolation " + shq(CausalConv1DRef),
 		},
 		Why: "Mamba/GDN models need causal-conv1d; the PyPI wheels have no RDNA kernels.",
 	}
 }
 
-// flashAttnArchs are the targets on the FlashAttention ROCm allowlist
-// (gfx1030 is not on it).
-var flashAttnArchs = map[string]bool{"gfx1100": true, "gfx1101": true, "gfx1150": true, "gfx1151": true, "gfx1200": true, "gfx1201": true}
-
 func (p planner) flashAttn() Step {
 	var archs []string
 	for _, a := range p.o.GPUArchs {
-		if flashAttnArchs[a] {
+		if t, ok := gpu.LookupArch(a); ok && t.FlashAttn {
 			archs = append(archs, a)
 		}
 	}
@@ -298,7 +306,7 @@ func (p planner) flashAttn() Step {
 			"cd " + shq(dir) + " && git submodule update --init && ENABLE_CK=0 PREBUILD_KERNELS=0 FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE GPU_ARCHS=" +
 				shq(strings.Join(archs, ";")) + " " + p.pipInstall() + " --no-build-isolation .",
 		},
-		Why: "FlashAttention for " + strings.Join(archs, ", ") + "; gfx1030 is not on its allowlist and is left out.",
+		Why: "FlashAttention for " + strings.Join(archs, ", ") + "; targets that are not on its ROCm allowlist are left out.",
 	}
 }
 
@@ -309,14 +317,16 @@ func (p planner) vllmBuild() Step {
 	if jobs <= 0 || jobs > 16 {
 		jobs = 16
 	}
-	env := strings.Join([]string{
-		"VLLM_TARGET_DEVICE=rocm", "VLLM_USE_PRECOMPILED=0", "ENABLE_CK=0", "FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE",
-		"PYTORCH_ROCM_ARCH=" + shq(p.archList()),
-		"ROCM_HOME=" + shq(rh), "ROCM_PATH=" + shq(rh), "HIP_PATH=" + shq(rh),
-		"CMAKE_HIP_COMPILER=" + shq(rh+"/bin/hipcc"),
-		"VLLM_PYTHON_EXECUTABLE=" + shq(p.python()),
+	vars := []string{"VLLM_TARGET_DEVICE=rocm", "VLLM_USE_PRECOMPILED=0", "ENABLE_CK=0", "FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE"}
+	if len(p.targets) > 0 {
+		vars = append(vars, "PYTORCH_ROCM_ARCH="+shq(p.archList()))
+	}
+	env := strings.Join(append(vars,
+		"ROCM_HOME="+shq(rh), "ROCM_PATH="+shq(rh), "HIP_PATH="+shq(rh),
+		"CMAKE_HIP_COMPILER="+shq(rh+"/bin/hipcc"),
+		"VLLM_PYTHON_EXECUTABLE="+shq(p.python()),
 		fmt.Sprintf("MAX_JOBS=%d", jobs),
-	}, " ")
+	), " ")
 	return Step{
 		ID: "vllm.build", Title: "Clone and build the vLLM fork (" + ForkBranch + ")", Mode: "host",
 		Done: p.has("vllm-*rdna*.dist-info") || p.has("vllm-*.dist-info") && isFile(filepath.Join(dir, "vllm", "_rocm_C.abi3.so")),

@@ -199,3 +199,48 @@ func TestShq(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanDeviceWheelsFollowDeviceTables(t *testing.T) {
+	withWhich(t, "uv")
+	cases := []struct {
+		name   string
+		archs  []string
+		wheels []string // device wheels expected in venv.torch
+		noWhl  []string
+		flash  string // GPU_ARCHS of flash-attn.build, "" = no step
+		build  string // PYTORCH_ROCM_ARCH, "" = unset
+		why    string
+	}{
+		{"rdna3 desktop", []string{"gfx1100"}, []string{"rocm-sdk-device-gfx1100==7.14.0", "amd-torch-device-gfx1100==2.12.0+rocm7.14.0"}, []string{"gfx1030"}, "gfx1100", "gfx1100", "Triton is pinned to 3.7.1."},
+		{"rdna4", []string{"gfx1201", "gfx1200"}, []string{"rocm-sdk-device-gfx1201==", "rocm-sdk-device-gfx1200=="}, nil, "gfx1201;gfx1200", "gfx1201;gfx1200", "Triton is pinned"},
+		{"rdna2 cousin runs gfx1030", []string{"gfx1031", "gfx1030"}, []string{"rocm-sdk-device-gfx1030=="}, []string{"gfx1031"}, "", "gfx1030", "Triton 3.9 removed RDNA2."},
+		{"rdna3 cousin keeps its own target", []string{"gfx1102"}, []string{"rocm-sdk-device-gfx1102=="}, nil, "gfx1102", "gfx1102", "Triton is pinned"},
+		{"no GPU", nil, nil, []string{"rocm-sdk-device"}, "", "", "no device wheels are planned"},
+	}
+	for _, c := range cases {
+		steps := Plan(context.Background(), par1Host(), par1ROCm(), Options{Mode: "host", Venv: t.TempDir(), SrcDir: "/src", GPUArchs: c.archs})
+		m := stepMap(steps)
+		torch := strings.Join(m["venv.torch"].Commands, "\n")
+		for _, w := range c.wheels {
+			if !strings.Contains(torch, w) {
+				t.Errorf("%s: venv.torch lacks %q:\n%s", c.name, w, torch)
+			}
+		}
+		for _, w := range c.noWhl {
+			if strings.Contains(torch, w) {
+				t.Errorf("%s: venv.torch has %q:\n%s", c.name, w, torch)
+			}
+		}
+		if !strings.Contains(m["venv.torch"].Why, c.why) {
+			t.Errorf("%s: why = %q", c.name, m["venv.torch"].Why)
+		}
+		fa, ok := m["flash-attn.build"]
+		if c.flash == "" && ok || c.flash != "" && (!ok || !strings.Contains(strings.Join(fa.Commands, "\n"), "GPU_ARCHS="+shq(c.flash)+" ")) {
+			t.Errorf("%s: flash-attn = %v (%v), want GPU_ARCHS=%q", c.name, fa.Commands, ok, c.flash)
+		}
+		build := strings.Join(m["vllm.build"].Commands, "\n")
+		if c.build == "" && strings.Contains(build, "PYTORCH_ROCM_ARCH") || c.build != "" && !strings.Contains(build, "PYTORCH_ROCM_ARCH="+shq(c.build)+" ") {
+			t.Errorf("%s: vllm.build = %s, want PYTORCH_ROCM_ARCH=%q", c.name, build, c.build)
+		}
+	}
+}

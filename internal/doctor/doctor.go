@@ -49,12 +49,15 @@ type Report struct {
 
 // Options select the host root, the venv for python checks and the
 // categories (all when empty). HFHome overrides the Hugging Face cache root
-// ($HF_HOME, else ~/.cache/huggingface).
+// ($HF_HOME, else ~/.cache/huggingface). ValidatedArchs are the gfx targets
+// that have validated recipes; the caller reads them from the recipe set
+// (doctor does not import recipe).
 type Options struct {
-	Root       string
-	Venv       string
-	Categories []string
-	HFHome     string
+	Root           string
+	Venv           string
+	Categories     []string
+	HFHome         string
+	ValidatedArchs []string
 }
 
 // Failed reports whether any check failed.
@@ -62,23 +65,24 @@ func (r Report) Failed() bool { return r.Summary[Fail] > 0 }
 
 // inputs is everything the checks look at; gathered once, evaluated purely.
 type inputs struct {
-	root     string
-	host     host.Info
-	gpus     []gpu.GPU
-	gpuErr   error
-	rocm     rocm.Report
-	venv     string
-	venvRep  rocm.VenvReport
-	site     string // venv site-packages ("" without venv)
-	rocblas  string // librocblas.so.5 the venv (or system) loads
-	libSHA   string
-	profiles []tuning.Profile
-	profErr  error
-	match    *tuning.Profile
-	hfCache  string
-	hfFree   uint64 // free bytes on the HF cache filesystem, 0 = unknown
-	devices  devices
-	amdgpu   bool // amdgpu kernel module loaded
+	root      string
+	host      host.Info
+	gpus      []gpu.GPU
+	gpuErr    error
+	rocm      rocm.Report
+	venv      string
+	venvRep   rocm.VenvReport
+	site      string // venv site-packages ("" without venv)
+	rocblas   string // librocblas.so.5 the venv (or system) loads
+	libSHA    string
+	profiles  []tuning.Profile
+	profErr   error
+	match     *tuning.Profile
+	hfCache   string
+	hfFree    uint64 // free bytes on the HF cache filesystem, 0 = unknown
+	devices   devices
+	amdgpu    bool     // amdgpu kernel module loaded
+	validated []string // gfx targets with validated recipes
 }
 
 // devices is the state of the GPU device nodes.
@@ -131,7 +135,7 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 		}
 		return false
 	}
-	in := inputs{root: root, venv: o.Venv}
+	in := inputs{root: root, venv: o.Venv, validated: o.ValidatedArchs}
 	var wg sync.WaitGroup
 	run := func(f func()) {
 		wg.Add(1)
