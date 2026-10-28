@@ -46,6 +46,9 @@ main { max-width: 1400px; margin: 0 auto; padding: 16px; }
 td canvas.spark { width: 180px; height: 26px; margin: 0; }
 .empty { color: var(--muted); padding: 8px 0; }
 .err { color: var(--fail); white-space: pre-wrap; }
+.power-card code { overflow-wrap: anywhere; white-space: normal; }
+.power-card input[type="range"] { width: 150px; }
+.power-card input[type="number"] { width: 86px; }
 
 dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0; }
 dl.kv dt { color: var(--muted); }
