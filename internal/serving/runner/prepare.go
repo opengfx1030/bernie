@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
-	"github.com/opengfx1030/rdnactl/internal/machine/topo"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/machine/topo"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 // PrepareOptions are the inputs of Prepare: the same as `serve` and
@@ -88,7 +88,7 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 	if mode == recipe.ModeHost {
 		hostEnvDefaults(p, cfg)
 		if venv == "" {
-			p.Warnings = append(p.Warnings, "no venv: use --venv, $RDNACTL_VENV, `rdnactl config set venv DIR` or activate one")
+			p.Warnings = append(p.Warnings, "no venv: use --venv, $BERNIE_VENV, `bernie config set venv DIR` or activate one")
 		}
 		if v := p.Env["VLLM_TUNED_CONFIG_FOLDER"]; v != "" && !isDir(v) {
 			p.Warnings = append(p.Warnings, fmt.Sprintf("VLLM_TUNED_CONFIG_FOLDER %s does not exist on this host", v))
@@ -142,7 +142,7 @@ func hostEnvDefaults(p *recipe.Plan, cfg config.Config) {
 }
 
 // containerMounts mounts a tuned-MoE directory that exists on the host at
-// /rdnactl/tuned-moe (a path inside the image, like the default
+// /bernie/tuned-moe (a path inside the image, like the default
 // /src/vllm/tuned-moe, needs no mount).
 func containerMounts(p *recipe.Plan) {
 	v := p.Env["VLLM_TUNED_CONFIG_FOLDER"]

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # Production full-HIP serve: breakable FULL_AND_PIECEWISE graphs (FA-RDNA2 +
 # W4A16 + HIP KV + HIP GDN). Fork recipe: tools/rdna/recipes/full.env.
@@ -10,7 +10,7 @@
 # Keep max-model-len at 32768 or more (the fork's MIN_MAXLEN floor).
 #
 # Override any key, e.g.
-#   rdnactl serve full --set env.HIP_VISIBLE_DEVICES=2,3 \
+#   bernie serve full --set env.HIP_VISIBLE_DEVICES=2,3 \
 #     --set args.max-model-len=32768 --set args.kv-cache-memory-bytes=6000000000
 #
 # Decode-stall cap: off here. On 27B at TP=2 every step is ~2x slower than at

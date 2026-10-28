@@ -46,7 +46,7 @@ func TestApplyBandwidth(t *testing.T) {
 }
 
 func TestParseTorchProbe(t *testing.T) {
-	got, err := parseTorchProbe("warning: noise\nRDNACTL_JSON:{\"0-1\": 25.5, \"1-0\": 24.9}\n")
+	got, err := parseTorchProbe("warning: noise\nBERNIE_JSON:{\"0-1\": 25.5, \"1-0\": 24.9}\n")
 	if err != nil {
 		t.Fatal(err)
 	}

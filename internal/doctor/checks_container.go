@@ -3,7 +3,7 @@ package doctor
 import (
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/host"
 )
 
 func containerChecks(in inputs) []Check {
@@ -35,18 +35,18 @@ func containerChecks(in inputs) []Check {
 		if e.Name == "podman" {
 			feat = host.PkgPodmanCompose
 		}
-		out = append(out, check(cat, "compose", Warn, "Compose is installed", "rdnactl compose files need docker compose, podman compose or podman-compose").with(install(pm, feat, "Install compose."), docCompose))
+		out = append(out, check(cat, "compose", Warn, "Compose is installed", "bernie compose files need docker compose, podman compose or podman-compose").with(install(pm, feat, "Install compose."), docCompose))
 	}
 	mode := "rootful"
 	if e.Rootless {
-		mode = "rootless (rdnactl uses --group-add keep-groups)"
+		mode = "rootless (bernie uses --group-add keep-groups)"
 	}
 	out = append(out, check(cat, "rootless", OK, "Rootless state", mode))
 	switch in.host.SELinux {
 	case "":
 		out = append(out, check(cat, "selinux", Skip, "SELinux mode", "no SELinux"))
 	case "enforcing":
-		out = append(out, check(cat, "selinux", OK, "SELinux mode", "enforcing: rdnactl runs containers with --security-opt label=disable").with("", docCompose))
+		out = append(out, check(cat, "selinux", OK, "SELinux mode", "enforcing: bernie runs containers with --security-opt label=disable").with("", docCompose))
 	default:
 		out = append(out, check(cat, "selinux", OK, "SELinux mode", in.host.SELinux))
 	}

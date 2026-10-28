@@ -1,5 +1,5 @@
 name: Host report
-description: rdnactl does not work (or works) on my machine
+description: bernie does not work (or works) on my machine
 labels: [host-report]
 body:
   - type: textarea
@@ -12,20 +12,20 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: rdnactl doctor --json
+      label: bernie doctor --json
       render: json
     validations:
       required: true
   - type: textarea
     id: hw
     attributes:
-      label: rdnactl hw --json
+      label: bernie hw --json
       render: json
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: rdnactl version
+      label: bernie version
     validations:
       required: true

@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
-	"github.com/opengfx1030/rdnactl/internal/serving/tuning"
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
 func find(t *testing.T, checks []Check, id string) Check {
@@ -222,7 +222,7 @@ func TestPowerAdviceFollowsDeviceTable(t *testing.T) {
 	// A W7800 at any cap has no advice; the V620 above 180 W does.
 	in.gpus = []gpu.GPU{{HIPIndex: 0, GFX: "gfx1100", DeviceID: "0x7449", PowerCapW: 300}, {HIPIndex: 1, GFX: "gfx1030", DeviceID: "0x73a1", PowerCapW: 250}}
 	c := find(t, evaluate(in), "tuning.power")
-	if c.Status != Warn || !strings.Contains(c.Detail, "Radeon PRO V620 above 180 W: GPU 1 250 W") || strings.Contains(c.Detail+c.Fix, "GPU 0") || c.Fix != "rdnactl tune power set 180 --gpu 1" {
+	if c.Status != Warn || !strings.Contains(c.Detail, "Radeon PRO V620 above 180 W: GPU 1 250 W") || strings.Contains(c.Detail+c.Fix, "GPU 0") || c.Fix != "bernie tune power set 180 --gpu 1" {
 		t.Errorf("tuning.power = %+v", c)
 	}
 	in.gpus = in.gpus[:1]

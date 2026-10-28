@@ -13,8 +13,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
-	"github.com/opengfx1030/rdnactl/recipes"
+	"github.com/opengfx1030/bernie/internal/support/paths"
+	"github.com/opengfx1030/bernie/recipes"
 )
 
 // Statuses a recipe can have.
@@ -96,7 +96,7 @@ type Set struct {
 }
 
 // Load reads recipes in spec §7.1 order: embedded built-ins, then
-// <config>/recipes, then each directory of $RDNACTL_RECIPES, then extra
+// <config>/recipes, then each directory of $BERNIE_RECIPES, then extra
 // (directories or files). Directories are walked recursively. A later file
 // with the same id replaces an earlier one, except inside one directory tree,
 // where a duplicate id is an error naming both paths. Files that fail are
@@ -105,7 +105,7 @@ func Load(extra ...string) Set {
 	s := Set{Recipes: map[string]*Recipe{}, Errors: []LoadError{}}
 	s.loadFS(recipes.FS, "builtin:")
 	s.loadPath(filepath.Join(paths.Config(), "recipes"), true)
-	for _, d := range filepath.SplitList(os.Getenv("RDNACTL_RECIPES")) {
+	for _, d := range filepath.SplitList(os.Getenv("BERNIE_RECIPES")) {
 		if d != "" {
 			s.loadPath(d, false)
 		}

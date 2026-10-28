@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,7 +87,7 @@ func TestDoctorLogFile(t *testing.T) {
 
 func TestDoctorLogRun(t *testing.T) {
 	state := t.TempDir()
-	t.Setenv("RDNACTL_STATE_DIR", state)
+	t.Setenv("BERNIE_STATE_DIR", state)
 	run := func(name string) string { return filepath.Join(state, "runs", name) }
 
 	// run.json names the log file.

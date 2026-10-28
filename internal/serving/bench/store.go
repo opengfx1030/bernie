@@ -16,8 +16,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // Dir is where results are stored: <state>/bench.

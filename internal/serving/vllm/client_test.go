@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/vllm"
-	"github.com/opengfx1030/rdnactl/internal/serving/vllm/vllmtest"
+	"github.com/opengfx1030/bernie/internal/serving/vllm"
+	"github.com/opengfx1030/bernie/internal/serving/vllm/vllmtest"
 )
 
 func TestParseMetrics(t *testing.T) {

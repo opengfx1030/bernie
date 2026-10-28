@@ -42,7 +42,7 @@ func TestIsLoopback(t *testing.T) {
 func TestLoopbackMode(t *testing.T) {
 	h := newServer(Options{Listen: "127.0.0.1:7860"}).handler()
 
-	if w := do(t, h, "GET", "/", map[string]string{"Host": "127.0.0.1:7860"}); w.Code != 200 || !strings.Contains(w.Body.String(), "<title>rdnactl</title>") {
+	if w := do(t, h, "GET", "/", map[string]string{"Host": "127.0.0.1:7860"}); w.Code != 200 || !strings.Contains(w.Body.String(), "<title>bernie</title>") {
 		t.Fatalf("GET / on loopback: %d %q", w.Code, w.Body.String())
 	}
 	if w := do(t, h, "GET", "/app.js", map[string]string{"Host": "localhost:7860"}); w.Code != 200 {
@@ -52,15 +52,15 @@ func TestLoopbackMode(t *testing.T) {
 	if w := do(t, h, "GET", "/api/hw", map[string]string{"Host": "evil.example:7860"}); w.Code != http.StatusForbidden {
 		t.Fatalf("foreign Host: got %d, want 403", w.Code)
 	}
-	// Mutations need X-Rdnactl: 1.
+	// Mutations need X-Bernie: 1.
 	for _, m := range []string{"POST /api/runs", "DELETE /api/runs/x", "POST /api/bench"} {
 		method, path, _ := strings.Cut(m, " ")
 		if w := do(t, h, method, path, map[string]string{"Host": "127.0.0.1:7860"}); w.Code != http.StatusForbidden {
-			t.Errorf("%s without X-Rdnactl: got %d, want 403", m, w.Code)
+			t.Errorf("%s without X-Bernie: got %d, want 403", m, w.Code)
 		}
 	}
 	// With the header the request reaches the handler (which rejects the empty body).
-	w := do(t, h, "POST", "/api/runs", map[string]string{"Host": "127.0.0.1:7860", "X-Rdnactl": "1"})
+	w := do(t, h, "POST", "/api/runs", map[string]string{"Host": "127.0.0.1:7860", "X-Bernie": "1"})
 	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "recipe is required") {
 		t.Fatalf("POST /api/runs with header: %d %s", w.Code, w.Body.String())
 	}
@@ -94,14 +94,14 @@ func TestTokenMode(t *testing.T) {
 	}
 	// A valid token does not lift the header requirement.
 	if w := do(t, h, "POST", "/api/runs", map[string]string{"Host": "gpu-box", "Authorization": "Bearer " + testToken}); w.Code != http.StatusForbidden {
-		t.Fatalf("POST with token, no X-Rdnactl: %d", w.Code)
+		t.Fatalf("POST with token, no X-Bernie: %d", w.Code)
 	}
-	w = do(t, h, "POST", "/api/runs", map[string]string{"Host": "gpu-box", "Authorization": "Bearer " + testToken, "X-Rdnactl": "1"})
+	w = do(t, h, "POST", "/api/runs", map[string]string{"Host": "gpu-box", "Authorization": "Bearer " + testToken, "X-Bernie": "1"})
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("POST with token and header should reach the handler: %d %s", w.Code, w.Body.String())
 	}
 	// The header alone is not a credential.
-	if w := do(t, h, "POST", "/api/runs", map[string]string{"Host": "gpu-box", "X-Rdnactl": "1"}); w.Code != http.StatusUnauthorized {
+	if w := do(t, h, "POST", "/api/runs", map[string]string{"Host": "gpu-box", "X-Bernie": "1"}); w.Code != http.StatusUnauthorized {
 		t.Fatalf("POST with header, no token: %d", w.Code)
 	}
 }

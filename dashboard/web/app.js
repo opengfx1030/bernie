@@ -1,4 +1,4 @@
-// rdnactl dashboard. Vanilla JS, no build step, no dependencies.
+// bernie dashboard. Vanilla JS, no build step, no dependencies.
 // Every view calls the JSON API of spec §11; the API calls the same Go code as the CLI.
 "use strict";
 
@@ -67,10 +67,10 @@ function toast(msg, ok) {
   toastTimer = setTimeout(() => (t.hidden = true), ok ? 3000 : 8000);
 }
 
-/** api() fetches JSON; mutating methods carry the X-Rdnactl header (CSRF guard). */
+/** api() fetches JSON; mutating methods carry the X-Bernie header (CSRF guard). */
 async function api(path, opts = {}) {
   const init = { method: opts.method || "GET", headers: {}, credentials: "same-origin" };
-  if (init.method !== "GET") init.headers["X-Rdnactl"] = "1";
+  if (init.method !== "GET") init.headers["X-Bernie"] = "1";
   if (opts.body !== undefined) {
     init.headers["Content-Type"] = "application/json";
     init.body = JSON.stringify(opts.body);
@@ -365,7 +365,7 @@ async function viewTopology(root) {
         h("div.scroll", matrix),
         h("div.legend", ["PIX same switch", "PXB several switches", "PHB host bridge", "SYS across CPUs"].map((s) => h("span", { class: "c-" + s.slice(0, 3) }, s)),
           h("span", "• = KFD P2P link")),
-        topo.bandwidth ? null : h("div.small.muted", "Run `rdnactl topo --bandwidth` to measure GB/s per pair."))));
+        topo.bandwidth ? null : h("div.small.muted", "Run `bernie topo --bandwidth` to measure GB/s per pair."))));
   } catch (e) {
     put(root, failed(e));
   }
@@ -488,7 +488,7 @@ async function viewRuns(root) {
 }
 
 function runsTable(runs, compact, logCard, root) {
-  if (!runs.length) return h("div.empty", "No runs. Start one from the Recipes tab or with `rdnactl serve <recipe>`.");
+  if (!runs.length) return h("div.empty", "No runs. Start one from the Recipes tab or with `bernie serve <recipe>`.");
   const tele = new Map(((state.tele && state.tele.runs) || []).map((r) => [r.name, r]));
   return h("div.scroll", h("table",
     h("thead", h("tr", h("th", "Name"), h("th", "Recipe"), h("th", "State"), compact ? null : h("th", "Mode"), h("th", "Address"), compact ? null : h("th", "Started"), compact ? null : h("th", ""))),

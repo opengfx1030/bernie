@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
 // venvTree mirrors the venv-7.14.0 layout on par1-cs25 (TheRock wheels:

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
 // par1Tree mirrors the ROCm layout of par1-cs25: /opt/rocm-7.2.0 (7.2.0),
@@ -109,7 +109,7 @@ func TestCompareVersions(t *testing.T) {
 }
 
 func TestParseVenvOutput(t *testing.T) {
-	out := "INFO 10-28 vllm noise on stdout\nRDNACTL_JSON:{\"python\": \"3.12.13\", \"torch\": \"2.12.0+rocm7.14.0\", \"hip\": \"7.14.60850\", \"device_count\": 10, \"vllm\": \"0.31.0+rdna\", \"rdna_ops\": 42}\n"
+	out := "INFO 10-28 vllm noise on stdout\nBERNIE_JSON:{\"python\": \"3.12.13\", \"torch\": \"2.12.0+rocm7.14.0\", \"hip\": \"7.14.60850\", \"device_count\": 10, \"vllm\": \"0.31.0+rdna\", \"rdna_ops\": 42}\n"
 	rep := VenvReport{Venv: "/v"}
 	if !parseVenvOutput(out, &rep) {
 		t.Fatal("not parsed")

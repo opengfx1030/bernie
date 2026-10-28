@@ -10,7 +10,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
 )
 
 func TestEnv(t *testing.T) {
@@ -25,7 +25,7 @@ func TestEnv(t *testing.T) {
 		tune   string
 	}{
 		{"host rows", p, "/data/tunableop/a", false, "/data/tunableop/a/tunableop_results.csv", "0"},
-		{"container rows", p, "/rdnactl/tunableop/a", false, "/rdnactl/tunableop/a/tunableop_results.csv", "0"},
+		{"container rows", p, "/bernie/tunableop/a", false, "/bernie/tunableop/a/tunableop_results.csv", "0"},
 		{"no profile", nil, "", false, fallback, "0"},
 		{"tuning writes per-user file", p, "/data/tunableop/a", true, fallback, "1"},
 	}

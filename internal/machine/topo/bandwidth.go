@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
-	"github.com/opengfx1030/rdnactl/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/support/execx"
 )
 
 // Bandwidth sources.
@@ -275,12 +275,12 @@ for a in range(n):
         dt = time.perf_counter() - t0
         res["%d-%d" % (a, b)] = round(size * reps / dt / 1e9, 2)
         del dst
-print("RDNACTL_JSON:" + json.dumps(res))
+print("BERNIE_JSON:" + json.dumps(res))
 `
 
 func parseTorchProbe(out string) (map[[2]int]float64, error) {
 	for _, l := range strings.Split(out, "\n") {
-		js, ok := strings.CutPrefix(strings.TrimSpace(l), "RDNACTL_JSON:")
+		js, ok := strings.CutPrefix(strings.TrimSpace(l), "BERNIE_JSON:")
 		if !ok {
 			continue
 		}

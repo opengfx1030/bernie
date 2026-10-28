@@ -2,20 +2,20 @@ package health
 
 import (
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/doctor"
-	"github.com/opengfx1030/rdnactl/internal/flow"
+	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/flow"
 )
 
 func init() {
 	cmd := &cli.Command{Name: "status", Summary: "Overview of this host and the next command to type", Usage: "[--venv DIR]"}
 	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
-		venv := fs.String("venv", "", "host-mode venv (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
+		venv := fs.String("venv", "", "host-mode venv (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}

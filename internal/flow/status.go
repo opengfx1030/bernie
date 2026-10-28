@@ -6,12 +6,12 @@ package flow
 import (
 	"context"
 
-	"github.com/opengfx1030/rdnactl/internal/doctor"
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/serving/runner"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 // Summary is a compact, human-sized view of one host (spec §3.1).
@@ -69,11 +69,11 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 func next(s *Summary) []string {
 	var n []string
 	if len(s.GPUs) == 0 {
-		return []string{"rdnactl doctor   # no AMD GPU found: check /dev/kfd and the amdgpu driver"}
+		return []string{"bernie doctor   # no AMD GPU found: check /dev/kfd and the amdgpu driver"}
 	}
 	for _, ch := range s.Problems {
 		if ch.Status == doctor.Fail {
-			n = append(n, "rdnactl doctor   # "+ch.Title)
+			n = append(n, "bernie doctor   # "+ch.Title)
 			break
 		}
 	}
@@ -85,11 +85,11 @@ func next(s *Summary) []string {
 	}
 	switch {
 	case running:
-		n = append(n, "rdnactl dash", "rdnactl bench")
+		n = append(n, "bernie dash", "bernie bench")
 	case s.Best != "":
-		n = append(n, "rdnactl up   # serves "+s.Best)
+		n = append(n, "bernie up   # serves "+s.Best)
 	default:
-		n = append(n, "rdnactl recipe list --all   # no recipe fits this host")
+		n = append(n, "bernie recipe list --all   # no recipe fits this host")
 	}
 	return n
 }

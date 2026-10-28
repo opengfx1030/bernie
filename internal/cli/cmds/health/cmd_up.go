@@ -3,13 +3,13 @@ package health
 import (
 	"errors"
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/dashboard"
-	"github.com/opengfx1030/rdnactl/internal/flow"
+	"github.com/opengfx1030/bernie/dashboard"
+	"github.com/opengfx1030/bernie/internal/flow"
 )
 
 func init() {
@@ -71,7 +71,7 @@ func init() {
 
 func printUp(w io.Writer, r *flow.UpResult) {
 	fmt.Fprintf(w, "%s is serving (%s mode) at %s\n", r.Recipe, r.Mode, r.URL)
-	fmt.Fprintf(w, "  logs: rdnactl logs %s -f   stop: rdnactl stop %s   bench: rdnactl bench\n", r.Run.Name, r.Run.Name)
+	fmt.Fprintf(w, "  logs: bernie logs %s -f   stop: bernie stop %s   bench: bernie bench\n", r.Run.Name, r.Run.Name)
 }
 
 func isTerminal(f *os.File) bool {

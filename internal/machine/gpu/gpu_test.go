@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
 func TestGFXName(t *testing.T) {

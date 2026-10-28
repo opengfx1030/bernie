@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # Flash-Next EXL3 (turboderp/Qwen3.8-Flash-Next-exl3, exllamav3 >= 1.4.5) on
 # gfx1030, TP4, no MTP. Fork recipe: tools/rdna/recipes/flashnext-exl3.env.
@@ -14,7 +14,7 @@
 #   EXL3 experts run through Exl3MoEMethod.
 # Host mode only: the v0.31.0-extras image does not have the EXL3 MoE path.
 #
-#   rdnactl serve flashnext-exl3 --set model.source=/path/to/Qwen3.8-Flash-Next-exl3-3.05bpw
+#   bernie serve flashnext-exl3 --set model.source=/path/to/Qwen3.8-Flash-Next-exl3-3.05bpw
 schema: 1
 extends: [flashnext, _ple-exl3]
 name: Qwen3.8 Flash-Next EXL3 3.05 bpw, TP4/EP4

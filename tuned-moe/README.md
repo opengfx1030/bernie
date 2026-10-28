@@ -2,7 +2,7 @@
 
 vLLM's fused-MoE kernel reads one JSON file per MoE shape from the folder in
 `VLLM_TUNED_CONFIG_FOLDER`. The folder must be flat. The files are specific
-to a GPU architecture, so rdnactl keeps one folder per architecture:
+to a GPU architecture, so bernie keeps one folder per architecture:
 
 ```text
 tuned-moe/
@@ -10,7 +10,7 @@ tuned-moe/
     E=128,N=640,device_name=AMD_Radeon_Pro_V620,dtype=int4_w4a16.json
 ```
 
-## How rdnactl uses them
+## How bernie uses them
 
 - Host mode copies the folder of the selected GPUs' architecture to
   `<data>/tuned-moe/<arch>/` and sets `VLLM_TUNED_CONFIG_FOLDER` to it.

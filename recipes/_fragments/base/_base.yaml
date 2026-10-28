@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # Shared base of every RDNA fork recipe.
 # Port of rdna_init() in tools/rdna/rdna_launcher_common.sh and of the fixed
 # arguments of tools/rdna/serve_rdna.sh (opengfx1030/vllm-rdna, rdna_extras).
 #
-# Not ported, on purpose (rdnactl owns these):
+# Not ported, on purpose (bernie owns these):
 # - LD_LIBRARY_PATH, VLLM_CACHE_ROOT, TRITON_CACHE_DIR, TORCHINDUCTOR_CACHE_DIR,
 #   TORCH_EXTENSIONS_DIR: the host runner sets them per run (spec 8.1).
-# - HIP_VISIBLE_DEVICES: rdnactl selects the GPUs (spec 7.7). The fork
+# - HIP_VISIBLE_DEVICES: bernie selects the GPUs (spec 7.7). The fork
 #   default was 0,1,2,3.
 # - PYTHONPATH=<fork tree>: the venv has the fork installed (editable).
 # - ROCM_HOME/ROCM_PATH/HIP_PATH/HIP_ROOT_DIR: the host runner sets them from
@@ -33,7 +33,7 @@ container:
   pull: true
 
 env:
-  # HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE are set per plan by rdnactl: 1 for a
+  # HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE are set per plan by bernie: 1 for a
   # local model path, 0 for a Hugging Face repo id (the fork always used 1).
   VLLM_WORKER_MULTIPROC_METHOD: spawn
   GPU_MAX_HW_QUEUES: "2"

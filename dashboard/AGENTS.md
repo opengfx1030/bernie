@@ -19,7 +19,7 @@ view of the CLI. It adds no logic.
    fonts. The UI is plain HTML, CSS and JavaScript embedded with `go:embed`.
 4. **No `innerHTML`.** Build DOM with `h()` in `web/app.js`. Server data is
    text.
-5. **Writes are guarded.** Every POST and DELETE keeps the `X-Rdnactl` header
+5. **Writes are guarded.** Every POST and DELETE keeps the `X-Bernie` header
    check and the token rules in `auth.go`. Never loosen them.
 6. **Redact.** Anything sent to the browser goes through `redact.go`.
 7. **One question per tab.** Do not add a seventh tab for a feature that fits
@@ -47,7 +47,7 @@ view of the CLI. It adds no logic.
 ```bash
 make check                          # gofmt, vet, all tests
 go test ./dashboard/...             # API, auth, streams
-rdnactl dash --listen 127.0.0.1:7860
+bernie dash --listen 127.0.0.1:7860
 ```
 
 For a UI change, open each tab in a browser. Check: light and dark, a

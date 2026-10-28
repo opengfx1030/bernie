@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # Qwen3.8-27B-exl3-3.00bpw (mul1, TP=4) on gfx1030.
 # Fork recipe: tools/rdna/recipes/27b-exl3.env. Reference:

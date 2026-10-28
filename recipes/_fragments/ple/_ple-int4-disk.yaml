@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # PLE=int4-disk of serve_rdna.sh: the INT4 table from PLE_QUANT_DIR is
 # memory-mapped from disk and served by the CPU sidecar (page cache only).

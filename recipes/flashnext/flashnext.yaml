@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # Flash-Next AWQ-W4A16 production serve (no MTP), TP4/EP4 on gfx1030.
 # Fork recipe: tools/rdna/recipes/flashnext.env. Reference:
@@ -14,7 +14,7 @@
 # configs, TunableOp profile, rdna_ar one-shot).
 #
 # Override any key, e.g.
-#   rdnactl serve flashnext --set PLE_QUANT_DIR=/data/ples_int4 \
+#   bernie serve flashnext --set PLE_QUANT_DIR=/data/ples_int4 \
 #     --set args.port=18100 --set args.kv-cache-memory-bytes=6000000000
 schema: 1
 extends: [_flashnext-common]

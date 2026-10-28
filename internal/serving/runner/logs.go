@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
 )
 
 // Logs writes the last tail lines of a run's log (all when tail <= 0) and

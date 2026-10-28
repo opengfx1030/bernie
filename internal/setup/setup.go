@@ -7,11 +7,11 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
-	"github.com/opengfx1030/rdnactl/internal/support/execx"
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // Defaults for the host and container stacks.

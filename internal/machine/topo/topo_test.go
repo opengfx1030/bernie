@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
 func par1(t *testing.T) Topology {

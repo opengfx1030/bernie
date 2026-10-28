@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/serving/vllm"
-	"github.com/opengfx1030/rdnactl/internal/serving/vllm/vllmtest"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/serving/vllm"
+	"github.com/opengfx1030/bernie/internal/serving/vllm/vllmtest"
 )
 
 func TestPromptsSaltAndDeterminism(t *testing.T) {
@@ -87,7 +87,7 @@ func TestCalibrateFallbackAndErrors(t *testing.T) {
 }
 
 func TestRunAgainstFakeServer(t *testing.T) {
-	t.Setenv("RDNACTL_STATE_DIR", t.TempDir())
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
 	fake := vllmtest.New(vllmtest.Config{
 		Model:          "fake-mtp",
 		TTFT:           40 * ms,
@@ -173,7 +173,7 @@ func TestRunAgainstFakeServer(t *testing.T) {
 }
 
 func TestRunDefaultsAndEstimate(t *testing.T) {
-	t.Setenv("RDNACTL_STATE_DIR", t.TempDir())
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
 	srv := httptest.NewServer(vllmtest.New(vllmtest.Config{NoTokenize: true, NoContinuousUsage: true}))
 	defer srv.Close()
 	r, err := Run(context.Background(), Options{URL: srv.URL + "/", OutputLen: 4, Concurrency: []int{2}}, nil)
@@ -281,7 +281,7 @@ func TestFingerprint(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	t.Setenv("RDNACTL_STATE_DIR", t.TempDir())
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
 	if rs, err := List(); err != nil || len(rs) != 0 {
 		t.Fatalf("empty List = %v, %v", rs, err)
 	}

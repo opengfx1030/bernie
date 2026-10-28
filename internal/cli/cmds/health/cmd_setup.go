@@ -4,18 +4,18 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
 	"slices"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/machine/rocm"
-	"github.com/opengfx1030/rdnactl/internal/setup"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/setup"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 type setupFlags struct {
@@ -25,7 +25,7 @@ type setupFlags struct {
 func addSetupFlags(fs *flag.FlagSet) setupFlags {
 	return setupFlags{
 		mode:  fs.String("mode", "", "host or container (default: config mode, else both)"),
-		venv:  fs.String("venv", "", "venv for host mode (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV, else "+setup.DefaultVenv()+")"),
+		venv:  fs.String("venv", "", "venv for host mode (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV, else "+setup.DefaultVenv()+")"),
 		image: fs.String("image", "", "image for container mode (default "+setup.DefaultImage+")"),
 		model: fs.String("model", "", "Hugging Face repo to download (adds the model.download step)"),
 	}

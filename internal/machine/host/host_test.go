@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/support/execx"
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
+	"github.com/opengfx1030/bernie/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
 func TestProbePar1(t *testing.T) {

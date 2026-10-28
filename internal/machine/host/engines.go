@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/support/execx"
 )
 
 // runner runs a tool; it is execx.Run in production and a fake in tests.

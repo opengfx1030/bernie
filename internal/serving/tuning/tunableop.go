@@ -15,9 +15,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
-	"github.com/opengfx1030/rdnactl/tunableop"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/support/paths"
+	"github.com/opengfx1030/bernie/tunableop"
 )
 
 // SHAPrefix is the number of hex digits of the librocblas.so.5 sha256 that
@@ -25,7 +25,7 @@ import (
 const SHAPrefix = 12
 
 // ContainerRowsDir is where the container runner mounts a profile's rows.
-const ContainerRowsDir = "/rdnactl/tunableop"
+const ContainerRowsDir = "/bernie/tunableop"
 
 // rowsFile is the PYTORCH_TUNABLEOP_FILENAME base name. PyTorch inserts the
 // device ordinal before the extension (tunableop_results0.csv, ...).

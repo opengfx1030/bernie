@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # Shared Flash-Next AWQ-W4A16 serving profile, TP4/EP4 on 4x gfx1030
 # (Radeon PRO V620, 32 GB). This is the common part of the fork recipes
@@ -8,7 +8,7 @@
 # variants extend it.
 #
 # Fork differences carried here:
-# - PLE: the fork default is PLE=bf16 (~95 GB host RAM). rdnactl defaults to
+# - PLE: the fork default is PLE=bf16 (~95 GB host RAM). bernie defaults to
 #   PLE=int4 (_ple-int4, ~30 GB) and asks for PLE_QUANT_DIR. See _ple-int4.yaml
 #   for int4-disk and bf16.
 schema: 1

@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 func startContainer(ctx context.Context, p *recipe.Plan, o StartOptions, rec *Record) (*Record, error) {

@@ -10,8 +10,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/host"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
 )
 
 func plan(entry string) *recipe.Plan {
@@ -22,7 +22,7 @@ func plan(entry string) *recipe.Plan {
 		Unset:      []string{"FLASH_ATTENTION_TRITON_AMD_ENABLE"},
 		Args:       []string{"org/m", "--port", "18096", "--x", `{"a":"$b"}`},
 		PathInputs: []string{"/data/ple"},
-		Mounts:     []recipe.Mount{{Host: "/host/tm", Container: "/rdnactl/tuned-moe", ReadOnly: true}},
+		Mounts:     []recipe.Mount{{Host: "/host/tm", Container: "/bernie/tuned-moe", ReadOnly: true}},
 	}
 }
 
@@ -43,7 +43,7 @@ func TestHostArgv(t *testing.T) {
 
 func TestHostEnv(t *testing.T) {
 	cache := t.TempDir()
-	t.Setenv("RDNACTL_CACHE_DIR", cache)
+	t.Setenv("BERNIE_CACHE_DIR", cache)
 	venv := t.TempDir()
 	sp := filepath.Join(venv, "lib", "python3.12", "site-packages")
 	for _, d := range []string{"_rocm_sdk_libraries/lib", "_rocm_sdk_core/lib", "torch/lib"} {
@@ -108,11 +108,11 @@ func sortedStrings(s []string) bool {
 }
 
 func TestContainerCommand(t *testing.T) {
-	common := []string{"run", "-d", "--name", "rdnactl-run1", "--label", "rdnactl.run=run1",
+	common := []string{"run", "-d", "--name", "bernie-run1", "--label", "bernie.run=run1",
 		"--network", "host", "--ipc", "host", "--shm-size", "16g", "--device", "/dev/kfd", "--device", "/dev/dri"}
 	sec := []string{"--security-opt", "seccomp=unconfined", "--security-opt", "label=disable",
-		"-v", "/hf:/root/.cache/huggingface", "-v", "/rows:/rdnactl/tunableop:ro",
-		"-v", "/host/tm:/rdnactl/tuned-moe:ro", "-v", "/data/ple:/data/ple",
+		"-v", "/hf:/root/.cache/huggingface", "-v", "/rows:/bernie/tunableop:ro",
+		"-v", "/host/tm:/bernie/tuned-moe:ro", "-v", "/data/ple:/data/ple",
 		"-e", "A=1", "-e", "B=2", "-e", "PRICE=$5"}
 	cat := func(parts ...[]string) []string {
 		var out []string
@@ -175,7 +175,7 @@ func TestCompose(t *testing.T) {
 				t.Fatalf("%v\n%s", err, b)
 			}
 			s, ok := doc.Services["vllm"]
-			if !ok || doc.Name != "rdnactl-run1" {
+			if !ok || doc.Name != "bernie-run1" {
 				t.Fatalf("doc: %+v", doc)
 			}
 			if s.Image != "img:1" || s.NetworkMode != "host" || s.IPC != "host" || s.ShmSize != "16g" {
@@ -186,7 +186,7 @@ func TestCompose(t *testing.T) {
 				!reflect.DeepEqual(s.SecurityOpt, []string{"seccomp=unconfined", "label=disable"}) {
 				t.Errorf("devices/groups/security: %+v", s)
 			}
-			wantVol := []string{"/hf:/root/.cache/huggingface", "/rows:/rdnactl/tunableop:ro", "/host/tm:/rdnactl/tuned-moe:ro", "/data/ple:/data/ple"}
+			wantVol := []string{"/hf:/root/.cache/huggingface", "/rows:/bernie/tunableop:ro", "/host/tm:/bernie/tuned-moe:ro", "/data/ple:/data/ple"}
 			if !reflect.DeepEqual(s.Volumes, wantVol) {
 				t.Errorf("volumes = %q", s.Volumes)
 			}
@@ -259,7 +259,7 @@ func TestShellQuote(t *testing.T) {
 }
 
 func TestRecordRoundTripAndURL(t *testing.T) {
-	t.Setenv("RDNACTL_STATE_DIR", t.TempDir())
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
 	r := &Record{Name: "run1", Recipe: "r", Mode: recipe.ModeHost, PID: 42, Host: "", Port: 18096}
 	if err := writeRecord(r); err != nil {
 		t.Fatal(err)

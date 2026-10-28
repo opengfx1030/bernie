@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by rdnactl.
+# Ported from opengfx1030/vllm-rdna (rdna_extras) tools/rdna by bernie.
 #
 # PLE=int4 of serve_rdna.sh: the Flash-Next PLE n-gram table as INT4, held in
 # pinned host RAM (~30 GB). The fork default PLE=bf16 needs ~95 GB host RAM.

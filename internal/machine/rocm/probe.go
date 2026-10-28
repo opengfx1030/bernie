@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/support/execx"
 )
 
 // Tools probed on PATH (then in the install bin dirs).
@@ -282,7 +282,7 @@ errs = []
 def done():
     if errs:
         r["error"] = "; ".join(errs)
-    print("RDNACTL_JSON:" + json.dumps(r))
+    print("BERNIE_JSON:" + json.dumps(r))
     sys.exit(0)
 try:
     import torch
@@ -344,7 +344,7 @@ func ProbeVenv(ctx context.Context, venv string) VenvReport {
 // parseVenvOutput fills rep from the marked JSON line.
 func parseVenvOutput(out string, rep *VenvReport) bool {
 	for _, line := range strings.Split(out, "\n") {
-		js, ok := strings.CutPrefix(strings.TrimSpace(line), "RDNACTL_JSON:")
+		js, ok := strings.CutPrefix(strings.TrimSpace(line), "BERNIE_JSON:")
 		if !ok {
 			continue
 		}

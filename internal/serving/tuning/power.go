@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
 )
 
 // V620ToolboxURL documents the V620 power-floor unlock (the VBIOS declares a

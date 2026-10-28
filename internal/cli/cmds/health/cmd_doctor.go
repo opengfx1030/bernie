@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/rdnactl/internal/doctor"
-	"github.com/opengfx1030/rdnactl/internal/logdoc"
-	"github.com/opengfx1030/rdnactl/internal/serving/recipe"
-	"github.com/opengfx1030/rdnactl/internal/support/config"
-	"github.com/opengfx1030/rdnactl/internal/support/execx"
-	"github.com/opengfx1030/rdnactl/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/logdoc"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 func init() {
@@ -26,7 +26,7 @@ func init() {
 		fs := c.Flags(cmd)
 		var cats cli.MultiFlag
 		fs.Var(&cats, "category", "limit to a category: "+strings.Join(doctor.Categories, ", ")+" (repeatable)")
-		venvFlag := fs.String("venv", "", "venv for the python checks (default: $RDNACTL_VENV, config venv, $VIRTUAL_ENV)")
+		venvFlag := fs.String("venv", "", "venv for the python checks (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 		logFlag := fs.String("log", "", "match a vLLM log file against the known-failure catalog instead of running host checks (- reads stdin)")
 		runFlag := fs.String("run", "", "like --log, for the log of the run NAME")
 		if _, err := cli.Parse(fs, args); err != nil {

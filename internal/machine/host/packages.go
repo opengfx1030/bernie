@@ -2,7 +2,7 @@ package host
 
 import "strings"
 
-// Package features rdnactl can ask the operator to install.
+// Package features bernie can ask the operator to install.
 const (
 	PkgROCm          = "rocm"           // ROCm runtime + HIP SDK
 	PkgHIPCC         = "hipcc"          // HIP compiler

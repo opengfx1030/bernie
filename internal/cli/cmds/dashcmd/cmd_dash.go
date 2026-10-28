@@ -2,11 +2,11 @@ package dashcmd
 
 import (
 	"fmt"
-	"github.com/opengfx1030/rdnactl/internal/cli"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
 
-	"github.com/opengfx1030/rdnactl/dashboard"
+	"github.com/opengfx1030/bernie/dashboard"
 )
 
 func init() {
@@ -18,7 +18,7 @@ func init() {
 	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
 		listen := fs.String("listen", dashboard.DefaultListen, "listen address; a non-loopback address requires the token")
-		token := fs.String("token", "", "access token (default $RDNACTL_DASH_TOKEN; random when the address is not loopback)")
+		token := fs.String("token", "", "access token (default $BERNIE_DASH_TOKEN; random when the address is not loopback)")
 		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
@@ -27,7 +27,7 @@ func init() {
 			return cli.Usagef("unexpected argument %q", pos[0])
 		}
 		if *token == "" {
-			*token = os.Getenv("RDNACTL_DASH_TOKEN")
+			*token = os.Getenv("BERNIE_DASH_TOKEN")
 		}
 		if *token == "" && !dashboard.IsLoopback(*listen) {
 			*token = dashboard.NewToken()
@@ -38,7 +38,7 @@ func init() {
 			Log:    c.Err,
 			Ready: func(url string) {
 				_ = c.Emit(map[string]any{"url": url, "listen": *listen, "token_required": *token != ""}, func(w io.Writer) {
-					fmt.Fprintf(w, "rdnactl dashboard: %s\n", url)
+					fmt.Fprintf(w, "bernie dashboard: %s\n", url)
 					if *token != "" {
 						fmt.Fprintln(w, "API clients: send the header \"Authorization: Bearer <token>\".")
 					}

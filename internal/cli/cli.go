@@ -49,7 +49,7 @@ type Context struct {
 	Out  io.Writer
 	Err  io.Writer
 	JSON bool
-	// Path is the command path, e.g. "rdnactl recipe show".
+	// Path is the command path, e.g. "bernie recipe show".
 	Path string
 }
 
@@ -96,12 +96,12 @@ func Main(args []string) int {
 		}
 		rest = append(rest, a)
 	}
-	c := &Context{Ctx: ctx, Out: os.Stdout, Err: os.Stderr, JSON: jsonOut, Path: "rdnactl"}
+	c := &Context{Ctx: ctx, Out: os.Stdout, Err: os.Stderr, JSON: jsonOut, Path: "bernie"}
 	// The product surface is "run the binary": no arguments means status.
 	if len(rest) == 0 && registry["status"] != nil {
 		rest = []string{"status"}
 	}
-	root := &Command{Name: "rdnactl", Subs: topLevel()}
+	root := &Command{Name: "bernie", Subs: topLevel()}
 	err := dispatch(c, root, rest)
 	if err == nil {
 		return ExitOK
@@ -122,7 +122,7 @@ func Main(args []string) int {
 		enc.SetEscapeHTML(false)
 		_ = enc.Encode(map[string]any{"error": err.Error(), "exit_code": code})
 	default:
-		fmt.Fprintf(c.Err, "rdnactl: %v\n", err)
+		fmt.Fprintf(c.Err, "bernie: %v\n", err)
 	}
 	return code
 }

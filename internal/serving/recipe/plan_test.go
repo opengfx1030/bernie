@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opengfx1030/rdnactl/internal/machine/gpu"
-	"github.com/opengfx1030/rdnactl/internal/machine/topo"
-	"github.com/opengfx1030/rdnactl/internal/support/fixture"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/topo"
+	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
 func TestParseSet(t *testing.T) {

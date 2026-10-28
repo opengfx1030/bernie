@@ -27,8 +27,8 @@ func TestLoadOrderAndErrors(t *testing.T) {
 	write(env, "mine.yaml", strings.Replace(leaf, "Leaf", "env", 1))
 	write(env, "broken.yml", "schema: 1\nwhat: 1\n")
 	extraFile := write(extra, "mine.yaml", strings.Replace(leaf, "Leaf", "extra", 1))
-	t.Setenv("RDNACTL_CONFIG_DIR", cfg)
-	t.Setenv("RDNACTL_RECIPES", env+string(os.PathListSeparator)+filepath.Join(env, "missing"))
+	t.Setenv("BERNIE_CONFIG_DIR", cfg)
+	t.Setenv("BERNIE_RECIPES", env+string(os.PathListSeparator)+filepath.Join(env, "missing"))
 
 	s := Load(extraFile)
 	if got := s.Recipes["mine"].Name; got != "extra" {
@@ -52,8 +52,8 @@ func TestLoadOrderAndErrors(t *testing.T) {
 
 func TestLoadWalksDirectoriesRecursively(t *testing.T) {
 	cfg, env := t.TempDir(), t.TempDir()
-	t.Setenv("RDNACTL_CONFIG_DIR", cfg)
-	t.Setenv("RDNACTL_RECIPES", env)
+	t.Setenv("BERNIE_CONFIG_DIR", cfg)
+	t.Setenv("BERNIE_RECIPES", env)
 	write := func(rel, body string) {
 		p := filepath.Join(env, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -80,8 +80,8 @@ func TestLoadWalksDirectoriesRecursively(t *testing.T) {
 
 func TestLoadDuplicateIDInOneTreeNamesBothPaths(t *testing.T) {
 	cfg, env := t.TempDir(), t.TempDir()
-	t.Setenv("RDNACTL_CONFIG_DIR", cfg)
-	t.Setenv("RDNACTL_RECIPES", env)
+	t.Setenv("BERNIE_CONFIG_DIR", cfg)
+	t.Setenv("BERNIE_RECIPES", env)
 	for _, rel := range []string{"a/same.yaml", "b/same.yaml"} {
 		p := filepath.Join(env, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
