@@ -58,7 +58,8 @@ flowchart LR
 | `api.go` | One handler per endpoint in spec §11 |
 | `auth.go` | Token, loopback Host check, `X-Bernie` header on writes |
 | `hub.go`, `telemetry.go`, `sse.go` | 1 Hz samples and event streams |
-| `redact.go` | Removes secrets from anything the API returns |
+| `dashboard.go` | Routes. `/mcp` is MCP over HTTP (`internal/mcp`, spec §13.10), with its own guard |
+| `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
 | `web/app.js` | Views, one function per tab (`viewOverview`, `viewGPUs`, ...) |
 | `web/app.css` | Theme (light and dark), layout, components |
@@ -113,7 +114,7 @@ minute. An agent can read the same page as text.
 - Writes need the `X-Bernie: 1` header. A form on another site cannot send it.
 - The page builds DOM with `h()` and never uses `innerHTML`. Server data is
   text, never markup.
-- `redact.go` removes tokens and keys from every response.
+- `internal/support/redact` removes tokens and keys from every response.
 
 ## Known gaps (revisit)
 
