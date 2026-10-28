@@ -1,70 +1,129 @@
 /* bernie dashboard: the design tokens.
    The colours, the type, the spacing, the radii, the elevation and the motion
    of every part of the page. No other file writes a colour: a component reads
-   a token. The dark palette is the system preference; the light one is the
-   override (the theme button sets data-theme on <html>).
+   a token.
 
-   The pairs below were measured with the WCAG 2.1 relative luminance formula:
-   4.5:1 for text, 3:1 for the edge of a control and for the large text. */
+   The palette and the type follow the reference web UI (vllm-rdna-dash by
+   CrispyGinger, used with permission). Every pair below was measured with the
+   WCAG 2.1 relative luminance formula: 4.5:1 for text, 3:1 for the edge of a
+   control and for the large text. The pairs that failed were moved by the
+   smallest step that passes; the original and the adjusted value are written
+   down in docs/design/tokens.md.
+
+   The dark palette is the default. The light one is the override: the theme
+   button sets data-theme on <html>. The fonts are self-hosted (no CDN): the
+   Latin subsets of Montserrat, Inter and JetBrains Mono, all under the SIL
+   Open Font License. See web/fonts/. */
+
+@font-face {
+  font-family: "Montserrat";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fonts/montserrat-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Montserrat";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fonts/montserrat-italic-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fonts/inter-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("../fonts/jetbrains-mono-latin.woff2") format("woff2");
+}
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
   /* the surfaces */
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --surface-3: #e4e8ee;
+  --bg: #0e0e10;
+  --surface: #141417;
+  --surface-2: #1b1b1f;
+  --surface-3: #26262c;
 
   /* the lines: a hairline between rows, a strong edge on a control */
-  --border: #dfe3e8;
-  --border-strong: #828a93;
+  --border: #2a2a30;
+  --border-strong: #66666b;
 
   /* the text */
-  --text: #14181d;
-  --text-2: #47505c;
-  --muted: #5f6874;
+  --text: #f2f1ee;
+  --text-2: #c3c2b7;
+  --muted: #8b8a84;
 
   /* the identity and the status scale */
-  --accent: #b3122c;
-  --on-accent: #ffffff;
-  --key: #8a4f00;
-  --ok: #1a7a33;
-  --warn: #8a6100;
-  --serious: #c2410c;
-  --fail: #b42318;
-  --skip: #5f6874;
-  --info: #2a5fb4;
+  --accent: #ff3b30;
+  --on-accent: #0b0b0b;
+  --on-key: #0b0b0b;
+  --key: #ffd21f;
+  --ok: #0ca30c;
+  --warn: #fab219;
+  --serious: #ec835a;
+  --fail: #d85a5a;
+  --skip: #8b8a84;
+  --info: #3987e5;
 
-  /* the charts: six categorical colours and one sequential ramp */
-  --series-1: #2a78d6;
-  --series-2: #12795a;
-  --series-3: #9a6200;
-  --series-4: #c0392b;
-  --series-5: #7c5cff;
-  --series-6: #0f766e;
-  --seq-1: #dfe9f6;
-  --seq-2: #cfe0f7;
-  --seq-3: #9ec5f4;
-  --seq-4: #5598e7;
-  --seq-5: #256abf;
-  --seq-6: #104281;
+  /* the charts: the categorical colours and one sequential ramp */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #9ec5f4;
+  --series-6: #6da7ec;
+  --seq-1: #1a1a19;
+  --seq-2: #184f95;
+  --seq-3: #256abf;
+  --seq-4: #3987e5;
+  --seq-5: #6da7ec;
+  --seq-6: #9ec5f4;
 
-  /* the type: the system stack, no web font and no CDN */
-  --font-display: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  /* the log viewer: a near-black surface in both palettes */
+  --log-bg: #10141a;
+  --log-fg: #e6e8eb;
+  --log-muted: #8b949e;
+  --log-error: #f85149;
+  --log-warn: #d29922;
+
+  /* the type: the self-hosted fonts, with the system as the fallback */
+  --font-display: "Montserrat", "Arial Black", "Helvetica Neue", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* the scale of the type */
-  --display: clamp(34px, 4.4vw, 64px);
+  --display: clamp(38px, 6vw, 74px);
   --hero-number: 64px;
   --lede: 18px;
   --eyebrow: 12px;
   --section-label: 13px;
-  --body: 14px;
-  --small: 12px;
-  --mono: 12.5px;
+  --body: 15px;
+  --small: 13px;
+  --mono: 13px;
   --tile-number: 30px;
+
+  /* the hard offset shadow of the display type and of the primary button */
+  --shadow-ink: #000000;
+  --punch: 3px 3px 0 var(--accent), 6px 6px 0 var(--shadow-ink);
+  --punch-sm: 2px 2px 0 var(--accent), 4px 4px 0 var(--shadow-ink);
+
+  /* the one filled button of a tab: the key colour with the ink of the
+     reference in the dark palette */
+  --primary-bg: #ffd21f;
+  --primary-fg: #0b0b0b;
+  --punch-btn: 4px 4px 0 var(--accent);
 
   /* the spacing */
   --space-1: 4px;
@@ -89,16 +148,8 @@
   --radius-pill: 999px;
 
   /* the elevation: the toast and the tooltip only */
-  --shadow-1: 0 1px 2px rgba(16, 22, 28, .08);
-  --shadow-2: 0 6px 20px rgba(16, 22, 28, .12);
-
-  /* the log viewer: a near-black surface in both palettes, so the tail of a
-     server reads the same in the light palette and in the dark one */
-  --log-bg: #111418;
-  --log-fg: #e6e8eb;
-  --log-muted: #8b949e;
-  --log-error: #ff6b6b;
-  --log-warn: #e3a83a;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-2: 0 6px 20px rgba(0, 0, 0, .55);
 
   /* the motion */
   --motion-hover: 120ms;
@@ -108,94 +159,55 @@
   --motion-spin: 800ms;
 }
 
-/* The dark palette. It applies when the system asks for it and when the
-   reader asks for it with the theme button. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #0f1216;
-    --surface: #171b21;
-    --surface-2: #10141a;
-    --surface-3: #21262e;
-    --border: #2a3038;
-    --border-strong: #5a6778;
-    --text: #e6e8eb;
-    --text-2: #b6bec8;
-    --muted: #8b949e;
-    --accent: #ff5c6c;
-    --on-accent: #16181c;
-    --key: #f5c451;
-    --ok: #3fb950;
-    --warn: #d29922;
-    --serious: #ec835a;
-    --fail: #f85149;
-    --skip: #7d8590;
-    --info: #58a6ff;
-    --series-1: #3987e5;
-    --series-2: #199e70;
-    --series-3: #c98500;
-    --series-4: #d03b3b;
-    --series-5: #a78bfa;
-    --series-6: #2dd4bf;
-    --seq-1: #23242a;
-    --seq-2: #184f95;
-    --seq-3: #256abf;
-    --seq-4: #3987e5;
-    --seq-5: #6da7ec;
-    --seq-6: #9ec5f4;
-    --log-bg: #10141a;
-    --log-fg: #e6e8eb;
-    --log-muted: #8b949e;
-    --log-error: #f85149;
-    --log-warn: #d29922;
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
-    --shadow-2: 0 6px 20px rgba(0, 0, 0, .55);
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #0f1216;
-  --surface: #171b21;
-  --surface-2: #10141a;
-  --surface-3: #21262e;
-  --border: #2a3038;
-  --border-strong: #5a6778;
-  --text: #e6e8eb;
-  --text-2: #b6bec8;
-  --muted: #8b949e;
-  --accent: #ff5c6c;
-  --on-accent: #16181c;
-  --key: #f5c451;
-  --ok: #3fb950;
-  --warn: #d29922;
-  --serious: #ec835a;
-  --fail: #f85149;
-  --skip: #7d8590;
-  --info: #58a6ff;
-  --series-1: #3987e5;
-  --series-2: #199e70;
-  --series-3: #c98500;
-  --series-4: #d03b3b;
-  --series-5: #a78bfa;
-  --series-6: #2dd4bf;
-  --seq-1: #23242a;
-  --seq-2: #184f95;
-  --seq-3: #256abf;
-  --seq-4: #3987e5;
-  --seq-5: #6da7ec;
-  --seq-6: #9ec5f4;
-  --log-bg: #10141a;
+/* The light palette: the same names, the light values. The dark palette is
+   the default, like the reference; the theme button sets data-theme. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fafaf8;
+  --surface: #f1f0ec;
+  --surface-2: #e8e7e2;
+  --surface-3: #dedcd6;
+  --border: #dddcd6;
+  --border-strong: #858480;
+  --text: #0b0b0b;
+  --text-2: #3d3c39;
+  --muted: #696863;
+  --accent: #ca2118;
+  --on-accent: #ffffff;
+  --on-key: #0b0b0b;
+  --key: #846300;
+  --ok: #097909;
+  --warn: #88610e;
+  --serious: #9a563b;
+  --fail: #bd3636;
+  --skip: #696863;
+  --info: #2568ba;
+  --series-1: #2a78d6;
+  --series-2: #d86030;
+  --series-3: #179669;
+  --series-4: #b37900;
+  --series-5: #5598e7;
+  --series-6: #256abf;
+  --seq-1: #f0efec;
+  --seq-2: #cde2fb;
+  --seq-3: #9ec5f4;
+  --seq-4: #5598e7;
+  --seq-5: #256abf;
+  --seq-6: #104281;
+  --log-bg: #111418;
   --log-fg: #e6e8eb;
   --log-muted: #8b949e;
-  --log-error: #f85149;
-  --log-warn: #d29922;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
-  --shadow-2: 0 6px 20px rgba(0, 0, 0, .55);
+  --log-error: #ff6b6b;
+  --log-warn: #e3a83a;
+  --shadow-ink: #0b0b0b;
+  --punch: 4px 4px 0 var(--shadow-ink);
+  --punch-sm: 3px 3px 0 var(--shadow-ink);
+  --primary-bg: #ca2118;
+  --primary-fg: #ffffff;
+  --punch-btn: 4px 4px 0 var(--shadow-ink);
+  --shadow-1: 0 1px 2px rgba(16, 22, 28, .08);
+  --shadow-2: 0 6px 20px rgba(16, 22, 28, .12);
 }
-
-:root[data-theme="light"] { color-scheme: only light; }
-:root[data-theme="dark"] { color-scheme: only dark; }
 
 /* The page never scrolls sideways: the table scrolls inside its card. */
 * { box-sizing: border-box; }
@@ -210,6 +222,7 @@ html, body {
 body {
   font: var(--body)/1.5 var(--font-body);
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 a { color: inherit; }

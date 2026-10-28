@@ -114,6 +114,29 @@ function openJobEvents(id, handlers = {}) {
   return es;
 }
 
+/** openBenchEvents follows the progress of one benchmark job: the phase, the
+ *  log lines, and the end of the run. */
+function openBenchEvents(id, handlers = {}) {
+  const es = new EventSource("/api/bench/" + encodeURIComponent(id) + "/events");
+  es.onopen = () => handlers.open && handlers.open();
+  es.onerror = () => handlers.error && handlers.error();
+  es.addEventListener("progress", (ev) => handlers.progress && handlers.progress(ev));
+  es.addEventListener("log", (ev) => handlers.log && handlers.log(ev));
+  es.addEventListener("done", (ev) => handlers.done && handlers.done(ev));
+  es.addEventListener("failed", (ev) => handlers.failed && handlers.failed(ev));
+  es.onmessage = (ev) => handlers.message && handlers.message(ev);
+  return es;
+}
+
+/** apiText reads a text answer: the markdown receipt of a comparison is not
+ *  JSON. */
+async function apiText(path) {
+  const res = await fetch(path, { credentials: "same-origin" });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || res.status + " " + res.statusText);
+  return text;
+}
+
 /* ---------- the one poller of the page ---------- */
 
 let telemetryStream = null;
@@ -161,9 +184,30 @@ async function pollRuns() {
   }
 }
 
+/** pollCounts reads the checklist and the doctor. The rail shows how many
+ *  steps and how many checks wait for the reader. */
+async function pollCounts() {
+  try {
+    const doc = await api("/api/onboarding");
+    const steps = doc.steps || [];
+    setTabCount("setup", steps.filter((s) => s.state === "failed" || s.state === "blocked").length);
+  } catch (e) { /* the badge keeps its last number */ }
+  try {
+    const rep = await api("/api/doctor");
+    const sum = rep.summary || {};
+    setTabCount("dashboard", sum.fail || 0);
+  } catch (e) { /* the badge keeps its last number */ }
+}
+
 /** startPolling opens the one timer of the page. */
 function startPolling() {
   if (runTimer) return;
+  let cycle = 0;
   pollRuns();
-  runTimer = setInterval(pollRuns, RUN_POLL_MS);
+  runTimer = setInterval(() => {
+    pollRuns();
+    // The checklist and the doctor are read every third round: they change
+    // when the reader acts, not every second.
+    if (++cycle % 3 === 0) pollCounts();
+  }, RUN_POLL_MS);
 }

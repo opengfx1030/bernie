@@ -10,6 +10,7 @@ const VIEWS = {
   dashboard: "viewDashboard",
   benchmark: "viewBenchmark",
   logs: "viewLogs",
+  classic: "viewClassic",
 };
 
 // The old routes and where they land now.
@@ -91,6 +92,36 @@ function tabsKey(ev) {
   if (link.dataset.tab && link.dataset.tab !== state.tab) location.hash = "#" + link.dataset.tab;
 }
 
+/** shortcutsKey moves between the tabs with the keyboard: g, then the letter
+ *  of the tab. */
+let pendingG = false;
+
+function shortcutsKey(ev) {
+  const t = ev.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  const k = (ev.key || "").toLowerCase();
+  if (pendingG) {
+    pendingG = false;
+    const tab = { s: "setup", d: "dashboard", b: "benchmark", l: "logs", c: "classic" }[k];
+    if (tab) {
+      ev.preventDefault();
+      location.hash = "#" + tab;
+    }
+    return;
+  }
+  if (k === "g") {
+    pendingG = true;
+    toast("Now press s, d, b, l or c.");
+    setTimeout(() => (pendingG = false), 1500);
+    return;
+  }
+  if (k === "escape") {
+    pendingG = false;
+    closeTip();
+  }
+}
+
 /* ---------- the start-up ---------- */
 
 function boot() {
@@ -101,24 +132,26 @@ function boot() {
   if (themeBtn) themeBtn.addEventListener("click", toggleTheme);
   const advancedBtn = $("#advancedBtn");
   if (advancedBtn) advancedBtn.addEventListener("click", toggleAdvanced);
+  const helpBtn = $("#helpBtn");
+  if (helpBtn) {
+    helpBtn.addEventListener("click", () => {
+      if (tipPanel) { closeTip(); return; }
+      openTip(helpBtn, shortcutsText());
+    });
+  }
 
   const toastEl = $("#toast");
   if (toastEl) toastEl.addEventListener("click", () => (toastEl.hidden = true));
 
   const list = $("#tabs");
   if (list) list.addEventListener("keydown", tabsKey);
+  document.addEventListener("keydown", shortcutsKey);
 
   // A panel that appears later follows the choice of the reader.
   const main = document.querySelector("main");
   if (main && window.MutationObserver) {
     new MutationObserver(() => applyAdvanced(advancedOn())).observe(main, { childList: true, subtree: true });
   }
-  if (window.matchMedia) {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const follow = () => { if (!themeChoice()) applyTheme(""); };
-    if (mq.addEventListener) mq.addEventListener("change", follow);
-  }
-
   window.addEventListener("hashchange", route);
   window.addEventListener("resize", () => state.tab === "dashboard" && typeof renderGPUs === "function" && renderGPUs());
 

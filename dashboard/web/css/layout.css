@@ -1,13 +1,13 @@
 /* bernie dashboard: the layout.
    Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
    The shell is a rail on the left and a content column on the right. The rail
-   holds the brand, the four tabs and the footer with the run status, the theme
-   button and the Advanced button. The content column holds one tab panel.
+   holds the brand, the four tabs, the old tabs under "Classic" and the footer
+   with the run status, the theme button and the Advanced button.
 
    The rules of the design: 220 px rail, a content column of at most 1240 px,
    34 px of padding above and 80 px below, a section with a 1 px rule above it
-   and a column grid of at least 320 px. At 390 px the rail becomes a bar and
-   the page never scrolls sideways. */
+   and a column grid of at least 320 px. Under 720 px the rail becomes a tab
+   bar at the bottom of the page and the page never scrolls sideways. */
 
 body.shell {
   display: grid;
@@ -23,6 +23,7 @@ body.shell {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  gap: 2px;
   padding: 22px 14px;
   border-right: 1px solid var(--border);
   background: var(--bg);
@@ -30,24 +31,35 @@ body.shell {
 }
 
 .brand {
-  margin-bottom: 26px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  margin: 0 8px 26px;
+  text-transform: uppercase;
+  letter-spacing: -.02em;
+}
+
+.brand-mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  background: linear-gradient(115deg, transparent 30%, var(--accent) 30% 52%, transparent 52% 60%,
+    var(--key) 60% 80%, transparent 80%);
 }
 
 .brand .logo {
-  font: 800 15px/1.2 var(--font-display);
-  letter-spacing: .01em;
+  font: italic 900 20px/1 var(--font-display);
   color: var(--text);
   text-decoration: none;
-  width: fit-content;
 }
 
 .brand .host {
+  display: block;
+  margin: 6px 0 0 32px;
   font-size: var(--small);
   color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
   overflow-wrap: anywhere;
 }
 
@@ -61,8 +73,8 @@ body.shell {
 .tabs a {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 12px;
+  padding: 9px 10px;
   border-radius: var(--radius-sm);
   border-left: 2px solid transparent;
   font-size: 13px;
@@ -72,20 +84,56 @@ body.shell {
   transition: background var(--motion-hover) ease, color var(--motion-hover) ease;
 }
 
-.tabs a:hover { background: var(--surface-2); color: var(--text); }
+.tabs a .ico {
+  width: 16px;
+  flex: none;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
 
+/* the open tab: a bar on the left, a heavier word and the key-coloured
+   glyph. The marker is a shape, not only a colour. */
 .tabs a[aria-selected="true"] {
-  background: var(--surface-3);
+  background: var(--surface-2);
   border-left-color: var(--accent);
   color: var(--text);
+  font-weight: 700;
+}
+
+.tabs a[aria-selected="true"] .ico { color: var(--key); }
+
+/* the count of the findings and of the failed steps on a tab */
+.tab-count {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--fail);
+  color: var(--on-accent);
+  font: 700 11px/16px var(--font-body);
+  text-align: center;
+}
+
+.tab-count[hidden] { display: none; }
+
+/* the old tabs, under a rule: they open their new home */
+.rail-group {
+  margin: 18px 10px 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font: 800 11px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .rail-foot {
   margin-top: auto;
-  padding-top: var(--space-5);
+  padding: 12px 8px 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: flex-start;
 }
 
@@ -117,19 +165,19 @@ body.shell {
 }
 
 .state-head .eyebrow {
-  margin: 0 0 var(--space-2);
-  font: 800 var(--eyebrow)/1 var(--font-body);
+  margin: 0 0 var(--space-3);
+  font: 800 var(--eyebrow)/1 var(--font-display);
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .state-head .display {
-  font: 900 var(--display)/1.02 var(--font-display);
+  font: italic 900 var(--display)/.95 var(--font-display);
   letter-spacing: -.025em;
   text-transform: uppercase;
   margin: 0 0 var(--space-3);
-  text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 32%, transparent);
+  text-shadow: var(--punch);
   overflow-wrap: anywhere;
 }
 
@@ -139,7 +187,7 @@ body.shell {
   font-size: var(--lede);
   color: var(--text-2);
   max-width: 70ch;
-  margin: 0;
+  margin: 0 0 var(--space-6);
 }
 
 .state-head .head-actions {
@@ -158,8 +206,8 @@ body.shell {
 }
 
 .section-label {
-  font: 800 var(--section-label)/1.2 var(--font-body);
-  letter-spacing: .08em;
+  font: 800 var(--section-label)/1.2 var(--font-display);
+  letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--muted);
   margin: 0 0 var(--space-4);
@@ -177,22 +225,31 @@ body.shell {
 .gap { height: var(--space-3); }
 
 .facts {
-  display: grid;
-  gap: var(--space-4);
-  margin: 0;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0 0 var(--space-6);
+  padding: 0;
 }
+
+.facts > div {
+  padding: 4px 22px 4px 0;
+  margin-right: 22px;
+  border-right: 1px solid var(--border);
+}
+
+.facts > div:last-child { border-right: 0; }
 
 .facts dt {
   font: 800 var(--small)/1.2 var(--font-body);
-  letter-spacing: .06em;
+  letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .facts dd {
   margin: var(--space-1) 0 0;
-  font: 700 17px/1.35 var(--font-body);
+  font: 700 17px/1.3 var(--font-display);
   overflow-wrap: anywhere;
 }
 
@@ -223,58 +280,71 @@ body.shell {
   .setup-hero, .dashboard-hero, .cols-2 { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (max-width: 639px) {
-  /* the rail becomes a bar under the brand */
+/* Under 720 px the rail becomes a tab bar at the bottom of the page: the
+   thumb reaches it and the content keeps its full width. */
+@media (max-width: 719px) {
   body.shell {
     grid-template-columns: minmax(0, 1fr);
+    padding-bottom: 64px;
   }
 
   .rail {
-    position: static;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
     height: auto;
-    padding: 14px 16px 0;
+    z-index: 20;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 8px 12px;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
   }
 
   .brand {
-    margin-bottom: 12px;
-    flex-direction: row;
-    align-items: baseline;
-    gap: 8px;
+    margin: 0 8px 0 0;
+    flex: none;
   }
+
+  .brand .host { display: none; }
 
   .tabs {
     flex-direction: row;
     gap: var(--space-1);
-    overflow-x: auto;
-    padding-bottom: 10px;
-    margin: 0 -16px;
-    padding-left: 16px;
-    padding-right: 16px;
+    flex: 1;
   }
 
   .tabs a {
     border-left: 0;
     border-bottom: 2px solid transparent;
+    padding: 8px 10px;
     white-space: nowrap;
   }
+
+  .tabs a .ico { display: none; }
 
   .tabs a[aria-selected="true"] {
     border-left-color: transparent;
     border-bottom-color: var(--accent);
   }
 
+  .rail-group { display: none; }
+
   .rail-foot {
     margin-top: 0;
-    padding-top: 0;
-    padding-bottom: 12px;
+    padding: 0;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
+    gap: var(--space-2);
+    flex: none;
   }
+
+  .rail-foot .pill { display: none; }
 
   .content {
     padding: var(--space-5) 16px var(--space-9);
