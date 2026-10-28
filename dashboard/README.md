@@ -197,39 +197,10 @@ The A/B section measures one server, then the other, then the first again.
 
 ## UI and UX rules
 
-The goal: a person who has never used vLLM understands the page in one
-minute. An agent can read the same page as text.
-
-1. **One question per tab.** If a tab needs two answers, split it.
-2. **Say the state in words first.** A badge (`ok`, `warn`, `fail`, `skip`)
-   has a word. Color never carries the meaning alone.
-3. **Every problem has a fix next to it.** Show the cause and the command to
-   run. A copy button sits on every command. Never show a bare error code.
-4. **Next step is always visible.** The Home tab shows one next command
-   for the current state (no GPU, no recipe fits, ready to serve, starting,
-   running). Every tab has at most one primary button; the rest are ghost
-   buttons.
-5. **Numbers have units and a range.** `18.2 / 29.4 GiB`, not `18.2`. A
-   missing value shows `–`, never `0` or `NaN`.
-6. **Show what will happen before it happens.** A start button shows the plan
-   (command, GPUs, port) first. It does not start on the first click.
-7. **Slow work shows progress.** Server start and downloads can take minutes.
-   Show one plain sentence ("Loading weights, 4 of 8 GPUs ready") and the log.
-   Do not show a spinner alone.
-8. **Empty states teach.** No runs? Say what a run is and show the command to
-   start one.
-9. **Same data as the CLI.** A value on the page also exists in `--json`
-   output with the same name. If it does not, add it to the CLI first.
-10. **Fast and small.** First paint under 1 s on a local host. No web fonts, no
-    images except icons inlined as text, no dependencies.
-11. **Works with a keyboard and a screen reader.** Real `<a>`, `<button>`,
-    `role=tab`, visible focus, `aria-live` for updates.
-12. **Light and dark.** Both follow the system setting. Contrast meets WCAG AA.
-13. **Every tab opens with a headline.** The first thing on a tab says in one
-    sentence what the situation is. The line under it says what that means
-    and what to do next. The headline is read out when it changes.
-14. **The colours come from the tokens.** A new rule uses the `--` variables
-    of `web/css/tokens.css`. No colour is written by hand in a component file.
+The rules live in [AGENTS.md](AGENTS.md): the hard rules, the structure
+rules, the UI and UX rules, the Setup rules, the data display rules and the
+front-end rules — each one with the check that proves it. This page keeps
+the layout of the folder, the file table and the recipes.
 
 ## Copy and raw JSON
 
@@ -243,7 +214,7 @@ from the API. A card that shows no data has no link.
 
 ## The palette
 
-The colours live in `web/tokens.css`, one block for the light palette and
+The colours live in `web/css/tokens.css`, one block for the light palette and
 one for the dark palette. The dark palette is the system preference; the
 light one is the override. Every pair is at or above WCAG AA: 4.5:1 for
 text, 3:1 for large text and for the edges of the controls.
