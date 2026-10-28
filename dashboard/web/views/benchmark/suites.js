@@ -193,29 +193,46 @@ function benchAB(onRun) {
 }
 
 /** benchAdvanced is the panel with the raw JSON of the endpoints of the tab
- *  and the commands that produce the same documents. */
-function benchAdvanced(docs) {
-  const body = h("div.bench-advanced-body", { hidden: true });
-  for (const d of docs || []) {
-    body.appendChild(h("div.bench-advanced-doc",
-      h("p.bench-advanced-head",
-        h("a.json-link", { href: d.path, target: "_blank", rel: "noopener noreferrer" }, "json"),
-        h("code", d.path)),
-      h("pre.bench-json", d.text || ""),
-      copyBtn(d.text || "", "Copy the JSON")));
-  }
-  if (docs && docs.length) {
+ *  and the commands that produce the same documents. The documents are read
+ *  when the panel opens. The panel is a details element, so the button of
+ *  the shell opens it with every other panel of the page. */
+function benchAdvanced(load, headBtn) {
+  const body = h("div.advanced-body.bench-advanced-body");
+  let filled = false;
+  async function fill() {
+    if (filled) return;
+    filled = true;
+    let docs = [];
+    try {
+      docs = await load();
+    } catch (e) {
+      docs = [{ path: "/api/bench", text: String(e.message || e) }];
+    }
+    for (const d of docs || []) {
+      body.appendChild(h("div.bench-advanced-doc",
+        h("p.bench-advanced-head",
+          h("a.json-link", { href: d.path, target: "_blank", rel: "noopener noreferrer" }, "json"),
+          h("code", d.path)),
+        h("pre.bench-json", d.text || ""),
+        copyBtn(d.text || "", "Copy the JSON")));
+    }
     body.appendChild(h("div.bench-advanced-cmds",
       h("p.eyebrow", "The same things in the command line"),
       cmdBlock("bernie bench list"),
       cmdBlock("bernie bench suites"),
-      cmdBlock("bernie bench compare A B")));
+      cmdBlock("bernie bench compare A B"),
+      cmdBlock("bernie bench compare A B --markdown"),
+      cmdBlock("bernie bench ab BASE CAND")));
   }
-  const btn = h("button", { type: "button", "aria-expanded": "false" }, "Advanced");
-  btn.addEventListener("click", () => {
-    const open = body.hidden;
-    body.hidden = !open;
-    btn.setAttribute("aria-expanded", String(open));
+  const det = h("details.advanced.bench-advanced", { id: "bench-advanced" },
+    h("summary", "Advanced"), body);
+  det.addEventListener("toggle", () => {
+    if (det.open) fill();
+    if (headBtn) headBtn.setAttribute("aria-expanded", String(det.open));
   });
-  return { el: h("div.card.bench-card.bench-advanced", btn, body), btn: btn };
+  return {
+    el: det,
+    /** open opens or closes the panel. */
+    open: () => { det.open = !det.open; },
+  };
 }
