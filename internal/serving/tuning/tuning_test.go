@@ -110,7 +110,7 @@ func powerTree(t *testing.T, caps map[int][3]int) (string, []gpu.GPU) {
 
 func TestPowerStatusAndSet(t *testing.T) {
 	// GPU 2 has no hwmon power cap.
-	root, gpus := powerTree(t, map[int][3]int{0: {175, 120, 250}, 1: {250, 250, 250}})
+	root, gpus := powerTree(t, map[int][3]int{0: {175, 120, 250}, 1: {250, 120, 250}})
 	st := powerStatus(root, gpus)
 	if len(st) != 2 || st[0].CapW != 175 || st[0].MinW != 120 || st[0].MaxW != 250 {
 		t.Fatalf("status = %+v", st)
@@ -126,7 +126,7 @@ func TestPowerStatusAndSet(t *testing.T) {
 	}{
 		{"non-root returns commands", []int{0}, 150, false, 1, ""},
 		{"all GPUs with a cap", nil, 250, false, 2, ""},
-		{"below floor", []int{1}, 150, false, 0, "below power1_cap_min 250 W"},
+		{"below observed minimum", []int{1}, 100, false, 0, "below power1_cap_min 120 W (allowed range 120-250 W)"},
 		{"above max", []int{0}, 300, false, 0, "above power1_cap_max 250 W"},
 		{"no cap file", []int{2}, 150, false, 0, "GPU 2 has no power cap"},
 		{"not positive", []int{0}, 0, false, 0, "positive number of watts"},
@@ -138,6 +138,9 @@ func TestPowerStatusAndSet(t *testing.T) {
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("err = %v, want %q", err, tt.wantErr)
+				}
+				if strings.Contains(err.Error(), "VBIOS") || strings.Contains(err.Error(), "unlock") {
+					t.Fatalf("range error must not suggest firmware or kernel changes: %v", err)
 				}
 				return
 			}

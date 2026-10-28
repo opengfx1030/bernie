@@ -11,10 +11,6 @@ import (
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 )
 
-// V620ToolboxURL documents the V620 power-floor unlock (the VBIOS declares a
-// 250 W minimum; the amdgpu driver rejects lower caps).
-const V620ToolboxURL = "https://github.com/blivioniag/v620_toolbox"
-
 // Power is the power cap state of one GPU. Watts; Path is the power1_cap file.
 type Power struct {
 	HIPIndex int     `json:"hip_index"`
@@ -68,8 +64,8 @@ func readMicro(p string) (float64, error) {
 // SetPower sets power1_cap of the GPUs idx (all GPUs when idx is empty) to
 // watts. As root it writes the files and returns no commands. Otherwise it
 // writes nothing and returns the exact commands for the operator. A target
-// outside [power1_cap_min, power1_cap_max] is an error; below the minimum
-// the error points to the V620 floor unlock.
+// outside [power1_cap_min, power1_cap_max] is an error; the error quotes the
+// range observed on that GPU.
 func SetPower(gpus []gpu.GPU, idx []int, watts float64) ([]string, error) {
 	return setPower("/", gpus, idx, watts, os.Geteuid() == 0)
 }
@@ -107,11 +103,11 @@ func setPower(root string, gpus []gpu.GPU, idx []int, watts float64, isRoot bool
 			return nil, fmt.Errorf("GPU %d has no power cap (hwmon power1_cap)", i)
 		}
 		if p.MinW > 0 && watts < p.MinW {
-			return nil, fmt.Errorf("GPU %d: %.0f W is below power1_cap_min %.0f W; the driver rejects it (Invalid argument). V620: the VBIOS floor is 250 W; unlock 120-180 W with %s",
-				i, watts, p.MinW, V620ToolboxURL)
+			return nil, fmt.Errorf("GPU %d: %.0f W is below power1_cap_min %.0f W (allowed range %.0f-%.0f W); the driver rejects it (Invalid argument)",
+				i, watts, p.MinW, p.MinW, p.MaxW)
 		}
 		if p.MaxW > 0 && watts > p.MaxW {
-			return nil, fmt.Errorf("GPU %d: %.0f W is above power1_cap_max %.0f W", i, watts, p.MaxW)
+			return nil, fmt.Errorf("GPU %d: %.0f W is above power1_cap_max %.0f W (allowed range %.0f-%.0f W)", i, watts, p.MaxW, p.MinW, p.MaxW)
 		}
 		sel = append(sel, p)
 	}
