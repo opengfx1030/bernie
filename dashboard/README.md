@@ -79,6 +79,11 @@ Each tab answers one question. Keep it that way.
 | Runs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs |
 | Bench | How fast is it, and does it read the whole prompt? | `/api/bench` | start a bench |
 
+`up` starts the dashboard before the server is healthy. The Runs tab then
+shows the run as `starting`, says in words that the server is loading the
+model, and follows the log of that run. The Overview tab shows the same
+state in words.
+
 ## UI and UX rules
 
 The goal: a person who has never used vLLM understands the page in one

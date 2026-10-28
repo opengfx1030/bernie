@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/opengfx1030/bernie/dashboard"
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
@@ -19,7 +20,7 @@ import (
 
 func init() {
 	serve := &cli.Command{Name: "serve", Summary: "Start a run of a recipe",
-		Usage: "<id> [--set KEY=VALUE]... [--mode host|container] [--name N] [--venv DIR] [--engine E] [--foreground] [--no-pull] [--wait D] [--dry-run]"}
+		Usage: "<id> [--set KEY=VALUE]... [--mode host|container] [--name N] [--venv DIR] [--engine E] [--foreground] [--no-pull] [--wait D] [--dash[=ADDR]] [--dry-run]"}
 	serve.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(serve)
 		var o runner.PrepareOptions
@@ -29,6 +30,8 @@ func init() {
 		noPull := fs.Bool("no-pull", false, "container mode: start the local image without pulling")
 		wait := fs.Duration("wait", 0, "wait up to D for /health, or for the run to exit (0 = start and return)")
 		dry := fs.Bool("dry-run", false, "print the plan and start nothing (same as recipe plan)")
+		dash := &dashAddr{}
+		fs.Var(dash, "dash", "start the dashboard next to the run; --dash=ADDR picks the address (default "+dashboard.DefaultListen+")")
 		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
@@ -60,6 +63,26 @@ func init() {
 			}
 			return err
 		}
+		// The dashboard comes up while the server loads the model, so the
+		// operator can watch the log in the browser (spec §3.2).
+		var starter *dashboard.Starter
+		if dash.set {
+			addr := dash.addr
+			if addr == "" {
+				addr = dashboard.DefaultListen
+			}
+			starter = dashboard.NewStarter(dashboard.Options{Listen: addr, Log: c.Err, Version: cli.Version,
+				Ready: func(url string) {
+					if c.JSON {
+						c.Logf("dashboard: %s", url)
+						return
+					}
+					fmt.Fprintf(c.Out, "dashboard: %s\n", url)
+				}})
+			if err := starter.Start(c.Ctx); err != nil {
+				c.Logf("dashboard: %v", err)
+			}
+		}
 		if *wait > 0 && !*fg {
 			c.Logf("waiting for %s to answer /health (logs: bernie logs %s -f)", rec.Name, rec.Name)
 			if err := flow.WaitHealthy(c.Ctx, rec.Name, *wait, c.Err); err != nil {
@@ -70,7 +93,7 @@ func init() {
 				return err
 			}
 		}
-		return c.Emit(rec, func(w io.Writer) {
+		if err := c.Emit(rec, func(w io.Writer) {
 			if *fg {
 				fmt.Fprintf(w, "run %s stopped\n", rec.Name)
 				return
@@ -83,7 +106,13 @@ func init() {
 			fmt.Fprintf(w, "url:  %s (bernie ps shows when /health answers)\n", rec.URL())
 			fmt.Fprintf(w, "log:  bernie logs %s -f\n", rec.Name)
 			fmt.Fprintf(w, "stop: bernie stop %s\n", rec.Name)
-		})
+		}); err != nil {
+			return err
+		}
+		if starter != nil {
+			return starter.Wait() // Ctrl-C stops the dashboard; the run keeps running
+		}
+		return nil
 	}
 	cli.Register(serve)
 
@@ -201,6 +230,28 @@ func short(digest string) string {
 	}
 	return digest
 }
+
+// dashAddr is the --dash flag: an address with an optional value. "--dash"
+// uses the default address of the dashboard, "--dash=ADDR" uses another one.
+type dashAddr struct {
+	addr string
+	set  bool
+}
+
+func (d *dashAddr) String() string { return d.addr }
+
+// Set takes the value of the flag. The flag package passes "true" when the
+// flag has no value ("--dash").
+func (d *dashAddr) Set(v string) error {
+	d.set = true
+	if v != "true" {
+		d.addr = v
+	}
+	return nil
+}
+
+// IsBoolFlag makes the value optional: "--dash" alone is a flag.
+func (d *dashAddr) IsBoolFlag() bool { return true }
 
 func printRuns(w io.Writer, runs []flow.Run) {
 	if len(runs) == 0 {

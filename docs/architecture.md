@@ -96,8 +96,8 @@ flowchart TB
 Two facts matter:
 
 - `gpu` imports no other bernie package. It is the root of the graph.
-- `dashboard` never imports `cli`. `cli` imports `dashboard` in two places:
-  `dash` and the last step of `up`.
+- `dashboard` never imports `cli`. `cli` imports `dashboard` in three places:
+  `dash`, `up` and `serve --dash`.
 - `mcp` never imports `cli` or `dashboard`. `dashboard` imports `mcp` to
   mount `/mcp`; `cli` imports `mcp` for `bernie mcp`.
 
@@ -205,13 +205,14 @@ sequenceDiagram
   X-->>F: plan (see 3.2)
   F->>X: Start(plan)
   X->>V: spawn process, or engine run
+  F->>W: Start(listen) (the dashboard serves while the server loads)
   loop every 3 s until --wait
     F->>X: List
     X->>V: GET /health
   end
   Note over F,X: a run that exits: F scans its log (logdoc) and returns StartupExit with the matches
   F-->>C: UpResult (url, run record)
-  C->>W: Serve(listen)
+  C->>W: Wait (Ctrl-C stops the dashboard, the run goes on)
   W->>X: List, Logs (on request)
 ```
 
