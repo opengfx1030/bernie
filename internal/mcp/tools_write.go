@@ -2,14 +2,17 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
 
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
+	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/setup"
 )
@@ -48,6 +51,9 @@ type benchRunIn struct {
 	Seed        int64  `json:"seed,omitempty" jsonschema:"prompt seed"`
 	Tag         string `json:"tag,omitempty" jsonschema:"free label stored with the result"`
 	Recall      bool   `json:"recall,omitempty" jsonschema:"hide a short random fact in every prompt and check that the reply holds it (default off)"`
+	// Suite names a built-in suite. The suite decides the cells and the
+	// cell flags above are ignored.
+	Suite string `json:"suite,omitempty" jsonschema:"name of the built-in suite to run (default: none, bernie bench suites lists them)"`
 	confirmToken
 }
 
@@ -109,6 +115,8 @@ func registerWrite(s *Server) {
 			prop(sc, "concurrency").Items.Minimum = jsonschema.Ptr(1.0)
 			tokenSchema(sc)
 		}, s.benchRun)
+	addTool[benchABIn, Outcome[suite.ABResult]](s, w("bench_ab", "Run a baseline and a candidate back to back (bernie bench ab) and tell the verdict. The visits run in the order base, cand, cand, base and one server runs at a time.", false, false, true),
+		func(sc *jsonschema.Schema) { tokenSchema(sc) }, s.benchAB)
 	addTool[setupIn, Outcome[[]setup.Step]](s, w("setup_apply", "Run the install steps that need no root (bernie setup apply). Steps that need root are returned as commands for the operator.", true, false, true),
 		func(sc *jsonschema.Schema) { prop(sc, "mode").Enum = enum("host", "container"); tokenSchema(sc) }, s.setupApply)
 	addTool[powerIn, Outcome[app.PowerDesiredResult]](s, w("tune_power_set", "Write the desired GPU power cap (bernie tune power set). It changes the desired-state file; it never writes hwmon.", false, true, false),
@@ -178,9 +186,17 @@ func (s *Server) benchRun(_ context.Context, c *call, in benchRunIn) (any, error
 	if in.Warmup != nil {
 		o.Warmup = *in.Warmup
 	}
-	o, err := bench.Normalize(o)
-	if err != nil {
-		return nil, err
+	if in.Suite != "" {
+		// The suite decides the cells, so the cell flags do not apply.
+		o.Suite = in.Suite
+		o.InputLen, o.OutputLen = 0, 0
+		o.Concurrency = nil
+	} else {
+		var err error
+		o, err = bench.Normalize(o)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if o.URL == "" {
 		o.URL = bench.DefaultURL()
@@ -192,11 +208,56 @@ func (s *Server) benchRun(_ context.Context, c *call, in benchRunIn) (any, error
 	in.ConfirmToken = ""
 	return execute(s, c, mutation[bench.Result]{tool: "bench_run", token: token, args: o, plan: o, lock: &s.benchM,
 		run: func(ctx context.Context) (*bench.Result, error) {
+			if o.Suite != "" {
+				r, _, err := app.BenchSuite(ctx, o.Suite, o, c.progress())
+				if errors.Is(err, app.ErrAllFailed) {
+					return nil, fmt.Errorf("%w%s", err, app.FirstCellError(r))
+				}
+				return r, err
+			}
 			r, _, err := app.Bench(ctx, o, c.progress())
-			if err == app.ErrAllFailed {
+			if errors.Is(err, app.ErrAllFailed) {
 				return nil, fmt.Errorf("%w%s", err, app.FirstCellError(r))
 			}
 			return r, err
+		}})
+}
+
+// benchABIn is the input of the A/B run: two arms and the suite they run.
+type benchABIn struct {
+	Base       string `json:"base" jsonschema:"the baseline arm: a recipe id or the URL of a server"`
+	Cand       string `json:"cand" jsonschema:"the candidate arm: a recipe id or the URL of a server"`
+	Suite      string `json:"suite,omitempty" jsonschema:"the suite every visit runs (default: the cells of the flags)"`
+	Model      string `json:"model,omitempty" jsonschema:"model name (default: first id of /v1/models)"`
+	NumPrompts int    `json:"num_prompts,omitempty" jsonschema:"requests per cell (default max(4, 2 x concurrency))"`
+	Seed       int64  `json:"seed,omitempty" jsonschema:"prompt seed"`
+	Tag        string `json:"tag,omitempty" jsonschema:"free label stored with the result"`
+	WaitS      int    `json:"wait_s,omitempty" jsonschema:"seconds a started server may take to answer (default 600)"`
+	confirmToken
+}
+
+func (s *Server) benchAB(_ context.Context, c *call, in benchABIn) (any, error) {
+	if in.Base == "" || in.Cand == "" {
+		return nil, fmt.Errorf("bench_ab needs a base arm and a candidate arm")
+	}
+	for _, arm := range []string{in.Base, in.Cand} {
+		if strings.HasPrefix(arm, "http://") || strings.HasPrefix(arm, "https://") {
+			if err := loopbackURL(arm); err != nil {
+				return nil, err
+			}
+		}
+	}
+	o := suite.ABOptions{
+		Base: in.Base, Cand: in.Cand, Suite: in.Suite, WaitS: in.WaitS,
+		Options: bench.Options{Model: in.Model, NumPrompts: in.NumPrompts, Seed: in.Seed, Tag: in.Tag},
+	}
+	token := in.ConfirmToken
+	in.ConfirmToken = ""
+	return execute(s, c, mutation[suite.ABResult]{tool: "bench_ab", token: token, args: o, plan: o, lock: &s.benchM,
+		run: func(ctx context.Context) (*suite.ABResult, error) {
+			o.Progress = c.progress()
+			res, _, err := app.BenchAB(ctx, o)
+			return res, err
 		}})
 }
 

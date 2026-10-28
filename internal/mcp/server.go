@@ -28,7 +28,7 @@ the operator.`
 
 // mutatingTools are the tools that change the host. They exist only when
 // Options.Write is set.
-var mutatingTools = []string{"serve", "stop", "bench_run", "setup_apply", "tune_power_set"}
+var mutatingTools = []string{"serve", "stop", "bench_run", "bench_ab", "setup_apply", "tune_power_set"}
 
 // IsMutating reports whether name is a tool that changes the host.
 func IsMutating(name string) bool { return slices.Contains(mutatingTools, name) }

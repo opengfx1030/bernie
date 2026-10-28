@@ -11,6 +11,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/machine/topo"
 	"github.com/opengfx1030/bernie/internal/onboarding"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
+	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 )
@@ -69,6 +70,11 @@ type logsIn struct {
 
 type benchShowIn struct {
 	ID string `json:"id" jsonschema:"bench result id (bench_list)"`
+}
+
+type benchCompareIn struct {
+	A string `json:"a" jsonschema:"baseline bench result id (bench_list)"`
+	B string `json:"b" jsonschema:"candidate bench result id (bench_list)"`
 }
 
 // Limits of the logs tool.
@@ -161,6 +167,26 @@ func registerRead(s *Server) {
 
 	addTool[benchShowIn, *bench.Result](s, ro("bench_show", "One saved benchmark result (bernie bench show)."), nil,
 		func(_ context.Context, _ *call, in benchShowIn) (any, error) { return bench.Get(in.ID) })
+
+	addTool[noIn, []*suite.Suite](s, ro("bench_suites", "The built-in bench suites with their digest and their groups (bernie bench suites)."), nil,
+		func(_ context.Context, _ *call, _ noIn) (any, error) { return suite.List() })
+
+	addTool[benchCompareIn, *suite.Verdict](s, ro("bench_compare", "The verdict of two saved results: better, same, worse or noisy, per metric and per cell (bernie bench compare)."), nil,
+		func(_ context.Context, _ *call, in benchCompareIn) (any, error) {
+			a, err := bench.Get(in.A)
+			if err != nil {
+				return nil, err
+			}
+			b, err := bench.Get(in.B)
+			if err != nil {
+				return nil, err
+			}
+			cmp, err := suite.Compare(a, b)
+			if err != nil {
+				return nil, err
+			}
+			return suite.Judge(cmp, 0), nil
+		})
 
 	addTool[venvIn, app.TunableOpState](s, ro("tunableop_status", "Loaded rocBLAS build and its matching TunableOp profile (bernie tune tunableop status)."), nil,
 		func(_ context.Context, _ *call, in venvIn) (any, error) { return app.TunableOpStatus(in.Venv) })
