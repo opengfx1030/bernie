@@ -56,7 +56,7 @@ func ApplyPowerDesired(root string, gpus []gpu.GPU, file, binary string, isRoot 
 		if !ok {
 			continue
 		}
-		effective, clamped, err := clampPower(requested, p.MinW, p.MaxW)
+		effective, clamped, err := ClampPower(requested, p.MinW, p.MaxW)
 		if err != nil {
 			return res, fmt.Errorf("GPU %d: %w", p.HIPIndex, err)
 		}
@@ -87,8 +87,8 @@ func PowerRootCommand(binary, file string) string {
 	return fmt.Sprintf("sudo %s tune power apply --file %s", shellQuote(binary), shellQuote(file))
 }
 
-// clampPower clamps watts to the observed hwmon range.
-func clampPower(watts, minW, maxW float64) (float64, bool, error) {
+// ClampPower clamps watts to the observed hwmon range.
+func ClampPower(watts, minW, maxW float64) (float64, bool, error) {
 	if minW > 0 && maxW > 0 && minW > maxW {
 		return 0, false, fmt.Errorf("invalid hwmon power range %.0f-%.0f W", minW, maxW)
 	}

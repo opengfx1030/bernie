@@ -36,7 +36,7 @@ func TestDocumentKeyOrder(t *testing.T) {
 		want string
 	}{
 		{StopResult{Name: "r", Stopped: true}, `{"name":"r","stopped":true}`},
-		{PowerResult{Applied: true, Watts: 180}, `{"applied":true,"commands":null,"watts":180}`},
+		{PowerDesiredResult{Changed: true, File: "power.yaml", Watts: 180}, `{"changed":true,"file":"power.yaml","watts":180,"gpu_indexes":null,"selectors":null}`},
 		{NewLogReport(nil), `{"matches":[]}`},
 	}
 	for _, c := range cases {

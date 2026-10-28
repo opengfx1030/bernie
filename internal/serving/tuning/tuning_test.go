@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -108,60 +107,11 @@ func powerTree(t *testing.T, caps map[int][3]int) (string, []gpu.GPU) {
 	return root, gpus
 }
 
-func TestPowerStatusAndSet(t *testing.T) {
+func TestPowerStatus(t *testing.T) {
 	// GPU 2 has no hwmon power cap.
 	root, gpus := powerTree(t, map[int][3]int{0: {175, 120, 250}, 1: {250, 120, 250}})
 	st := powerStatus(root, gpus)
 	if len(st) != 2 || st[0].CapW != 175 || st[0].MinW != 120 || st[0].MaxW != 250 {
 		t.Fatalf("status = %+v", st)
-	}
-
-	tests := []struct {
-		name    string
-		idx     []int
-		watts   float64
-		root    bool
-		cmds    int
-		wantErr string
-	}{
-		{"non-root returns commands", []int{0}, 150, false, 1, ""},
-		{"all GPUs with a cap", nil, 250, false, 2, ""},
-		{"below observed minimum", []int{1}, 100, false, 0, "below power1_cap_min 120 W (allowed range 120-250 W)"},
-		{"above max", []int{0}, 300, false, 0, "above power1_cap_max 250 W"},
-		{"no cap file", []int{2}, 150, false, 0, "GPU 2 has no power cap"},
-		{"not positive", []int{0}, 0, false, 0, "positive number of watts"},
-		{"root writes", []int{0}, 150, true, 0, ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cmds, err := setPower(root, gpus, tt.idx, tt.watts, tt.root)
-			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("err = %v, want %q", err, tt.wantErr)
-				}
-				if strings.Contains(err.Error(), "VBIOS") || strings.Contains(err.Error(), "unlock") {
-					t.Fatalf("range error must not suggest firmware or kernel changes: %v", err)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(cmds) != tt.cmds {
-				t.Fatalf("cmds = %q", cmds)
-			}
-			if tt.cmds > 0 && !strings.HasPrefix(cmds[0], "echo ") {
-				t.Errorf("cmd = %q", cmds[0])
-			}
-		})
-	}
-	// Non-root never writes; root writes microwatts.
-	b, _ := os.ReadFile(st[0].Path)
-	if strings.TrimSpace(string(b)) != "150000000" {
-		t.Errorf("power1_cap = %q after root set", b)
-	}
-	cmds, _ := setPower(root, gpus, []int{0}, 140.5, false)
-	if cmds[0] != "echo 140500000 | sudo tee "+st[0].Path {
-		t.Errorf("cmd = %q", cmds[0])
 	}
 }

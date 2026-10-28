@@ -12,7 +12,6 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
-	"github.com/opengfx1030/bernie/internal/serving/tuning"
 )
 
 // Input types of the read-only tools. A field without omitempty is required.
@@ -135,7 +134,7 @@ func registerRead(s *Server) {
 		func(ctx context.Context, _ *call, in runIn) (any, error) { return app.RunLog(ctx, in.Run) })
 
 	addTool[recipeListIn, recipe.Listing](s, ro("recipe_list", "Recipes with their fit to this host (bernie recipe list)."), nil,
-		func(_ context.Context, _ *call, in recipeListIn) (any, error) { return app.RecipeList(in.All), nil })
+		func(_ context.Context, _ *call, in recipeListIn) (any, error) { return app.RecipeList(in.All) })
 
 	addTool[idIn, *recipe.Recipe](s, ro("recipe_show", "The merged recipe after extends (bernie recipe show)."), patternOf("id"),
 		func(_ context.Context, _ *call, in idIn) (any, error) { return recipe.Load().Resolve(in.ID) })
@@ -165,6 +164,6 @@ func registerRead(s *Server) {
 	addTool[venvIn, app.TunableOpState](s, ro("tunableop_status", "Loaded rocBLAS build and its matching TunableOp profile (bernie tune tunableop status)."), nil,
 		func(_ context.Context, _ *call, in venvIn) (any, error) { return app.TunableOpStatus(in.Venv) })
 
-	addTool[noIn, []tuning.Power](s, ro("power_status", "Power cap per GPU (bernie tune power status)."), nil,
-		func(context.Context, *call, noIn) (any, error) { return app.PowerStatus() })
+	addTool[noIn, app.PowerServiceStatus](s, ro("power_status", "Power service state, desired caps, actual caps and drift (bernie tune power service status)."), nil,
+		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.ReadPowerServiceStatus(ctx) })
 }

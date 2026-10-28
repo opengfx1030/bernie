@@ -60,7 +60,7 @@ Read-only by default. Each tool returns the document of its command as
 | `recipe_list`, `recipe_show`, `recipe_plan` | `recipe list`, `show`, `plan` |
 | `ps`, `logs` | `ps`; the log of a run (text, marked untrusted) |
 | `bench_list`, `bench_show` | `bench list`, `bench show` |
-| `tunableop_status`, `power_status` | `tune tunableop status`, `tune power status` |
+| `tunableop_status`, `power_status` | `tune tunableop status`, `tune power service status` |
 
 An agent should start with `status`, then `doctor` and `recipe_plan`.
 
@@ -87,8 +87,9 @@ call. One host-changing operation runs at a time.
 `recall`. With `recall`, every prompt hides a short random fact and the
 reply is checked for it; the result holds the verdict of every cell.
 
-bernie never runs `sudo`. A step that needs root (a package install, a power
-cap as a normal user) comes back as a command for you to run.
+bernie never runs `sudo`. A step that needs root (a package install) comes
+back as a command for you to run. `tune_power_set` writes the desired power
+file only. The installed power service applies that file as root.
 
 ## Safety
 
