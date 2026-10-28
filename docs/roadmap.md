@@ -117,6 +117,19 @@ Each item has a spec section and one test that proves it.
   a copy button that copies the command as it is written, and every card
   header carries a `json` link to the raw document behind it. Spec
   [§11](spec.md#11-dashboard).
+- **Bench receipt.** `bernie bench compare <a> <b> --markdown` prints the
+  comparison as a receipt: the scope of the two runs, their correctness,
+  the numbers with the verdict of every metric, and the command that
+  reproduces it. The pull request template has a Receipt block, and
+  CONTRIBUTING.md says how to fill it with `bernie bench --suite pr` and
+  `bernie bench ab`. Spec [§10.3](spec.md#103-the-verdict).
+- **Bench suites in the dashboard.** The Bench tab runs a suite, shows the
+  five metric groups of every cell, compares a result with a saved one and
+  draws the context-length curve of a ladder suite as plain SVG. Spec
+  [§11](spec.md#11-dashboard).
+- **Check groups.** A suite group of kind `check` asserts a declared answer
+  instead of a speed. Its verdict lands in the cell field `check`, separate
+  from the suite-wide recall gate. Spec [§10.2](spec.md#102-suites).
 
 ## Not planned
 

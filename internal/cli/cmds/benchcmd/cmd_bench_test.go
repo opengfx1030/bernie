@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/opengfx1030/bernie/internal/serving/bench"
+	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 )
 
 func TestFingerprintLineShowsGPUScope(t *testing.T) {
@@ -74,6 +75,50 @@ func TestPrintCellTableWithoutNumbers(t *testing.T) {
 	}
 	if !strings.Contains(b.String(), "TTFT s") || !strings.Contains(b.String(), "–") {
 		t.Errorf("the cell table lacks the units or the dash:\n%s", b.String())
+	}
+}
+
+// TestPrintReceiptIsMarkdown checks that the receipt holds the scope of the
+// two runs, their correctness, the numbers, the verdict and the command
+// that reproduces it: it is the text of a pull request.
+func TestPrintReceiptIsMarkdown(t *testing.T) {
+	fp := map[string]string{"host": "gpu-box", "gpus": "1x AMD Radeon PRO V620 (gfx1030)", "gpu_scope": "run", "recipe": "flash"}
+	base := &bench.Result{ID: "20260101T000000Z-aaaaaa", Model: "m", URL: "http://127.0.0.1:8000",
+		Fingerprint: fp, Cells: []bench.Cell{{Concurrency: 1, Group: "1k",
+			Measurement: bench.Measurement{Recall: &bench.Recall{Asked: 4, Passed: 4}}}}}
+	cand := &bench.Result{ID: "20260101T010000Z-bbbbbb", Model: "m", URL: "http://127.0.0.1:8000",
+		Fingerprint: fp, Cells: []bench.Cell{{Concurrency: 1, Group: "1k",
+			Measurement: bench.Measurement{Recall: &bench.Recall{Asked: 4, Passed: 4}}}}}
+	v := &suite.Verdict{
+		Workload: bench.Workload{SuiteID: "pr", SuiteDigest: "abcdef0123456789"},
+		A:        base, B: cand,
+		Cells: []suite.CellVerdict{{Group: "1k", Concurrency: 1, Metrics: []suite.MetricVerdict{
+			{Metric: "prefill.agg_tok_s", Label: "prefill tok/s", Base: 100, Cand: 99, DeltaPct: -1, Verdict: "same"},
+		}}},
+		Summary: suite.Summary{Same: 1, RecallOK: true},
+		Valid:   true,
+	}
+	var b strings.Builder
+	printReceipt(&b, v)
+	out := b.String()
+	for _, want := range []string{
+		"# Benchmark receipt",
+		"## Scope",
+		"| baseline | 20260101T000000Z-aaaaaa |",
+		"| candidate | 20260101T010000Z-bbbbbb |",
+		"| suite | pr (digest abcdef012345) |",
+		"## Correctness",
+		"| 1k c=1 | 4/4 passed | – | 0 | 0 | no |",
+		"## Timings",
+		"| prefill tok/s | 100.0 | 99.0 | -1.0 % | same |",
+		"## Verdict",
+		"0 better, 1 same, 0 worse, 0 noisy; recall ok.",
+		"## Reproduce",
+		"bernie bench compare 20260101T000000Z-aaaaaa 20260101T010000Z-bbbbbb --markdown",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the receipt lacks %q:\n%s", want, out)
+		}
 	}
 }
 
