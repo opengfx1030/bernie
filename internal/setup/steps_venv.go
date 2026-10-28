@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
 )
 
@@ -67,13 +67,13 @@ func (p planner) venvTorch() Step {
 
 // tritonDropped returns the arch of a host GPU whose generation newer Triton
 // releases dropped (the device tables say which).
-func (p planner) tritonDropped() (gpu.Arch, bool) {
+func (p planner) tritonDropped() (devices.Arch, bool) {
 	for _, gfx := range p.o.GPUArchs {
-		if a, ok := gpu.LookupArch(gfx); ok && a.TritonBelow != "" {
+		if a, ok := devices.LookupArch(gfx); ok && a.TritonBelow != "" {
 			return a, true
 		}
 	}
-	return gpu.Arch{}, false
+	return devices.Arch{}, false
 }
 
 // rocmHome is the newest install with hipcc (TheRock trees preferred on
@@ -113,7 +113,7 @@ func (p planner) causalConv1D() Step {
 func (p planner) flashAttn() Step {
 	var archs []string
 	for _, a := range p.o.GPUArchs {
-		if t, ok := gpu.LookupArch(a); ok && t.FlashAttn {
+		if t, ok := devices.LookupArch(a); ok && t.FlashAttn {
 			archs = append(archs, a)
 		}
 	}

@@ -7,25 +7,6 @@ import (
 	"github.com/opengfx1030/bernie/internal/support/fixture"
 )
 
-func TestGFXName(t *testing.T) {
-	cases := map[int]string{
-		100300: "gfx1030",
-		100301: "gfx1031",
-		100302: "gfx1032",
-		110000: "gfx1100",
-		110001: "gfx1101",
-		120001: "gfx1201",
-		90010:  "gfx90a",
-		90402:  "gfx942",
-		0:      "",
-	}
-	for v, want := range cases {
-		if got := GFXName(v); got != want {
-			t.Errorf("GFXName(%d) = %q, want %q", v, got, want)
-		}
-	}
-}
-
 func TestLinkGen(t *testing.T) {
 	cases := map[string]int{
 		"16.0 GT/s PCIe": 4,

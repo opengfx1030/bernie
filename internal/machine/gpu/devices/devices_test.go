@@ -1,4 +1,4 @@
-package gpu
+package devices
 
 import (
 	"io/fs"
@@ -16,7 +16,7 @@ var (
 )
 
 func TestTablesAreValid(t *testing.T) {
-	files, err := fs.Glob(devicesFS, "devices/*.yaml")
+	files, err := fs.Glob(devicesFS, "*.yaml")
 	if err != nil || len(files) < 4 {
 		t.Fatalf("glob = %v, %v", files, err)
 	}
@@ -24,7 +24,7 @@ func TestTablesAreValid(t *testing.T) {
 	for _, f := range files {
 		// Each file loads alone: its ids are unique and its devices use its arches.
 		one := fstest.MapFS{f: {Data: mustRead(t, f)}}
-		tb, err := loadTables(one, "devices")
+		tb, err := loadTables(one, ".")
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
@@ -74,6 +74,25 @@ func mustRead(t *testing.T, name string) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+func TestGFXName(t *testing.T) {
+	cases := map[int]string{
+		100300: "gfx1030",
+		100301: "gfx1031",
+		100302: "gfx1032",
+		110000: "gfx1100",
+		110001: "gfx1101",
+		120001: "gfx1201",
+		90010:  "gfx90a",
+		90402:  "gfx942",
+		0:      "",
+	}
+	for v, want := range cases {
+		if got := GFXName(v); got != want {
+			t.Errorf("GFXName(%d) = %q, want %q", v, got, want)
+		}
+	}
 }
 
 func TestLookup(t *testing.T) {
@@ -143,7 +162,7 @@ func TestLoadTablesRejectsBadFiles(t *testing.T) {
 		"upper-case id": "generation: g\nwave_size: 32\narches: {gfx1030: {}}\ndevices:\n  - {ids: [\"0x00AB\"], name: A, gfx: gfx1030}\n",
 	}
 	for name, doc := range cases {
-		if _, err := loadTables(fstest.MapFS{"devices/x.yaml": {Data: []byte(doc)}}, "devices"); err == nil {
+		if _, err := loadTables(fstest.MapFS{"x.yaml": {Data: []byte(doc)}}, "."); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
@@ -151,7 +170,7 @@ func TestLoadTablesRejectsBadFiles(t *testing.T) {
 		"devices/a.yaml": {Data: []byte("generation: a\nwave_size: 32\narches: {gfx1030: {}}\n")},
 		"devices/b.yaml": {Data: []byte("generation: b\nwave_size: 32\narches: {gfx1030: {}}\n")},
 	}
-	if _, err := loadTables(two, "devices"); err == nil {
+	if _, err := loadTables(two, "."); err == nil {
 		t.Error("an arch in two files was accepted")
 	}
 }

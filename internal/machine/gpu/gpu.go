@@ -7,23 +7,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 )
 
 // KFDNodesDir is the KFD topology node directory, relative to the root.
 const KFDNodesDir = "sys/class/kfd/kfd/topology/nodes"
-
-// GFXName turns a KFD gfx_target_version into a gfx target name:
-// major = v/10000, minor = (v/100)%100, step = v%100, minor and step in hex
-// (100300 -> gfx1030, 90010 -> gfx90a). Zero gives "".
-func GFXName(targetVersion int) string {
-	if targetVersion <= 0 {
-		return ""
-	}
-	major := targetVersion / 10000
-	minor := (targetVersion / 100) % 100
-	step := targetVersion % 100
-	return fmt.Sprintf("gfx%d%x%x", major, minor, step)
-}
 
 // List returns the GPUs of the KFD topology under root, in KFD node order.
 // HIPIndex is the position among GPU nodes (simd_count > 0).
@@ -55,7 +44,7 @@ func List(root string) ([]GPU, error) {
 			RenderMinor:      int(props["drm_render_minor"]),
 			NUMANode:         -1,
 		}
-		g.GFX = GFXName(g.GFXTargetVersion)
+		g.GFX = devices.GFXName(g.GFXTargetVersion)
 		g.PCI = locationBDF(props["domain"], props["location_id"])
 		if props["device_id"] > 0 {
 			g.DeviceID = fmt.Sprintf("0x%04x", props["device_id"])
@@ -94,7 +83,7 @@ func fillDevice(root string, g *GPU) {
 		g.PowerCapW = microWatts(readUint(filepath.Join(hw, "power1_cap")))
 	}
 	g.Name = readString(filepath.Join(dev, "product_name"))
-	if d, ok := Lookup(g.DeviceID); ok {
+	if d, ok := devices.Lookup(g.DeviceID); ok {
 		g.TempLimitsC = d.TempLimitsC
 	}
 }
@@ -202,7 +191,7 @@ func locationBDF(domain, loc int64) string {
 // displayName names a GPU the DRM product name did not: the device table,
 // else the gfx target.
 func displayName(g GPU) string {
-	if d, ok := Lookup(g.DeviceID); ok {
+	if d, ok := devices.Lookup(g.DeviceID); ok {
 		return d.Name
 	}
 	switch {

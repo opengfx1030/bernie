@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 	"github.com/opengfx1030/bernie/internal/support/execx"
 )
 
@@ -129,13 +130,13 @@ func ParseUMCCounters(text string) (ce, ue, de uint64, ok bool) {
 // hasECC reports whether the device tables say the card counts its memory
 // errors, that is: it has ECC.
 func hasECC(g GPU) bool {
-	d, ok := Lookup(g.DeviceID)
+	d, ok := devices.Lookup(g.DeviceID)
 	return ok && d.ECC
 }
 
 // knownDevice reports whether the device tables know the card.
 func knownDevice(g GPU) bool {
-	_, ok := Lookup(g.DeviceID)
+	_, ok := devices.Lookup(g.DeviceID)
 	return ok
 }
 

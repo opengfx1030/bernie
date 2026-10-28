@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
 )
 
@@ -45,7 +45,7 @@ func powerCheck(in inputs) Check {
 	idx := map[int][]string{}
 	for _, g := range in.gpus {
 		caps = append(caps, fmt.Sprintf("%d:%.0fW", g.HIPIndex, g.PowerCapW))
-		d, ok := gpu.Lookup(g.DeviceID)
+		d, ok := devices.Lookup(g.DeviceID)
 		if !ok || d.PowerCapAdviceW == 0 || g.PowerCapW <= float64(d.PowerCapAdviceW) {
 			continue
 		}

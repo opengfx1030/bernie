@@ -431,8 +431,8 @@ Rules:
 - Every file lists its sources in a header comment.
 - A value without a source is left out. Absent means "unknown", not "no".
 
-Go code reads the tables only through `gpu.Lookup(deviceID)`,
-`gpu.LookupArch(gfx)` and `gpu.CodeTargets(gfxs)`. These users exist:
+Go code reads the tables only through `devices.Lookup(deviceID)`,
+`devices.LookupArch(gfx)` and `devices.CodeTargets(gfxs)`. These users exist:
 
 | User | What it takes |
 |---|---|

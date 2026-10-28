@@ -34,7 +34,8 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/serving/vllm` | the vLLM client | `New`, `Health`, `Models`, `Tokenize`, `Metrics` | 2 |
 | `internal/serving/bench` | the benchmark | `Run`, `Save`, `List`, `Get`, `Options`, `Result` | 2 |
 | `internal/serving/bench/suite` | the bench suites | `Load`, `List`, `Get`, `Run`, `Compare`, `Judge`, `AB` | 2 |
-| `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `GFXName`, `Archs`, `ECC` | 1 |
+| `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `Archs`, `ArchMatch`, `ECC` | 1 |
+| `internal/machine/gpu/devices` | the device tables | `Lookup`, `LookupArch`, `CodeTargets`, `GFXName`, `Arch`, `Device` | 1 |
 | `internal/machine/host` | the OS facts | `Probe`, `Preferred`, `InstallCommand`, `GPUGroups`, `Info` | 1 |
 | `internal/machine/rocm` | the ROCm facts | `Probe`, `ProbeVenv`, `VenvLibPaths`, `FindROCBLAS`, `CompareVersions` | 1 |
 | `internal/machine/topo` | the PCIe facts | `Discover`, `MeasureBandwidth`, `BestGroup`, `P2PChecklist` | 1 |
@@ -59,20 +60,28 @@ type Sample struct { HIPIndex int; BusyPct, TempC, PowerW, PowerCapW float64;
     VRAMUsed, VRAMTotal uint64 }
 func List(root string) ([]GPU, error)
 func Telemetry(root string, gpus []GPU) []Sample
-func GFXName(targetVersion int) string
-
-// Device tables (spec §4.4): internal/machine/gpu/devices/<generation>.yaml
-type Arch struct { GFX, Generation, Family string; WaveSize int; BF16, HSAOverride,
-    TritonBelow string; Integrated, FlashAttn bool }
-type Device struct { Arch; ID, Name string; PowerCapAdviceW int }
-func Lookup(deviceID string) (Device, bool)   // by PCI device id
-func LookupArch(gfx string) (Arch, bool)
-func CodeTargets(gfxs []string) []string      // arch -> arch whose code objects it runs
 func ArchMatch(patterns []string, gfx string) bool   // full name or prefix
 func Archs(gpus []GPU, idx []int) []string
 ```
 
-`gpu` imports no other bernie package. No other package names a device.
+`gpu` reads the live GPUs and imports only `devices`. No other package
+names a device.
+
+## machine/gpu/devices
+
+```go
+// Device tables (spec §4.4): internal/machine/gpu/devices/<generation>.yaml
+type Arch struct { GFX, Generation, Family string; WaveSize int; BF16, HSAOverride,
+    TritonBelow string; Integrated, FlashAttn bool }
+type Device struct { Arch; ID, Name string; PowerCapAdviceW int }
+func GFXName(targetVersion int) string      // a KFD target version -> gfx1030
+func Lookup(deviceID string) (Device, bool)   // by PCI device id
+func LookupArch(gfx string) (Arch, bool)
+func CodeTargets(gfxs []string) []string      // arch -> arch whose code objects it runs
+```
+
+`devices` holds the tables and the loader that walks them. It imports no
+other bernie package, and no other package reads the tables.
 
 ## machine/host
 
