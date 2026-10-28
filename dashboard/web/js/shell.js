@@ -34,7 +34,12 @@ async function copyText(text) {
     }
   } catch (e) { /* fall through to the text area */ }
   try {
-    const area = h("textarea", { style: "position:fixed;left:-9999px;top:0" });
+    const area = h("textarea");
+    // The CSP forbids a style attribute; the runtime values go through the
+    // CSSOM, which the CSP allows.
+    area.style.position = "fixed";
+    area.style.left = "-9999px";
+    area.style.top = "0";
     area.value = text;
     document.body.append(area);
     area.select();

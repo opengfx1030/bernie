@@ -244,6 +244,7 @@ func TestTelemetryStream(t *testing.T) {
 }
 
 // Every response, including errors, redirects and the HTML, is uncacheable.
+// The static assets are revalidated (`no-cache`); the fonts are immutable.
 func TestNoStoreEverywhere(t *testing.T) {
 	tok := newServer(Options{Listen: "0.0.0.0:7860", Token: testToken}).handler()
 	loop := newServer(Options{}).handler()
@@ -254,23 +255,25 @@ func TestNoStoreEverywhere(t *testing.T) {
 		path string
 		hdr  map[string]string
 		code int
+		cc   string // the Cache-Control the response must carry
 	}{
-		{"html", tok, "/", bearer, 200},
-		{"asset", tok, "/js/core.js", bearer, 200},
-		{"api json", tok, "/api/runs", bearer, 200},
-		{"api 404", tok, "/api/nope", bearer, 404},
-		{"api 401", tok, "/api/runs", map[string]string{"Host": "gpu-box"}, 401},
-		{"bootstrap redirect", tok, "/?token=" + testToken, map[string]string{"Host": "gpu-box"}, 303},
-		{"loopback html", loop, "/", map[string]string{"Host": "localhost"}, 200},
-		{"loopback api", loop, "/api/runs", map[string]string{"Host": "localhost"}, 200},
-		{"rebinding 403", loop, "/", map[string]string{"Host": "evil.example"}, 403},
+		{"html", tok, "/", bearer, 200, "no-store"},
+		{"asset", tok, "/js/core.js", bearer, 200, "no-cache"},
+		{"font", tok, "/fonts/inter-latin.woff2", bearer, 200, "public, max-age=31536000, immutable"},
+		{"api json", tok, "/api/runs", bearer, 200, "no-store"},
+		{"api 404", tok, "/api/nope", bearer, 404, "no-store"},
+		{"api 401", tok, "/api/runs", map[string]string{"Host": "gpu-box"}, 401, "no-store"},
+		{"bootstrap redirect", tok, "/?token=" + testToken, map[string]string{"Host": "gpu-box"}, 303, "no-store"},
+		{"loopback html", loop, "/", map[string]string{"Host": "localhost"}, 200, "no-store"},
+		{"loopback api", loop, "/api/runs", map[string]string{"Host": "localhost"}, 200, "no-store"},
+		{"rebinding 403", loop, "/", map[string]string{"Host": "evil.example"}, 403, "no-store"},
 	} {
 		w := do(t, tc.h, "GET", tc.path, tc.hdr)
 		if w.Code != tc.code {
 			t.Errorf("%s: status %d, want %d", tc.name, w.Code, tc.code)
 		}
-		if cc := w.Header().Get("Cache-Control"); cc != "no-store" {
-			t.Errorf("%s: Cache-Control %q, want no-store", tc.name, cc)
+		if cc := w.Header().Get("Cache-Control"); cc != tc.cc {
+			t.Errorf("%s: Cache-Control %q, want %q", tc.name, cc, tc.cc)
 		}
 	}
 }
