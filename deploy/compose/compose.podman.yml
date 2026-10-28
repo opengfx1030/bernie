@@ -1,0 +1,16 @@
+# Override for rootless Podman. Needs `!override` support (docker compose
+# 2.24+, podman-compose 1.3+). Use it on top of compose.yml:
+#
+#   podman compose -f compose.yml -f compose.podman.yml up -d
+#
+# keep-groups passes the host user's groups (video, render) to the container,
+# the only way rootless Podman can open /dev/kfd. The container user is root
+# inside the user namespace, so it is your own user on the host and ./data
+# needs no chown.
+# Without `!override` support: replace the group_add list in compose.yml with
+# `- keep-groups` and set `user: "0:0"` there.
+services:
+  bernie:
+    user: "0:0"
+    group_add: !override
+      - keep-groups

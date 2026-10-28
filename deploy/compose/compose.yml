@@ -1,0 +1,45 @@
+# Reference Compose file: the bernie dashboard in a container.
+# Works with `docker compose`, `podman compose` and `podman-compose`.
+#
+#   cp .env.example .env     # set BERNIE_DASH_TOKEN and the group ids
+#   mkdir -p data && sudo chown 65532:65532 data
+#   docker compose up -d     # then open http://127.0.0.1:7860
+#
+# What the container can do: hw, topo, doctor, recipes, bench and the dashboard.
+# It cannot start vLLM as a host process (no Python venv in the image), and the
+# image holds no docker/podman CLI, so `serve` in container mode needs a
+# derived image that adds one. Use the host binary for `bernie serve`.
+# See docs/install.md.
+name: bernie
+services:
+  bernie:
+    image: ghcr.io/opengfx1030/bernie:latest
+    container_name: bernie-dash
+    # Default command: dash --listen 0.0.0.0:7860. A non-loopback address
+    # requires a token. Empty BERNIE_DASH_TOKEN = random token in `logs`.
+    environment:
+      BERNIE_DASH_TOKEN: ${BERNIE_DASH_TOKEN:-}
+    ports:
+      # Loopback only by default. Set BERNIE_BIND=0.0.0.0 to expose the
+      # dashboard to the network; then the token is the only protection.
+      - "${BERNIE_BIND:-127.0.0.1}:7860:7860"
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    # The image has no video/render group names: use the numeric host ids.
+    #   stat -c %g /dev/kfd /dev/dri/renderD128 /dev/dri/card0
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-105}"
+    security_opt:
+      - label=disable
+      - seccomp=unconfined
+    volumes:
+      - ./data:/data
+      - /sys:/sys:ro
+      # Container-mode runs need an engine CLI inside the container (not in
+      # this image) and the engine socket. The socket is root on the host:
+      # see SECURITY.md before you enable it.
+      # - /var/run/docker.sock:/var/run/docker.sock
+      # - ${XDG_RUNTIME_DIR}/podman/podman.sock:/var/run/docker.sock
+    restart: unless-stopped
