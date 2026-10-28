@@ -71,6 +71,7 @@ flowchart TB
   RUN --> REC
   RUN --> TUN
   REC --> TOPO
+  REC --> HOST
   DOC --> TUN
   TOPO --> GPU
   TOPO --> ROCM

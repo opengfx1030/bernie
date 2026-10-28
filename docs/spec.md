@@ -148,13 +148,18 @@ other file, script or compose file is required.
   rule matches, `up` prints every match (rule id, cause, fix, doc link, the
   matching line) on stderr and exits with code 3. Otherwise it prints
   `NAME exited during startup; see: bernie logs NAME` and exits with code 1.
+  While it waits, `up` prints one line per phase change: what the server is
+  doing now, in words ("Loading the model weights, 2 of 5 shards"). The
+  sentence comes from the tail of the run's log ([§5.4](#54-log-phase)).
 - With `--json`, `status` and `up` write one JSON document. `up --json`
   never prompts; it requires `--yes` to change the host. A blocked `up`
   writes `{"blocked": {"reason": "", "commands": []}}`. An `up` whose run
   exited during startup with matching rules writes
   `{"run": "NAME", "log_findings": [Match]}` (exit code 3; `Match` is the
   object of [§5.3](#53-log-doctor)). `status --json` and `ps --json` add
-  `findings` to the entry of an exited run ([§8.3](#83-run-record)).
+  `findings` to the entry of an exited run ([§8.3](#83-run-record)) and
+  `phase` to the entry of a run that is still alive
+  ([§5.4](#54-log-phase)).
 
 ### 3.2 Rules
 
@@ -210,9 +215,10 @@ other file, script or compose file is required.
 profile), `--no-tunableop` and `--tuning`. `serve` adds `--foreground`,
 `--no-pull`, `--wait D` and `--dry-run` (same output as `recipe plan`).
 `serve --wait D` waits up to `D` until `/health` answers, like `up`; a run
-that exits first is reported like in `up`. Without `--wait`, `serve` returns
-once the run is started. `serve --foreground` reports the log findings of a
-server that exits with an error. `compose` writes
+that exits first is reported like in `up`. While it waits, `serve` prints
+the phase sentence of the run ([§5.4](#54-log-phase)). Without `--wait`,
+`serve` returns once the run is started. `serve --foreground` reports the
+log findings of a server that exits with an error. `compose` writes
 container plans only. `setup plan` and `setup apply` also take `--venv`,
 `--image` and `--model`. `status` takes `--venv`.
 
@@ -324,6 +330,43 @@ Go code reads the tables only through `gpu.Lookup(deviceID)`,
 | `doctor` | `gpu.supported.<gfx>`, `gpu.hsa_override.<gfx>`, `gpu.igpu`, the Triton check, the power-cap advice. |
 | `setup` | Code targets (wheels, build targets), the FlashAttention allowlist. |
 
+### 4.5 P2P readiness checklist
+
+`bernie topo --check` answers one question: will multi-GPU peer-to-peer
+copies, and the custom all-reduce that uses them, work on this host? It
+prints an ordered checklist. Every item has a status (`ok`, `warn`, `fail`
+or `skip`), one line of cause, and a fix command or a documentation link.
+
+| Item | What it reads | `ok` | `warn` | `fail` |
+|---|---|---|---|---|
+| `kfd_links` | the KFD `p2p_links` and `io_links` of every GPU node, and the KFD peer link of every GPU pair | every pair has a peer link and every GPU has an io_link | a pair has no peer link, so it stages through the host | no pair has a peer link |
+| `large_bar` | the largest memory region of `/sys/bus/pci/devices/<bdf>/resource` and the VRAM of the GPU | the BAR covers the VRAM, or the kernel command line pins the firmware BAR (`pci=realloc=off`) | the BAR is smaller than the VRAM and nothing pins it | – |
+| `iommu` | `iommu=pt`, `iommu=on` or `iommu=off` in `/proc/cmdline` | `iommu=pt` or `iommu=off` | the IOMMU translates peer addresses | – |
+| `acs` | `pcie_acs_override` and `disable_acs_redir` in `/proc/cmdline` | ACS redirection is off, or no PCIe switch sits between the GPUs | ACS can block a peer copy across a switch | – |
+| `link_speed` | `current_link_speed` and `current_link_width` against `max_link_speed` and `max_link_width` | every GPU runs at the maximum of its slot | a link is degraded or below gen4 x8 | – |
+| `link_classes` | the link classes of every GPU pair ([§4.2](#42-link-classes)) | every pair is PIX or PXB | a pair crosses a host bridge (PHB) or the CPU (SYS) | – |
+| `bandwidth_test` | the `rocm-bandwidth-test` binary | it is installed | – | never |
+| `recipe_env` | the NCCL, RCCL and RDNA all-reduce variables of the recipe | it shows them (informational) | – | never |
+
+`--recipe ID` picks the recipe whose environment the last item shows. Without
+it the best fitting recipe is used. The item is `skip` when no recipe fits.
+
+The JSON document is:
+
+```json
+{"ready": true,
+ "summary": {"ok": 5, "warn": 1, "fail": 0, "skip": 2},
+ "checklist": [{"id": "kfd_links", "title": "KFD peer links", "status": "ok",
+                "detail": "45 of 45 GPU pairs have a KFD P2P link; every GPU has 9 p2p_links and 1 io_link",
+                "fix": "", "doc": "https://..."}]}
+```
+
+`ready` is false when an item failed. The command exits with code 3 when an
+item failed.
+
+The doctor category `topo.p2p` runs the same checklist: every item becomes
+one check (`topo.p2p.<item>`) with the same status, detail, fix and doc.
+
 ## 5. Doctor
 
 ### 5.1 Check record
@@ -346,6 +389,7 @@ stability; `skip` means the check cannot run here.
 | `os` | Distro and version known. Package manager known. Kernel version. |
 | `gpu` | `/dev/kfd` exists and is readable/writable (`gpu.kfd`). `/dev/dri/renderD*` exist. `gpu.groups` compares group ids: the `video` and `render` gids come from `/etc/group`, then from `getent group <name>` (3 s timeout). The user's gids are the primary and supplementary groups of the process. A group that neither source knows makes the check `warn` ("cannot tell"), never `fail`. At least one GPU. One `gpu.supported.<gfx>` per gfx target on the host: `ok` when the target is in the device tables and a validated recipe lists it, `warn` when the target is in the tables but no validated recipe lists it, `warn` ("not in the device tables") when the tables do not know it (for example a CDNA target). One `gpu.hsa_override.<gfx>` (`warn`) per target whose table row has an `hsa_override`, with the `HSA_OVERRIDE_GFX_VERSION` advice. `gpu.igpu` warns when an integrated GPU mixes with discrete GPUs. |
 | `kernel` | `amdgpu` is loaded. IOMMU mode from `/proc/cmdline` (`iommu=pt` advice for P2P). PCIe links are gen4 x8 or better. |
+| `topo.p2p` | The P2P readiness checklist of [§4.5](#45-p2p-readiness-checklist): one check per item (`topo.p2p.<item>`). |
 | `rocm` | ROCm installs found (`/opt/rocm*`, `/opt/rocm/core-*`, `/usr`) with versions. More than one install: `warn`. `rocminfo` lists the GPUs. `hipcc`, `amd-smi` or `rocm-smi` present. `librocblas.so.5` found. ROCm 7.2.1 to 7.13 with more than one GPU: `warn` (RCCL TP>1 deadlock range). |
 | `python` | With `--venv` (or the configured venv): Python version, `torch` imports, `torch.version.hip` set, GPU count matches, `rocm-sdk-device` wheels match the GPU code targets, Triton is below the version that dropped a GPU generation (`triton_below` in the device tables; `fail`), `vllm` imports, fork ops registered (`_rocm_C::*rdna*` schema count > 10). |
 | `container` | `docker` or `podman` present, daemon or socket usable, compose present, rootless state, SELinux mode. |
@@ -384,6 +428,28 @@ reports the rules it matched so far. A log that cannot be read gives no
 findings. The log of an exited run does not change, so a long-lived process
 (`bernie dash`) scans it once.
 
+### 5.4 Log phase
+
+The tail of a serve log names the phase the server is in. The phases are
+data (embedded YAML, `internal/logdoc/phase.yaml`), not code. One phase is
+one pattern (Go RE2, matched per line), one plain sentence and an optional
+progress pattern with two groups: done and total.
+
+The last line of the tail that matches a pattern names the phase. A tail
+with nothing known in it has no phase. The tail is bounded: at most 256 KiB
+are read from the end of the log, so a multi-gigabyte log costs the same as
+a small one.
+
+```json
+{"id": "loading-weights", "sentence": "Loading the model weights, 2 of 5 shards",
+ "done": 2, "total": 5}
+```
+
+`done` and `total` are absent when the log does not say how far the step is.
+`up` and `serve --wait` print the sentence on stderr when it changes, at
+most one line every 5 seconds. `ps --json` and `status --json` carry the
+phase of a run that is not exited ([§8.3](#83-run-record)).
+
 ## 6. Setup
 
 `setup plan` returns ordered steps. The steps read the GPU targets and the
@@ -392,8 +458,11 @@ Each step has this record:
 
 ```json
 {"id": "venv.create", "title": "", "mode": "host|container|both",
- "root": false, "done": false, "commands": ["..."], "why": ""}
+ "root": false, "done": false, "commands": ["..."], "why": "",
+ "download": {"repo": "", "hub_cache": "", "resume_bytes": 0}}
 ```
+
+`download` is set on the `model.download` step only ([§6.1](#61-the-model-download)).
 
 `done` is true when the step's postcondition already holds (bernie checks it).
 `setup apply` runs, in order, the steps that are not done and do not need
@@ -414,7 +483,38 @@ Steps (filtered by mode and host):
 | `flash-attn.build` | no | host | Only when a GPU has `flash_attn: true` in the device tables. gfx1030 does not. |
 | `vllm.build` | no | host | Clone the fork and build it in the venv. |
 | `image.pull` | no | container | Pull the recipe image. |
-| `model.download` | no | both | `hf download <repo>` into the Hugging Face cache. |
+| `model.download` | no | both | The files of the repo into the Hugging Face cache ([§6.1](#61-the-model-download)). |
+
+### 6.1 The model download
+
+`setup apply` puts the files of a model repo in the Hugging Face cache
+(`<HF_HOME>/hub`), the same layout the `hf` tool uses: the content in
+`models--<org>--<name>/blobs/<checksum>`, the snapshot
+`models--<org>--<name>/snapshots/<commit>/<path>` with a symlink per file,
+and the ref `models--<org>--<name>/refs/main`. vLLM finds the model in the
+cache without asking the Hub again.
+
+bernie downloads the files itself, with the Go standard library:
+
+- The file list comes from `GET /api/models/<repo>?blobs=true`. Every file
+  has a size and a checksum: the sha256 of an LFS file, the git blob id of
+  a small file.
+- A file that is complete in the cache is skipped.
+- A partial file continues with a `Range` request. The partial file is
+  `<checksum>.incomplete` in the blobs directory. The step reports the
+  bytes that are already there (`resume_bytes`).
+- The checksum of the content is checked before the file is moved in place.
+- The progress is one line every two seconds and one at the end:
+  `model.download: 1.8 GB of 2.3 GB (78%) at 45.2 MB/s`.
+
+The download runs on the host. The container image of bernie holds no
+HTTPS client and no Python, and it never downloads anything.
+
+Why bernie does not call the `hf` tool: `huggingface_hub` 2.x gives every
+process its own temporary file
+(`<etag>.<random>.incomplete`, see `file_download.py` in the package), so
+an interrupted download starts over. The `hf` command does the same job
+(`hf download <repo>`) and stays the way to fetch a model by hand.
 
 ## 7. Recipes
 
@@ -661,6 +761,11 @@ the scan of its log ([§5.3](#53-log-doctor)) matched at least one rule. Each
 entry is the `Match` object of §5.3. The field is absent for a run that is
 `starting` or `running`, and for an exited run without a match.
 
+A run that is `starting` or `running` has a `phase` object in `ps --json` and
+`status --json`: what the tail of its log says the server is doing now
+([§5.4](#54-log-phase)). The field is absent when the log says nothing
+known.
+
 `doctor --run NAME` explains a failed start ([§5.3](#53-log-doctor)). One
 name has one run. `serve` refuses a name that is not `exited`.
 
@@ -793,10 +898,11 @@ Rules for responses and tokens:
 |---|---|---|
 | GET | `/api/hw` | `hw` JSON |
 | GET | `/api/topo` | `topo` JSON |
+| GET | `/api/topo/check` | `topo --check` JSON (query `recipe`) |
 | GET | `/api/doctor` | `doctor` JSON |
 | GET | `/api/recipes` | `recipe list --all` JSON |
 | GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`) |
-| GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Runs tab shows them next to its log. |
+| GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Runs tab shows them next to its log. A live run has `phase` ([§5.4](#54-log-phase)); the Runs tab shows the sentence under its state badge. |
 | POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record |
 | DELETE | `/api/runs/{name}` | stop |
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
@@ -804,6 +910,17 @@ Rules for responses and tokens:
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
+
+The `Sample` of the telemetry stream is one GPU:
+
+```json
+{"hip_index": 0, "busy_pct": 0, "temp_c": 33, "power_w": 12.5, "power_cap_w": 175,
+ "vram_used": 24117248, "vram_total": 32195477504,
+ "temp_junction_c": 35, "temp_mem_c": 34, "sclk_mhz": 2570, "mclk_mhz": 1000}
+```
+
+`temp_junction_c`, `temp_mem_c`, `sclk_mhz` and `mclk_mhz` are absent when
+the card does not publish them. The dashboard shows `–` for an absent value.
 
 ## 12. Files and paths
 
@@ -844,17 +961,6 @@ implement the deprecated HTTP+SSE transport.
 `bernie mcp [--allow-write]` serves one client on stdin and stdout.
 
 The server writes only MCP messages to stdout. It writes diagnostics to
-The `Sample` of the telemetry stream is one GPU:
-
-```json
-{"hip_index": 0, "busy_pct": 0, "temp_c": 33, "power_w": 12.5, "power_cap_w": 175,
- "vram_used": 24117248, "vram_total": 32195477504,
- "temp_junction_c": 35, "temp_mem_c": 34, "sclk_mhz": 2570, "mclk_mhz": 1000}
-```
-
-`temp_junction_c`, `temp_mem_c`, `sclk_mhz` and `mclk_mhz` are absent when
-the card does not publish them. The dashboard shows `–` for an absent value.
-
 stderr. The command has no `--json` output: the protocol is structured.
 
 `--allow-write`, or `BERNIE_MCP_WRITE=1` in the environment, enables the

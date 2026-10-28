@@ -68,6 +68,11 @@ type Topology struct { Nodes []Node; Pairs []Pair; Bandwidth string }
 func Discover(root string, gpus []gpu.GPU) (Topology, error)
 func MeasureBandwidth(ctx context.Context, t *Topology, venv string) error
 func BestGroup(t Topology, candidates []int, n int) (sel []int, reason string)
+
+// P2P readiness checklist (spec §4.5).
+type CheckItem struct { ID, Title string; Status P2PStatus; Detail, Fix, Doc string }
+type RecipeEnv struct { ID string; Env map[string]string }
+func P2PChecklist(root string, gpus []gpu.GPU, o P2POptions) ([]CheckItem, error)
 ```
 
 ## doctor
@@ -92,19 +97,27 @@ type Match struct { Rule; Line string; LineNo int }
 func Load() ([]Rule, error)                       // embedded catalog.yaml, validated
 func Scan(r io.Reader, rules []Rule) []Match      // first matching line per rule, streaming
 func ScanFile(path string) ([]Match, error)
+type Phase struct { ID, Sentence string; Done, Total int }
+func LoadPhases() ([]PhaseRule, error)            // embedded phase.yaml, validated
+func PhaseOf(tail []byte) (Phase, bool)           // phase of the last matching line
 ```
 
 ## setup
 
 ```go
-type Step struct { ID, Title, Mode string; Root, Done bool; Commands []string; Why string }
+type Step struct { ID, Title, Mode string; Root, Done bool; Commands []string; Why string
+                   Download *Download }
+type Download struct { Repo, HubCache string; ResumeBytes int64 }
 type Options struct { Mode, Venv, Image, ModelRepo, SrcDir, HFHome string; GPUArchs []string }
 func Plan(ctx context.Context, h host.Info, r rocm.Report, o Options) []Step
 func Apply(ctx context.Context, steps []Step, only []string, log io.Writer) error
 ```
 
 `Plan` takes the GPU targets from `GPUArchs` and asks the device tables for
-code targets and the FlashAttention allowlist.
+code targets and the FlashAttention allowlist. The step with a `Download`
+puts the files of the repo in the Hugging Face cache: a partial file
+continues with a `Range` request, and the checksum of every file is
+checked.
 
 ## serving/recipe
 
@@ -185,6 +198,7 @@ func Compare(a, b *Result) (*Comparison, error)   // ErrWorkloadDiffers: the wor
 // Each function returns the canonical struct of its `--json` document.
 func HW(ctx context.Context) (HWReport, error)                          // GPUErr: why GPUs is empty
 func Topo(ctx context.Context, o TopoOptions) (topo.Topology, error)    // Bandwidth, Venv, NoKFDOK, Progress
+func P2PChecklist(ctx context.Context, o P2PChecklistOptions) (P2PChecklistReport, error) // topo --check
 func Doctor(ctx context.Context, categories []string, venv string) (doctor.Report, error)
 func RunLog(ctx context.Context, name string) (LogReport, error)        // doctor --run
 func NewLogReport(matches []logdoc.Match) LogReport                     // never null
