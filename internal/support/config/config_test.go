@@ -101,6 +101,7 @@ func TestSetKeyAndRoundTrip(t *testing.T) {
 }
 
 func TestResolveVenv(t *testing.T) {
+	resetVenvCache()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("BERNIE_DATA_DIR", filepath.Join(home, "data"))

@@ -60,8 +60,33 @@ func (c Config) ResolveVenvInfo(flag string) VenvResolution {
 // conventionalVenvs returns the valid vLLM venvs in the short list of
 // conventional locations. A candidate needs bin/python and a Python that can
 // find the vllm module. The probes run in parallel: a Python with a large
-// site-packages directory takes seconds to start.
+// site-packages directory takes seconds to start. The result is cached: one
+// process probes the candidates once.
 func conventionalVenvs() []string {
+	venvMu.Lock()
+	defer venvMu.Unlock()
+	if venvCached {
+		return venvCache
+	}
+	out := probeConventionalVenvs()
+	venvCache, venvCached = out, true
+	return out
+}
+
+var (
+	venvMu     sync.Mutex
+	venvCache  []string
+	venvCached bool
+)
+
+// resetVenvCache forgets the probed candidates. Only the tests need it.
+func resetVenvCache() {
+	venvMu.Lock()
+	venvCache, venvCached = nil, false
+	venvMu.Unlock()
+}
+
+func probeConventionalVenvs() []string {
 	home, _ := os.UserHomeDir()
 	patterns := []string{filepath.Join(paths.Data(), "venv")}
 	if home != "" {
