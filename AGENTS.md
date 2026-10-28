@@ -37,8 +37,9 @@ Requirements: Go 1.26 or later. No other toolchain. No CGO.
 1. **Spec first.** A change to a command, a flag, a JSON field, the recipe
    schema or a file path changes `docs/spec.md` in the same commit.
 2. **Layers.** Follow the import graph in `docs/architecture.md` §1. Domain
-   packages return structs and never print. `internal/cli` and `dashboard`
-   only parse input and format output.
+   packages return structs and never print. `internal/cli`, `dashboard` and
+   `internal/mcp` only parse input and format output. An operation that two
+   front ends run lives in `internal/app`.
 3. **One file per command.** Add a command as `internal/cli/cmds/<family>/cmd_<name>.go`
    with `cli.Register` in `init()`. Do not edit `cli.go` for a new command (a new family package is blank-imported in `cmd/bernie/main.go`).
 4. **`--json` is an API.** Every command supports it. Never put progress or
@@ -50,8 +51,13 @@ Requirements: Go 1.26 or later. No other toolchain. No CGO.
    Do not add model-specific branches to Go code.
 8. **Never break other platforms.** A recipe declares `requires.arch`. Keep
    CDNA (AITER) and NVIDIA concerns out of RDNA defaults.
-9. **Dependencies.** The only third-party module is `gopkg.in/yaml.v3`. Ask a
-   maintainer before you add one.
+9. **Dependencies.** Two third-party modules, with their reason:
+   `gopkg.in/yaml.v3` (recipes and config are YAML) and
+   `github.com/modelcontextprotocol/go-sdk` (the MCP server: the protocol has
+   two lifecycles, a modern and a legacy one, and the SDK keeps both, with
+   JSON Schema validation and the HTTP transport rules). The SDK needs its
+   own modules (`docs/third-party.md` lists them). Ask a maintainer before you
+   add another.
 10. **No external calls in probes without a timeout.** Use `internal/support/execx`.
 11. **Structure.** Follow spec §2.1: files ≤ 400 lines, directories ≤ 12
     entries, data keyed by GPU architecture (`<kind>/<arch>/...`), embedded
