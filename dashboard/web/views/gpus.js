@@ -34,29 +34,60 @@ function renderGPUs() {
 
 function gpuCard(i) {
   const g = (state.hw.gpus || []).find((x) => x.hip_index === i) || {};
-  const metric = (name) => h("div.metric", { "data-m": name }, h("div.lbl", h("span", name), h("b")), h("div.bar", h("i")));
+  const metric = (name, bar = true, title = "") =>
+    h("div.metric", { "data-m": name }, h("div.lbl", { title: title }, h("span", name), h("b")), bar ? h("div.bar", h("i")) : null);
   return h("div.card.gpu", { "data-gpu": String(i) },
     h("div.head", h("h3", "GPU " + i + " ", h("span.muted.small", g.name || "")), h("span.big", { "data-busy": "" }, "–")),
     h("div.muted.small", [g.gfx, g.pci, g.link && g.link.gen ? `PCIe ${g.link.gen}.0 x${g.link.width}` : "", g.numa_node >= 0 ? "NUMA " + g.numa_node : ""].filter(Boolean).join(" · ")),
     h("canvas.spark", { "data-s": "busy", title: "busy %, last 60 s" }),
-    metric("VRAM"), metric("Power"), metric("Temp"),
+    metric("VRAM"), metric("Power"),
+    metric("Temp", true, "edge temperature"),
+    metric("Junction", true, "memory junction temperature"),
+    metric("Mem", true, "memory temperature"),
+    metric("sclk", false, "shader clock"),
+    metric("mclk", false, "memory clock"),
     h("canvas.spark", { "data-s": "pow", title: "power W, last 60 s" }));
+}
+
+// tempCell renders a temperature with its state word first: "hot 100 °C" when
+// the card is at or above the limit of the device tables, "–" when the card
+// does not publish it. The bar fills up to the limit.
+function tempCell(v, limit) {
+  if (!v) return { text: "–", frac: 0, hot: false };
+  const hot = limit > 0 && v >= limit;
+  return { text: (hot ? "hot " : "") + Math.round(v) + " °C", frac: limit > 0 ? v / limit : 0, hot: hot };
+}
+
+// clockText renders a clock in MHz, "–" when the card does not publish it.
+function clockText(mhz) {
+  return mhz == null ? "–" : mhz + " MHz";
 }
 
 function updateGPUCard(card, i, s) {
   const set = (m, text, frac, hot) => {
     const el = card.querySelector(`[data-m="${m}"]`);
     el.querySelector("b").textContent = text;
-    el.querySelector(".bar > i").style.width = Math.max(0, Math.min(100, frac * 100)) + "%";
+    const bar = el.querySelector(".bar > i");
+    if (!bar) return;
+    bar.style.width = Math.max(0, Math.min(100, frac * 100)) + "%";
     el.querySelector(".bar").classList.toggle("hot", !!hot);
   };
   if (!s) return;
+  const g = (state.hw.gpus || []).find((x) => x.hip_index === i) || {};
+  const limits = g.temp_limits_c || {};
   card.querySelector("[data-busy]").textContent = Math.round(s.busy_pct) + "%";
   const vfrac = s.vram_total ? s.vram_used / s.vram_total : 0;
   set("VRAM", `${(s.vram_used / GiB).toFixed(1)} / ${(s.vram_total / GiB).toFixed(1)} GiB`, vfrac, vfrac > 0.95);
   const cap = s.power_cap_w || 0;
   set("Power", `${Math.round(s.power_w)} W` + (cap ? ` / ${Math.round(cap)} W cap` : ""), cap ? s.power_w / cap : 0, cap && s.power_w > cap * 0.98);
-  set("Temp", s.temp_c ? Math.round(s.temp_c) + " °C" : "–", s.temp_c / 110, s.temp_c >= 95);
+  const edge = tempCell(s.temp_c, limits.edge);
+  set("Temp", edge.text, edge.frac, edge.hot);
+  const junction = tempCell(s.temp_junction_c, limits.junction);
+  set("Junction", junction.text, junction.frac, junction.hot);
+  const mem = tempCell(s.temp_mem_c, limits.mem);
+  set("Mem", mem.text, mem.frac, mem.hot);
+  set("sclk", clockText(s.sclk_mhz), 0, false);
+  set("mclk", clockText(s.mclk_mhz), 0, false);
   spark(card.querySelector('[data-s="busy"]'), state.hist["busy" + i] || [], 100);
   spark(card.querySelector('[data-s="pow"]'), state.hist["pow" + i] || [], cap || undefined);
 }
