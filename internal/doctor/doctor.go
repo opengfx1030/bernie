@@ -72,6 +72,12 @@ type Options struct {
 	// RecipeEnv is the environment of the recipe bernie would run. It fills
 	// the informational recipe item of the topo.p2p category.
 	RecipeEnv topo.RecipeEnv
+	// Host is the host facts the caller already probed. Doctor probes the
+	// host itself when it is nil.
+	Host *host.Info
+	// ROCm is the ROCm report the caller already probed. Doctor probes
+	// ROCm itself when it is nil.
+	ROCm *rocm.Report
 }
 
 // Failed reports whether any check failed.
@@ -165,7 +171,13 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 		wg.Add(1)
 		go func() { defer wg.Done(); f() }()
 	}
-	run(func() { in.host, _ = host.Probe(ctx, root) }) // best-effort, never fails
+	run(func() {
+		if o.Host != nil {
+			in.host = *o.Host
+			return
+		}
+		in.host, _ = host.Probe(ctx, root) // best-effort, never fails
+	})
 	run(func() {
 		// Only the GPUs the environment leaves visible are checked
 		// (spec §7.7).
@@ -177,7 +189,13 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 		in.gpus, in.gpuErr = vis.GPUs, err
 	})
 	if need("rocm", "python", "tuning") {
-		run(func() { in.rocm = rocm.Probe(ctx, root) })
+		run(func() {
+			if o.ROCm != nil {
+				in.rocm = *o.ROCm
+				return
+			}
+			in.rocm = rocm.Probe(ctx, root)
+		})
 	}
 	if o.Venv != "" && need("python") {
 		run(func() { in.venvRep = rocm.ProbeVenv(ctx, o.Venv) })
