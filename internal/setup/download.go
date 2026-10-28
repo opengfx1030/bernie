@@ -64,7 +64,7 @@ func downloadModel(ctx context.Context, c *hubClient, d *Download, log io.Writer
 func downloadFile(ctx context.Context, c *hubClient, dir, snap string, repo hubRepo, f hubFile, pr *progress) error {
 	blob := filepath.Join(dir, "blobs", f.blobName())
 	if st, err := os.Stat(blob); err == nil && (f.Size == 0 || st.Size() == f.Size) {
-		pr.skip(f.Size)
+		pr.add(f.Size)
 		return linkSnapshot(snap, f, blob)
 	}
 	part := blob + ".incomplete"
@@ -129,6 +129,8 @@ func (c *hubClient) fetch(ctx context.Context, url, part string, f hubFile, pr *
 		if err != nil {
 			return 0, err
 		}
+		// they are part of the download too
+		pr.add(have)
 	}
 	written, err := io.Copy(io.MultiWriter(out, sum, pr), resp.Body)
 	if err != nil {
@@ -221,8 +223,10 @@ func (p *progress) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-// skip counts the bytes of a file that is already in the cache.
-func (p *progress) skip(n int64) {
+// add counts bytes that the download did not fetch now: the bytes of a
+// file that is already in the cache, or the bytes of a file that continue
+// an earlier download.
+func (p *progress) add(n int64) {
 	p.done += n
 	p.print(false)
 }
