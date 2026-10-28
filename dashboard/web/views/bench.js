@@ -1,13 +1,24 @@
 "use strict";
 // ---------- Bench ----------
 
-const CELL_COLS = [
-  ["concurrency", "Conc."], ["completed", "OK"], ["failed", "Fail"],
-  ["ttft_p50_ms", "TTFT p50 ms"], ["ttft_p95_ms", "TTFT p95 ms"], ["itl_p50_ms", "ITL p50 ms"], ["itl_p95_ms", "ITL p95 ms"],
-  ["decode_tok_s", "Decode tok/s"], ["prefill_tok_s", "Prefill tok/s"], ["output_tok_s", "Output tok/s"], ["duration_s", "Duration s"],
-  ["num_prompts", "Prompts"], ["mean_prompt_tokens", "In tok"], ["mean_output_tokens", "Out tok"], ["tokens_per_chunk", "Tok/chunk"],
-  ["recall", "Recall"],
-];
+/** METRIC_HELP explains in one line how the prefill and the decode numbers are measured. */
+const METRIC_HELP = "Prefill per request = prompt tokens ÷ time to first token (the queue time is in it); per cell = prompt tokens ÷ (first request → last first token). " +
+  "Decode per request = (tokens − 1) ÷ (last token − first token); per cell = decode tokens ÷ the time any request was decoding.";
+
+/** DIST_COLS are the per-request columns of a cell table. */
+const DIST_COLS = [["mean", "req mean"], ["p50", "req p50"], ["p95", "req p95"], ["min", "req min"], ["max", "req max"]];
+
+/** rateNum formats a rate or a latency. A number that was not measured shows as "–". */
+function rateNum(v, digits) {
+  if (v == null || v <= 0) return "–";
+  return num(v, digits);
+}
+
+/** distNum formats one number of a distribution. A missing number shows as "–". */
+function distNum(d, key, digits) {
+  if (!d || d[key] == null) return "–";
+  return rateNum(d[key], digits);
+}
 
 /** recallText names the pass key verdict of a cell in words. */
 function recallText(v) {
@@ -36,18 +47,58 @@ function resultRecall(r) {
   return asked ? { asked, passed } : null;
 }
 
-function cellsTable(cells) {
-  if (!cells || !cells.length) return h("div.empty", "No cells.");
-  const known = new Set(CELL_COLS.map((c) => c[0]));
-  const extra = Object.keys(cells[0]).filter((k) => !known.has(k) && typeof cells[0][k] !== "object");
-  const cols = CELL_COLS.filter(([k]) => k in cells[0]).concat(extra.map((k) => [k, k]));
-  const fmt = (k, v) => {
-    if (k === "recall") return recallText(v);
-    return typeof v === "number" && /^itl/.test(k) ? v.toFixed(2) : num(v);
-  };
+/** cellTable is the table of one cell: the prefill speed, the decode speed,
+ *  the time to first token, the inter-token latency and the output rate. */
+function cellTable(c) {
+  const rows = [
+    ["prefill tok/s", c.prefill ? c.prefill.agg_tok_s : null, c.prefill ? c.prefill.req : null, 1],
+    ["decode tok/s", c.decode ? c.decode.agg_tok_s : null, c.decode ? c.decode.req : null, 1],
+    ["TTFT s", null, c.ttft_s, 3],
+    ["ITL ms", null, c.itl_ms, 2],
+    ["output tok/s", c.output_tok_s, null, 1],
+  ];
   return h("div.scroll", h("table",
-    h("thead", h("tr", cols.map(([, l]) => h("th.num", l)))),
-    h("tbody", cells.map((c) => h("tr", cols.map(([k]) => h("td.num", fmt(k, c[k]))))))));
+    h("thead", h("tr", h("th", "metric"), h("th.num", "agg"), DIST_COLS.map(([, l]) => h("th.num", l)))),
+    h("tbody", rows.map(([label, agg, d, digits]) => h("tr",
+      h("td", label),
+      h("td.num", rateNum(agg, digits)),
+      DIST_COLS.map(([k]) => h("td.num", distNum(d, k, digits))))))));
+}
+
+/** serverNote says what the server itself measured over the same requests. */
+function serverNote(c) {
+  const s = c.server_side;
+  if (!s) return null;
+  const parts = [];
+  if (s.ttft_s) parts.push(`TTFT s p50 ${rateNum(s.ttft_s.p50, 3)}, p95 ${rateNum(s.ttft_s.p95, 3)}`);
+  if (s.itl_ms) parts.push(`ITL ms p50 ${rateNum(s.itl_ms.p50, 2)}, p95 ${rateNum(s.itl_ms.p95, 2)}`);
+  if (!parts.length) return null;
+  return h("div.small.muted", `Server side (${s.count || 0} requests): ${parts.join(" · ")}`);
+}
+
+/** cellCard is one cell of a result: its numbers in a table. */
+function cellCard(c) {
+  return h("div",
+    h("h3", `Concurrency ${c.concurrency}`),
+    h("div.small.muted", `${c.completed} of ${c.num_prompts} requests ok, ${c.failed} failed · wall ${rateNum(c.duration_s, 2)} s · ` +
+      `${rateNum(c.tokens_per_chunk, 2)} tok/chunk · in/out ${rateNum(c.mean_prompt_tokens, 0)}/${rateNum(c.mean_output_tokens, 0)} tok`),
+    cellTable(c), serverNote(c));
+}
+
+/** cellsView shows one table per cell. */
+function cellsView(cells) {
+  if (!cells || !cells.length) return h("div.empty", "No cells.");
+  return h("div", cells.map(cellCard));
+}
+
+/** benchBest returns the largest value a field of the cells of a result has. */
+function benchBest(cells, get) {
+  let best = 0;
+  for (const c of cells || []) {
+    const v = get(c);
+    if (v != null && v > best) best = v;
+  }
+  return best > 0 ? best : null;
 }
 
 async function viewBench(root) {
@@ -82,7 +133,7 @@ async function viewBench(root) {
     put(st, h("span.spin"), " running… (this takes minutes)");
     try {
       const r = await api("/api/bench", { method: "POST", body });
-      put(result, h("h3", "Result " + r.id), h("div.small.muted", `${r.model} @ ${r.url}`), cellsTable(r.cells), recallNote(r.cells));
+      put(result, h("h3", "Result " + r.id), h("div.small.muted", `${r.model} @ ${r.url}`), h("div.small.muted", METRIC_HELP), cellsView(r.cells), recallNote(r.cells));
       st.textContent = "done";
       loadHistory(hist, result);
     } catch (err) { st.textContent = ""; put(result, failed(err)); }
@@ -103,12 +154,14 @@ function benchGPUText(r) {
 function benchRow(r, result) {
   const cells = r.cells || [];
   return h("tr.click", {
-    onclick: () => put(result, h("h3", "Result " + r.id), h("div.small.muted", `${r.model} @ ${r.url} · ${new Date(r.time).toLocaleString()}`), cellsTable(cells), recallNote(cells)),
+    onclick: () => put(result, h("h3", "Result " + r.id), h("div.small.muted", `${r.model} @ ${r.url} · ${new Date(r.time).toLocaleString()}`), h("div.small.muted", METRIC_HELP), cellsView(cells), recallNote(cells)),
   },
     h("td.small", ago(r.time)), h("td", r.tag || ""), h("td", r.model),
     h("td.small", benchGPUText(r)),
     h("td.num", cells.map((c) => c.concurrency).join(",")),
-    h("td.num", num(Math.max(0, ...cells.map((c) => c.output_tok_s || 0)))),
+    h("td.num", rateNum(benchBest(cells, (c) => c.output_tok_s), 1)),
+    h("td.num", rateNum(benchBest(cells, (c) => (c.decode || {}).agg_tok_s), 1)),
+    h("td.num", rateNum(benchBest(cells, (c) => (c.prefill || {}).agg_tok_s), 1)),
     h("td.num", recallText(resultRecall(r))));
 }
 
@@ -118,7 +171,8 @@ async function loadHistory(card, result) {
     const list = (Array.isArray(d) ? d : (d && d.results) || []).slice().sort((a, b) => new Date(b.time) - new Date(a.time));
     if (!list.length) { put(card, h("h2", "History"), h("div.empty", "No saved results.")); return; }
     put(card, h("h2", "History"), h("div.scroll", h("table",
-      h("thead", h("tr", h("th", "When"), h("th", "Tag"), h("th", "Model"), h("th", "GPUs"), h("th.num", "Conc."), h("th.num", "Best output tok/s"), h("th.num", "Recall"))),
+      h("thead", h("tr", h("th", "When"), h("th", "Tag"), h("th", "Model"), h("th", "GPUs"), h("th.num", "Conc."),
+        h("th.num", "Best output tok/s"), h("th.num", "Best decode tok/s"), h("th.num", "Best prefill tok/s"), h("th.num", "Recall"))),
       h("tbody", list.map((r) => benchRow(r, result))))));
   } catch (e) { put(card, h("h2", "History"), failed(e)); }
 }

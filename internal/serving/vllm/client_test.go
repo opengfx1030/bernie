@@ -176,3 +176,50 @@ func TestContextBoundsCall(t *testing.T) {
 		t.Errorf("call took %v despite 50ms deadline", d)
 	}
 }
+
+func TestHistogramsFromPrometheusText(t *testing.T) {
+	text := `# HELP vllm:time_to_first_token_seconds Time to the first token.
+# TYPE vllm:time_to_first_token_seconds histogram
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.1",model_name="m"} 2
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.5",model_name="m"} 3
+vllm:time_to_first_token_seconds_bucket{engine="0",le="+Inf",model_name="m"} 3
+vllm:time_to_first_token_seconds_sum{engine="0",model_name="m"} 0.55
+vllm:time_to_first_token_seconds_count{engine="0",model_name="m"} 3
+`
+	samples, err := vllm.ParseMetrics([]byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hs := vllm.Histograms(samples, vllm.MetricTimeToFirstToken)
+	h, ok := hs[vllm.MetricTimeToFirstToken]
+	if !ok {
+		t.Fatalf("no histogram for %s", vllm.MetricTimeToFirstToken)
+	}
+	if h.Count != 3 || h.Sum != 0.55 {
+		t.Errorf("count %v sum %v, want 3 and 0.55", h.Count, h.Sum)
+	}
+	// The +Inf bucket has no bound and is left out.
+	if len(h.Buckets) != 2 || h.Buckets[0.1] != 2 || h.Buckets[0.5] != 3 {
+		t.Errorf("buckets = %v, want 0.1:2 and 0.5:3", h.Buckets)
+	}
+	if math.Abs(h.Mean()-0.55/3) > 1e-9 {
+		t.Errorf("mean = %v, want %v", h.Mean(), 0.55/3)
+	}
+	// The quantile is the upper bound of the bucket that holds it.
+	if h.Quantile(0.5) != 0.1 || h.Quantile(0.95) != 0.5 {
+		t.Errorf("quantiles = %v and %v, want 0.1 and 0.5", h.Quantile(0.5), h.Quantile(0.95))
+	}
+	// The delta of two reads holds the observations in between.
+	before := vllm.Histogram{Buckets: map[float64]float64{0.1: 1, 0.5: 2}, Sum: 0.2, Count: 2}
+	d, ok := before.Delta(h)
+	if !ok {
+		t.Fatal("the delta failed")
+	}
+	if d.Count != 1 || math.Abs(d.Sum-0.35) > 1e-9 || d.Buckets[0.1] != 1 {
+		t.Errorf("delta = %+v, want one observation of 0.35 s", d)
+	}
+	// A server that restarted counts less: there is no delta.
+	if _, ok := h.Delta(vllm.Histogram{Buckets: map[float64]float64{}, Count: 0}); ok {
+		t.Errorf("a restarted server must not report a delta")
+	}
+}

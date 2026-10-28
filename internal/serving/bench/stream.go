@@ -27,8 +27,10 @@ type sample struct {
 	chunks           []chunk // non-empty text chunks only
 	promptTokens     int     // from usage; 0 when absent
 	completionTokens int     // from usage; 0 when absent
-	reply            string  // the streamed text; only kept for the recall check
-	expect           string  // the pass key the reply must hold; empty without the check
+	cachedTokens     int     // from usage; prompt tokens the server had cached
+	started          time.Duration
+	reply            string // the streamed text; only kept for the recall check
+	expect           string // the pass key the reply must hold; empty without the check
 	err              error
 }
 
@@ -37,16 +39,21 @@ type streamChunk struct {
 		Text string `json:"text"`
 	} `json:"choices"`
 	Usage *struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
+		PromptTokens        int `json:"prompt_tokens"`
+		CompletionTokens    int `json:"completion_tokens"`
+		PromptTokensDetails *struct {
+			CachedTokens int `json:"cached_tokens"`
+		} `json:"prompt_tokens_details"`
 	} `json:"usage"`
 	Error json.RawMessage `json:"error"`
 }
 
 // streamCompletion sends one streaming /v1/completions request and records
 // chunk arrival times. With collect, the reply text is kept so the pass key
-// check can look at it.
-func streamCompletion(ctx context.Context, hc *http.Client, baseURL, model, prompt string, maxTokens int, collect bool) sample {
+// check can look at it. from is the start of the cell: the sample keeps the
+// time of the request relative to it, so the cell knows when every request
+// started and ended.
+func streamCompletion(ctx context.Context, hc *http.Client, baseURL, model, prompt string, maxTokens int, collect bool, from time.Time) sample {
 	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 	body, _ := json.Marshal(map[string]any{
@@ -68,16 +75,19 @@ func streamCompletion(ctx context.Context, hc *http.Client, baseURL, model, prom
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	start := time.Now()
+	started := start.Sub(from)
 	resp, err := hc.Do(req)
 	if err != nil {
-		return sample{err: err}
+		return sample{err: err, started: started}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return sample{err: fmt.Errorf("HTTP %d: %s", resp.StatusCode, errorMessage(b))}
+		return sample{err: fmt.Errorf("HTTP %d: %s", resp.StatusCode, errorMessage(b)), started: started}
 	}
-	return readStream(resp.Body, start, collect)
+	s := readStream(resp.Body, start, collect)
+	s.started = started
+	return s
 }
 
 // readStream parses a server-sent event stream of completion chunks. With
@@ -111,6 +121,9 @@ func readStream(r io.Reader, start time.Time, collect bool) sample {
 			s.promptTokens = ch.Usage.PromptTokens
 			s.completionTokens = ch.Usage.CompletionTokens
 			cum = ch.Usage.CompletionTokens
+			if d := ch.Usage.PromptTokensDetails; d != nil {
+				s.cachedTokens = d.CachedTokens
+			}
 		}
 		text := false
 		for _, c := range ch.Choices {

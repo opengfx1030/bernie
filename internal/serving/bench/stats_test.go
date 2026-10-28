@@ -99,25 +99,27 @@ func TestMeasure(t *testing.T) {
 	}
 }
 
-func TestPercentile(t *testing.T) {
+func TestSummarize(t *testing.T) {
 	tests := []struct {
 		xs   []float64
-		p    float64
-		want float64
+		want Dist
 	}{
-		{nil, 50, 0},
-		{[]float64{7}, 95, 7},
-		{[]float64{4, 1, 3, 2}, 50, 2.5},
-		{[]float64{1, 2, 3, 4, 5}, 50, 3},
-		{[]float64{1, 2, 3, 4, 5}, 95, 4.8},
-		{[]float64{10, 20}, 100, 20},
-		{[]float64{10, 20}, 0, 10},
+		{nil, Dist{}},
+		{[]float64{7}, Dist{Mean: 7, P50: 7, P95: 7, Min: 7, Max: 7}},
+		{[]float64{4, 1, 3, 2}, Dist{Mean: 2.5, P50: 2.5, P95: 3.85, Min: 1, Max: 4}},
+		{[]float64{1, 2, 3, 4, 5}, Dist{Mean: 3, P50: 3, P95: 4.8, Min: 1, Max: 5}},
+		{[]float64{10, 20}, Dist{Mean: 15, P50: 15, P95: 19.5, Min: 10, Max: 20}},
 	}
 	for _, tt := range tests {
-		xs := append([]float64(nil), tt.xs...)
-		if got := percentile(xs, tt.p); !near(got, tt.want) {
-			t.Errorf("percentile(%v, %v) = %v, want %v", tt.xs, tt.p, got, tt.want)
+		if got := Summarize(tt.xs); !sameDist(&got, tt.want) {
+			t.Errorf("Summarize(%v) = %+v, want %+v", tt.xs, got, tt.want)
 		}
+	}
+	// The helper does not change the order of the numbers it summarizes.
+	xs := []float64{3, 1, 2}
+	Summarize(xs)
+	if xs[0] != 3 {
+		t.Errorf("Summarize sorted the slice in place: %v", xs)
 	}
 }
 
@@ -132,23 +134,44 @@ func TestAggregate(t *testing.T) {
 		{err: errors.New("no output tokens streamed")},
 	}
 	c := aggregate(4, samples, 2*time.Second)
-	want := Cell{
-		Concurrency: 4, NumPrompts: 6, Completed: 3, Failed: 3,
-		TTFTP50: 200, TTFTP95: 290, ITLP50: 10, ITLP95: 10,
-		DecodeTokS: 100, OutputTokS: 3, DurationS: 2,
-		MeanPromptTokens: 100, MeanOutputTokens: 2, TokensPerChunk: 1,
-		Errors: []string{"HTTP 500: boom", "no output tokens streamed"},
+	if c.Completed != 3 || c.Failed != 3 || c.NumPrompts != 6 {
+		t.Errorf("counts: %+v", c)
 	}
-	// Prefill is the mean of 100/0.1, 100/0.2, 100/0.3.
-	want.PrefillTokS = (1000 + 500 + 1000.0/3) / 3
-	if !near(c.TTFTP95, want.TTFTP95) || !near(c.PrefillTokS, want.PrefillTokS) || !near(c.ITLP50, want.ITLP50) {
-		t.Errorf("percentiles/prefill: got %+v", c)
+	if !near(c.TTFTP95, 290) || !near(c.ITLP50, 10) || !near(c.DecodeTokS, 100) || !near(c.OutputTokS, 3) {
+		t.Errorf("flat fields: %+v", c)
 	}
-	c.TTFTP95, want.TTFTP95 = 0, 0
-	c.PrefillTokS, want.PrefillTokS = 0, 0
-	c.ITLP50, c.ITLP95, want.ITLP50, want.ITLP95 = 0, 0, 0, 0
-	if !reflect.DeepEqual(c, want) {
-		t.Errorf("aggregate:\n got %+v\nwant %+v", c, want)
+	if !near(c.TTFTP50, 200) || !near(c.ITLP95, 10) || !near(c.PrefillTokS, (1000+500+1000.0/3)/3) {
+		t.Errorf("flat fields: %+v", c)
+	}
+	// The groups hold the same numbers in seconds and milliseconds.
+	if got, want := c.TTFTs, (Dist{Mean: 0.2, P50: 0.2, P95: 0.29, Min: 0.1, Max: 0.3}); !sameDist(got, want) {
+		t.Errorf("ttft_s = %+v, want %+v", got, want)
+	}
+	if got, want := c.ITLms, (Dist{Mean: 10, P50: 10, P95: 10, Min: 10, Max: 10}); !sameDist(got, want) {
+		t.Errorf("itl_ms = %+v, want %+v", got, want)
+	}
+	// Prefill: the window runs from the first request to the last first
+	// token (0.3 s) and holds 300 prompt tokens.
+	if c.Prefill == nil || !near(c.Prefill.WindowS, 0.3) || !near(c.Prefill.AggTokS, 1000) {
+		t.Errorf("prefill = %+v", c.Prefill)
+	}
+	if c.Prefill.Req == nil || !near(c.Prefill.Req.Mean, (1000+500+1000.0/3)/3) {
+		t.Errorf("prefill per request = %+v", c.Prefill.Req)
+	}
+	// Decode: the three requests decode 0.01 s each, so the union of the
+	// decode intervals is 0.03 s for 3 tokens.
+	if c.Decode == nil || !near(c.Decode.WindowS, 0.03) || !near(c.Decode.AggTokS, 100) {
+		t.Errorf("decode = %+v", c.Decode)
+	}
+	if c.Decode.Req == nil || !near(c.Decode.Req.Mean, 100) {
+		t.Errorf("decode per request = %+v", c.Decode.Req)
+	}
+	if !c.TokensExact {
+		t.Errorf("tokens_exact = false, want true: every request had usage")
+	}
+	want := []string{"HTTP 500: boom", "no output tokens streamed"}
+	if !reflect.DeepEqual(c.Errors, want) {
+		t.Errorf("errors = %v, want %v", c.Errors, want)
 	}
 }
 

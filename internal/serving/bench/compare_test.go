@@ -67,3 +67,18 @@ func TestCompareRefusesResultWithoutWorkload(t *testing.T) {
 		t.Fatalf("compare with a result without workload: %v", err)
 	}
 }
+
+// TestCompareRefusesOtherProtocol checks that a result of another protocol
+// version cannot be compared: its numbers come from another measurement.
+func TestCompareRefusesOtherProtocol(t *testing.T) {
+	a := &Result{ID: "a", Workload: testWorkload()}
+	b := &Result{ID: "b", Workload: testWorkload()}
+	b.Workload.ProtocolID = "bernie-bench-1"
+	_, err := Compare(a, b)
+	if !errors.Is(err, ErrWorkloadDiffers) {
+		t.Fatalf("compare of different protocols: %v", err)
+	}
+	if !strings.Contains(err.Error(), "bernie-bench-1") || !strings.Contains(err.Error(), ProtocolID) {
+		t.Errorf("the error %q does not name the two protocols", err)
+	}
+}

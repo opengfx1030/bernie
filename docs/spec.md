@@ -959,17 +959,63 @@ bernie reads `HIP_VISIBLE_DEVICES` and the selected GPU indices from the plan
 in the matching run record. When there is no matching run record, or its plan
 has no GPU selection, the summary lists every host GPU and `gpu_scope` is
 `all (run selection unknown)`. A known run selection has `gpu_scope` `run`.
-The text and dashboard history show the same summary and scope. Cell fields:
+The text and dashboard history show the same summary and scope.
+
+### 10.1 What the numbers mean
+
+Every cell reports five groups of numbers. The unit is part of the name:
+seconds for the time to first token, milliseconds for the inter-token
+latency, tokens per second for the speeds.
+
+| Group | Definition |
+|---|---|
+| Prefill, per request | `prompt_tokens ÷ ttft_s`. The time to first token holds the queueing and the scheduling of the request, so this is the rate the caller saw, not the speed of the engine alone. A prompt the server answered from its prefix cache still counts all of its tokens; the cell reports `mean_cached_prompt_tokens` when the server says how many were cached. |
+| Prefill, per cell | `Σ prompt_tokens ÷ prefill window`. The window runs from the send of the first request of the cell to the first token of the last request. It holds the queueing of the cell, so the rate is the throughput of the prefill under that concurrency. |
+| Decode, per request | `(output_tokens − 1) ÷ (last token time − first token time)`. The first token is left out: it came out of the prefill. |
+| Decode, per cell | `Σ decode tokens ÷ decode window`. The window is the union of the decode intervals of the requests: the time in which at least one request was decoding. It leaves out the prefill of the later requests and the idle gaps, so it is the rate the server reached while it decoded. |
+| Time to first token | `ttft_s`: from the send of the request to its first token. |
+| Inter-token latency | `itl_ms`: the gap between two chunks of the stream. A chunk with several tokens (MTP) is one gap for all of them: the gap is divided by the number of tokens in the chunk and the per-token latency is recorded once per token. The percentiles describe tokens, not chunks. |
+| Output rate | `output_tok_s`: all completion tokens of the cell ÷ the wall time of the cell. |
+
+Every distribution holds `mean`, `p50`, `p95`, `min` and `max`. The text
+and the dashboard show the mean, p50 and p95; the JSON has all five.
+
+The token counts come from the server's `usage`
+(`stream_options: include_usage`). `tokens_exact` is true when every
+request of the cell sent usage. False means the counts are estimates (one
+token per chunk).
+
+When the server has a `/metrics` endpoint, bernie reads its latency
+histograms (`vllm:time_to_first_token_seconds` and
+`vllm:inter_token_latency_seconds`) before and after every cell. The
+difference is what the server measured over the same requests, and the
+cell keeps it under `server_side`. A server without metrics has none, and
+the cell says nothing about it.
+
+The text output has one table per cell. Its rows are the groups above, its
+columns the aggregate rate and the per-request distribution. The units are
+in the row names (`prefill tok/s`, `decode tok/s`, `TTFT s`, `ITL ms`). A
+number that was not measured shows as `–`. One line above the tables says
+how the prefill and the decode numbers are measured. The dashboard shows
+the same tables and the same units.
+
+Cell fields:
 
 | Field | Meaning |
 |---|---|
 | `concurrency`, `num_prompts`, `completed`, `failed` | Cell size and outcome. |
-| `ttft_p50_ms`, `ttft_p95_ms` | Time to first token. |
-| `itl_p50_ms`, `itl_p95_ms` | Inter-token latency. |
-| `decode_tok_s` | Mean per request: tokens after the first ÷ (last − first chunk time). |
-| `prefill_tok_s` | Mean per request: prompt tokens ÷ TTFT. |
+| `prefill` | `agg_tok_s` (the rate of the cell), `window_s` (the time it was measured over) and `req` (the distribution of the per-request rates). |
+| `decode` | The same shape as `prefill`. |
+| `ttft_s` | Distribution of the time to first token in seconds. |
+| `itl_ms` | Distribution of the inter-token latency in milliseconds. |
+| `server_side` | What the server measured over the same requests: `ttft_s`, `itl_ms`, `count` and `source`. Absent when the server has no metrics. |
+| `tokens_exact` | True when the token counts come from the server's usage. |
+| `ttft_p50_ms`, `ttft_p95_ms` | Time to first token in milliseconds (the same numbers as `ttft_s`). |
+| `itl_p50_ms`, `itl_p95_ms` | Inter-token latency (the same numbers as `itl_ms`). |
+| `decode_tok_s` | Mean of the per-request decode rates. |
+| `prefill_tok_s` | Mean of the per-request prefill rates. |
 | `output_tok_s` | All completion tokens ÷ cell wall time. |
-| `mean_prompt_tokens`, `mean_output_tokens`, `tokens_per_chunk` | Real sizes seen. |
+| `mean_prompt_tokens`, `mean_output_tokens`, `mean_cached_prompt_tokens`, `tokens_per_chunk` | Real sizes seen. |
 | `duration_s`, `errors` | Wall time; sample of error strings. |
 | `recall` | Pass key check of the cell: `asked`, `passed`, `depth`, `method`. Absent when the check did not run. |
 
@@ -979,9 +1025,16 @@ A result also has a `workload`: `protocol_id`, `corpus_sha256`,
 `input_len`, `output_len`, `concurrency` and `recall`. It says what the
 benchmark asked for. Results saved before the field existed have none.
 
+The `protocol_id` names the shape of the measurement. It is
+`bernie-bench-2`: the groups of §10.1. A result saved before it
+(`bernie-bench-1`) still loads: its millisecond fields become the new
+distributions, and what it did not measure shows as `–`.
+
 `bernie bench compare <id-a> <id-b>` puts two results side by side. It
 refuses (exit 1, "workload differs") when the workloads differ: the
-numbers of two different workloads cannot be compared.
+numbers of two different workloads cannot be compared. Two results of
+different protocol ids are refused too: they measured different things,
+and only the numbers both of them measured could be compared.
 
 ## 11. Dashboard
 

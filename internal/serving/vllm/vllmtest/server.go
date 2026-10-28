@@ -54,6 +54,8 @@ type Server struct {
 	requests int
 	running  int
 	genTotal int
+	ttft     []float64 // observed time to first token, in seconds
+	itl      []float64 // observed inter-token latency, in seconds
 }
 
 // New returns a fake server.
@@ -122,6 +124,8 @@ func (s *Server) tokenize(w http.ResponseWriter, r *http.Request) {
 func (s *Server) metrics(w http.ResponseWriter) {
 	s.mu.Lock()
 	running, gen := s.running, s.genTotal
+	ttft := append([]float64(nil), s.ttft...)
+	itl := append([]float64(nil), s.itl...)
 	s.mu.Unlock()
 	m := s.cfg.Model
 	fmt.Fprintf(w, "# HELP vllm:num_requests_running Number of requests in model execution batches.\n")
@@ -130,6 +134,35 @@ func (s *Server) metrics(w http.ResponseWriter) {
 	fmt.Fprintf(w, "vllm:num_requests_waiting{engine=\"0\",model_name=\"%s\"} 0\n", m)
 	fmt.Fprintf(w, "vllm:kv_cache_usage_perc{engine=\"0\",model_name=\"%s\"} 0.25\n", m)
 	fmt.Fprintf(w, "vllm:generation_tokens_total{engine=\"0\",model_name=\"%s\"} %d\n", m, gen)
+	writeHistogram(w, "vllm:time_to_first_token_seconds", m, ttft)
+	writeHistogram(w, "vllm:inter_token_latency_seconds", m, itl)
+}
+
+// latencyBuckets are the bucket bounds of the vLLM latency histograms.
+var latencyBuckets = []float64{0.001, 0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.1, 0.25, 0.5, 0.75,
+	1, 2.5, 5, 7.5, 10, 20, 40, 80, 160, 640, 2560}
+
+// writeHistogram writes a Prometheus histogram of the observations, with the
+// cumulative counts vLLM publishes.
+func writeHistogram(w http.ResponseWriter, name, model string, obs []float64) {
+	fmt.Fprintf(w, "# HELP %s Latency in seconds.\n", name)
+	fmt.Fprintf(w, "# TYPE %s histogram\n", name)
+	var sum float64
+	for _, o := range obs {
+		sum += o
+	}
+	for _, b := range latencyBuckets {
+		var n int
+		for _, o := range obs {
+			if o <= b {
+				n++
+			}
+		}
+		fmt.Fprintf(w, "%s_bucket{engine=\"0\",model_name=\"%s\",le=\"%g\"} %d\n", name, model, b, n)
+	}
+	fmt.Fprintf(w, "%s_bucket{engine=\"0\",model_name=\"%s\",le=\"+Inf\"} %d\n", name, model, len(obs))
+	fmt.Fprintf(w, "%s_sum{engine=\"0\",model_name=\"%s\"} %g\n", name, model, sum)
+	fmt.Fprintf(w, "%s_count{engine=\"0\",model_name=\"%s\"} %d\n", name, model, len(obs))
 }
 
 type completionRequest struct {
@@ -213,9 +246,13 @@ func (s *Server) completions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !sleep(s.cfg.TTFT + time.Duration(promptTokens)*s.cfg.PrefillPerToken) {
+	ttftDelay := s.cfg.TTFT + time.Duration(promptTokens)*s.cfg.PrefillPerToken
+	if !sleep(ttftDelay) {
 		return
 	}
+	s.mu.Lock()
+	s.ttft = append(s.ttft, ttftDelay.Seconds())
+	s.mu.Unlock()
 	done := 0
 	for done < req.MaxTokens {
 		k := s.cfg.TokensPerChunk
@@ -226,6 +263,15 @@ func (s *Server) completions(w http.ResponseWriter, r *http.Request) {
 		}
 		if k > req.MaxTokens-done {
 			k = req.MaxTokens - done
+		}
+		if done > 0 {
+			// The gap of a chunk holds k tokens: the per-token latency is
+			// the gap divided by k, like the client measures it.
+			s.mu.Lock()
+			for range k {
+				s.itl = append(s.itl, (s.cfg.ChunkDelay / time.Duration(k)).Seconds())
+			}
+			s.mu.Unlock()
 		}
 		first := done == 0
 		done += k

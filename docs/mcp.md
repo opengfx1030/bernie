@@ -91,6 +91,13 @@ call. One host-changing operation runs at a time.
 `recall`. With `recall`, every prompt hides a short random fact and the
 reply is checked for it; the result holds the verdict of every cell.
 
+The result of `bench_run` and `bench_list` holds the metric groups of
+[spec §10](spec.md#101-what-the-numbers-mean): `prefill` and `decode` (the
+rate of the cell and the distribution of the rates of its requests),
+`ttft_s` in seconds, `itl_ms` in milliseconds and, when the server has a
+`/metrics` endpoint, `server_side`: what the server measured over the same
+requests.
+
 bernie never runs `sudo`. A step that needs root (a package install) comes
 back as a command for you to run. `tune_power_set` writes the desired power
 file only. The installed power service applies that file as root.

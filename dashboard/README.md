@@ -84,6 +84,14 @@ shows the run as `starting`, says in words that the server is loading the
 model, and follows the log of that run. The Overview tab shows the same
 state in words.
 
+The Bench tab shows one table per cell: the prefill and the decode speed
+(the rate of the whole cell and the distribution of the rates of its
+requests), the time to first token in seconds, the inter-token latency in
+milliseconds and the output rate. A number that was not measured shows `–`.
+When the server has a `/metrics` endpoint, a line under the table says what
+the server measured over the same requests. The history lists the best
+output, decode and prefill rate of every saved result.
+
 ## UI and UX rules
 
 The goal: a person who has never used vLLM understands the page in one
