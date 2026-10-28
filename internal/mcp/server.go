@@ -8,7 +8,6 @@ package mcp
 import (
 	"context"
 	"io"
-	"net/http"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -77,16 +76,6 @@ func New(o Options) *Server {
 // Nothing else may write to stdout.
 func (s *Server) Run(ctx context.Context) error {
 	return s.srv.Run(ctx, &sdk.StdioTransport{})
-}
-
-// Handler serves Streamable HTTP, stateless: every POST is one request. The
-// caller adds authentication and the Host and Origin checks (spec §13.3).
-func (s *Server) Handler() http.Handler {
-	h := sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return s.srv }, &sdk.StreamableHTTPOptions{Stateless: true})
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-store")
-		h.ServeHTTP(w, r)
-	})
 }
 
 // Connect attaches the server to a transport; tests use an in-memory pair.
