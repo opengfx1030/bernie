@@ -1393,8 +1393,23 @@ The header says when the environment limits the GPUs bernie uses
 
 Rules for responses and tokens:
 
-- Every response (HTML, assets, `/api`, errors, redirects) carries
-  `Cache-Control: no-store`.
+- Every response carries a cache header. The HTML and the `/api`
+  answers carry `Cache-Control: no-store`; the static assets carry
+  `Cache-Control: no-cache` (the browser revalidates with `If-None-Match`,
+  the answer is 304); the fonts carry
+  `Cache-Control: public, max-age=31536000, immutable`.
+- Every static asset carries an `ETag`: the SHA-256 prefix of the file. A
+  revalidation with a matching `If-None-Match` answers 304 with no body.
+- Every text asset is gzipped when the client sends `Accept-Encoding: gzip`;
+  the answer carries `Content-Encoding: gzip` and `Vary: Accept-Encoding`.
+- The HTML and the assets carry a strict CSP:
+  `default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self';
+  connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none';
+  form-action 'self'`.
+- POST, PUT and DELETE are refused on two conditions:
+  `Sec-Fetch-Site: cross-site` (the browser's own word) or an `Origin` header
+  that names a host other than the request's. The custom `X-Bernie: 1`
+  header check of spec §11 stays.
 - In token mode, `/?token=<t>` is the only URL that accepts the token. It
   sets an HttpOnly, SameSite=Strict cookie and redirects (303) to `/` with no
   query.

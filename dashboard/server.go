@@ -149,16 +149,18 @@ func newServer(o Options) *server {
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
 	web, _ := fs.Sub(webFS, "web")
-	static := http.FileServerFS(web)
-	mux.Handle("GET /{$}", withCSP(static))
-	mux.Handle("GET /css/{file}", withCSP(static))
-	mux.Handle("GET /js/{file}", withCSP(static))
-	mux.Handle("GET /components/{file}", withCSP(static))
-	mux.Handle("GET /fonts/{file}", withCSP(static))
-	mux.Handle("GET /views/{tab}/{file}", withCSP(static))
+	files := newAssets(web)
+	mux.Handle("GET /{$}", withCSP(files))
+	mux.Handle("GET /css/{file}", withCSP(files))
+	mux.Handle("GET /js/{file}", withCSP(files))
+	mux.Handle("GET /components/{file}", withCSP(files))
+	mux.Handle("GET /fonts/{file}", withCSP(files))
+	mux.Handle("GET /views/{tab}/{file}", withCSP(files))
 
 	api.Register(mux, api.Options{Log: s.o.Log, Telemetry: s.tele})
-	g := auth.New(s.o.Token, mux)
+	// The guard of the token and of the X-Bernie header, then the guard that
+	// refuses a write from another site.
+	g := auth.New(s.o.Token, guardWrites(mux))
 	// /mcp has its own guard (spec §13.10): the dashboard cookie and the
 	// X-Bernie rule do not apply to it.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +177,7 @@ func (s *server) handler() http.Handler {
 // withCSP adds the CSP to the embedded UI (the guard sets Cache-Control).
 func withCSP(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'")
 		h.ServeHTTP(w, r)
 	})
 }
