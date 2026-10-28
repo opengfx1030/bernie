@@ -76,6 +76,9 @@ function stepRow(step, index, options, progress, logs, optional) {
     body.append(h("div.root",
       h("p", "This step needs root. Run it in a terminal, then re-check."),
       roots.map((c) => cmdBlock(c, "Copy the command"))));
+  } else if (state === "todo" && !step.can_run && step.command) {
+    // bernie cannot do this step: the command is all the reader gets.
+    body.append(cmdBlock(step.command, "Copy the command"));
   }
   if ((step.problems || []).length) {
     body.append(h("div.problems", step.problems.map(stepProblem)));
@@ -160,7 +163,9 @@ function stepProgressNode(step, state, progress, lines) {
   }, h("i", { style: "width:" + pct + "%" })));
   if (live.detail) box.append(h("p.small.muted", live.detail));
   if (lines.length) {
-    box.append(h("details.step-log-box", { open: state === "running" },
+    // The output of a job stays open under its step: it is the answer to
+    // "what did bernie do", so the reader sees it without a click.
+    box.append(h("details.step-log-box", { open: true },
       h("summary", "the log"),
       h("div.log-lines", { role: "log", "aria-live": "off" }, lines.map((l) => h("div", l)))));
   }
