@@ -11,7 +11,7 @@
 #     --security-opt seccomp=unconfined --security-opt label=disable \
 #     -v "$PWD/data:/data" -v /sys:/sys:ro ghcr.io/opengfx1030/bernie
 
-FROM --platform=$BUILDPLATFORM golang:1.23 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
 ARG TARGETOS=linux
 ARG TARGETARCH
 ARG VERSION=dev

@@ -6,7 +6,7 @@ the dashboard. Read [README.md](README.md) for what the UI must do.
 
 ## Set up
 
-You need Go 1.23 or later. You do not need Node. You do not need a GPU: the
+You need Go 1.26 or later. You do not need Node. You do not need a GPU: the
 page shows empty states without one.
 
 ```bash

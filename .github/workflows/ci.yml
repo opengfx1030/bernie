@@ -22,14 +22,18 @@ jobs:
         run: go test -race ./...
       - name: linux static build
         run: make linux
+      - name: version stamp
+        run: |
+          make linux VERSION=v0.0.0-ci
+          ./bin/bernie-linux-amd64 version | grep -F 'bernie v0.0.0-ci '
       - name: smoke
         run: |
           ./bin/bernie-linux-amd64 version
           ./bin/bernie-linux-amd64 --json recipe validate
           ./bin/bernie-linux-amd64 --json hw > /dev/null
 
-  # Separate job: govulncheck needs a newer Go than go.mod pins, so it runs on
-  # the latest stable toolchain.
+  # Separate job: govulncheck runs on the latest stable Go so it reports against the
+  # newest standard library.
   vuln:
     runs-on: ubuntu-latest
     steps:
