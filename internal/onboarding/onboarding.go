@@ -45,6 +45,12 @@ const (
 type Document struct {
 	Next  string `json:"next"`
 	Steps []Step `json:"steps"`
+	// FactsAgeS is the age in seconds of the facts behind the document. It
+	// is 0 when the host was read now.
+	FactsAgeS int `json:"facts_age_s"`
+	// Stale is true when the document was served from the cache while it
+	// was past its time to live: a refresh is running (spec §3.3).
+	Stale bool `json:"stale"`
 }
 
 // Step is one step of the path.

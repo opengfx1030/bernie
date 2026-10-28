@@ -290,9 +290,19 @@ A step has this record:
 - `problems` are the doctor checks that hold the step back, with their fix
   and their documentation link.
 
-The document is `{"next": "<id>", "steps": [...]}`. `next` is the step to do
+The document is `{"next": "<id>", "steps": [...], "facts_age_s": 0, "stale": false}`.
+`next` is the step to do
 now: the first step of the path that is not done and not skipped. It is
-empty when the path is complete.
+empty when the path is complete. `facts_age_s` is the age in seconds of the
+facts behind the document; it is 0 when the host was read now. `stale` is
+true when the document was served from the cache while it was past its time
+to live, so a refresh is running: the document is the last known state of
+the host, not the current one.
+
+The dashboard reads the document from the cache
+([§12](#12-files-and-paths)): a document younger than 15 s is served as it
+is, an older one is served and refreshed in the background. The CLI and the
+MCP server read the host every time.
 
 | Front end | What it shows |
 |---|---|
@@ -1367,7 +1377,7 @@ Rules for responses and tokens:
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
-| GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)) |
+| GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
 | GET | `/api/jobs/{id}` | the job document |
 | GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. |
@@ -1435,6 +1445,7 @@ ROCm tree is probed again.
 |---|---|---|
 | `venv/probe/<venv>` | the torch and vLLM imports of a venv | 10 min |
 | `rocm/installs/<root>` | the ROCm trees under a root | 10 min |
+| `onboarding/document/<options>` | the onboarding checklist of this host | 15 s |
 
 The `venv` key is the third step of the venv order of
 [§6.2](#62-the-host-venv). It names the venv of every host-mode command

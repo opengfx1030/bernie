@@ -15,9 +15,11 @@ import (
 const jobPoll = 300 * time.Millisecond
 
 // GET /api/onboarding — the onboarding checklist of this host (spec §11).
-// It is the same document `bernie status --steps` prints.
+// It is the same document `bernie status --steps` prints. The document comes
+// from the cache when it is fresh enough; a document past its time to live
+// is served as it is and refreshed in the background (spec §3.3).
 func (s *server) getOnboarding(w http.ResponseWriter, r *http.Request) {
-	doc, err := app.Onboarding(r.Context(), app.OnboardingOptions{})
+	doc, err := app.OnboardingCached(r.Context(), app.OnboardingOptions{})
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
