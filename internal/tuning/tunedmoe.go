@@ -5,43 +5,64 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/opengfx1030/rdnactl/internal/paths"
 	tunedmoe "github.com/opengfx1030/rdnactl/tuned-moe"
 )
 
-// TunedMoEDir is where MaterializeTunedMoE writes: <data>/tuned-moe.
+// TunedMoEDir is the root MaterializeTunedMoE writes below: <data>/tuned-moe.
 func TunedMoEDir() string { return filepath.Join(paths.Data(), "tuned-moe") }
 
-// MaterializeTunedMoE writes the embedded tuned MoE configs into
-// TunedMoEDir (only files whose content differs) and returns the directory.
-func MaterializeTunedMoE() (string, error) {
-	return materializeFlat(tunedmoe.FS, TunedMoEDir())
+// MaterializeTunedMoE writes the embedded tuned MoE configs of the
+// architecture gfx (for example "gfx1030") into <data>/tuned-moe/<arch> and
+// returns that folder. Only files whose content differs are written. It
+// returns "" when no embedded folder covers gfx.
+func MaterializeTunedMoE(gfx string) (string, error) {
+	return materializeTunedMoE(tunedmoe.FS, gfx, TunedMoEDir())
 }
 
-// materializeFlat copies the top-level files of fsys into dir idempotently.
-func materializeFlat(fsys fs.FS, dir string) (string, error) {
+func materializeTunedMoE(fsys fs.FS, gfx, root string) (string, error) {
+	arch, err := tunedMoEArch(fsys, gfx)
+	if err != nil || arch == "" {
+		return "", err
+	}
+	dir := filepath.Join(root, arch)
 	if _, err := paths.Ensure(dir); err != nil {
 		return "", err
 	}
-	files, err := fs.Glob(fsys, "*")
+	files, err := fs.Glob(fsys, path.Join(arch, "*.json"))
 	if err != nil {
 		return "", err
 	}
 	for _, f := range files {
-		if filepath.Ext(f) == ".go" {
-			continue
-		}
 		want, err := fs.ReadFile(fsys, f)
 		if err != nil {
 			return "", err
 		}
-		if err := writeIfChanged(filepath.Join(dir, f), want); err != nil {
+		if err := writeIfChanged(filepath.Join(dir, path.Base(f)), want); err != nil {
 			return "", err
 		}
 	}
 	return dir, nil
+}
+
+// tunedMoEArch returns the folder of fsys that covers gfx: the longest
+// folder name that is a prefix of gfx, or "" when none is.
+func tunedMoEArch(fsys fs.FS, gfx string) (string, error) {
+	entries, err := fs.ReadDir(fsys, ".")
+	if err != nil {
+		return "", err
+	}
+	best := ""
+	for _, e := range entries {
+		if e.IsDir() && gfx != "" && strings.HasPrefix(gfx, e.Name()) && len(e.Name()) > len(best) {
+			best = e.Name()
+		}
+	}
+	return best, nil
 }
 
 // writeIfChanged writes want to dst unless dst already holds it, then
