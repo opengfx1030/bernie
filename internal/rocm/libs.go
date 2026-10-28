@@ -8,9 +8,12 @@ import (
 
 // venvLibDirs are the venv-relative (site-packages) library directories of
 // the TheRock ROCm wheels and torch, in load order. _rocm_sdk_libraries
-// holds the wheel rocBLAS and must load before any system rocBLAS.
+// holds the wheel rocBLAS and must load before any system rocBLAS;
+// _rocm_sdk_core/lib holds the wheel HIP runtime (libamdhip64, comgr) and
+// must load before any system HIP runtime.
 var venvLibDirs = []string{
 	"_rocm_sdk_libraries/lib",
+	"_rocm_sdk_core/lib",
 	"_rocm_sdk_core/lib/host-math/lib",
 	"_rocm_sdk_core/lib/rocm_sysdeps/lib",
 	"_rocm_sdk_core/lib/core/lib",

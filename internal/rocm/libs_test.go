@@ -29,6 +29,7 @@ func TestVenvLibPaths(t *testing.T) {
 	sp := filepath.Join(venv, "lib/python3.12/site-packages")
 	want := []string{
 		filepath.Join(sp, "_rocm_sdk_libraries/lib"),
+		filepath.Join(sp, "_rocm_sdk_core/lib"), // wheel HIP runtime (libamdhip64.so.7)
 		filepath.Join(sp, "_rocm_sdk_core/lib/host-math/lib"),
 		filepath.Join(sp, "_rocm_sdk_core/lib/rocm_sysdeps/lib"),
 		filepath.Join(sp, "torch/lib"),
