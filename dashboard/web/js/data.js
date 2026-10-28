@@ -162,6 +162,22 @@ function onFrame(fn) {
   });
 }
 
+/* ---------- one stream, one repaint per tab ---------- */
+
+const frameSubs = new Map();   // tab name -> the callbacks of that tab
+
+/** onTabFrame registers a repaint of one tab. The one shared stream calls
+ *  the callbacks of the open tab after every sample, inside one frame. A
+ *  view never opens a stream of its own: it registers here and the page
+ *  keeps one connection to /api/telemetry. It returns a function that
+ *  takes the callback back. */
+function onTabFrame(tab, fn) {
+  let set = frameSubs.get(tab);
+  if (!set) { set = new Set(); frameSubs.set(tab, set); }
+  set.add(fn);
+  return () => set.delete(fn);
+}
+
 /* ---------- the one poller of the page ---------- */
 
 let telemetryStream = null;
@@ -200,6 +216,8 @@ function startTelemetry() {
       if (document.hidden) return;
       onFrame(() => {
         if (state.tab === "dashboard" && typeof renderGPUs === "function") renderGPUs();
+        const subs = frameSubs.get(state.tab);
+        if (subs) for (const fn of subs) fn(t);
       });
     },
   });
