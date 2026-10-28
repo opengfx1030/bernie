@@ -101,12 +101,13 @@ func (r *Restriction) Note() string {
 // topology minus the ones the environment hides (spec §7.7). A restriction
 // that names a GPU the host does not have is an error.
 func Visible(root string) (Visibility, error) {
+	r, warn := EnvRestriction()
+	v := Visibility{Restriction: r, Warning: warn}
 	gpus, err := List(root)
 	if err != nil {
-		return Visibility{}, err
+		return v, err // the restriction of the environment is known anyway
 	}
-	r, warn := EnvRestriction()
-	v := Visibility{GPUs: gpus, Restriction: r, Warning: warn}
+	v.GPUs = gpus
 	if r == nil {
 		return v, nil
 	}
