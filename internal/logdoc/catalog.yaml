@@ -425,3 +425,25 @@ rules:
     cause: A hybrid model creates several KV cache groups, and this KV connector cannot manage them.
     fix: Turn off the KV connector and KV offloading for this model.
     doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#upstream-kv-offload-tanks-decode
+
+  # --- container groups, PLE sidecar, dtype ---------------------------------
+  - id: container.group-not-found
+    severity: error
+    pattern: 'unable to find group [a-zA-Z0-9_.-]+'
+    cause: The container engine could not resolve a group name that was passed with --group-add. The image knows no group with that name.
+    fix: Pass the numeric GIDs of the video and render groups (getent group video) instead of their names. With rootless Podman use --group-add keep-groups.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#failed-to-infer-device-type--amdsmi_status_not_init
+
+  - id: ple.sidecar-missing
+    severity: error
+    pattern: 'FileNotFoundError.*META\.json'
+    cause: The PLE sidecar folder does not hold the table the model needs. META.json is missing, so the folder is not the ples_int4 sidecar.
+    fix: Point VLLM_PLE_QUANT_DIR at the ples_int4 folder of the PLE-quant snapshot. It holds META.json and the shard files. Check that the snapshot download finished.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/flash-next-serve.html#path-c--flash-next-rdna_extras--hub-031
+
+  - id: dtype.bf16-selected
+    severity: warn
+    pattern: 'dtype=torch\.bfloat16'
+    cause: The run was started with bfloat16. RDNA has no native bfloat16, so the weights are emulated and the server is slow.
+    fix: Serve with --dtype float16. The recipes set it.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html#run-it

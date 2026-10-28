@@ -134,6 +134,9 @@ var samples = []struct {
 	{id: "config.cache-permission", log: "PermissionError: [Errno 13] Permission denied: '/root/.cache/vllm/torch_compile_cache'"},
 	{id: "net.port-in-use", log: "ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use"},
 	{id: "kv.lmcache-hma", log: "ValueError: Failed to promote local KV cache specs to one unified type"},
+	{id: "container.group-not-found", log: "docker: Error response from daemon: unable to find group render"},
+	{id: "ple.sidecar-missing", log: "FileNotFoundError: [Errno 2] No such file or directory: '/home/chenco_adm/.cache/huggingface/hub/models--primitive-ai--Qwen3.8-Flash-Next-PLE-quant/snapshots/4f861b63f69e61bfc2e22130ec91ec67f03ec43e/ples_int4/META.json'"},
+	{id: "dtype.bf16-selected", log: "(EngineCore pid=32278) INFO 09-29 02:12:03 [core.py:124] Initializing a V1 LLM engine (vdev) with config: model='/home/chenco_adm/.cache/huggingface/hub/models--wtdcode--Qwen3.8-Flash-Next-AWQ-W4A16/snapshots/0939125b929543a783ce700c90e36dd1a575c00c', dtype=torch.bfloat16, max_seq_len=262144"},
 }
 
 func TestEveryRuleMatchesItsSample(t *testing.T) {
@@ -170,6 +173,7 @@ const healthyLog = `(APIServer pid=192998) INFO 09-29 00:30:01 [utils.py:253] vL
 TunableOp lookup enabled for rocBLAS build f30bb442e9b5; tuning stays off (set PYTORCH_TUNABLEOP_TUNING=1 to re-tune missing shapes).
 (EngineCore pid=834976) INFO 09-30 13:36:13 [gpu_worker.py:941] Free memory on device (29.92/29.98 GiB) on startup. Desired GPU memory utilization is (0.85, 25.49 GiB). Actual usage is 11.56 GiB for consumed memory (weights + non-torch), 1.5 GiB for peak activation, and 3.91 GiB for CUDAGraph memory.
 (Worker_TP3 pid=193512) INFO 09-29 00:37:24 [compressed_tensors_wNa16.py:137] Using RDNA2W4A16LinearKernel for CompressedTensorsWNA16
+(APIServer pid=32147) WARNING 09-29 02:11:47 [model.py:2351] Casting torch.bfloat16 to torch.float16.
 (EngineCore pid=1) INFO 09-29 00:38:10 [kv_cache_utils.py:1291] GPU KV cache size: 412,160 tokens
 (EngineCore pid=1) INFO 09-29 00:38:10 [kv_cache_utils.py:1296] Maximum concurrency for 32,768 tokens per request: 12.58x
 (Worker_TP0 pid=2) INFO 09-29 00:40:00 [gpu_model_runner.py:5510] Graph capturing finished in 31 secs, took 3.91 GiB
