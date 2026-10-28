@@ -3,4 +3,5 @@
 *.test
 *.out
 *.tar.gz
+!internal/**/testdata/*.tar.gz
 .DS_Store

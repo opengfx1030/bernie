@@ -72,7 +72,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 
 	// 1. Hardware access problems are not fixable by up.
 	rep := doctor.Run(ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(o.Venv), HFHome: cfg.ResolveHFHome(),
-		Categories: []string{"gpu", "kernel"}})
+		Categories: []string{"gpu", "kernel"}, ValidatedArchs: recipe.ValidatedArchs(recipe.Load())})
 	var cmds []string
 	for _, ch := range rep.Checks {
 		if ch.Status == doctor.Fail {

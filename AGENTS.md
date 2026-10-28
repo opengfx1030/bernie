@@ -4,6 +4,11 @@ Rules for AI coding agents (and humans) who change this repository. Read
 [docs/spec.md](docs/spec.md) and [docs/architecture.md](docs/architecture.md)
 before you write code.
 
+Working on the dashboard (`dashboard/`)? Also read
+[dashboard/README.md](dashboard/README.md) (UI and UX rules) and
+[dashboard/AGENTS.md](dashboard/AGENTS.md). Planned work and rejected ideas
+are in [docs/roadmap.md](docs/roadmap.md).
+
 ## 1. What this repo is
 
 rdnactl is a Go CLI with an embedded dashboard. It checks, sets up, tunes,
@@ -48,6 +53,15 @@ Requirements: Go 1.23 or later. No other toolchain. No CGO.
 9. **Dependencies.** The only third-party module is `gopkg.in/yaml.v3`. Ask a
    maintainer before you add one.
 10. **No external calls in probes without a timeout.** Use `internal/execx`.
+11. **Structure.** Follow spec §2.1: files ≤ 400 lines, directories ≤ 12
+    entries, data keyed by GPU architecture (`<kind>/<arch>/...`), embedded
+    trees discovered by walking, no code that names a device. Split by a real
+    axis (device generation, model family, concern) before a folder gets flat
+    and long.
+12. **No competitor names.** Code, docs, comments, recipes, test data and
+    commit messages do not name or link other local-LLM engines or tools.
+    Describe the behavior or the idea instead. Research notes stay outside
+    the repo.
 
 ## 4. Tests
 
