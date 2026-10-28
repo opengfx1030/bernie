@@ -31,6 +31,8 @@ services:
     #   getent group video      -> VIDEO_GID
     #   getent group render     -> RENDER_GID
     #   stat -c %g /dev/kfd /dev/dri/renderD128 /dev/dri/card0
+    # The ids are required: docker compose and podman compose stop with a
+    # message when they are missing.
     group_add:
       - "${VIDEO_GID:?set VIDEO_GID to the numeric id of the video group}"
       - "${RENDER_GID:?set RENDER_GID to the numeric id of the render group}"
