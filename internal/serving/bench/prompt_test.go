@@ -95,7 +95,7 @@ func TestRecallVerdict(t *testing.T) {
 
 // TestRecallJSONShape checks the JSON of a cell with and without the check.
 func TestRecallJSONShape(t *testing.T) {
-	cell := Cell{Concurrency: 1, Recall: &Recall{Asked: 4, Passed: 3, Depth: 0.5, Method: recallMethodTokenize}}
+	cell := Cell{Concurrency: 1, Measurement: Measurement{Recall: &Recall{Asked: 4, Passed: 3, Depth: 0.5, Method: recallMethodTokenize}}}
 	data, err := json.Marshal(cell)
 	if err != nil {
 		t.Fatal(err)

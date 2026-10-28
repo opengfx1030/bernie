@@ -150,7 +150,7 @@ func union(spans []span) time.Duration {
 // decode rate is the decode tokens of the cell over the time in which any
 // request was decoding.
 func aggregate(concurrency int, samples []sample, wall time.Duration) Cell {
-	c := Cell{Concurrency: concurrency, NumPrompts: len(samples), DurationS: wall.Seconds(), TokensExact: true}
+	c := Cell{Concurrency: concurrency, NumPrompts: len(samples), Measurement: Measurement{DurationS: wall.Seconds(), TokensExact: true}}
 	var ttftS, itlMS, prefill, decode []float64
 	var promptSum, complSum, chunkSum, cachedSum, decodeTokens int
 	var spans []span

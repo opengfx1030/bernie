@@ -228,6 +228,7 @@ other file, script or compose file is required.
 | `bernie tune power service status` | no | Service state, desired caps, actual caps and drift. |
 | `bernie tune power service remove-plan` | no* | Print the root commands that remove the unit pair. |
 | `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
+| `bernie bench suites` | no | The built-in suites with their digest and their groups. |
 | `bernie bench list` / `bench show <ID>` | no | Saved results. |
 | `bernie bench compare <ID-A> <ID-B>` | no | Two results side by side. Refuses two different workloads. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
@@ -1033,6 +1034,7 @@ field has no advice.
 | `--seed` | `0` | Prompt seed. |
 | `--tag` | none | Free label stored with the result. |
 | `--recall` | off | Hide a short random fact in every prompt and check the reply. |
+| `--suite` | none | Run a built-in suite instead of the flags above. The suite decides the cells, the repetitions, the warm-up and the recall gate. |
 
 Every prompt gets a unique salt so the prefix cache does not change the
 result. Prompts are sized with `/tokenize` when the server has it. Without
@@ -1115,12 +1117,20 @@ Cell fields:
 | `mean_prompt_tokens`, `mean_output_tokens`, `mean_cached_prompt_tokens`, `tokens_per_chunk` | Real sizes seen. |
 | `duration_s`, `errors` | Wall time; sample of error strings. |
 | `recall` | Pass key check of the cell: `asked`, `passed`, `depth`, `method`. Absent when the check did not run. |
+| `group`, `input_len`, `output_len` | The suite group of the cell and the lens of that group. Absent in a plain run. |
+| `reps` | The repetitions of the cell. Each entry holds the numbers of one repetition. |
+| `spread` | The min/max ratio of the metrics over the repetitions. |
+| `incomplete` | True when the cell lost a warm-up or a repetition. Its numbers stay visible, but no verdict is issued for it. |
+| `warmup_failed` | The number of warm-up requests that failed. |
 
 A cell where every request fails makes `bench` exit 1 and saves nothing.
 
 A result also has a `workload`: `protocol_id`, `corpus_sha256`,
 `input_len`, `output_len`, `concurrency` and `recall`. It says what the
-benchmark asked for. Results saved before the field existed have none.
+benchmark asked for. Results saved before the field existed have none. A
+suite run adds `suite_id`, `suite_digest` and `kind`. A result of a suite
+run also has a `suite` block: the id, the digest and the version of the
+suite.
 
 The `protocol_id` names the shape of the measurement. It is
 `bernie-bench-2`: the groups of §10.1. A result saved before it
@@ -1132,6 +1142,71 @@ refuses (exit 1, "workload differs") when the workloads differ: the
 numbers of two different workloads cannot be compared. Two results of
 different protocol ids are refused too: they measured different things,
 and only the numbers both of them measured could be compared.
+
+### 10.2 Suites
+
+A suite is the data of a benchmark run: the cells, the repetitions and the
+thresholds that decide whether two runs agree. The suites are embedded YAML
+files under `bench/suites/`. The file stem is the suite id. `bernie bench
+suites` lists them with their digest and their groups.
+
+`bernie bench --suite NAME` runs a suite. The suite decides the lens of
+its cells, the concurrency levels, the repetitions, the warm-up, the seed
+and the recall gate. `--url`, `--model`, `--tag`, `--num-prompts` and
+`--seed` override the suite. `--input-len`, `--output-len`,
+`--concurrency`, `--warmup` and `--recall` cannot be used with `--suite`:
+the suite decides the cells, and a half-overridden cell is no cell.
+
+A suite file:
+
+```yaml
+schema: 1
+id: pr
+name: Pull request suite
+description: The cells a pull request must pass.
+reps: 3
+warmup: 1
+seed: 1234
+recall: true
+request_timeout_s: 3600
+cooldown_s: 5
+size_tolerance_percent: 2
+defaults:
+  requests: 0
+compare:
+  band: 0.02
+  steady: 0.95
+groups:
+  - name: 1k
+    kind: throughput
+    input_len: 1024
+    output_len: 512
+    concurrency: [1, 4, 8]
+    reps: 3
+    est_s: 60
+```
+
+The loader is strict: an unknown key, a `schema` other than `1`, a group
+without a lens or without a level, a negative length or an empty group
+list is refused. The defaults of a file that leaves a value out: `reps` 1,
+`warmup` 0, `seed` 0, `recall` off, `band` 0.02, `steady` 0.95,
+`size_tolerance_percent` 2, the kind `throughput` and the source
+`synthetic`.
+
+The built-in `pr` suite has the fixed cells of a pull request: 1024 prompt
+tokens and 512 output tokens at the levels 1, 4 and 8, and 16384 prompt
+tokens and 1024 output tokens at the same levels. The built-in `smoke`
+suite has one short cell: it proves that the server answers.
+
+The digest of a suite is the sha256 of its canonical form. Every result of
+a suite run carries the digest, so two runs of different suites are never
+compared.
+
+A suite run has one result with the cells of every group. A cell names its
+group in `group` and the lens of the group in `input_len` and
+`output_len`. The `workload` of a suite run carries `suite_id` and
+`suite_digest`; its `input_len` and `output_len` are zero, because the lens
+of a suite run is per cell.
 
 ## 11. Dashboard
 

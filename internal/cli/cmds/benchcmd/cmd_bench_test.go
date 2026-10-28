@@ -24,14 +24,17 @@ func TestFingerprintLineShowsGPUScope(t *testing.T) {
 // testCell is a cell with the five groups of numbers of spec §10.
 func testCell() *bench.Cell {
 	return &bench.Cell{
-		Concurrency: 1, NumPrompts: 4, Completed: 4, Failed: 0, DurationS: 3.21,
-		TokensPerChunk: 1, MeanPromptTokens: 512, MeanOutputTokens: 64, OutputTokS: 48.2,
-		Prefill: &bench.Rate{AggTokS: 1234.5, WindowS: 1.6,
-			Req: &bench.Dist{Mean: 900.1, P50: 890, P95: 950.2, Min: 800, Max: 950.2}},
-		Decode: &bench.Rate{AggTokS: 45.6, WindowS: 2,
-			Req: &bench.Dist{Mean: 44.9, P50: 44.5, P95: 46, Min: 43, Max: 46}},
-		TTFTs: &bench.Dist{Mean: 0.512, P50: 0.5, P95: 0.56, Min: 0.49, Max: 0.56},
-		ITLms: &bench.Dist{Mean: 21.4, P50: 21, P95: 24, Min: 20, Max: 24},
+		Concurrency: 1, NumPrompts: 4, Completed: 4, Failed: 0,
+		Measurement: bench.Measurement{
+			DurationS:      3.21,
+			TokensPerChunk: 1, MeanPromptTokens: 512, MeanOutputTokens: 64, OutputTokS: 48.2,
+			Prefill: &bench.Rate{AggTokS: 1234.5, WindowS: 1.6,
+				Req: &bench.Dist{Mean: 900.1, P50: 890, P95: 950.2, Min: 800, Max: 950.2}},
+			Decode: &bench.Rate{AggTokS: 45.6, WindowS: 2,
+				Req: &bench.Dist{Mean: 44.9, P50: 44.5, P95: 46, Min: 43, Max: 46}},
+			TTFTs: &bench.Dist{Mean: 0.512, P50: 0.5, P95: 0.56, Min: 0.49, Max: 0.56},
+			ITLms: &bench.Dist{Mean: 21.4, P50: 21, P95: 24, Min: 20, Max: 24},
+		},
 	}
 }
 
@@ -57,7 +60,7 @@ output tok/s         48.2         –         –         –         –       
 // numbers shows a dash and not a zero.
 func TestPrintCellTableWithoutNumbers(t *testing.T) {
 	var b strings.Builder
-	printCell(&b, &bench.Cell{Concurrency: 1, NumPrompts: 2, Completed: 0, Failed: 2, DurationS: 1})
+	printCell(&b, &bench.Cell{Concurrency: 1, NumPrompts: 2, Completed: 0, Failed: 2, Measurement: bench.Measurement{DurationS: 1}})
 	lines := strings.Split(b.String(), "\n")
 	if len(lines) < 3 {
 		t.Fatalf("the cell table is short:\n%s", b.String())

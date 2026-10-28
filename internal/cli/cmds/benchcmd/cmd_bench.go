@@ -17,7 +17,7 @@ func init() {
 	cmd := &cli.Command{
 		Name:    "bench",
 		Summary: "Benchmark an OpenAI-compatible server and save the result",
-		Usage:   "[--url U] [--model M] [--input-len N] [--output-len N] [--concurrency 1,8] [--num-prompts N] [--warmup N] [--seed N] [--tag T] [--recall]",
+		Usage:   "[--suite NAME] [--url U] [--model M] [--input-len N] [--output-len N] [--concurrency 1,8] [--num-prompts N] [--warmup N] [--seed N] [--tag T] [--recall]",
 	}
 	cmd.Run = func(c *cli.Context, args []string) error { return runBench(c, cmd, args) }
 
@@ -50,30 +50,12 @@ func init() {
 	}
 
 	compare := &cli.Command{Name: "compare", Summary: "Compare two saved bench results", Usage: "<id-a> <id-b>"}
-	compare.Run = func(c *cli.Context, args []string) error {
-		pos, err := cli.Parse(c.Flags(compare), args)
-		if err != nil {
-			return err
-		}
-		if len(pos) != 2 {
-			return cli.Usagef("bench compare needs exactly two result ids")
-		}
-		a, err := bench.Get(pos[0])
-		if err != nil {
-			return err
-		}
-		b, err := bench.Get(pos[1])
-		if err != nil {
-			return err
-		}
-		cmp, err := bench.Compare(a, b)
-		if err != nil {
-			return err
-		}
-		return c.Emit(cmp, func(w io.Writer) { printComparison(w, cmp) })
-	}
+	compare.Run = func(c *cli.Context, args []string) error { return runCompare(c, compare, args) }
 
-	cmd.Subs = []*cli.Command{list, show, compare}
+	suites := &cli.Command{Name: "suites", Summary: "List the built-in bench suites"}
+	suites.Run = func(c *cli.Context, args []string) error { return runSuites(c, suites, args) }
+
+	cmd.Subs = []*cli.Command{list, show, compare, suites}
 	cli.Register(cmd)
 }
 
@@ -91,12 +73,19 @@ func runBench(c *cli.Context, cmd *cli.Command, args []string) error {
 	fs.Int64Var(&o.Seed, "seed", 0, "prompt seed")
 	fs.StringVar(&o.Tag, "tag", "", "free label stored with the result")
 	fs.BoolVar(&o.Recall, "recall", false, "hide a short random fact in every prompt and check the reply")
+	fs.StringVar(&o.Suite, "suite", "", "run a built-in suite (bernie bench suites lists them)")
 	pos, err := cli.Parse(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(pos) > 0 {
-		return cli.Usagef("unexpected argument %q (subcommands: list, show, compare)", pos[0])
+		return cli.Usagef("unexpected argument %q (subcommands: list, show, compare, suites)", pos[0])
+	}
+	if o.Suite != "" {
+		if bad := suiteFlagConflict(fs); len(bad) > 0 {
+			return cli.Usagef("--suite decides the cells itself; %s cannot be used with it", strings.Join(bad, ", "))
+		}
+		return runSuite(c, o)
 	}
 	for _, f := range strings.Split(conc, ",") {
 		n, err := strconv.Atoi(strings.TrimSpace(f))
@@ -134,6 +123,9 @@ func printBenchResult(w io.Writer, r *bench.Result) {
 		fmt.Fprintf(w, ", tag %s", r.Tag)
 	}
 	fmt.Fprintln(w)
+	if r.Suite != nil {
+		fmt.Fprintf(w, "suite %s, digest %s\n", r.Suite.ID, shortDigest(r.Suite.Digest))
+	}
 	if fp := fingerprintLine(r.Fingerprint); fp != "" {
 		fmt.Fprintln(w, fp)
 	}
@@ -166,8 +158,8 @@ const dash = "–"
 // printCell writes the table of one cell: the five groups of numbers of
 // spec §10.
 func printCell(w io.Writer, cl *bench.Cell) {
-	fmt.Fprintf(w, "cell c=%d   %d ok / %d failed   wall %.2f s   %s tok/chunk   in/out %s/%s tok\n",
-		cl.Concurrency, cl.Completed, cl.Failed, cl.DurationS, chunkText(cl.TokensPerChunk),
+	fmt.Fprintf(w, "cell %s   %d ok / %d failed   wall %.2f s   %s tok/chunk   in/out %s/%s tok\n",
+		cellName(cl), cl.Completed, cl.Failed, cl.DurationS, chunkText(cl.TokensPerChunk),
 		countText(cl.MeanPromptTokens), countText(cl.MeanOutputTokens))
 	fmt.Fprintln(w, cellRow("metric", "agg", "req mean", "req p50", "req p95", "req min", "req max"))
 	fmt.Fprintln(w, rateRow("prefill tok/s", cl.Prefill))
@@ -178,6 +170,14 @@ func printCell(w io.Writer, cl *bench.Cell) {
 	if cl.ServerSide != nil {
 		fmt.Fprintf(w, "server side: %s\n", serverSideText(cl.ServerSide))
 	}
+}
+
+// cellName names a cell: its group and its concurrency level.
+func cellName(cl *bench.Cell) string {
+	if cl.Group == "" {
+		return fmt.Sprintf("c=%d", cl.Concurrency)
+	}
+	return fmt.Sprintf("%s c=%d", cl.Group, cl.Concurrency)
 }
 
 // cellRow formats one line of the cell table: the name on the left, the
@@ -326,42 +326,7 @@ func resultRecall(r *bench.Result) *bench.Recall {
 	return &bench.Recall{Asked: asked, Passed: passed}
 }
 
-// printComparison puts two results of the same workload side by side.
-func printComparison(w io.Writer, cmp *bench.Comparison) {
-	fmt.Fprintf(w, "%s  %s  %s\n", cmp.A.ID, cmp.A.Model, cmp.A.URL)
-	fmt.Fprintf(w, "%s  %s  %s\n", cmp.B.ID, cmp.B.Model, cmp.B.URL)
-	conc := make([]string, len(cmp.Workload.Concurrency))
-	for i, c := range cmp.Workload.Concurrency {
-		conc[i] = strconv.Itoa(c)
-	}
-	recall := "off"
-	if cmp.Workload.Recall {
-		recall = "on"
-	}
-	fmt.Fprintf(w, "workload: protocol %s, input %d tokens, output %d tokens, concurrency %s, recall %s\n",
-		cmp.Workload.ProtocolID, cmp.Workload.InputLen, cmp.Workload.OutputLen, strings.Join(conc, ","), recall)
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, metricHelp)
-	for _, cl := range cmp.A.Cells {
-		fmt.Fprintf(w, "result %s\n", cmp.A.ID)
-		printCell(w, &cl)
-		if other := cellOf(cmp.B, cl.Concurrency); other != nil {
-			fmt.Fprintf(w, "result %s\n", cmp.B.ID)
-			printCell(w, other)
-		}
-	}
-}
-
-// cellOf returns the cell of a result with this concurrency.
-func cellOf(r *bench.Result, concurrency int) *bench.Cell {
-	for i := range r.Cells {
-		if r.Cells[i].Concurrency == concurrency {
-			return &r.Cells[i]
-		}
-	}
-	return nil
-}
-
+// fingerprintLine names where a result came from.
 func fingerprintLine(fp map[string]string) string {
 	var parts []string
 	if v := fp["host"]; v != "" {

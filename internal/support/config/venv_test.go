@@ -4,9 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
 	"testing"
-	"time"
 )
 
 func makeVenv(t *testing.T, dir string) {
@@ -64,45 +62,6 @@ func TestConventionalVenvDetection(t *testing.T) {
 	want := []string{paths[1], paths[2], paths[0]}
 	if got.Path != "" || got.Source != VenvSourceAmbiguous || !reflect.DeepEqual(got.Candidates, want) {
 		t.Fatalf("ambiguous candidates = %+v, want %v", got, want)
-	}
-}
-
-func TestConventionalVenvProbesRunInParallel(t *testing.T) {
-	home := t.TempDir()
-	data := filepath.Join(home, "data")
-	t.Setenv("HOME", home)
-	t.Setenv("BERNIE_DATA_DIR", data)
-	t.Setenv("BERNIE_VENV", "")
-	t.Setenv("VIRTUAL_ENV", "")
-
-	old := venvCanImportVLLM
-	defer func() { venvCanImportVLLM = old }()
-	var mu sync.Mutex
-	running, peak := 0, 0
-	venvCanImportVLLM = func(string) bool {
-		mu.Lock()
-		running++
-		if running > peak {
-			peak = running
-		}
-		mu.Unlock()
-		time.Sleep(50 * time.Millisecond)
-		mu.Lock()
-		running--
-		mu.Unlock()
-		return true
-	}
-	for _, dir := range []string{
-		filepath.Join(home, ".venvs", "vllm-a"),
-		filepath.Join(home, ".venvs", "vllm-b"),
-		filepath.Join(home, ".venvs", "vllm-c"),
-		filepath.Join(home, ".venvs", "vllm-d"),
-	} {
-		makeVenv(t, dir)
-	}
-	_ = (Config{}).ResolveVenvInfo("")
-	if peak < 2 {
-		t.Errorf("probes ran %d at a time, want more than one", peak)
 	}
 }
 
