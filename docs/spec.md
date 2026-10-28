@@ -230,7 +230,8 @@ other file, script or compose file is required.
 | `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
 | `bernie bench suites` | no | The built-in suites with their digest and their groups. |
 | `bernie bench list` / `bench show <ID>` | no | Saved results. |
-| `bernie bench compare <ID-A> <ID-B>` | no | Two results side by side. Refuses two different workloads. |
+| `bernie bench compare <ID-A> <ID-B>` | no | Two results side by side with a verdict. Refuses two different workloads. |
+| `bernie bench ab --base ARM --cand ARM` | no* | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
 | `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
@@ -1260,6 +1261,24 @@ The exit codes:
 | 1 | The comparison could not decide: the results are not comparable, a cell is incomplete, the recall failed or a metric was too noisy. |
 
 `--band P` replaces the band of the suite.
+
+### 10.4 The A/B run
+
+`bernie bench ab --base ARM --cand ARM` runs a baseline and a candidate back
+to back and tells the verdict of the two arms. An arm is a recipe id or the
+URL of a server.
+
+The visits run in the order base, cand, cand, base. `--visits` changes the
+order. The arms alternate, so a drift of the machine hits both of them the
+same way. One server runs at a time: when an arm is a recipe, its server
+starts before the visit and stops after it. The bench lock is held for the
+whole run, so no other benchmark interleaves.
+
+Every visit saves its own result under the tag `ab:<arm>:<number>`, so the
+visits can be inspected with `bernie bench show`.
+
+The verdict compares the medians of the visits of the two arms. Its rules
+are the rules of §10.3.
 
 ## 11. Dashboard
 

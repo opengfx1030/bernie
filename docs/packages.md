@@ -207,6 +207,8 @@ func List() ([]*Suite, error); func Get(id string) (*Suite, error)
 func (s *Suite) Digest() string                 // sha256 of the canonical suite
 func Run(ctx context.Context, s *Suite, o bench.Options, progress io.Writer) (*bench.Result, error)
 func Compare(a, b *bench.Result) (*Comparison, error)   // ErrWorkloadDiffers: the workloads differ
+func Judge(cmp *Comparison, band float64) *Verdict      // better, same, worse, noisy
+func AB(ctx context.Context, o ABOptions) (*ABResult, error)  // the visits base, cand, cand, base
 ```
 
 ## app

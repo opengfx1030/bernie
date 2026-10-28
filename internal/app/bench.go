@@ -76,6 +76,32 @@ func BenchSuite(ctx context.Context, name string, o bench.Options, progress io.W
 	return r, path, nil
 }
 
+// BenchAB runs an A/B comparison: the visits of the two arms in the ABBA
+// order. It holds the bench lock for the whole run, so no other benchmark
+// interleaves, and it saves the result of every visit.
+func BenchAB(ctx context.Context, o suite.ABOptions) (*suite.ABResult, []string, error) {
+	if !benchMu.TryLock() {
+		return nil, nil, ErrBenchBusy
+	}
+	defer benchMu.Unlock()
+	res, err := suite.AB(ctx, o)
+	if err != nil {
+		return nil, nil, err
+	}
+	var paths []string
+	for _, v := range res.Visits {
+		if v.Result == nil || v.Result.Completed() == 0 {
+			continue
+		}
+		p, err := bench.Save(v.Result)
+		if err != nil {
+			return res, paths, &SaveError{err}
+		}
+		paths = append(paths, p)
+	}
+	return res, paths, nil
+}
+
 // FirstCellError is ": <message>" of the first error sample of a result, or
 // "" when no cell has one.
 func FirstCellError(r *bench.Result) string {

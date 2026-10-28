@@ -49,6 +49,10 @@ Each item has a spec section and one test that proves it.
   arm whose repetitions disagree gets no verdict. A failed recall or an
   incomplete cell makes the whole comparison invalid. Spec
   [§10.3](spec.md#103-the-verdict).
+- **Bench A/B run.** `bernie bench ab` runs a baseline and a candidate in
+  the order base, cand, cand, base, so a drift of the machine hits both
+  arms the same way. One server runs at a time, and every visit saves its
+  own result. Spec [§10.4](spec.md#104-the-ab-run).
 - **ECC check.** The doctor check `gpu.ecc.<hip index>` reads the RAS
   counters of every card: `ok` when ECC is on and the card counted no
   memory error, `warn` when ECC is off on a card that has it or when the
