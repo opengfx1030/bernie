@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,9 +30,9 @@ func init() {
 		}
 		return c.Emit(ps, func(w io.Writer) {
 			tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(tw, "NAME\tROCBLAS\tROCM\tTORCH\tLIB SHA256\tROWS/RANK\tRANKS\tSTATUS")
+			fmt.Fprintln(tw, "NAME\tARCH\tROCBLAS\tROCM\tTORCH\tLIB SHA256\tROWS/RANK\tRANKS\tSTATUS")
 			for _, p := range ps {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\t%d\t%s\n", p.Name, p.ROCBLAS, p.ROCm, p.Torch,
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%s\n", p.Name, strings.Join(p.Arch, ","), p.ROCBLAS, p.ROCm, p.Torch,
 					p.LibSHA256[:tuning.SHAPrefix], p.RowsPerRank, len(p.Ranks), firstWords(p.Status, 6))
 			}
 			tw.Flush()
@@ -55,6 +56,7 @@ func init() {
 			if st.SHA256 != "" {
 				fmt.Fprintf(w, "sha256:   %s\n", st.SHA256)
 			}
+			fmt.Fprintf(w, "gpus:     %s\n", orNone(strings.Join(st.Archs, ", ")))
 			if st.Profile != "" {
 				fmt.Fprintf(w, "profile:  %s (rows: %s)\n", st.Profile, tuning.RowsDir(st.Profile))
 			} else {
@@ -79,7 +81,7 @@ func init() {
 		if st.ROCBLAS == "" && *profile == "" {
 			return fmt.Errorf("librocblas.so.5 not found (venv wheel or system); give --profile or --venv")
 		}
-		p, err := tuning.Select(st.SHA256, *profile)
+		p, err := tuning.Select(st.SHA256, *profile, st.Archs)
 		if err != nil {
 			return err
 		}
@@ -89,7 +91,7 @@ func init() {
 				return err
 			}
 		} else {
-			c.Logf("no profile matches librocblas.so.5 %s; per-user rows", short12(st.SHA256))
+			c.Logf("no profile matches librocblas.so.5 %s on %s; per-user rows", short12(st.SHA256), orNone(strings.Join(st.Archs, ", ")))
 		}
 		e := tuning.Env(p, dir, *tune)
 		return c.Emit(e, func(w io.Writer) {
@@ -182,9 +184,12 @@ type tunableOpState struct {
 	Venv    string `json:"venv"`
 	ROCBLAS string `json:"rocblas"`
 	SHA256  string `json:"sha256"`
-	Profile string `json:"profile"`
-	RowsDir string `json:"rows_dir"`
-	PerUser string `json:"per_user_file"`
+	// Archs are the gfx targets of the GPUs the profile must fit: the host's
+	// GPUs, or the ones HIP_VISIBLE_DEVICES lists. Empty: no GPU data.
+	Archs   []string `json:"archs"`
+	Profile string   `json:"profile"`
+	RowsDir string   `json:"rows_dir"`
+	PerUser string   `json:"per_user_file"`
 }
 
 func tunableOpStatus(venvFlag string) (tunableOpState, error) {
@@ -192,7 +197,7 @@ func tunableOpStatus(venvFlag string) (tunableOpState, error) {
 	if err != nil {
 		return tunableOpState{}, err
 	}
-	st := tunableOpState{Venv: cfg.ResolveVenv(venvFlag), PerUser: tuning.PerUserFile()}
+	st := tunableOpState{Venv: cfg.ResolveVenv(venvFlag), PerUser: tuning.PerUserFile(), Archs: hostArchs()}
 	st.ROCBLAS = rocm.FindROCBLAS("/", st.Venv)
 	if st.ROCBLAS == "" {
 		return st, nil
@@ -200,7 +205,7 @@ func tunableOpStatus(venvFlag string) (tunableOpState, error) {
 	if st.SHA256, err = tuning.HashLib(st.ROCBLAS); err != nil {
 		return st, err
 	}
-	p, err := tuning.Select(st.SHA256, "")
+	p, err := tuning.Select(st.SHA256, "", st.Archs)
 	if err != nil {
 		return st, err
 	}
@@ -208,6 +213,33 @@ func tunableOpStatus(venvFlag string) (tunableOpState, error) {
 		st.Profile, st.RowsDir = p.Name, tuning.RowsDir(p.Name)
 	}
 	return st, nil
+}
+
+// hostArchs returns the gfx targets of the host's GPUs, limited to the
+// HIP_VISIBLE_DEVICES indices when that variable lists indices. It returns
+// nil when the GPUs cannot be listed.
+func hostArchs() []string {
+	gpus, err := gpu.List("/")
+	if err != nil {
+		return nil
+	}
+	var idx []int
+	if v := os.Getenv("HIP_VISIBLE_DEVICES"); v != "" {
+		for _, f := range strings.Split(v, ",") {
+			n, err := strconv.Atoi(strings.TrimSpace(f))
+			if err != nil {
+				idx = nil // not an index list (UUIDs): do not restrict
+				break
+			}
+			idx = append(idx, n)
+		}
+	}
+	if idx == nil {
+		for _, g := range gpus {
+			idx = append(idx, g.HIPIndex)
+		}
+	}
+	return gpu.Archs(gpus, idx)
 }
 
 func short12(s string) string {

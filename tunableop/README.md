@@ -1,12 +1,43 @@
 # V620 TunableOp profiles
 
-Build-specific, **lookup-only** TunableOp solver rows for the gfx1030 serving
-stack on 4× Radeon PRO V620. They were generated with the matching ROCm wheel
+Build-specific, **lookup-only** TunableOp solver rows for the gfx1030 (RDNA2)
+serving stack on 4× Radeon PRO V620. They were generated with the matching ROCm wheel
 SDK. They do not quantize weights or activations. Solution IDs must never be
 reused across a different rocBLAS build, even when version strings match.
 
 Both shipped row sets are **first-class, named profiles** (nothing is archived):
 one visible folder per rocBLAS build, selected at launch.
+
+## Layout
+
+```text
+tunableop/
+  <arch>/                  gfx name the rows were tuned on (gfx1030, gfx1100, ...)
+    <profile>/             one rocBLAS build
+      profile.json         manifest (below)
+      tunableop_results<rank>.csv
+      provenance.json
+      README.md
+```
+
+Every profile has its own `profile.json`. There is no central registry:
+rdnactl finds the profiles by walking the embedded tree. To add a profile,
+create `tunableop/<arch>/<profile>/` with the files above. No Go code and no
+index change. A new architecture is a new `<arch>/` folder; it never edits
+another architecture's files.
+
+`profile.json` fields:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | The profile name. Must equal the folder name. Unique across architectures. |
+| `arch` | List of gfx names or prefixes the rows are valid for (`["gfx1030"]`, `["gfx103"]`, `["gfx11"]`). |
+| `rocblas`, `rocm`, `torch` | Versions of the build that produced the rows. |
+| `lib_sha256` | sha256 of that build's `librocblas.so.5`. Selection compares its first 12 hex digits. |
+| `rows_per_rank` | Rows in each `tunableop_results<rank>.csv`. |
+| `status` | Free text: canonical, qualified for build ..., and so on. |
+| `covers` | List of the model families and shapes the rows cover. |
+| `venv` | Optional: the environment that generated the rows. |
 
 ## Profiles
 
@@ -30,28 +61,30 @@ Each profile carries a `provenance.json` (library hash, package versions, the
 capture/tune/curate campaign, lookup-hit proof) and a `README.md` (per-campaign
 deltas and regeneration recipe).
 
-## Registry and selection
+## Selection
 
-`profiles.json` is the registry: `name -> {rocblas, rocm, torch, lib_sha256,
-dir, rows_per_rank, status}`. The helper
-(`tools/rdna2_028/tunableop_env.sh`, mirror `tools/rdna2/tunableop_env.sh`)
-resolves a profile from it:
+The helper (`tools/rdna2_028/tunableop_env.sh`, mirror
+`tools/rdna2/tunableop_env.sh`) resolves a profile from the fork tree:
 
 ```bash
 source <tree>/tools/rdna2_028/tunableop_env.sh
 configure_tunableop <librocblas.so.5 path> <tunableop dir> [profile]
 ```
 
-* **auto (default, omitted/empty `[profile]`)** — pick the profile whose
-  `lib_sha256[:12]` equals `sha256(loaded librocblas.so.5)[:12]`. This is the
-  safe default: solver IDs are build-specific, so the rows must match the build
-  that generated them. A legacy `rocblas-<hash>/` folder is still honoured if
-  no registered profile matches, and the per-user path is the last resort.
-* **explicit (`TUNABLEOP_PROFILE=<name>` or the third argument)** — force a
-  named profile. The helper **validates its `lib_sha256` against the loaded
-  library** and **fails the launch loudly on mismatch**. For experiments only,
-  `TUNABLEOP_ALLOW_MISMATCH=1` downgrades the error to a hard warning and uses
-  the rows anyway. A mismatched set can never run silently.
+rdnactl does the same in Go (`internal/tuning`):
+
+* **auto (default, no explicit profile)** — pick the profile whose
+  `lib_sha256[:12]` equals `sha256(loaded librocblas.so.5)[:12]` **and** whose
+  `arch` names the architecture of every selected GPU. Solver IDs are
+  build-specific and tuned per GPU, so the rows must match the build and the
+  architecture that generated them. A host with W7800 (gfx1100) cards never
+  receives gfx1030 rows, even with the same rocBLAS wheel. No match: the
+  per-user path is the fallback.
+* **explicit (`--profile <name>` or the third argument of the helper)** —
+  force a named profile. rdnactl **validates its `lib_sha256` against the
+  loaded library and its `arch` against the selected GPUs, and fails the launch
+  loudly on mismatch**. A mismatched set can never run silently. (The shell
+  helper's `TUNABLEOP_ALLOW_MISMATCH=1` escape hatch is not in rdnactl.)
 
 A healthy auto-selecting start logs:
 
@@ -66,9 +99,10 @@ the selected rows path; harvest into the profile directory when validated).
 
 ## Storage policy (mandatory)
 
-* **One folder per rocBLAS build**, registered by name in `profiles.json`. The
-  helper selects the folder that matches the *loaded* build; solver IDs from
-  another build never validate.
+* **One folder per rocBLAS build and architecture**
+  (`tunableop/<arch>/<profile>/`). The selection picks the folder that matches
+  the *loaded* build and the selected GPUs; solver IDs from another build never
+  validate.
 * **Never** write rows to `/tmp` or the run CWD — both are wiped or vary between
   runs, which silently drops small-batch shapes back to rocBLAS heuristics.
 * **Per-user fallback:** `$HOME/.cache/tunableop/tunableop_results.csv`. The
@@ -133,5 +167,5 @@ retaining FP16 weights does not imply bit-identical outputs.
 For the current fork pipeline (capture → tune → curate → freeze + lookup-hit
 proof) see `tools/rdna2_028/tunableop_rows_pipeline.sh`,
 `tools/rdna2_028/curate_tunableop_rows.py` and the per-campaign sections in
-`bench_results/`. Freeze the result into `tunableop/<profile-name>/`, then add
-the profile to `profiles.json`.
+`bench_results/`. Freeze the result into `tunableop/<arch>/<profile-name>/` and
+write its `profile.json`.

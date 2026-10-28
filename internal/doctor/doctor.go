@@ -152,7 +152,7 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 			if in.rocblas != "" {
 				if sha, err := tuning.HashLib(in.rocblas); err == nil {
 					in.libSHA = sha
-					in.match, _ = tuning.Select(sha, "")
+					in.match, _ = tuning.Select(sha, "", nil)
 				}
 			}
 		})
