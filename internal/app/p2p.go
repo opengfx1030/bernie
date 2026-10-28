@@ -3,9 +3,7 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
-	"strconv"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
@@ -75,27 +73,5 @@ func recipeEnv(set recipe.Set, id string, gpus []gpu.GPU) (topo.RecipeEnv, error
 			return topo.RecipeEnv{}, nil
 		}
 	}
-	r, err := set.Resolve(id)
-	if err != nil {
-		return topo.RecipeEnv{}, err
-	}
-	env := map[string]string{}
-	for k, v := range r.Env {
-		if v == nil {
-			continue
-		}
-		env[k] = envString(v)
-	}
-	return topo.RecipeEnv{ID: r.ID, Env: env}, nil
-}
-
-// envString renders an env value the way the launch plan does.
-func envString(v any) string {
-	switch t := v.(type) {
-	case string:
-		return t
-	case bool:
-		return strconv.FormatBool(t)
-	}
-	return fmt.Sprint(v)
+	return recipe.Env(set, id)
 }

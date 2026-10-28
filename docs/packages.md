@@ -223,10 +223,43 @@ func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []
 func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Result, string, error) // ErrAllFailed, *SaveError
 func BenchList() ([]bench.Result, error)                                // never null
 func Stop(ctx context.Context, name string) (StopResult, error)
+func Onboarding(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) // the checklist
+func StartOnboardingJob(ctx context.Context, step string, o OnboardingOptions) (*onboarding.Job, error)
+func OnboardingJob(id string) (*onboarding.Job, error)
+func OnboardingJobLog(id string) ([]string, error)
+func Smoke(ctx context.Context, o SmokeOptions) (*onboarding.SmokeResult, error)
 ```
 
 `app` takes typed, validated input. The CLI parses flags, the dashboard parses
 its JSON body, the MCP server checks its input schema. `app` never prints.
+
+## onboarding
+
+```go
+type Document struct { Next string; Steps []Step }             // the checklist
+type Step struct { ID, Title, State, Summary, Detail, Command string; CanRun bool;
+    RootCommands []string; Progress *Progress; Problems []Problem }
+type Problem struct { ID, Title, Status, Detail, Fix, Doc string }  // a doctor check
+type Facts struct { Host host.Info; GPUs []gpu.GPU; Restriction string; Doctor doctor.Report;
+    Recipes recipe.Listing; Fits []string; Best, Recipe, Mode string; Setup []setup.Step;
+    Venv, HFHome, Model string; Runs []Run; Jobs []Job }
+func Gather(ctx context.Context, o Options) (*Facts, error)   // one probe of the host
+func Build(f *Facts) *Document                                 // the steps from the facts
+type Action struct { Step, Kind string; Steps []setup.Step; Recipe, Mode, Venv string; Sets []string }
+func ActionFor(f *Facts, step string, o Options) (*Action, error)  // ErrNoAction
+func SetupAction(steps []setup.Step) *Action                  // what `up` applies
+func (a *Action) Run(ctx context.Context, log io.Writer) error
+func StartJob(ctx context.Context, step string, o Options) (*Job, error) // ErrJobBusy
+func RecentJobs() []Job; func GetJob(id string) (*Job, error); func JobLog(id string) ([]string, error)
+func Smoke(ctx context.Context, baseURL, model string) (*SmokeResult, error)
+func LiveRun(ctx context.Context) (*Run, error)
+```
+
+`onboarding` holds one document: the ordered steps from a bare machine to a
+serving model. The steps come from the facts (the doctor report, the setup
+plan, the recipes, the runs), so the CLI, the dashboard and the MCP server
+cannot disagree. A job is one step that runs in the background; its state is
+kept under `<state>/jobs/<id>`.
 
 ## mcp
 
@@ -248,7 +281,8 @@ mutating tool; spec §13.10). `dashboard` mounts the handler on loopback only.
 
 ```go
 type Summary struct { Host host.Info; GPUs []gpu.GPU; Doctor map[doctor.Status]int;
-    Problems []doctor.Check; Best string; Fits []string; Runs []Run; Next []string }
+    Problems []doctor.Check; Best string; Fits []string; Runs []Run; Next []string;
+    Onboarding *onboarding.Document }
 func Snapshot(ctx context.Context, venv string) (*Summary, error)           // `status`
 type UpOptions struct { Recipe string; Sets []string; Mode, Venv, Engine, Name string;
     Yes bool; Confirm func(prompt string) bool; Wait time.Duration }
@@ -259,7 +293,12 @@ type Run struct { runner.Status; Findings []logdoc.Match; Phase *logdoc.Phase } 
 type StartupExit struct { Name string; Findings []logdoc.Match }               // error of a run that exited before /health
 func Runs(ctx context.Context) ([]Run, error)                                  // `ps`: runner.List plus findings
 func Findings(ctx context.Context, r runner.Record) []logdoc.Match            // scan of an exited run's log, 2 s budget
-func Phase(ctx context.Context, r runner.Record) (logdoc.Phase, bool)         // phase of a live run, from the tail of its log
+```
+
+The phase of a live run comes from `runner.Phase` (the runner owns the log).
+
+```go
+func Phase(ctx context.Context, r runner.Record) (logdoc.Phase, bool)         // in serving/runner
 ```
 
 `flow` never starts the dashboard. The front end does that after `Up` returns.

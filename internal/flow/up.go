@@ -6,18 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/bernie/internal/doctor"
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/machine/host"
-	"github.com/opengfx1030/bernie/internal/machine/rocm"
-	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/onboarding"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/setup"
-	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 // Blocked means `up` stopped before a step it must not run itself: a step
@@ -65,83 +59,38 @@ type UpResult struct {
 // Up runs the whole path of spec §3.1: doctor, setup (non-root), recipe,
 // serve, wait for health. Progress goes to log.
 func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
-	cfg, err := config.Load()
+	f, err := onboarding.Gather(ctx, onboarding.Options{
+		Venv: o.Venv, Recipe: o.Recipe, Mode: o.Mode, Sets: o.Sets, Engine: o.Engine, Name: o.Name,
+	})
 	if err != nil {
 		return nil, err
 	}
-	h, _ := host.Probe(ctx, "/")
-	vis, err := gpu.Visible("/")
-	if gpu.Restricted(err) {
-		return nil, err // the restriction names a GPU this host does not have
-	}
-	gpus := vis.GPUs
-	if len(gpus) == 0 {
-		return nil, &Blocked{Reason: "no AMD GPU found", Commands: []string{"bernie doctor"}}
+	doc := onboarding.Build(f)
+
+	// 1. Hardware access problems are not fixable by up. The steps of the
+	// onboarding say what holds the path up (spec §3.1).
+	if b := blocked(doc); b != nil {
+		fmt.Fprintf(log, "up: BLOCKED %s\n", b.Reason)
+		return nil, b
 	}
 
-	// 1. Hardware access problems are not fixable by up.
-	rep := doctor.Run(ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(o.Venv), HFHome: cfg.ResolveHFHome(),
-		Categories: []string{"gpu", "kernel"}, ValidatedArchs: recipe.ValidatedArchs(recipe.Load())})
-	var cmds []string
-	for _, ch := range rep.Checks {
-		if ch.Status == doctor.Fail {
-			fmt.Fprintf(log, "up: FAIL %s\n", ch.Title)
-			if ch.Fix != "" {
-				cmds = append(cmds, ch.Fix)
-			}
-		}
-	}
-	if len(cmds) > 0 || rep.Failed() {
-		return nil, &Blocked{Reason: "the GPUs are not usable by this user yet", Commands: cmds}
-	}
-
-	// 2. Recipe.
-	set := recipe.Load()
-	id := o.Recipe
+	// 2. Recipe: the named one, else the best fitting one.
+	id := f.Recipe
 	if id == "" {
-		id = pick(recipe.List(set, gpus, h.RAMBytes, false), o.Sets)
-		if id == "" {
-			return nil, &Blocked{Reason: "no recipe fits this host", Commands: []string{"bernie recipe list --all"}}
-		}
+		return nil, &Blocked{Reason: "no recipe fits this host", Commands: []string{"bernie recipe list --all"}}
+	}
+	if o.Recipe == "" {
 		fmt.Fprintf(log, "up: best recipe for this host: %s\n", id)
-	}
-	r, err := set.Resolve(id)
-	if err != nil {
-		return nil, err
-	}
-	for name, in := range r.Inputs {
-		if in.Required && in.Default == "" && !hasSet(o.Sets, name) {
-			return nil, &Blocked{
-				Reason:   fmt.Sprintf("recipe %s needs input %s: %s", id, name, in.Description),
-				Commands: []string{fmt.Sprintf("bernie up %s --set %s=<value>", id, name)},
-			}
-		}
 	}
 
 	// 3. Mode: an engine is optional (spec §2).
-	mode := o.Mode
-	if mode == "" {
-		mode = cfg.Mode
-	}
-	if mode == "" {
-		mode = recipe.ModeHost
-		if slices.Contains(recipe.Modes(r), recipe.ModeContainer) && engineUsable(h, firstNonEmpty(o.Engine, cfg.Engine)) {
-			mode = recipe.ModeContainer
-		}
-	}
+	mode := f.Mode
 	fmt.Fprintf(log, "up: mode %s\n", mode)
 
 	// 4. Setup. Root steps stop up before anything runs.
-	var archs []string
-	for _, g := range gpus {
-		archs = append(archs, g.GFX)
-	}
-	steps := setup.Plan(ctx, h, rocm.Probe(ctx, "/"), setup.Options{
-		Mode: mode, Venv: cfg.ResolveVenv(o.Venv), HFHome: cfg.ResolveHFHome(), GPUArchs: archs,
-		ModelRepo: modelRepo(r.Model.Source),
-	})
 	var rootCmds, apply []string
-	for _, s := range steps {
+	var pending []setup.Step
+	for _, s := range f.Setup {
 		if s.Done {
 			continue
 		}
@@ -150,6 +99,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 			continue
 		}
 		apply = append(apply, s.ID)
+		pending = append(pending, s)
 	}
 	if len(rootCmds) > 0 {
 		return nil, &Blocked{Reason: "steps that need root are pending; run them, then run `bernie up` again", Commands: rootCmds}
@@ -166,7 +116,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		}
 	}
 	if len(apply) > 0 {
-		if err := setup.Apply(ctx, steps, apply, log); err != nil {
+		if err := onboarding.SetupAction(pending).Run(ctx, log); err != nil {
 			return nil, err
 		}
 	}
@@ -183,67 +133,44 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 	return res, nil
 }
 
+// blocked returns what holds the path up, or nil when the path is clear.
+// The steps come from the onboarding, so the page and `up` see the same
+// state.
+func blocked(doc *onboarding.Document) *Blocked {
+	for _, id := range []string{onboarding.StepHardware, onboarding.StepAccess, onboarding.StepROCm, onboarding.StepRecipe} {
+		s := findStep(doc.Steps, id)
+		if s == nil || s.State != onboarding.StateBlocked {
+			continue
+		}
+		return &Blocked{Reason: s.Summary, Commands: stepCommands(s)}
+	}
+	return nil
+}
+
+// stepCommands returns the commands that unblock a step: the root commands
+// it needs, the fixes of its problems, or the command of the step itself.
+func stepCommands(s *onboarding.Step) []string {
+	cmds := append([]string{}, s.RootCommands...)
+	for _, p := range s.Problems {
+		if p.Fix != "" {
+			cmds = append(cmds, p.Fix)
+		}
+	}
+	if len(cmds) == 0 && s.ID == onboarding.StepRecipe {
+		cmds = append(cmds, s.Command)
+	}
+	if len(cmds) == 0 {
+		cmds = append(cmds, "bernie doctor")
+	}
+	return cmds
+}
+
 // WaitHealthy waits until the run answers /health (limit 0 = 30 minutes). A
 // run that exits first yields a *StartupExit with the known failures in its
 // log. When progress is not nil, it gets one line per phase change: what the
 // server is doing now, in words (spec §3.1).
 func WaitHealthy(ctx context.Context, name string, limit time.Duration, progress io.Writer) error {
 	return waitHealthy(ctx, name, limit, progress, runner.List)
-}
-
-// pick returns the best fitting recipe whose required inputs are all
-// satisfied (a default, or a --set). When none is, it returns the best
-// fitting recipe, so up can say which input is missing.
-func pick(l recipe.Listing, sets []string) string {
-	var ready recipe.Listing
-	for _, e := range l.Recipes {
-		ok := true
-		for name, in := range e.Inputs {
-			if in.Required && in.Default == "" && !hasSet(sets, name) {
-				ok = false
-			}
-		}
-		if ok {
-			ready.Recipes = append(ready.Recipes, e)
-		}
-	}
-	if id := recipe.Best(ready); id != "" {
-		return id
-	}
-	return recipe.Best(l)
-}
-
-func engineUsable(h host.Info, want string) bool {
-	for _, e := range h.Engines {
-		if e.Usable && (want == "" || e.Name == want) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasSet(sets []string, name string) bool {
-	for _, s := range sets {
-		if strings.HasPrefix(s, name+"=") {
-			return true
-		}
-	}
-	return false
-}
-
-func firstNonEmpty(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
-}
-
-// modelRepo returns the Hugging Face repo to download, or "" for a local path.
-func modelRepo(source string) string {
-	if strings.HasPrefix(source, "/") || strings.HasPrefix(source, "${") || source == "" {
-		return ""
-	}
-	return source
 }
 
 // ConfirmFrom returns a Confirm that asks on w and reads a y/N line from r.

@@ -110,6 +110,39 @@ func (c *Client) Tokenize(ctx context.Context, model, text string) (int, error) 
 	return 0, fmt.Errorf("parse /tokenize: no count or tokens in response")
 }
 
+// Complete asks the server for a completion of at most maxTokens tokens and
+// returns the text of the first choice. It is the smallest request that
+// proves the server answers. An empty model lets the server pick its own.
+func (c *Client) Complete(ctx context.Context, model, prompt string, maxTokens int) (string, error) {
+	if maxTokens < 1 {
+		maxTokens = 1
+	}
+	body := map[string]any{"prompt": prompt, "max_tokens": maxTokens, "temperature": 0}
+	if model != "" {
+		body["model"] = model
+	}
+	req, err := json.Marshal(body)
+	if err != nil {
+		return "", err
+	}
+	raw, err := c.do(ctx, http.MethodPost, "/v1/completions", req)
+	if err != nil {
+		return "", err
+	}
+	var resp struct {
+		Choices []struct {
+			Text string `json:"text"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return "", fmt.Errorf("parse /v1/completions: %w", err)
+	}
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("parse /v1/completions: no choices in the response")
+	}
+	return resp.Choices[0].Text, nil
+}
+
 // Metrics returns the flattened Prometheus samples of GET /metrics, keyed by
 // `name{labels}` exactly as exposed (just `name` when there are no labels).
 func (c *Client) Metrics(ctx context.Context) (map[string]float64, error) {

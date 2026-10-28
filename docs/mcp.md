@@ -61,8 +61,13 @@ Read-only by default. Each tool returns the document of its command as
 | `ps`, `logs` | `ps`; the log of a run (text, marked untrusted) |
 | `bench_list`, `bench_show` | `bench list`, `bench show` |
 | `tunableop_status`, `power_status` | `tune tunableop status`, `tune power service status` |
+| `onboarding_status` | `status --steps`: the onboarding checklist of this host |
 
 An agent should start with `status`, then `doctor` and `recipe_plan`.
+`onboarding_status` gives the ordered steps from a bare machine to a serving
+model: it is the shortest way to see what is missing. The agent runs the
+steps with `setup_apply` and `serve`; a step that needs root comes back as a
+command to run.
 
 The tools see only the GPUs the environment leaves visible
 (`HIP_VISIBLE_DEVICES`, `ROCR_VISIBLE_DEVICES`; spec §7.7). A restriction

@@ -9,8 +9,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
-	"github.com/opengfx1030/bernie/internal/serving/recipe"
-	"github.com/opengfx1030/bernie/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/onboarding"
 )
 
 // Summary is a compact, human-sized view of one host (spec §3.1).
@@ -26,76 +25,88 @@ type Summary struct {
 	Fits        []string              `json:"fitting_recipes"`
 	Runs        []Run                 `json:"runs"`
 	Next        []string              `json:"next"`
+	// Onboarding is the checklist of the steps from a bare machine to a
+	// serving model (spec §11). It is the same document the dashboard and
+	// the MCP server read.
+	Onboarding *onboarding.Document `json:"onboarding,omitempty"`
 }
 
 // Snapshot probes the host and returns the status document. It changes
 // nothing. venv is the host-mode venv flag value ("" = config/env).
 func Snapshot(ctx context.Context, venv string) (*Summary, error) {
-	cfg, err := config.Load()
+	f, err := onboarding.Gather(ctx, onboarding.Options{Venv: venv})
 	if err != nil {
 		return nil, err
 	}
-	h, _ := host.Probe(ctx, "/")
-	vis, err := gpu.Visible("/")
-	if gpu.Restricted(err) {
-		return nil, err // the restriction names a GPU this host does not have
-	}
-	gpus := vis.GPUs
-	rep := doctor.Run(ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(venv), HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(recipe.Load())})
-	var listing recipe.Listing
-	if gpus != nil {
-		listing = recipe.List(recipe.Load(), gpus, h.RAMBytes, false)
-	}
 	runs, _ := Runs(ctx)
-
-	s := &Summary{Host: h, GPUs: gpus, Restriction: vis.Restriction.Note(), Doctor: rep.Summary, Runs: runs,
-		Problems: []doctor.Check{}, Fits: []string{}}
+	s := &Summary{
+		Host: f.Host, GPUs: f.GPUs, Restriction: f.Restriction,
+		Doctor: f.Doctor.Summary, Problems: []doctor.Check{},
+		Best: f.Best, Fits: f.Fits, Runs: runs,
+		Onboarding: onboarding.Build(f),
+	}
 	if s.GPUs == nil {
 		s.GPUs = []gpu.GPU{}
 	}
 	if s.Runs == nil {
 		s.Runs = []Run{}
 	}
-	for _, ch := range rep.Checks {
+	if s.Fits == nil {
+		s.Fits = []string{}
+	}
+	for _, ch := range f.Doctor.Checks {
 		if ch.Status == doctor.Fail || ch.Status == doctor.Warn {
 			s.Problems = append(s.Problems, ch)
 		}
 	}
-	for _, e := range listing.Recipes {
-		if e.Fit.Status == recipe.FitYes {
-			s.Fits = append(s.Fits, e.ID)
-		}
-	}
-	s.Best = recipe.Best(listing)
 	s.Next = next(s)
 	return s, nil
 }
 
 // next returns the commands the operator should type, most important first.
+// It reads the onboarding steps: the step to do now gives the command.
 func next(s *Summary) []string {
-	var n []string
-	if len(s.GPUs) == 0 {
-		return []string{"bernie doctor   # no AMD GPU found: check /dev/kfd and the amdgpu driver"}
+	doc := s.Onboarding
+	if doc == nil {
+		return []string{"bernie doctor   # the host state is unknown"}
 	}
-	for _, ch := range s.Problems {
-		if ch.Status == doctor.Fail {
-			n = append(n, "bernie doctor   # "+ch.Title)
-			break
+	if running(doc.Steps) {
+		return []string{"bernie dash", "bernie bench"}
+	}
+	step := findStep(doc.Steps, doc.Next)
+	if step == nil {
+		return []string{"bernie bench   # the server answers; measure it"}
+	}
+	if step.State == onboarding.StateBlocked {
+		cmds := stepCommands(step)
+		out := []string{cmds[0] + "   # " + step.Summary}
+		return append(out, cmds[1:]...)
+	}
+	if step.Command == "" {
+		return []string{"bernie doctor"}
+	}
+	return []string{step.Command}
+}
+
+// running reports whether a step is running now (the server loads).
+func running(steps []onboarding.Step) bool {
+	for _, s := range steps {
+		if s.ID == onboarding.StepServe && s.State == onboarding.StateRunning {
+			return true
 		}
 	}
-	running := false
-	for _, r := range s.Runs {
-		if r.State == "running" || r.State == "starting" {
-			running = true
+	return false
+}
+
+// findStep returns the step with the given id, or nil.
+func findStep(steps []onboarding.Step, id string) *onboarding.Step {
+	if id == "" {
+		return nil
+	}
+	for i := range steps {
+		if steps[i].ID == id {
+			return &steps[i]
 		}
 	}
-	switch {
-	case running:
-		n = append(n, "bernie dash", "bernie bench")
-	case s.Best != "":
-		n = append(n, "bernie up   # serves "+s.Best)
-	default:
-		n = append(n, "bernie recipe list --all   # no recipe fits this host")
-	}
-	return n
+	return nil
 }

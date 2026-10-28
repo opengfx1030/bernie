@@ -9,6 +9,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/machine/topo"
+	"github.com/opengfx1030/bernie/internal/onboarding"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
@@ -166,4 +167,9 @@ func registerRead(s *Server) {
 
 	addTool[noIn, app.PowerServiceStatus](s, ro("power_status", "Power service state, desired caps, actual caps and drift (bernie tune power service status)."), nil,
 		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.ReadPowerServiceStatus(ctx) })
+
+	addTool[venvIn, *onboarding.Document](s, ro("onboarding_status", "The onboarding checklist of this host: the ordered steps from a bare machine to a serving model, with the step to do now (bernie status --steps)."), nil,
+		func(ctx context.Context, _ *call, in venvIn) (any, error) {
+			return app.Onboarding(ctx, app.OnboardingOptions{Venv: in.Venv})
+		})
 }

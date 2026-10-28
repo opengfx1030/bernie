@@ -126,9 +126,15 @@ other file, script or compose file is required.
 - `bernie` with no arguments runs `bernie status`. It changes nothing.
   It prints the GPUs, the doctor summary, the best recipe for this host,
   the running runs, and the one next command to type.
+- `bernie status --steps` prints the onboarding checklist
+  ([§3.3](#33-the-onboarding-checklist)): the ordered steps from a bare
+  machine to a serving model, the state of each step, the command that does
+  it and the step to do now. `status --json` carries the same steps in the
+  `onboarding` field.
 - `bernie up [RECIPE]` does the full path in one command:
-  1. It runs the doctor checks of the categories `gpu` and `kernel`. A `fail`
-     stops `up` with the fix commands.
+  1. It reads the onboarding steps ([§3.3](#33-the-onboarding-checklist)). A
+     blocked step (the GPUs are not usable by this user yet) stops `up` with
+     the fix commands.
   2. It selects the best recipe that fits (or RECIPE): fit first, then
      `priority`, then id. A recipe with a required input and no value is
      skipped. A named recipe with a missing input stops `up`.
@@ -189,7 +195,7 @@ other file, script or compose file is required.
 
 | Command | Changes host | Purpose |
 |---|---|---|
-| `bernie` / `bernie status` | no | Overview and the next command to type. |
+| `bernie` / `bernie status` | no | Overview and the next command to type. `--steps` prints the onboarding checklist ([§3.3](#33-the-onboarding-checklist)). |
 | `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D]` | yes | Doctor → setup → best recipe → serve → dashboard → wait for health. |
 | `bernie hw` | no | Hardware and OS inventory. |
 | `bernie topo [--bandwidth] [--venv DIR]` | no | PCIe tree, P2P matrix, link classes. Optional bandwidth test. |
@@ -204,6 +210,7 @@ other file, script or compose file is required.
 | `bernie recipe plan <id> [--set K=V]... [--mode M] [--name N]` | no | The plan, as an exact command and environment. |
 | `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--wait D] [--dash[=ADDR]] [--dry-run]` | yes | Start a run. |
 | `bernie ps` | no | Runs, with state and health. For an exited run: the known failures in its log. |
+| `bernie smoke [--url URL] [--model NAME]` | no | Check that the running server answers: `/health`, then one completion of one token. `--url` picks the server (default: the running run). |
 | `bernie stop [NAME]` | yes | Stop a run (the only run if NAME is absent). |
 | `bernie logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
 | `bernie compose <id> [--set K=V]... [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
@@ -243,6 +250,64 @@ keeps running. Without `--dash`, `serve` stays a pure launcher.
 an error. `compose` writes container plans only. `setup plan` and `setup
 apply` also take `--venv`, `--image` and `--model`. `status` takes
 `--venv`.
+
+### 3.3 The onboarding checklist
+
+The onboarding is the ordered list of steps that lead from a bare machine to
+a serving model. One document holds it. It is derived from the real state of
+the host (the doctor report, the setup plan, the recipes and the runs), and
+every front end reads that one document, so the page and the command cannot
+disagree.
+
+A step has this record:
+
+```json
+{"id": "hardware", "title": "", "state": "done|todo|running|blocked|skipped",
+ "summary": "", "detail": "", "command": "", "can_run": false,
+ "root_commands": [], "progress": {"phase": "", "done": 0, "total": 0},
+ "problems": []}
+```
+
+- `id` is stable: `hardware`, `access`, `rocm`, `python-env`, `model`,
+  `recipe`, `serve`, `verify`, then the extras `bench`, `tuning` and
+  `power`. The steps come in that order. The extras never hold the path.
+- `state` is `done` (the postcondition holds), `todo` (something is missing
+  and bernie can do it), `running` (a job is doing it now), `blocked` (only
+  the operator can do it) or `skipped` (the step does not apply to this
+  host).
+- `summary` is one plain sentence. `detail` says more.
+- `command` is the exact command that does the step.
+- `can_run` says that bernie can do the step itself, without root.
+- `root_commands` are the commands the operator runs as root. bernie prints
+  them and never runs them.
+- `progress` is the phase sentence of a running step, with the fraction of
+  the work when the step knows it.
+- `problems` are the doctor checks that hold the step back, with their fix
+  and their documentation link.
+
+The document is `{"next": "<id>", "steps": [...]}`. `next` is the step to do
+now: the first step of the path that is not done and not skipped. It is
+empty when the path is complete.
+
+| Front end | What it shows |
+|---|---|
+| `bernie status --steps` | the checklist as a plain list |
+| `bernie status --json` | the same steps in the `onboarding` field |
+| `GET /api/onboarding` | the document ([§11](#11-dashboard)) |
+| MCP `onboarding_status` | the document ([§13](#13-model-context-protocol)) |
+
+`up` reads the same steps: it stops on the first blocked step of the path
+and runs the steps that follow it. The action of a step is the same in `up`
+and in a job, so there is one code path.
+
+A step that bernie can run does it in a job. `POST
+/api/onboarding/{step}/run` starts the job and returns its id. `GET
+/api/jobs/{id}` returns the job, `GET /api/jobs/{id}/events` streams it
+(server-sent events: one `line` event per output line, then a `done` or
+`failed` event with the job document and the known failures of its log).
+One job runs at a time. The state of a job is kept under
+`<state>/jobs/<id>`, so a page reload finds it again. A step that needs root
+answers with the commands to run and runs nothing.
 
 ## 4. Host inspection (`hw`, `topo`)
 
@@ -1100,6 +1165,12 @@ The `Sample` of the telemetry stream is one GPU:
 `temp_junction_c`, `temp_mem_c`, `sclk_mhz` and `mclk_mhz` are absent when
 the card does not publish them. The dashboard shows `–` for an absent value.
 
+Every card of the page carries a `json` link in its header. It opens the
+raw JSON of the endpoint behind the card in a new tab, so the document a
+person reads and the document an agent gets are the same one. Every
+command the page shows has a copy button, and the button copies the
+command exactly as it is shown.
+
 ## 12. Files and paths
 
 | Name | Default | Override |
@@ -1183,6 +1254,7 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `bench_show` | `bench show` | `id` |
 | `tunableop_status` | `tune tunableop status` | `venv` |
 | `power_status` | `tune power service status` | none |
+| `onboarding_status` | `status --steps` (the `onboarding` field of `status --json`) | `venv` |
 
 Mutating tools ([§13.5](#135-write-gate)):
 
@@ -1318,4 +1390,3 @@ The guard of `/mcp` differs from the guard of `/api` ([§11](#11-dashboard)):
 - Model quantization and checkpoint conversion.
 - Engine changes (kernels, MoE offload). They belong to the fork.
 - Multi-host fleet control. The dashboard shows one host.
-- A one-click onboarding wizard. `setup apply` is the base for it.
