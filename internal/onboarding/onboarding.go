@@ -45,6 +45,9 @@ const (
 type Document struct {
 	Next  string `json:"next"`
 	Steps []Step `json:"steps"`
+	// Facts are the numbers of this host with the reason why they matter.
+	// The page shows them above the steps.
+	Facts []Fact `json:"facts"`
 	// FactsAgeS is the age in seconds of the facts behind the document. It
 	// is 0 when the host was read now.
 	FactsAgeS int `json:"facts_age_s"`
@@ -109,6 +112,7 @@ func Build(f *Facts) *Document {
 		powerStep(f),
 	)
 	doc.Next = nextStep(doc.Steps)
+	doc.Facts = factsOf(f)
 	return doc
 }
 

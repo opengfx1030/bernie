@@ -75,6 +75,20 @@ The tools see only the GPUs the environment leaves visible
 (`HIP_VISIBLE_DEVICES`, `ROCR_VISIBLE_DEVICES`; spec §7.7). A restriction
 that names a GPU the host does not have is an error, like in the CLI.
 
+### What the dashboard has and the MCP server does not
+
+The dashboard answers a few endpoints that the MCP server does not expose:
+the history of the cards (`GET /api/gpus/history`), the smoke check of a
+prompt (`POST /api/smoke`), the log of a run with the level of every line
+(`GET /api/runs/{name}/log`), the known failures of a run
+(`GET /api/runs/{name}/findings`) and the benchmark that runs in the
+background (`POST /api/bench/run`, `POST /api/bench/ab`).
+
+They answer the same documents as the matching commands, so an agent that
+needs them runs the CLI: `bernie smoke`, `bernie doctor --run NAME`,
+`bernie logs NAME` and `bernie bench`. The catalog of the tools is fixed by
+[spec §13.4](spec.md#134-tools): a new tool needs a new command first.
+
 ## Write mode
 
 The tools that change the host (`serve`, `stop`, `bench_run`, `bench_ab`,
