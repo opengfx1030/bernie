@@ -62,7 +62,7 @@ func List(root string) ([]GPU, error) {
 		}
 		fillDevice(root, &g)
 		if g.Name == "" {
-			g.Name = deviceName(g.DeviceID)
+			g.Name = displayName(g)
 		}
 		gpus = append(gpus, g)
 	}
@@ -194,44 +194,19 @@ func locationBDF(domain, loc int64) string {
 	return fmt.Sprintf("%04x:%02x:%02x.%x", domain, (loc>>8)&0xff, (loc>>3)&0x1f, loc&7)
 }
 
-// deviceName is the marketing name for known AMD device ids.
-func deviceName(id string) string {
-	if n, ok := deviceNames[id]; ok {
-		return n
+// displayName names a GPU the DRM product name did not: the device table,
+// else the gfx target.
+func displayName(g GPU) string {
+	if d, ok := Lookup(g.DeviceID); ok {
+		return d.Name
 	}
-	if id == "" {
-		return "AMD GPU"
+	switch {
+	case g.GFX != "":
+		return "AMD GPU " + g.GFX
+	case g.DeviceID != "":
+		return "AMD GPU " + g.DeviceID
 	}
-	return "AMD GPU " + id
-}
-
-var deviceNames = map[string]string{
-	"0x73a1": "Radeon Pro V620",
-	"0x73ae": "Radeon Pro V620 MxGPU",
-	"0x73a2": "Radeon Pro W6900X",
-	"0x73a3": "Radeon PRO W6800",
-	"0x73ab": "Radeon Pro W6800X",
-	"0x73a5": "Radeon RX 6950 XT",
-	"0x73af": "Radeon RX 6900 XT",
-	"0x73bf": "Radeon RX 6800/6800 XT/6900 XT",
-	"0x73df": "Radeon RX 6700/6700 XT/6750 XT",
-	"0x73e3": "Radeon PRO W6600",
-	"0x73ef": "Radeon RX 6650 XT",
-	"0x73ff": "Radeon RX 6600/6600 XT",
-	"0x743f": "Radeon RX 6400/6500 XT",
-	"0x7448": "Radeon Pro W7900",
-	"0x7449": "Radeon Pro W7800 48GB",
-	"0x745e": "Radeon Pro W7800",
-	"0x744c": "Radeon RX 7900 XT/XTX/GRE",
-	"0x7460": "Radeon PRO V710",
-	"0x7461": "Radeon PRO V710",
-	"0x7470": "Radeon PRO W7700",
-	"0x747e": "Radeon RX 7700 XT/7800 XT",
-	"0x7480": "Radeon RX 7600/7600 XT",
-	"0x7489": "Radeon Pro W7500",
-	"0x7550": "Radeon RX 9070/9070 XT",
-	"0x7551": "Radeon AI PRO R9700",
-	"0x7590": "Radeon RX 9060 XT",
+	return "AMD GPU"
 }
 
 // ReadProperties parses a KFD "key value" properties file. Values that do

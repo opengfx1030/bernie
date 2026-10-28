@@ -1,0 +1,48 @@
+# RDNA2 (gfx103x): Navi 21-24 and the RDNA2 APUs.
+#
+# Sources
+#   PCI ids and marketing names: https://pci-ids.ucw.cz/v2.2/pci.ids (vendor 1002)
+#   Die -> gfx target: Linux kfd_device.c, kfd_gfx_target_version table
+#     (Sienna Cichlid 100300, Navy Flounder 100301, Dimgrey Cavefish 100302,
+#     Beige Goby 100304, Van Gogh 100303, Yellow Carp 100305, GC 10.3.6 100306)
+#     https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd/amdkfd/kfd_device.c
+#   Die -> amdgpu chip (Navi 21 = Sienna Cichlid 0x73a0-0x73bf, Navi 22 = Navy
+#     Flounder 0x73c0-0x73df, Navi 23 = Dimgrey Cavefish 0x73e0-0x73ff, Navi 24 =
+#     Beige Goby 0x7420-0x743f): amdgpu_drv.c pciidlist
+#     https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+#   gfx1030 products (RX 6800/6800 XT/6900 XT, PRO W6800, PRO V620), gfx1031
+#     (RX 6700 XT), APU targets: https://llvm.org/docs/AMDGPUUsage.html#processors
+#   ROCm support list (PRO W6800, PRO V620 = gfx1030):
+#     https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html
+#   HSA_OVERRIDE_GFX_VERSION=10.3.0 for the smaller RDNA2 dies, no native BF16,
+#     wave32, Triton 3.9 dropping RDNA2: https://blivioniag.github.io/gfx1030-wiki/setup/hsa-override.html
+#     https://blivioniag.github.io/gfx1030-wiki/setup/hardware.html
+#     https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
+#   V620 180 W cap (VBIOS floor 250 W, unlock to 120 W, PCI 1002:73a1 only):
+#     https://blivioniag.github.io/gfx1030-wiki/tuning/power.html
+generation: rdna2
+wave_size: 32
+triton_below: "3.9"
+arches:
+  gfx1030: {family: navi21, bf16: none}
+  gfx1031: {family: navi22, bf16: none, hsa_override: "10.3.0"}
+  gfx1032: {family: navi23, bf16: none, hsa_override: "10.3.0"}
+  gfx1034: {family: navi24, bf16: none, hsa_override: "10.3.0"}
+  gfx1033: {family: vangogh, bf16: none, hsa_override: "10.3.0", integrated: true}
+  gfx1035: {family: yellow_carp, bf16: none, hsa_override: "10.3.0", integrated: true}
+  gfx1036: {bf16: none, hsa_override: "10.3.0", integrated: true}
+devices:
+  - {ids: ["0x73a1"], name: Radeon PRO V620, gfx: gfx1030, power_cap_advice_w: 180}
+  - {ids: ["0x73ae"], name: Radeon PRO V620 MxGPU, gfx: gfx1030}
+  - {ids: ["0x73a2"], name: Radeon PRO W6900X, gfx: gfx1030}
+  - {ids: ["0x73a3"], name: Radeon PRO W6800, gfx: gfx1030}
+  - {ids: ["0x73ab"], name: Radeon PRO W6800X, gfx: gfx1030}
+  - {ids: ["0x73a5"], name: Radeon RX 6950 XT, gfx: gfx1030}
+  - {ids: ["0x73af"], name: Radeon RX 6900 XT, gfx: gfx1030}
+  - {ids: ["0x73bf"], name: Radeon RX 6800 / 6800 XT / 6900 XT, gfx: gfx1030}
+  - {ids: ["0x73df"], name: Radeon RX 6700 / 6700 XT / 6750 XT, gfx: gfx1031}
+  - {ids: ["0x73e3"], name: Radeon PRO W6600, gfx: gfx1032}
+  - {ids: ["0x73ef"], name: Radeon RX 6650 XT, gfx: gfx1032}
+  - {ids: ["0x73ff"], name: Radeon RX 6600 / 6600 XT, gfx: gfx1032}
+  - {ids: ["0x7422"], name: Radeon PRO W6400, gfx: gfx1034}
+  - {ids: ["0x743f"], name: Radeon RX 6400 / 6500 XT, gfx: gfx1034}

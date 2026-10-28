@@ -1,0 +1,19 @@
+# RDNA3.5 (gfx115x): APUs only. No device ids are listed; the GPU is matched
+# by the gfx target the KFD topology reports.
+#
+# Sources
+#   gfx1150/1151/1152 as RDNA3.5 APUs with dynamic VRAM:
+#     https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html
+#     https://llvm.org/docs/AMDGPUUsage.html#processors
+#   Wave size: ROCm lists 32 or 64 (rocWMMA documents the RDNA targets as wave32)
+#     https://rocm.docs.amd.com/projects/rocWMMA/en/develop/api-reference/api-reference-guide.html
+#     https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html
+#   FlashAttention ROCm allowlist (gfx1150, gfx1151; not gfx1152):
+#     https://github.com/Dao-AILab/flash-attention/blob/main/setup.py
+generation: rdna3.5
+wave_size: 32
+arches:
+  gfx1150: {integrated: true, flash_attn: true}
+  gfx1151: {integrated: true, flash_attn: true}
+  gfx1152: {integrated: true}
+devices: []
