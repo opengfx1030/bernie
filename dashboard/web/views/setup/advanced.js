@@ -1,5 +1,6 @@
 // The Advanced panel of the Setup tab: the raw documents behind the page
 // and the commands that produce them.
+// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 "use strict";
 
 /** setupAdvancedPanel is the disclosure at the end of the tab. */

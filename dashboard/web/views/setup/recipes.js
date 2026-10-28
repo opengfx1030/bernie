@@ -1,4 +1,5 @@
 // The recipe chooser and the plan of the picked recipe.
+// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 "use strict";
 
 /** loadSetupRecipes reads the recipes of the host and paints the chooser. */
