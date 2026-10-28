@@ -68,6 +68,7 @@ Add `--json` to any command for machine-readable output.
 
 ## Documentation
 
+- [docs/install.md](docs/install.md) — install: script, rpm/deb, container image, compose, source.
 - [docs/overview.html](docs/overview.html) — one-page visual tour (open in a browser).
 - [docs/spec.md](docs/spec.md) — the behavior contract: commands, JSON shapes, recipe schema, files.
 - [docs/architecture.md](docs/architecture.md) — packages, dependencies, launch flow.
