@@ -59,6 +59,16 @@ func (s *server) getTopo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, t)
 }
 
+// GET /api/topo/check — `bernie topo --check --json`.
+func (s *server) getTopoCheck(w http.ResponseWriter, r *http.Request) {
+	rep, err := app.P2PChecklist(r.Context(), app.P2PChecklistOptions{Recipe: r.URL.Query().Get("recipe")})
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, rep)
+}
+
 // GET /api/doctor — `bernie doctor --json` (all categories, configured venv).
 func (s *server) getDoctor(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -254,10 +264,12 @@ type benchRequest struct {
 	Warmup      *int            `json:"warmup"`
 	Seed        int64           `json:"seed"`
 	Tag         string          `json:"tag"`
+	Recall      bool            `json:"recall"`
 }
 
 func (b benchRequest) options() (bench.Options, error) {
 	o := bench.Options{URL: b.URL, Model: b.Model, Tag: b.Tag, NumPrompts: b.NumPrompts, Seed: b.Seed,
+		Recall:   b.Recall,
 		InputLen: bench.DefaultInputLen, OutputLen: bench.DefaultOutputLen, Warmup: bench.DefaultWarmup}
 	if b.InputLen != nil {
 		o.InputLen = *b.InputLen

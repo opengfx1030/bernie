@@ -116,9 +116,10 @@ func List(s Set, gpus []gpu.GPU, ramBytes uint64, all bool) Listing
 func Best(l Listing) string                        // fit, then priority, then id
 func ValidatedArchs(s Set) []string
 type Plan struct { Recipe, Name, Mode, Entrypoint, Model, ServedName, Host string; Port int
-    Env map[string]string; Args []string; GPUs []int; HIPDevices, GPUSelectReason string
+    Env map[string]string; Args []string; Settings []Setting; GPUs []int; HIPDevices, GPUSelectReason string
     Image, ShmSize, TunableOpProfile, TunableOpRows string; PathInputs []string
     Mounts []Mount; Warnings []string; Exec *Exec }
+type Setting struct { Key, Value, Why string }
 type PlanOptions struct { Mode, Name string; Sets []string; GPUs []gpu.GPU; Topo *topo.Topology;
     TunedMoE func(gfx string) (string, error) }
 func BuildPlan(r *Recipe, o PlanOptions) (*Plan, error)
@@ -172,6 +173,7 @@ func (c *Client) Metrics(ctx) (map[string]float64, error)   // flattened Prometh
 // bench
 func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error)
 func Save(r *Result) (string, error); func List() ([]Result, error); func Get(id string) (*Result, error)
+func Compare(a, b *Result) (*Comparison, error)   // ErrWorkloadDiffers: the workloads differ
 ```
 
 ## app

@@ -1,13 +1,16 @@
 // Package vllmtest is a deterministic fake of the vLLM OpenAI-compatible
 // server for tests: /health, /v1/models, /tokenize, /metrics and streaming
 // /v1/completions with controlled delays, multi-token chunks (as with MTP
-// speculative decoding) and failure injection.
+// speculative decoding), failure injection and a mode that answers or
+// ignores the hidden fact of a recall prompt.
 package vllmtest
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +39,10 @@ type Config struct {
 	// FailMidStreamEvery makes every Nth completion request send an error
 	// event after its first chunk.
 	FailMidStreamEvery int
+	// RecallMode makes the fake answer the hidden fact of the prompt:
+	// "correct" repeats it, "wrong" answers another number. Empty means
+	// the fake ignores the fact.
+	RecallMode string
 }
 
 // Server is an http.Handler. Use it with httptest.NewServer.
@@ -220,14 +227,19 @@ func (s *Server) completions(w http.ResponseWriter, r *http.Request) {
 		if k > req.MaxTokens-done {
 			k = req.MaxTokens - done
 		}
+		first := done == 0
 		done += k
 		var finish any
 		if done == req.MaxTokens {
 			finish = "length"
 		}
+		text := strings.Repeat(" x", k)
+		if first && s.cfg.RecallMode != "" {
+			text = recallAnswer(req.Prompt, s.cfg.RecallMode)
+		}
 		chunk := map[string]any{
 			"id": id, "object": "text_completion", "created": 0, "model": s.cfg.Model,
-			"choices": []map[string]any{{"index": 0, "text": strings.Repeat(" x", k), "logprobs": nil, "finish_reason": finish, "stop_reason": nil}},
+			"choices": []map[string]any{{"index": 0, "text": text, "logprobs": nil, "finish_reason": finish, "stop_reason": nil}},
 			"usage":   nil,
 		}
 		if continuous {
@@ -255,6 +267,28 @@ func (s *Server) completions(w http.ResponseWriter, r *http.Request) {
 
 func usageBody(prompt, completion int) map[string]int {
 	return map[string]int{"prompt_tokens": prompt, "completion_tokens": completion, "total_tokens": prompt + completion}
+}
+
+// passKeyRE finds the hidden fact of a recall prompt. The bench writes it as
+// "The pass key is 482913. Remember it.".
+var passKeyRE = regexp.MustCompile(`pass key is (\d+)`)
+
+// recallAnswer is the reply of the fake to a recall prompt: the hidden fact
+// when the mode is "correct", another number when it is "wrong".
+func recallAnswer(prompt, mode string) string {
+	m := passKeyRE.FindStringSubmatch(prompt)
+	if m == nil {
+		return " I have no pass key."
+	}
+	key := m[1]
+	if mode == "wrong" {
+		n, err := strconv.Atoi(key)
+		if err != nil {
+			return " I have no pass key."
+		}
+		key = fmt.Sprintf("%06d", (n+1)%1000000)
+	}
+	return " The pass key is " + key + "."
 }
 
 func errBody(msg string) map[string]any {

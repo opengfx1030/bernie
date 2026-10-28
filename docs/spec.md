@@ -198,6 +198,7 @@ other file, script or compose file is required.
 | `bernie tune power set <WATTS> [--gpu IDX]...` | yes | Set the power cap. Without root, print the command. |
 | `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
 | `bernie bench list` / `bench show <ID>` | no | Saved results. |
+| `bernie bench compare <ID-A> <ID-B>` | no | Two results side by side. Refuses two different workloads. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
 | `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
@@ -474,12 +475,19 @@ args:                           # vllm serve flags without the leading --
   max-model-len: 262144
   enable-prefix-caching: true
   compilation-config: {mode: 3, cudagraph_mode: FULL_AND_PIECEWISE}
+
+why:                            # optional; one short reason per setting
+  env.VLLM_ROCM_USE_AITER: AITER has no RDNA2 kernels.
+  args.max-num-seqs: Eight slots match the validated serving profile.
+  tuning.tunableop_profile: The solver rows match this rocBLAS build.
 ```
 
 ### 7.3 Merge rules
 
 - `extends` is resolved depth first, then left to right, then the file itself.
 - Maps merge key by key. Lists replace. Scalars replace.
+- The `why` map merges key by key. A later layer replaces the reason for the
+  same setting path. A `null` reason removes an inherited reason.
 - A `null` value deletes the key (for example, to remove an inherited flag).
 - A cycle in `extends` is an error.
 
@@ -521,6 +529,34 @@ When the plan has no `HIP_VISIBLE_DEVICES`, bernie selects GPUs:
 
 `recipe list` gives each recipe a fit: `fits`, `no` (with reasons), or
 `unknown` (no GPU data). Reasons: arch, GPU count, VRAM, RAM.
+
+### 7.9 Setting reasons
+
+A recipe may attach a short reason to a setting with the optional `why` map.
+A key is the path of the setting:
+
+- `env.NAME` names an environment variable.
+- `args.FLAG` names a `vllm serve` flag without `--`.
+- `tuning.tunableop_profile` names the TunableOp profile choice.
+
+An `env` or `args` reason must name a setting in the resolved recipe. A
+reason is one non-empty line. An override changes the value but keeps the
+reason. Remove an inherited reason with `null` when it no longer applies.
+
+`recipe plan` shows each reason under its setting. The text plan prints the
+setting path, value and reason. The JSON plan keeps the existing `env` map
+and `args` array unchanged. It adds a `settings` array with one object per
+annotated setting:
+
+```json
+{"key": "env.GPU_MAX_HW_QUEUES", "value": "4",
+ "why": "Four queues avoid skew in the persistent fork kernels."}
+```
+
+The `settings` array is sorted by `key`. `value` is the final rendered value
+as a string. The array is absent when the recipe has no reasons, so a legacy
+recipe keeps the same plan JSON. The MCP `recipe_plan` tool and the
+dashboard use this same plan document.
 
 ## 8. Runs
 
@@ -660,12 +696,22 @@ cap with it. A device without that field has no advice.
 | `--warmup` | `1` | Requests sent and discarded before each cell. |
 | `--seed` | `0` | Prompt seed. |
 | `--tag` | none | Free label stored with the result. |
+| `--recall` | off | Hide a short random fact in every prompt and check the reply. |
 
 Every prompt gets a unique salt so the prefix cache does not change the
 result. Prompts are sized with `/tokenize` when the server has it. Without
 it, the word count is an estimate and the real mean is in the result.
 With MTP, a chunk can carry several tokens. bernie divides the gap of a
 chunk by its token count, so ITL is per token.
+
+With `--recall`, every prompt hides a short random fact (a six-digit pass
+key) at 50 % of its depth and asks for it at the end. The reply passes when
+it holds the pass key. The key is salted per request, so two requests of a
+run never share one. The prompt is sized with `/tokenize` like every other
+prompt; without it the length is an estimate, and the cell says which one it
+was in `recall.method`. The reply has a fixed length (`ignore_eos` where the
+server supports it, temperature 0). A cell that misses the fact has broken
+attention: its speed numbers mean nothing.
 
 Results go to `<state>/bench/<id>.json` (id = UTC timestamp + short hash).
 The fingerprint has: host, GPU summary, recipe name, image digest (container
@@ -681,8 +727,17 @@ runs) and run plan hash. Cell fields:
 | `output_tok_s` | All completion tokens ÷ cell wall time. |
 | `mean_prompt_tokens`, `mean_output_tokens`, `tokens_per_chunk` | Real sizes seen. |
 | `duration_s`, `errors` | Wall time; sample of error strings. |
+| `recall` | Pass key check of the cell: `asked`, `passed`, `depth`, `method`. Absent when the check did not run. |
 
 A cell where every request fails makes `bench` exit 1 and saves nothing.
+
+A result also has a `workload`: `protocol_id`, `corpus_sha256`,
+`input_len`, `output_len`, `concurrency` and `recall`. It says what the
+benchmark asked for. Results saved before the field existed have none.
+
+`bernie bench compare <id-a> <id-b>` puts two results side by side. It
+refuses (exit 1, "workload differs") when the workloads differ: the
+numbers of two different workloads cannot be compared.
 
 ## 11. Dashboard
 
@@ -810,7 +865,7 @@ Mutating tools ([§13.5](#135-write-gate)):
 |---|---|---|
 | `serve` | `serve` (no `--foreground`, `--dry-run`) | `runner.Record`, as `serve --json` |
 | `stop` | `stop NAME` (the name is required) | `{"name", "stopped"}` |
-| `bench_run` | `bench` (loopback `url` only) | the saved `bench.Result` |
+| `bench_run` | `bench` (loopback `url` only, `recall` optional) | the saved `bench.Result` |
 | `setup_apply` | `setup apply` | the setup steps after the run |
 | `tune_power_set` | `tune power set` | `{"applied", "commands", "watts"}` |
 

@@ -77,7 +77,7 @@ Each tab answers one question. Keep it that way.
 | Topology | Which GPUs talk fast to which? | `/api/topo` | none |
 | Recipes | What can I serve, and what will it run? | `/api/recipes`, `.../plan` | start a run |
 | Runs | What is running, and why did it fail? | `/api/runs`, `.../logs` | stop, read logs |
-| Bench | How fast is it? | `/api/bench` | start a bench |
+| Bench | How fast is it, and does it read the whole prompt? | `/api/bench` | start a bench |
 
 ## UI and UX rules
 

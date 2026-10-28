@@ -2,7 +2,9 @@ package bench
 
 import (
 	"context"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -34,12 +36,23 @@ var corpus = func() []string {
 // the BOS token when the server cannot tokenize.
 const saltOverheadEstimate = 16
 
+// corpusHash is the sha256 of the embedded word list, in hex. It says which
+// corpus a result used: two results with the same corpus measure the same
+// workload.
+var corpusHash = sync.OnceValue(func() string {
+	sum := sha256.Sum256([]byte(wordsTxt))
+	return hex.EncodeToString(sum[:])
+})
+
 // prompts builds benchmark prompts. Each prompt is a unique salt followed by
 // words drawn from the corpus with a generator seeded by (seed, seq). The salt
 // is decimal digits only so its token count does not depend on its value.
+// With recall on, the prompt hides a pass key halfway and asks for it at the
+// end.
 type prompts struct {
-	seed  int64
-	nonce uint32 // random per run: salts never repeat across runs
+	seed   int64
+	nonce  uint32 // random per run: salts never repeat across runs
+	recall bool   // hide a pass key in every prompt
 }
 
 func (p prompts) salt(seq int) string {
@@ -52,11 +65,31 @@ func (p prompts) build(seq, nwords int) string {
 	var b strings.Builder
 	b.Grow(12 + nwords*7)
 	b.WriteString(p.salt(seq))
-	for range nwords {
+	mid := nwords / 2
+	if nwords < 4 {
+		mid = nwords // a short prompt has no room for a fact in the middle
+	}
+	for i := range nwords {
+		if p.recall && i == mid {
+			b.WriteString(passKeySentence(p.passKey(seq)))
+		}
 		b.WriteByte(' ')
 		b.WriteString(corpus[r.IntN(len(corpus))])
 	}
+	if p.recall {
+		b.WriteString(recallQuestion)
+	}
 	return b.String()
+}
+
+// overheadEstimate is the token budget the prompt spends on everything but
+// the corpus words: the salt, and with recall the hidden fact and the
+// question. It is the budget kept free when the server cannot tokenize.
+func (p prompts) overheadEstimate() int {
+	if p.recall {
+		return saltOverheadEstimate + recallOverheadEstimate
+	}
+	return saltOverheadEstimate
 }
 
 // calibration caches word counts per (url, model, seed, input length):
@@ -67,6 +100,7 @@ type calKey struct {
 	url, model string
 	seed       int64
 	tokens     int
+	recall     bool // a recall prompt is longer than a plain one
 }
 
 // tokenCounter counts the tokens of a prompt. vllm.Client.Tokenize fits.
@@ -79,7 +113,7 @@ func calibrate(ctx context.Context, p prompts, target int, count tokenCounter) (
 	measure := func(w int) (int, error) { return count(ctx, p.build(0, w)) }
 	n, err := measure(target)
 	if errors.Is(err, vllm.ErrUnsupported) {
-		return max(1, target-saltOverheadEstimate), false, nil
+		return max(1, target-p.overheadEstimate()), false, nil
 	}
 	if err != nil {
 		return 0, false, fmt.Errorf("calibrate prompt length: %w", err)
@@ -120,7 +154,7 @@ func calibrate(ctx context.Context, p prompts, target int, count tokenCounter) (
 // calibrateCached wraps calibrate with the per-server cache. Estimates are
 // not cached.
 func calibrateCached(ctx context.Context, c *vllm.Client, model string, p prompts, target int) (int, bool, error) {
-	key := calKey{c.BaseURL(), model, p.seed, target}
+	key := calKey{c.BaseURL(), model, p.seed, target, p.recall}
 	if v, ok := calibration.Load(key); ok {
 		return v.(int), true, nil
 	}

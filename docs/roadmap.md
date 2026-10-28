@@ -24,7 +24,7 @@ Each item has a spec section and one test that proves it.
 
 | # | Item | Spec | Test |
 |---|---|---|---|
-| 7 | **Bench provenance.** A result stores `protocol_id`, `corpus_sha256`, model file hashes. `bench compare` refuses runs with different workloads. | §10 | `bench compare` with different `--concurrency` exits non-zero: "workload differs". |
+| 7 | **Model file hashes.** A result stores the hashes of the model files it measured, so a number can be tied to the exact weights. | §10 | A result of a run holds the hashes of the model files. |
 | 8 | **Redacted report.** `doctor --report` writes JSON with no hostname, user name, home paths or keys, and lists what it removed. | §5 | `grep` for user, host and `/home/` finds nothing. |
 | 9 | **Smoke chat.** `bernie chat --run NAME "prompt"` sends one prompt, prints the reply, time to first token and tok/s. It proves the server works. | §3 | Prints reply, TTFT and tok/s for a fixture server; exits non-zero when the run is not ready. |
 | 10 | **`connect <app>`.** Prints the ready-to-paste config for opencode, Open WebUI or a generic OpenAI client, using the run's port and model name. It prints only; it writes nothing. | §3 | `connect opencode` output contains the run's base URL and served model name. |
@@ -35,6 +35,14 @@ Each item has a spec section and one test that proves it.
   read-only by default, write tools behind `--allow-write` and a confirm
   token. It reuses the `--json` code paths. Spec [§13](spec.md#13-model-context-protocol),
   how-to [mcp.md](mcp.md).
+- **Pass key recall.** `bernie bench --recall` hides a short random fact in
+  every prompt and checks the reply for it. A cell that misses the fact has
+  broken attention, and its speed numbers mean nothing. Spec
+  [§10](spec.md#10-benchmark).
+- **Bench workload.** A result stores its `workload` (`protocol_id`,
+  `corpus_sha256`, input, output, concurrency, recall) and `bernie bench
+  compare` refuses two results of different workloads. Spec
+  [§10](spec.md#10-benchmark).
 
 ## Not planned
 
