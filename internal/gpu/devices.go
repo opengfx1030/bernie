@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -49,6 +50,22 @@ func (a Arch) CodeTarget() string {
 		return a.GFX
 	}
 	return GFXName(maj*10000 + min*100 + step)
+}
+
+// CodeTargets maps gfx names to the targets whose code objects they run
+// (see CodeTarget; names missing from the tables map to themselves), without
+// duplicates, in first-seen order.
+func CodeTargets(gfxs []string) []string {
+	var out []string
+	for _, g := range gfxs {
+		if a, ok := LookupArch(g); ok {
+			g = a.CodeTarget()
+		}
+		if g != "" && !slices.Contains(out, g) {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // Label is the generation as written in advice ("RDNA2").

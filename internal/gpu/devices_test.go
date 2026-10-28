@@ -155,3 +155,13 @@ func TestLoadTablesRejectsBadFiles(t *testing.T) {
 		t.Error("an arch in two files was accepted")
 	}
 }
+
+func TestCodeTargets(t *testing.T) {
+	got := CodeTargets([]string{"gfx1031", "gfx1100", "gfx1030", "gfx1032", "gfx908", "", "gfx1100"})
+	if want := "gfx1030 gfx1100 gfx908"; strings.Join(got, " ") != want {
+		t.Errorf("CodeTargets = %v, want %s", got, want)
+	}
+	if len(CodeTargets(nil)) != 0 {
+		t.Error("nil input gave targets")
+	}
+}

@@ -49,7 +49,8 @@ func base() inputs {
 			User:    host.User{Name: "op", Groups: []string{"op", "video", "render"}},
 			Engines: []host.Engine{{Name: "docker", Version: "29.8.1", Usable: true, Compose: "docker compose"}},
 		},
-		gpus: v620s(4, 180),
+		gpus:      v620s(4, 180),
+		validated: []string{"gfx1030"},
 		rocm: rocm.Report{
 			Installs: []rocm.Install{{Root: "/opt/rocm-7.14.0", Version: "7.14.0", Kind: "opt"}},
 			Tools:    map[string]string{"rocminfo": "/usr/bin/rocminfo", "hipcc": "/usr/bin/hipcc", "amd-smi": "/usr/bin/amd-smi"},
@@ -97,7 +98,13 @@ func TestEvaluateStatuses(t *testing.T) {
 			in.devices.kfdRW = false
 		}, "gpu.groups", Fail, "usermod -aG video,render"},
 		{"no kfd", func(in *inputs) { in.devices = devices{} }, "gpu.kfd", Fail, "modprobe amdgpu"},
-		{"gfx1031 override advice", func(in *inputs) { in.gpus[0].GFX = "gfx1031" }, "gpu.arch.gfx1031", Warn, "HSA_OVERRIDE_GFX_VERSION=10.3.0"},
+		{"gfx1031 override advice", func(in *inputs) { in.gpus[0].GFX = "gfx1031" }, "gpu.hsa_override.gfx1031", Warn, "HSA_OVERRIDE_GFX_VERSION=10.3.0"},
+		{"gfx1031 unvalidated", func(in *inputs) { in.gpus[0].GFX = "gfx1031" }, "gpu.supported.gfx1031", Warn, "RDNA2 target; recipes are validated on gfx1030 only"},
+		{"validated arch", func(*inputs) {}, "gpu.supported.gfx1030", OK, "recipes are validated on it"},
+		{"known but unvalidated arch", func(in *inputs) { in.gpus[0].GFX = "gfx1100" }, "gpu.supported.gfx1100", Warn, "RDNA3 target; recipes are validated on gfx1030 only"},
+		{"unknown arch", func(in *inputs) { in.gpus[0].GFX = "gfx908" }, "gpu.supported.gfx908", Warn, "not in the device tables"},
+		{"no validated recipes", func(in *inputs) { in.validated = nil }, "gpu.supported.gfx1030", Warn, "validated on no target yet"},
+		{"two validated archs", func(in *inputs) { in.validated = []string{"gfx1030", "gfx1100"}; in.gpus[0].GFX = "gfx1102" }, "gpu.supported.gfx1102", Warn, "validated on gfx1030, gfx1100 only"},
 		{"igpu mixed", func(in *inputs) { in.gpus = append(in.gpus, gpu.GPU{HIPIndex: 4, GFX: "gfx1036"}) }, "gpu.igpu", Warn, "HIP_VISIBLE_DEVICES=0,1,2,3"},
 		{"iommu=pt missing on apt", func(in *inputs) {
 			in.host.Cmdline = "ro quiet"
@@ -192,5 +199,73 @@ func TestRunEmptyRoot(t *testing.T) {
 	}
 	if c := find(t, r.Checks, "os.kernel"); c.Status != Skip {
 		t.Errorf("os.kernel = %+v, want skip", c)
+	}
+}
+
+func TestSupportChecksMixedHost(t *testing.T) {
+	in := base()
+	in.gpus = append([]gpu.GPU{{HIPIndex: 0, GFX: "gfx1100", DeviceID: "0x7449"}, {HIPIndex: 1, GFX: "gfx1100", DeviceID: "0x7449"}},
+		v620s(2, 180)...)
+	checks := supportChecks(in)
+	got := map[string]Status{}
+	for _, c := range checks {
+		got[c.ID] = c.Status
+	}
+	want := map[string]Status{"gpu.supported.gfx1100": Warn, "gpu.supported.gfx1030": OK}
+	if len(got) != len(want) || got["gpu.supported.gfx1100"] != Warn || got["gpu.supported.gfx1030"] != OK {
+		t.Errorf("checks = %v, want %v (no override check for gfx1100 or gfx1030)", got, want)
+	}
+}
+
+func TestPowerAdviceFollowsDeviceTable(t *testing.T) {
+	in := base()
+	// A W7800 at any cap has no advice; the V620 above 180 W does.
+	in.gpus = []gpu.GPU{{HIPIndex: 0, GFX: "gfx1100", DeviceID: "0x7449", PowerCapW: 300}, {HIPIndex: 1, GFX: "gfx1030", DeviceID: "0x73a1", PowerCapW: 250}}
+	c := find(t, evaluate(in), "tuning.power")
+	if c.Status != Warn || !strings.Contains(c.Detail, "Radeon PRO V620 above 180 W: GPU 1 250 W") || strings.Contains(c.Detail+c.Fix, "GPU 0") || c.Fix != "rdnactl tune power set 180 --gpu 1" {
+		t.Errorf("tuning.power = %+v", c)
+	}
+	in.gpus = in.gpus[:1]
+	if c := find(t, evaluate(in), "tuning.power"); c.Status != OK {
+		t.Errorf("W7800 power = %+v", c)
+	}
+}
+
+func TestTritonCheckUsesGenerationData(t *testing.T) {
+	in := base()
+	in.venv = "/v"
+	if c := tritonCheck(in, "3.9.0"); c.Status != Fail || !strings.Contains(c.Detail, "RDNA2") {
+		t.Errorf("rdna2 + triton 3.9 = %+v", c)
+	}
+	if c := tritonCheck(in, "3.7.1"); c.Status != OK {
+		t.Errorf("rdna2 + triton 3.7.1 = %+v", c)
+	}
+	in.gpus = []gpu.GPU{{GFX: "gfx1100"}}
+	if c := tritonCheck(in, "3.9.0"); c.Status != OK {
+		t.Errorf("rdna3 + triton 3.9 = %+v", c)
+	}
+}
+
+func TestRunFixtureSupportedChecks(t *testing.T) {
+	root := fixture.Root(t, "par1-cs25")
+	r := Run(context.Background(), Options{Root: root, Categories: []string{"gpu"}, ValidatedArchs: []string{"gfx1030"}})
+	if c := find(t, r.Checks, "gpu.supported.gfx1030"); c.Status != OK {
+		t.Errorf("gfx1030 = %+v", c)
+	}
+	if c := find(t, r.Checks, "gpu.supported.gfx1100"); c.Status != Warn || !strings.Contains(c.Detail, "validated on gfx1030 only") {
+		t.Errorf("gfx1100 = %+v", c)
+	}
+	for _, fx := range []string{"w7800-single", "rx7900xtx-synthetic"} {
+		r := Run(context.Background(), Options{Root: fixture.Root(t, fx), Categories: []string{"gpu"}, ValidatedArchs: []string{"gfx1030"}})
+		if c := find(t, r.Checks, "gpu.supported.gfx1100"); c.Status != Warn {
+			t.Errorf("%s: %+v", fx, c)
+		}
+		if c := find(t, r.Checks, "gpu.count"); !strings.Contains(c.Detail, "1 GPUs: 1× gfx1100") {
+			t.Errorf("%s: %+v", fx, c)
+		}
+	}
+	r = Run(context.Background(), Options{Root: fixture.Root(t, "rx6800xt-synthetic"), Categories: []string{"gpu"}, ValidatedArchs: []string{"gfx1030"}})
+	if c := find(t, r.Checks, "gpu.supported.gfx1030"); c.Status != OK {
+		t.Errorf("rx6800xt = %+v", c)
 	}
 }
