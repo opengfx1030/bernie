@@ -78,7 +78,7 @@ Each tab answers one question. Keep it that way.
 | Tab | Question it answers | Data | Actions |
 |---|---|---|---|
 | Home | Is this host ready, and what do I do next? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/runs` | run a step |
-| GPUs | How busy, how hot and at which clock is each GPU? | `/api/telemetry`, `/api/hw` | none |
+| GPUs | How busy, how hot and at which clock is each GPU? | `/api/telemetry`, `/api/hw` | copy the card list |
 | Topology | Which GPUs talk fast to which, and will P2P work? | `/api/topo`, `/api/topo/check` | none |
 | Recipes | What can I serve, and what will it run? | `/api/recipes`, `.../plan` | start a run |
 | Runs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs |
@@ -89,6 +89,11 @@ The Home tab is the first tab. It was the Overview tab; the old link
 sentence, the facts of the host with the reason under every value, and the
 checklist of [spec §3.3](../docs/spec.md#33-the-onboarding-checklist): every
 step of the path from a bare machine to a serving model, in order.
+
+The GPUs tab opens with five tiles: the load, the power, the memory, the
+hottest card and the highest clock, each with the last minute of it as a
+sparkline. Every card shows its load as a ring and its power as a meter
+against the cap the card may draw. A number that was not measured shows `–`.
 
 A step that bernie can do has a Run button. The step runs in the background
 and its output goes under the step. A step that needs root has the command
