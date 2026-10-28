@@ -1,0 +1,26 @@
+# RDNA4 (gfx12): Navi 44 (gfx1200) and Navi 48 (gfx1201).
+#
+# Sources
+#   PCI ids and marketing names: https://pci-ids.ucw.cz/v2.2/pci.ids (vendor 1002)
+#   Product -> gfx target (RX 9070 XT/9070/GRE, AI PRO R9700 = gfx1201;
+#     RX 9060 XT/9060/9050 = gfx1200):
+#     https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html
+#     https://llvm.org/docs/AMDGPUUsage.html#processors
+#   Die -> gfx target: the pci.ids die name of a product that the ROCm tables
+#     list with that target (Navi 48: RX 9070 XT = gfx1201; Navi 44: RX 9060 XT
+#     = gfx1200).
+#   Native BF16 matrix instructions (WMMA with BF16 inputs, wave32):
+#     https://rocm-handbook.amd.com/projects/amd-rocm-optimization-guide/en/latest/compiler-builtins/rdna/rdna4-dense-wmma-builtins.html
+#   Wave size: ROCm lists 32 or 64; the WMMA builtins above are wave32.
+#     https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html
+#   FlashAttention ROCm allowlist (allowed_archs in setup.py):
+#     https://github.com/Dao-AILab/flash-attention/blob/main/setup.py
+generation: rdna4
+wave_size: 32
+arches:
+  gfx1200: {bf16: native, flash_attn: true}
+  gfx1201: {bf16: native, flash_attn: true}
+devices:
+  - {ids: ["0x7550"], name: Radeon RX 9070 / 9070 XT / 9070 GRE, gfx: gfx1201}
+  - {ids: ["0x7551"], name: Radeon AI PRO R9700, gfx: gfx1201}
+  - {ids: ["0x7590"], name: Radeon RX 9060 XT / 9050, gfx: gfx1200}

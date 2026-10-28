@@ -80,7 +80,7 @@ func TestListPar1(t *testing.T) {
 		}
 	}
 	w7800 := gpus[0]
-	if w7800.Name != "Radeon Pro W7800 48GB" || w7800.VRAMBytes != 48301604864 || w7800.PowerCapW != 180 {
+	if w7800.Name != "Radeon PRO W7800 48GB" || w7800.VRAMBytes != 48301604864 || w7800.PowerCapW != 180 {
 		t.Errorf("W7800 = %+v", w7800)
 	}
 	if w7800.SysfsPath != "/sys/devices/pci0000:c0/0000:c0:03.1/0000:c5:00.0/0000:c6:00.0/0000:c7:00.0" {
@@ -108,7 +108,43 @@ func TestListLocationFallbackAndNameTable(t *testing.T) {
 		t.Fatalf("got %d GPUs", len(gpus))
 	}
 	g := gpus[0]
-	if g.PCI != "0001:03:00.0" || g.GFX != "gfx1032" || g.DeviceID != "0x73ff" || g.Name != "Radeon RX 6600/6600 XT" {
+	if g.PCI != "0001:03:00.0" || g.GFX != "gfx1032" || g.DeviceID != "0x73ff" || g.Name != "Radeon RX 6600 / 6600 XT" {
+		t.Errorf("gpu = %+v", g)
+	}
+}
+
+func TestListSingleGPUFixtures(t *testing.T) {
+	cases := []struct {
+		fixture, name, gfx, id string
+		vram                   uint64
+		capW                   float64
+	}{
+		{"w7800-single", "Radeon PRO W7800 48GB", "gfx1100", "0x7449", 48301604864, 180},
+		{"rx7900xtx-synthetic", "Radeon RX 7900 XT / 7900 XTX / 7900 GRE", "gfx1100", "0x744c", 24 << 30, 355},
+		{"rx6800xt-synthetic", "Radeon RX 6800 / 6800 XT / 6900 XT", "gfx1030", "0x73bf", 16 << 30, 300},
+	}
+	for _, c := range cases {
+		gpus, err := List(fixture.Root(t, c.fixture))
+		if err != nil || len(gpus) != 1 {
+			t.Fatalf("%s: List = %v, %v", c.fixture, gpus, err)
+		}
+		g := gpus[0]
+		if g.Name != c.name || g.GFX != c.gfx || g.DeviceID != c.id || g.VRAMBytes != c.vram || g.PowerCapW != c.capW || g.HIPIndex != 0 || g.Link != (Link{Gen: 4, Width: 16}) {
+			t.Errorf("%s: gpu = %+v", c.fixture, g)
+		}
+	}
+}
+
+func TestListUnknownDeviceNamedByGFX(t *testing.T) {
+	root := t.TempDir()
+	fixture.Write(t, root, map[string]string{
+		KFDNodesDir + "/1/properties": "simd_count 8\ngfx_target_version 100306\ndevice_id 5000\ndrm_render_minor 0\n",
+	})
+	gpus, err := List(root)
+	if err != nil || len(gpus) != 1 {
+		t.Fatalf("List = %v, %v", gpus, err)
+	}
+	if g := gpus[0]; g.Name != "AMD GPU gfx1036" || g.DeviceID != "0x1388" {
 		t.Errorf("gpu = %+v", g)
 	}
 }
