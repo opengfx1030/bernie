@@ -40,6 +40,11 @@ type Device struct {
 	Name string
 	// PowerCapAdviceW is the recommended power cap, 0 when there is no advice.
 	PowerCapAdviceW int
+	// ECC is true when the card counts its memory errors: it has ECC.
+	ECC bool
+	// TempLimitsC are the maximum operating temperatures of the card in
+	// degrees Celsius, keyed by the hwmon label ("edge", "junction", "mem").
+	TempLimitsC map[string]int
 }
 
 // CodeTarget is the gfx target whose code objects the GPU runs once
@@ -121,10 +126,12 @@ type tableFile struct {
 		FlashAttn   bool   `yaml:"flash_attn"`
 	} `yaml:"arches"`
 	Devices []struct {
-		IDs             []string `yaml:"ids"`
-		Name            string   `yaml:"name"`
-		GFX             string   `yaml:"gfx"`
-		PowerCapAdviceW int      `yaml:"power_cap_advice_w"`
+		IDs             []string       `yaml:"ids"`
+		Name            string         `yaml:"name"`
+		GFX             string         `yaml:"gfx"`
+		PowerCapAdviceW int            `yaml:"power_cap_advice_w"`
+		ECC             bool           `yaml:"ecc"`
+		TempLimitsC     map[string]int `yaml:"temp_limits_c"`
 	} `yaml:"devices"`
 }
 
@@ -173,7 +180,7 @@ func (t *table) add(f tableFile) error {
 			if _, dup := t.devices[id]; dup {
 				return fmt.Errorf("duplicate device id %s", id)
 			}
-			t.devices[id] = Device{Arch: arch, ID: id, Name: d.Name, PowerCapAdviceW: d.PowerCapAdviceW}
+			t.devices[id] = Device{Arch: arch, ID: id, Name: d.Name, PowerCapAdviceW: d.PowerCapAdviceW, ECC: d.ECC, TempLimitsC: d.TempLimitsC}
 		}
 	}
 	return nil

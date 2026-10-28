@@ -1,6 +1,6 @@
 // Package gpu enumerates AMD GPUs from the KFD topology and DRM/PCI sysfs,
-// and samples telemetry. It reads only files under a root path ("/" in
-// production, a fixture tree in tests).
+// samples their telemetry and reads their ECC state. It reads files under a
+// root path ("/" in production, a fixture tree in tests).
 package gpu
 
 // Link is the negotiated PCIe link of a GPU.
@@ -24,7 +24,11 @@ type GPU struct {
 	NUMANode         int     `json:"numa_node"`
 	Link             Link    `json:"link"`
 	PowerCapW        float64 `json:"power_cap_w"`
-	SysfsPath        string  `json:"sysfs_path"`
+	// TempLimitsC are the maximum operating temperatures of the card in
+	// degrees Celsius, keyed by the hwmon label ("edge", "junction", "mem").
+	// They are absent when the device tables do not know them.
+	TempLimitsC map[string]int `json:"temp_limits_c,omitempty"`
+	SysfsPath   string         `json:"sysfs_path"`
 }
 
 // Sample is one telemetry reading of a GPU.
@@ -36,4 +40,15 @@ type Sample struct {
 	PowerCapW float64 `json:"power_cap_w"`
 	VRAMUsed  uint64  `json:"vram_used"`
 	VRAMTotal uint64  `json:"vram_total"`
+	// TempJunctionC is the temperature of the memory junction. It is absent
+	// when the card does not publish it.
+	TempJunctionC *float64 `json:"temp_junction_c,omitempty"`
+	// TempMemC is the temperature of the memory. It is absent when the card
+	// does not publish it.
+	TempMemC *float64 `json:"temp_mem_c,omitempty"`
+	// SclkMHz is the current shader clock of the card in MHz, MclkMHz the
+	// current memory clock. They are absent when the card does not publish
+	// them.
+	SclkMHz *int `json:"sclk_mhz,omitempty"`
+	MclkMHz *int `json:"mclk_mhz,omitempty"`
 }
