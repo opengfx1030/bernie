@@ -5,7 +5,10 @@
 // Output contract (agents and scripts rely on it):
 //   - `--json` anywhere on the command line switches every command to a single
 //     JSON document on stdout; human text otherwise.
-//   - Diagnostics and progress go to stderr, never stdout.
+//   - Diagnostics and progress go to stderr, never stdout. The exception is
+//     explicit help (`--help`, `-h`, `help`): it is the requested output, so it
+//     goes to stdout and exits 0. Usage errors print their message once on
+//     stderr (as `bernie: ...`).
 //   - Exit codes: 0 ok, 1 runtime failure, 2 usage error, 3 checks failed.
 package cli
 
@@ -19,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -51,6 +55,9 @@ type Context struct {
 	JSON bool
 	// Path is the command path, e.g. "bernie recipe show".
 	Path string
+	// root is the Context Main created; a --json parsed by a command's own
+	// FlagSet (see splitJSON) is mirrored there so the error envelope matches.
+	root *Context
 }
 
 // ExitError carries a specific exit code out of a command.
@@ -86,27 +93,50 @@ func Register(c *Command) {
 func Main(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// The product surface is "run the binary": no arguments means status.
+	if len(args) == 0 && registry["status"] != nil {
+		args = []string{"status"}
+	}
+	return run(ctx, os.Stdout, os.Stderr, &Command{Name: "bernie", Subs: topLevel()}, args)
+}
 
-	jsonOut := false
-	rest := make([]string, 0, len(args))
-	for _, a := range args {
-		if a == "--json" {
+// splitJSON removes the global --json flag from args. Rule: scanning stops at
+// "--" (everything after is positional and kept verbatim), and a --json that
+// directly follows a flag-like token without "=" (-x, --name) is left alone.
+// That token is either a boolean flag, so --json is still the global flag, or
+// a value flag whose value is literally "--json"; only the command's own
+// FlagSet knows which, and Context.Flags registers a boolean json flag there to
+// settle it.
+func splitJSON(args []string) (rest []string, jsonOut bool) {
+	rest = make([]string, 0, len(args))
+	for i, a := range args {
+		if a == "--" {
+			return append(rest, args[i:]...), jsonOut
+		}
+		if a == "--json" && !(i > 0 && strings.HasPrefix(args[i-1], "-") && args[i-1] != "--json" && !strings.Contains(args[i-1], "=")) {
 			jsonOut = true
 			continue
 		}
 		rest = append(rest, a)
 	}
-	c := &Context{Ctx: ctx, Out: os.Stdout, Err: os.Stderr, JSON: jsonOut, Path: "bernie"}
-	// The product surface is "run the binary": no arguments means status.
-	if len(rest) == 0 && registry["status"] != nil {
-		rest = []string{"status"}
-	}
-	root := &Command{Name: "bernie", Subs: topLevel()}
+	return rest, jsonOut
+}
+
+func run(ctx context.Context, out, errw io.Writer, root *Command, args []string) int {
+	rest, jsonOut := splitJSON(args)
+	c := &Context{Ctx: ctx, Out: out, Err: errw, JSON: jsonOut, Path: "bernie"}
+	c.root = c
 	err := dispatch(c, root, rest)
 	if err == nil {
 		return ExitOK
 	}
-	if errors.Is(err, flag.ErrHelp) {
+	var he *helpError
+	switch {
+	case errors.As(err, &he):
+		he.fs.SetOutput(out)
+		he.fs.Usage()
+		return ExitOK
+	case errors.Is(err, flag.ErrHelp):
 		return ExitOK
 	}
 	code := ExitFailure
@@ -118,11 +148,11 @@ func Main(args []string) int {
 	case err.Error() == "":
 		// The command already explained itself.
 	case c.JSON && code != ExitChecks:
-		enc := json.NewEncoder(c.Out)
+		enc := json.NewEncoder(out)
 		enc.SetEscapeHTML(false)
 		_ = enc.Encode(map[string]any{"error": err.Error(), "exit_code": code})
 	default:
-		fmt.Fprintf(c.Err, "bernie: %v\n", err)
+		fmt.Fprintf(errw, "bernie: %v\n", err)
 	}
 	return code
 }
@@ -142,10 +172,11 @@ func dispatch(c *Context, cmd *Command, args []string) error {
 			if cmd.Run != nil && (len(args) == 0 || args[0] != "help") {
 				return cmd.Run(c, args)
 			}
-			printHelp(c.Err, c.Path, cmd)
 			if len(args) == 0 {
+				printHelp(c.Err, c.Path, cmd)
 				return Usagef("missing subcommand")
 			}
+			printHelp(c.Out, c.Path, cmd)
 			return flag.ErrHelp
 		}
 		for _, s := range cmd.Subs {
@@ -177,25 +208,48 @@ func printHelp(w io.Writer, path string, cmd *Command) {
 	}
 }
 
-// Flags returns a FlagSet for a leaf command that prints a consistent usage
-// line. Parse errors surface as usage errors.
+// Flags returns a FlagSet for a leaf command with a consistent usage text. It
+// also defines the boolean --json flag (see splitJSON). The FlagSet prints
+// nothing itself: Parse returns the error, and Main prints a bad flag once on
+// stderr or, for -h/--help, the usage on stdout.
 func (c *Context) Flags(cmd *Command) *flag.FlagSet {
 	fs := flag.NewFlagSet(c.Path, flag.ContinueOnError)
-	fs.SetOutput(c.Err)
+	fs.SetOutput(io.Discard)
+	fs.Var(jsonFlag{c}, "json", "print one JSON document on stdout")
 	fs.Usage = func() {
+		w := fs.Output()
 		if cmd.Summary != "" {
-			fmt.Fprintf(c.Err, "%s\n\n", cmd.Summary)
+			fmt.Fprintf(w, "%s\n\n", cmd.Summary)
 		}
-		fmt.Fprintf(c.Err, "usage: %s %s [--json]\n", c.Path, cmd.Usage)
-		var any bool
-		fs.VisitAll(func(*flag.Flag) { any = true })
-		if any {
-			fmt.Fprintln(c.Err, "\nflags:")
-			fs.PrintDefaults()
-		}
+		fmt.Fprintf(w, "usage: %s %s [--json]\n\nflags:\n", c.Path, cmd.Usage)
+		fs.PrintDefaults()
 	}
 	return fs
 }
+
+// jsonFlag is the boolean --json flag of a command's FlagSet.
+type jsonFlag struct{ c *Context }
+
+func (jsonFlag) String() string   { return "" }
+func (jsonFlag) IsBoolFlag() bool { return true }
+func (j jsonFlag) Set(v string) error {
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return err
+	}
+	j.c.JSON = b
+	if j.c.root != nil {
+		j.c.root.JSON = b
+	}
+	return nil
+}
+
+// helpError is flag.ErrHelp from a command's FlagSet; Main prints its usage to
+// stdout.
+type helpError struct{ fs *flag.FlagSet }
+
+func (*helpError) Error() string { return flag.ErrHelp.Error() }
+func (*helpError) Unwrap() error { return flag.ErrHelp }
 
 // Parse parses flags, allowing flags and positionals to interleave
 // (`serve flashnext --set A=B` and `serve --set A=B flashnext` both work).
@@ -204,7 +258,7 @@ func Parse(fs *flag.FlagSet, args []string) ([]string, error) {
 	for {
 		if err := fs.Parse(args); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				return nil, err
+				return nil, &helpError{fs}
 			}
 			return nil, &ExitError{Code: ExitUsage, Err: err}
 		}
