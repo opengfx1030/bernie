@@ -180,3 +180,53 @@ func errorMessage(b []byte) string {
 	}
 	return msg
 }
+
+// minUniqueRatio is the share of distinct words the replies of a cell must
+// have. Below it the output is degenerate: a server that answers with the
+// same word over and over makes speculative decoding look fast.
+const minUniqueRatio = 0.08
+
+// outputValid reports whether the replies of a cell look like text.
+func outputValid(samples []sample) bool {
+	words := map[string]bool{}
+	total := 0
+	for _, s := range samples {
+		if s.err != nil {
+			continue
+		}
+		for _, w := range strings.Fields(s.reply) {
+			words[w] = true
+			total++
+		}
+	}
+	if total == 0 {
+		return false
+	}
+	return float64(len(words))/float64(total) >= minUniqueRatio
+}
+
+// streamIncremental reports whether every reply of a cell arrived in more
+// than one chunk. A server that buffers the whole answer has no decode
+// window, so its decode rate is no speed number.
+func streamIncremental(samples []sample) bool {
+	seen := false
+	for _, s := range samples {
+		if s.err != nil {
+			continue
+		}
+		seen = true
+		if len(s.chunks) < 2 {
+			return false
+		}
+	}
+	return seen
+}
+
+// sizeDrift is the share of the prompt length the server measured off the
+// requested length, in percent.
+func sizeDrift(requested, measured float64) float64 {
+	if requested <= 0 {
+		return 0
+	}
+	return (measured - requested) / requested * 100
+}

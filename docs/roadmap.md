@@ -53,6 +53,12 @@ Each item has a spec section and one test that proves it.
   the order base, cand, cand, base, so a drift of the machine hits both
   arms the same way. One server runs at a time, and every visit saves its
   own result. Spec [§10.4](spec.md#104-the-ab-run).
+- **Measurement gates.** Every cell says whether its prompt was the size it
+  asked for, whether its replies look like text and whether its stream
+  arrived in more than one chunk. A cell that is off size or degenerate
+  keeps its numbers, but they are labelled. The recall gate of a suite
+  makes a comparison invalid when the server did not repeat the hidden
+  fact. Spec [§10](spec.md#10-benchmark).
 - **ECC check.** The doctor check `gpu.ecc.<hip index>` reads the RAS
   counters of every card: `ok` when ECC is on and the card counted no
   memory error, `warn` when ECC is off on a card that has it or when the

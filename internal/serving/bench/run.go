@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,18 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/vllm"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
+
+// defaultSizeTolerance is the share of the prompt length a cell may miss
+// when the run does not say otherwise.
+const defaultSizeTolerance = 2.0
+
+// sizeTolerance is the share of the prompt length a cell may miss.
+func sizeTolerance(percent float64) float64 {
+	if percent <= 0 {
+		return defaultSizeTolerance
+	}
+	return percent
+}
 
 // serverMetrics reads the metrics of the server. It returns nil when the
 // server has no /metrics endpoint: the cross-check with the server is
@@ -178,6 +191,10 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		cell := aggregate(c, samples, wall)
 		cell.ServerSide = serverSide(before, after)
 		cell.WarmupFailed = warmFailed
+		cell.InputSizePercent = sizeDrift(float64(o.InputLen), cell.MeanPromptTokens)
+		cell.SizeValid = math.Abs(cell.InputSizePercent) <= sizeTolerance(o.SizeTolerancePercent)
+		cell.OutputValid = outputValid(samples)
+		cell.StreamIncremental = streamIncremental(samples)
 		fmt.Fprintf(progress, "bench: c=%d done in %.1fs: %d ok, %d failed, %.1f output tok/s\n",
 			c, cell.DurationS, cell.Completed, cell.Failed, cell.OutputTokS)
 		if o.Recall {
