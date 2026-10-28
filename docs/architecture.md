@@ -51,11 +51,13 @@ flowchart TB
   CLI --> FLOW
   CLI --> DASH
   CLI --> DOC
+  DASH --> FLOW
   CLI --> LOG
   DASH --> DOC
   FLOW --> DOC
   FLOW --> SET
   FLOW --> RUN
+  FLOW --> LOG
   RUN --> REC
   RUN --> TUN
   REC --> TOPO
@@ -183,6 +185,7 @@ sequenceDiagram
     F->>X: List
     X->>V: GET /health
   end
+  Note over F,X: a run that exits: F scans its log (logdoc) and returns StartupExit with the matches
   F-->>C: UpResult (url, run record)
   C->>W: Serve(listen)
   W->>X: List, Logs (on request)
