@@ -1,0 +1,427 @@
+# Known failures of vLLM on AMD RDNA. One rule matches one line.
+#
+# id        <family>.<slug>, unique
+# severity  error: the launch fails or cannot work. warn: it runs but loses speed or stability.
+# pattern   Go (RE2) regular expression, matched against one log line. Anchor on
+#           literal text vLLM, PyTorch, ROCm or the fork print. No catch-alls.
+# cause     one sentence: why it happens
+# fix       short imperative sentences
+# doc       link to the page that explains it (gfx1030 wiki, fork or upstream docs)
+#
+# Texts are written for this catalog. The wiki has no license, so it is linked, not copied.
+rules:
+  # --- GPU access and device enumeration ---------------------------------
+  - id: gpu.no-gpu
+    severity: error
+    pattern: 'ROCm platform is not available because no GPU is found'
+    cause: vLLM enumerated no AMD GPU. The device nodes are missing or not accessible to this process.
+    fix: Pass /dev/kfd and /dev/dri into the container and add the video and render groups. On a host, add your user to render and video, then log in again.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#failed-to-infer-device-type--amdsmi_status_not_init
+
+  - id: gpu.infer-device-type
+    severity: error
+    pattern: 'Failed to infer device type'
+    cause: vLLM found no usable accelerator platform. Usually the GPU is not visible or amdsmi cannot start.
+    fix: Check that /dev/kfd is readable and writable. Check the render and video groups. Run with VLLM_LOGGING_LEVEL=DEBUG to see the platform probe.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#failed-to-infer-device-type--amdsmi_status_not_init
+
+  - id: gpu.amdsmi-not-init
+    severity: error
+    pattern: 'AMDSMI_STATUS_NOT_INIT'
+    cause: amdsmi could not initialize. The process lacks access to the render node, or the image build is broken.
+    fix: Add the render group to the process. Pull a known-good image tag. Run with VLLM_LOGGING_LEVEL=DEBUG.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#failed-to-infer-device-type--amdsmi_status_not_init
+
+  - id: gpu.kfd-access
+    severity: error
+    pattern: '/dev/kfd.*(Permission denied|No such file or directory|Failed to open)'
+    cause: The compute device /dev/kfd is missing or this user cannot open it.
+    fix: Load the amdgpu driver. Add your user to render and video. Log in again or reboot.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/general.html
+
+  - id: gpu.torch-not-rocm
+    severity: error
+    pattern: 'Torch not compiled with CUDA enabled|Found no NVIDIA driver on your system|libcuda\.so\.1: cannot open shared object file'
+    cause: A CPU-only or CUDA build of PyTorch is installed instead of the ROCm build.
+    fix: Reinstall torch from the ROCm index. Check that torch.version.hip is set.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/general.html
+
+  - id: gpu.invalid-ordinal
+    severity: error
+    pattern: 'invalid device ordinal|hipErrorNoDevice|hipErrorInvalidDevice'
+    cause: A requested GPU index does not exist. HIP_VISIBLE_DEVICES, tensor-parallel size or the recipe GPU list names a missing GPU.
+    fix: List the GPUs with rdnactl hw. Set HIP_VISIBLE_DEVICES to existing indices. Lower the tensor-parallel size.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/general.html
+
+  - id: gpu.world-size
+    severity: error
+    pattern: 'World size \(\d+\) is larger than the number of available GPUs'
+    cause: The tensor-parallel times pipeline-parallel size exceeds the visible GPUs.
+    fix: Lower the parallel sizes or expose more GPUs.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/configuration.html
+
+  - id: gpu.old-card-mmio
+    severity: error
+    pattern: 'Failed to map remapped mmio page on gpu_mem'
+    cause: An AMD GPU older than gfx1030 is installed. Current ROCm cannot register it with KFD.
+    fix: Remove the old card or unbind it from amdgpu.
+    doc: https://blivioniag.github.io/gfx1030-wiki/tuning/p2p.html
+
+  # --- kernels, wheels, architecture --------------------------------------
+  - id: kernels.no-kernel-image
+    severity: error
+    pattern: 'no kernel image is available for execution on the device'
+    cause: The installed kernels do not contain code for this GPU architecture. Typical for gfx1031 to gfx1036 parts.
+    fix: Export HSA_OVERRIDE_GFX_VERSION=10.3.0 for RDNA2 parts other than gfx1030. For a source build, set PYTORCH_ROCM_ARCH to the real target.
+    doc: https://blivioniag.github.io/gfx1030-wiki/setup/hsa-override.html
+
+  - id: kernels.no-binary-for-gpu
+    severity: error
+    pattern: 'hipErrorNoBinaryForGpu'
+    cause: No compiled binary matches this GPU, or the launch ran out of memory.
+    fix: Set HSA_OVERRIDE_GFX_VERSION=10.3.0 or rebuild for the GPU arch. Lower the batch size or context if memory is short.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/general.html
+
+  - id: kernels.invalid-image
+    severity: error
+    pattern: 'hipErrorInvalidImage'
+    cause: The venv has torch without the gfx1030 device wheels, so kernel code cannot be loaded.
+    fix: Install rocm-sdk-device-gfx1030 and amd-torch-device-gfx1030 from the AMD multi-arch index.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
+
+  - id: kernels.invalid-isa
+    severity: error
+    pattern: 'HSA_STATUS_ERROR_INVALID_ISA'
+    cause: The GPU instruction set is not supported by the loaded ROCm runtime or code objects.
+    fix: Set HSA_OVERRIDE_GFX_VERSION=10.3.0 on RDNA2 parts other than gfx1030.
+    doc: https://blivioniag.github.io/gfx1030-wiki/setup/hsa-override.html
+
+  - id: kernels.tensile-library-missing
+    severity: error
+    pattern: 'TensileLibrary.*(No such file|for GPU arch)|Cannot read [^ ]*TensileLibrary'
+    cause: rocBLAS or hipBLASLt has no kernel library for this GPU architecture.
+    fix: Install the device wheels or the ROCm runtime that ship the gfx1030 libraries. Set HSA_OVERRIDE_GFX_VERSION=10.3.0 for gfx1031 to gfx1036.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
+
+  - id: kernels.fork-ops-missing
+    severity: error
+    pattern: "No module named 'vllm\\._(rocm_)?C'"
+    cause: The vLLM native extension is not built in this environment.
+    fix: Rebuild the fork into the venv with PYTORCH_ROCM_ARCH=gfx1030 and VLLM_USE_PRECOMPILED=0.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
+
+  - id: kernels.abi-mismatch
+    severity: error
+    pattern: 'vllm/_(rocm_)?C[^ ]*\.so: undefined symbol'
+    cause: The vLLM extension was built against a different PyTorch than the one that is loaded.
+    fix: Rebuild vLLM in the same venv after any torch change.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
+
+  - id: kernels.rocm-lib-not-found
+    severity: error
+    pattern: '(libamdhip64|librocblas|libhsa-runtime64|libMIOpen|libhipblaslt)[^ ]*: cannot open shared object file'
+    cause: The dynamic loader cannot find a ROCm library. The wheel library directories are not on LD_LIBRARY_PATH.
+    fix: Put the venv _rocm_sdk_libraries/lib and _rocm_sdk_core/lib directories first on LD_LIBRARY_PATH. Let rdnactl serve set it.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
+
+  - id: kernels.slow-linear-kernel
+    severity: warn
+    pattern: 'Using (TritonW4A16LinearKernel|ExllamaLinearKernel)'
+    cause: The RDNA2 int4 kernel is not selected. The dispatch fell back to a slower generic kernel.
+    fix: Export VLLM_DISABLED_KERNELS=ExllamaLinearKernel,TritonW4A16LinearKernel. Update to the latest fork image.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/configuration.html#kernel-dispatch-on-gfx1030
+
+  # --- GPU faults ---------------------------------------------------------
+  - id: gpu.memory-access-fault
+    severity: error
+    pattern: 'Memory access fault by GPU node'
+    cause: A kernel touched memory the GPU cannot access. Often a kernel bug, an out-of-range index or an overcommitted VRAM.
+    fix: Lower --gpu-memory-utilization and --max-num-seqs. Retry with --enforce-eager to locate the kernel. Run the server from a scratch directory so core dumps stay out of your project.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm-flash-next.html#wvsplitk-gpu-fault
+
+  - id: gpu.page-fault
+    severity: error
+    pattern: 'UTCL2|\[gfxhub\] page fault|amdgpu: .*page fault'
+    cause: The kernel driver logged a GPU page fault. A GPU kernel used an invalid address.
+    fix: Check dmesg for the faulting process. Lower memory utilization. Reset the GPU or reboot after the fault.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/general.html
+
+  - id: gpu.hsa-exception
+    severity: error
+    pattern: 'HSA_STATUS_ERROR_EXCEPTION'
+    cause: A GPU queue raised a hardware exception. Seen in the skinny GEMM kernels right after the profile run.
+    fix: Export VLLM_RDNA_DENSE_GEMV=1. Run the server from a scratch directory because GPU core dumps can be large.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm-flash-next.html#wvsplitk-gpu-fault
+
+  - id: gpu.hsa-aperture
+    severity: error
+    pattern: 'HSA_STATUS_ERROR_MEMORY_APERTURE_VIOLATION'
+    cause: A kernel accessed an address outside its memory aperture.
+    fix: Reboot to clear the GPU state. Retry with a clean environment and a smaller batch.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/general.html
+
+  - id: gpu.ring-timeout
+    severity: error
+    pattern: 'amdgpu.*(ring [a-z_0-9.]+ timeout|GPU reset begin)'
+    cause: The GPU hung and the driver reset it.
+    fix: Check power cap, cooling and PSU. Lower the power cap. Reboot if the GPU does not recover.
+    doc: https://blivioniag.github.io/gfx1030-wiki/tuning/power.html
+
+  # --- memory -------------------------------------------------------------
+  - id: memory.gpu-oom
+    severity: error
+    pattern: '(HIP|CUDA) out of memory|hipErrorOutOfMemory'
+    cause: The GPU ran out of VRAM during startup, graph capture or a request.
+    fix: Lower --gpu-memory-utilization, --max-model-len, --max-num-seqs or --max-num-batched-tokens. Stop other GPU processes. Use more GPUs with tensor parallelism.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/configuration.html
+
+  - id: memory.startup-free-low
+    severity: error
+    pattern: 'Free memory on device .* on startup is less than desired GPU memory utilization'
+    cause: Another process holds VRAM, or the utilization target is too high for the free memory.
+    fix: Stop leftover VLLM workers and other GPU users. Lower --gpu-memory-utilization.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#leftover-vllm-workers
+
+  - id: memory.kv-too-small
+    severity: error
+    pattern: 'larger than the available KV cache memory|No available memory for the cache blocks|is larger than the maximum number of tokens that can be stored in KV cache'
+    cause: The KV cache cannot hold one sequence of --max-model-len tokens.
+    fix: Lower --max-model-len. Raise --gpu-memory-utilization or --kv-cache-memory-bytes. Add GPUs with tensor parallelism.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/configuration.html#kv-cache-dtype
+
+  - id: memory.host-oom-killed
+    severity: error
+    pattern: 'Out of memory: Killed process'
+    cause: The kernel killed a process because the host ran out of RAM.
+    fix: Free RAM or add RAM. Lower CPU offload and KV offload sizes. Load fewer models at once.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/serve-scripts.html
+
+  - id: memory.shm-too-small
+    severity: error
+    pattern: 'unable to write to file </(torch|vllm)_|unable to allocate shared memory|Error while creating shared memory segment'
+    cause: /dev/shm is too small for the worker processes.
+    fix: Run the container with --ipc host or a larger --shm-size. On a host, enlarge the /dev/shm mount.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html
+
+  - id: memory.disk-full
+    severity: error
+    pattern: 'OSError: \[Errno 28\] No space left on device'
+    cause: A disk filled up while writing a cache, a download or a log.
+    fix: Free disk space. Move the Hugging Face cache or the compile caches to a larger volume.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/serve-scripts.html
+
+  # --- distributed: RCCL, custom all-reduce, workers ------------------------
+  - id: rccl.allreduce-init-failed
+    severity: error
+    pattern: 'AllReduce init failed'
+    cause: The multi-GPU communication library failed to start. Known on ROCm 7.2.1 to 7.13 with more than one GPU.
+    fix: Use ROCm 7.2.0 or 7.14.0 userspace. Rebuild or pull an image with that ROCm.
+    doc: https://blivioniag.github.io/gfx1030-wiki/setup/installing-rocm.html#multi-gpu-pin-rocm-720-or-7140
+
+  - id: rccl.hip-failure
+    severity: error
+    pattern: '(NCCL|RCCL) WARN .*(HIP|Cuda) failure|ncclUnhandledCudaError|ncclSystemError|ncclInternalError'
+    cause: RCCL hit a HIP error. P2P between the GPUs is broken or blocked by PCIe ACS.
+    fix: Set NCCL_P2P_DISABLE=1 and retry. Check P2P with rdnactl topo. Pin ROCm 7.2.0 or 7.14.0.
+    doc: https://blivioniag.github.io/gfx1030-wiki/tuning/p2p.html
+
+  - id: rccl.collective-timeout
+    severity: error
+    pattern: 'Watchdog caught collective operation timeout|NCCL communicator was aborted'
+    cause: A collective did not finish in time. A rank hung, died, or the interconnect stalled.
+    fix: Find the first worker error above this line. Pin ROCm 7.2.0 or 7.14.0. Try NCCL_P2P_DISABLE=1.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html
+
+  - id: rdna-ar.wedged
+    severity: error
+    pattern: 'rdna_ar: WEDGED'
+    cause: The one-shot RDNA all-reduce lost a peer flag and disabled itself. Collectives fall back to RCCL.
+    fix: Retry with VLLM_RDNA_AR=0. Check P2P between the named ranks with rdnactl topo. Use TP inside one PCIe switch.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#rdna-ar-silent-hang
+
+  - id: engine.rpc-timeout
+    severity: error
+    pattern: 'RPC call to \S+ timed out'
+    cause: A worker did not answer the engine. It is hung, still compiling, or waiting on a lost all-reduce.
+    fix: Read the worker log above this line. Try VLLM_RDNA_AR=0 or P2P=0. Keep compile cache volumes mounted so the first boot is not mistaken for a hang.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#rdna-ar-silent-hang
+
+  - id: engine.shm-broadcast-wait
+    severity: warn
+    pattern: 'No available shared memory broadcast block found in \d+ seconds'
+    cause: A worker is busy, usually in Triton compilation, while others wait. It is not a dead process.
+    fix: Wait for the compile to end. Keep the Triton and compile caches. Prefer the RDNA attention backend.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#shm-broadcast-triton-vs-rccl
+
+  - id: engine.worker-died
+    severity: error
+    pattern: 'Worker proc \S+ died unexpectedly|EngineDeadError'
+    cause: A worker process crashed, so the engine shut down. The crash reason is earlier in the log.
+    fix: Read the first ERROR or traceback above this line. Exit code -11 means a segfault. Run with VLLM_LOGGING_LEVEL=DEBUG.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html
+
+  - id: engine.graph-keyerror
+    severity: error
+    pattern: '\.req_id_to_index\['
+    cause: A small batch hit a captured CUDA-graph size on the pipeline-parallel path.
+    fix: Pin the capture sizes to 1, 2, 4 and 8. Keep the KV cache budget small on stage 0.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm-flash-next.html#flash-next-pp3-graph-keyerror
+
+  # --- compile and graphs -------------------------------------------------
+  - id: compile.backend-failed
+    severity: error
+    pattern: 'BackendCompilerFailed'
+    cause: torch.compile failed in the Inductor backend.
+    fix: Clear TORCHINDUCTOR_CACHE_DIR and retry. Try VLLM_USE_AOT_COMPILE=0 and VLLM_DISABLE_COMPILE_CACHE=1. Use --enforce-eager to confirm.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#cuda-graph-capture-crashes
+
+  - id: compile.dynamo-unsupported
+    severity: error
+    pattern: 'torch\._dynamo\.exc\.(Unsupported|InternalTorchDynamoError|TorchRuntimeError)'
+    cause: torch.compile met code it cannot trace.
+    fix: Try --enforce-eager or a lower compilation mode. Use the fork build that matches your vLLM version.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#cuda-graph-capture-crashes
+
+  - id: compile.stale-inductor-cache
+    severity: error
+    pattern: 'AssertionError: expected size \d+==\d+, stride \d+==\d+'
+    cause: A compiled graph from an older kernel or model layout was reused. The Inductor cache is stale. VLLM_DISABLE_COMPILE_CACHE does not cover it.
+    fix: Delete the TORCHINDUCTOR_CACHE_DIR directory. Restart so the graphs compile again.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#torchinductor-cache-survives-vllm-disable-compile-cache
+
+  - id: compile.triton-error
+    severity: error
+    pattern: 'triton\.compiler\.errors\.CompilationError|PassManager::run failed'
+    cause: A Triton kernel failed to compile for this GPU. Triton 3.9 and later dropped RDNA2.
+    fix: Pin triton to 3.7.1 on ROCm 7.14 or 3.5.1 on ROCm 7.2. Select the RDNA attention backend.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/host-venv.html
+
+  - id: compile.ctypes-wrapper
+    severity: error
+    pattern: '_SimpleCData\.__new__'
+    cause: Tensor-parallel communication wrappers were traced into a graph. Older fork builds do this.
+    fix: Update to the latest fork image. Use --enforce-eager as a fallback. Try VLLM_USE_AOT_COMPILE=0 and VLLM_DISABLE_COMPILE_CACHE=1.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#cuda-graph-capture-crashes
+
+  - id: compile.graph-capture-failed
+    severity: error
+    pattern: 'operation not permitted when stream is capturing|operation failed due to a previous error during capture|hipErrorStreamCapture\w+'
+    cause: An operation is not allowed inside CUDA-graph capture, or an earlier error poisoned the capture.
+    fix: Use --compilation-config with cudagraph_mode PIECEWISE. Use --enforce-eager to confirm.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#cuda-graph-capture-crashes
+
+  # --- TunableOp ----------------------------------------------------------
+  - id: tunableop.rocblas-mismatch
+    severity: warn
+    pattern: 'Failed validator: (ROCBLAS_VERSION|HIPBLASLT_VERSION)|tuned for rocBLAS [0-9a-f]{12}, but the loaded'
+    cause: The TunableOp rows were tuned for another rocBLAS build. PyTorch drops them and GEMMs run untuned (about 25 % less prefill speed).
+    fix: Select the profile that matches the loaded librocblas. Tune new rows for this build. Keep PYTORCH_TUNABLEOP_ENABLED=1 and PYTORCH_TUNABLEOP_TUNING=0.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#tunableop-rocblas-mismatch
+
+  - id: tunableop.unmatched-validator
+    severity: warn
+    pattern: 'Unmatched validator: "[A-Z_]+"'
+    cause: The TunableOp rows come from a different PyTorch version and do not carry or accept the same validators.
+    fix: Regenerate the rows with this PyTorch build.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/serve-scripts.html#tunableop
+
+  # --- model, Hugging Face, configuration -----------------------------------
+  - id: model.hf-offline
+    severity: error
+    pattern: 'outgoing traffic has been disabled|OfflineModeIsEnabled'
+    cause: Offline mode is on and the model is not in the local Hugging Face cache.
+    fix: Download the model first with hf download. Check HF_HOME and HF_HUB_CACHE point to the cache that has it. Unset HF_HUB_OFFLINE to allow downloads.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html
+
+  - id: model.hf-network
+    severity: error
+    pattern: "We couldn't connect to 'https://huggingface\\.co'|HTTPSConnectionPool\\(host='[a-z.-]*huggingface\\.co'.*Max retries exceeded"
+    cause: The host cannot reach huggingface.co.
+    fix: Check DNS, proxy and firewall. Download the model on another host and copy the cache. Serve from a local path.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html
+
+  - id: model.hf-gated
+    severity: error
+    pattern: 'GatedRepoError|Cannot access gated repo|401 Client Error'
+    cause: The model needs an accepted license or a Hugging Face token.
+    fix: Accept the license on the model page. Set HF_TOKEN. Retry.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html
+
+  - id: model.not-found
+    severity: error
+    pattern: 'RepositoryNotFoundError|Repository Not Found for url|is not a local folder and is not a valid model identifier'
+    cause: The model id or path does not exist.
+    fix: Fix the repo id in the recipe. Use an absolute path for a local model.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html
+
+  - id: model.files-missing
+    severity: error
+    pattern: 'does not appear to have a file named (config\.json|pytorch_model\.bin|model\.safetensors)'
+    cause: The model directory is incomplete or points to the wrong folder.
+    fix: Download the full model again. Point the recipe at the snapshot directory that has config.json.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html
+
+  - id: model.safetensors-corrupt
+    severity: error
+    pattern: 'SafetensorError|Error while deserializing header'
+    cause: A weight file is truncated or corrupt. A download was interrupted.
+    fix: Delete the damaged file from the cache. Run hf download again.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html
+
+  - id: model.arch-unsupported
+    severity: error
+    pattern: 'Model architectures \[.*\] (are not supported for now|failed to be inspected)'
+    cause: This vLLM build does not know the model architecture, or importing it failed.
+    fix: Update to a fork build that supports the model. Read the import error above this line.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/fork.html
+
+  - id: model.quant-unsupported
+    severity: error
+    pattern: 'Unknown quantization method|does not support quantization config'
+    cause: The quantization format of the weights is not supported by this model or build.
+    fix: Pick a weight pack in a supported format (AWQ, GPTQ, compressed-tensors). Update the fork build.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/quantization.html
+
+  - id: config.max-model-len
+    severity: error
+    pattern: 'User-specified max_model_len \(\d+\) is greater than the derived max_model_len'
+    cause: --max-model-len is larger than the model supports.
+    fix: Lower --max-model-len to the model limit.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/configuration.html
+
+  - id: config.tp-heads
+    severity: error
+    pattern: 'Total number of attention heads \(\d+\) must be divisible by tensor parallel size \(\d+\)'
+    cause: The tensor-parallel size does not divide the attention head count.
+    fix: Use a tensor-parallel size that divides the head count, such as 2 or 4. Combine pipeline parallelism for more GPUs.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/configuration.html
+
+  - id: config.batched-tokens
+    severity: error
+    pattern: 'max_num_batched_tokens \(\d+\) is smaller than max_model_len'
+    cause: Chunked prefill is off and one prompt cannot fit in a batch.
+    fix: Raise --max-num-batched-tokens or enable chunked prefill.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/configuration.html
+
+  - id: config.cache-permission
+    severity: error
+    pattern: "PermissionError: \\[Errno 13\\] Permission denied: '[^']*(huggingface|\\.cache|triton|torchinductor|vllm)"
+    cause: The server user cannot write its cache directory. Common in containers that run as another uid.
+    fix: Mount a writable cache directory. Set HF_HOME, TRITON_CACHE_DIR and VLLM_CACHE_ROOT to it.
+    doc: https://blivioniag.github.io/gfx1030-wiki/vllm/running.html#cache-volumes-first-boot-is-slow
+
+  # --- network ------------------------------------------------------------
+  - id: net.port-in-use
+    severity: error
+    pattern: '\[Errno 98\]|[Aa]ddress already in use'
+    cause: Another process listens on the server port.
+    fix: Pick a free port with --port. Stop the old server first.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#leftover-vllm-workers
+
+  # --- fork-specific features ---------------------------------------------
+  - id: kv.lmcache-hma
+    severity: error
+    pattern: 'Failed to promote local KV cache specs to one unified type'
+    cause: A hybrid model creates several KV cache groups, and this KV connector cannot manage them.
+    fix: Turn off the KV connector and KV offloading for this model.
+    doc: https://blivioniag.github.io/gfx1030-wiki/troubleshooting/vllm.html#upstream-kv-offload-tanks-decode

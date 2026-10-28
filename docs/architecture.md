@@ -13,6 +13,7 @@ flowchart TB
     DASH["dashboard<br/>net/http + embedded web/"]
   end
   subgraph Core["Domain packages (no I/O formatting)"]
+    LOGDOC["logdoc"]
     DOC["doctor"] --> HOST["host"]
     DOC --> GPU["gpu"]
     DOC --> ROCM["rocm"]
@@ -75,6 +76,7 @@ rdnactl/
 │   ├── rocm/           ROCm installs, tools, libraries, venv probe
 │   ├── topo/           PCIe tree, link classes, P2P matrix, bandwidth tests
 │   ├── doctor/         check registry built from the packages above
+│   ├── logdoc/         known-failure catalog (embedded YAML) and streaming log scanner
 │   ├── flow/           status snapshot and `up` (composes doctor, setup, recipe, runner)
 │   ├── setup/          install plan and non-root apply
 │   ├── recipe/         schema, loading, extends/merge, validation, fit, plan rendering
@@ -160,6 +162,16 @@ type Check struct { ID, Category string; Status Status; Title, Detail, Fix, Doc 
 type Report struct { Summary map[Status]int; Checks []Check }
 type Options struct { Root, Venv string; Categories []string }
 func Run(ctx context.Context, o Options) Report
+```
+
+### logdoc
+
+```go
+type Rule struct { ID, Pattern, Cause, Fix, Doc, Severity string }
+type Match struct { Rule; Line string; LineNo int }
+func Load() ([]Rule, error)                       // embedded catalog.yaml, validated
+func Scan(r io.Reader, rules []Rule) []Match      // first matching line per rule, streaming
+func ScanFile(path string) ([]Match, error)
 ```
 
 ### setup
