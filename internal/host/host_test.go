@@ -179,3 +179,17 @@ func TestPreferred(t *testing.T) {
 }
 
 func itoa(i int) string { return string(rune('0' + i)) }
+
+func TestProbeEmptyRoot(t *testing.T) {
+	// macOS or a minimal container: no /etc/os-release, /proc or /sys.
+	info, err := Probe(context.Background(), t.TempDir())
+	if err != nil {
+		t.Fatalf("Probe must be best-effort, got %v", err)
+	}
+	if info.OS != (OSRelease{}) || info.PkgManager != "" || info.Kernel != "" || info.RAMBytes != 0 || info.CPU != (CPU{}) {
+		t.Errorf("empty root must give empty fields: %+v", info)
+	}
+	if info.Virtualization != "none" || info.SELinux != "" || info.Engines == nil {
+		t.Errorf("virt=%q selinux=%q engines=%v", info.Virtualization, info.SELinux, info.Engines)
+	}
+}

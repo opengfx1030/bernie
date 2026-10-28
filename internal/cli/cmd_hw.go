@@ -42,8 +42,12 @@ func printHW(w io.Writer, r hwReport) {
 	h := r.Host
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(tw, "host\t%s\n", h.Hostname)
-	fmt.Fprintf(tw, "os\t%s (%s, pkg %s)\n", h.OS.Pretty, h.Kernel, orDash(h.PkgManager))
-	fmt.Fprintf(tw, "cpu\t%s (%d sockets, %d cores, %d threads)\n", h.CPU.Model, h.CPU.Sockets, h.CPU.Cores, h.CPU.Threads)
+	fmt.Fprintf(tw, "os\t%s (kernel %s, pkg %s)\n", orDash(h.OS.Pretty), orDash(h.Kernel), orDash(h.PkgManager))
+	if h.CPU.Threads > 0 {
+		fmt.Fprintf(tw, "cpu\t%s (%d sockets, %d cores, %d threads)\n", h.CPU.Model, h.CPU.Sockets, h.CPU.Cores, h.CPU.Threads)
+	} else {
+		fmt.Fprintf(tw, "cpu\t-\n")
+	}
 	fmt.Fprintf(tw, "ram\t%s\n", gibStr(h.RAMBytes))
 	fmt.Fprintf(tw, "virt\t%s\n", orDash(h.Virtualization))
 	for _, e := range h.Engines {

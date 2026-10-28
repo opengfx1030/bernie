@@ -73,6 +73,7 @@ func TestEvaluateStatuses(t *testing.T) {
 		detail string // substring of detail or fix
 	}{
 		{"healthy host", func(*inputs) {}, "gpu.count", OK, "4× gfx1030"},
+		{"no os-release is a warn", func(in *inputs) { in.host.OS = host.OSRelease{} }, "os.distro", Warn, "no /etc/os-release"},
 		{"two installs warn", func(in *inputs) {
 			in.rocm.Installs = append(in.rocm.Installs, rocm.Install{Root: "/opt/rocm-7.2.0", Version: "7.2.0", Kind: "opt"})
 		}, "rocm.installs", Warn, "2 installs"},
@@ -179,5 +180,17 @@ func TestRunFixtureCategories(t *testing.T) {
 	}
 	if c := find(t, r.Checks, "kernel.pcie"); c.Status != OK || c.Detail != "10× gen4 x16" {
 		t.Errorf("kernel.pcie = %+v", c)
+	}
+}
+
+func TestRunEmptyRoot(t *testing.T) {
+	r := Run(context.Background(), Options{Root: t.TempDir(), Categories: []string{"os", "kernel"}})
+	for _, id := range []string{"os.distro", "os.pkgmanager"} {
+		if c := find(t, r.Checks, id); c.Status != Warn {
+			t.Errorf("%s = %+v, want warn", id, c)
+		}
+	}
+	if c := find(t, r.Checks, "os.kernel"); c.Status != Skip {
+		t.Errorf("os.kernel = %+v, want skip", c)
 	}
 }

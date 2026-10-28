@@ -64,7 +64,6 @@ func (r Report) Failed() bool { return r.Summary[Fail] > 0 }
 type inputs struct {
 	root     string
 	host     host.Info
-	hostErr  error
 	gpus     []gpu.GPU
 	gpuErr   error
 	rocm     rocm.Report
@@ -138,7 +137,7 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 		wg.Add(1)
 		go func() { defer wg.Done(); f() }()
 	}
-	run(func() { in.host, in.hostErr = host.Probe(ctx, root) })
+	run(func() { in.host, _ = host.Probe(ctx, root) }) // best-effort, never fails
 	run(func() { in.gpus, in.gpuErr = gpu.List(root) })
 	if need("rocm", "python", "tuning") {
 		run(func() { in.rocm = rocm.Probe(ctx, root) })

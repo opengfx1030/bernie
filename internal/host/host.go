@@ -11,20 +11,19 @@ import (
 	"syscall"
 )
 
-// Probe inspects the host under root ("/" in production). User, container
-// engines and /dev/shm describe the running system and are only probed
-// when root is "/".
+// Probe inspects the host under root ("/" in production). It is
+// best-effort: a missing source (no /etc/os-release on macOS or in minimal
+// containers, no /proc, no sysfs) leaves its fields empty and is not an
+// error; the error result is always nil. User, container engines and
+// /dev/shm describe the running system and are only probed when root is
+// "/".
 func Probe(ctx context.Context, root string) (Info, error) {
 	if root == "" {
 		root = "/"
 	}
 	var info Info
-	osr, err := ReadOSRelease(root)
-	if err != nil {
-		return info, err
-	}
-	info.OS = osr
-	info.PkgManager = PkgManager(root, osr)
+	info.OS, _ = ReadOSRelease(root)
+	info.PkgManager = PkgManager(root, info.OS)
 	info.Hostname = readString(filepath.Join(root, "proc/sys/kernel/hostname"))
 	info.Kernel = readString(filepath.Join(root, "proc/sys/kernel/osrelease"))
 	info.Cmdline = readString(filepath.Join(root, "proc/cmdline"))

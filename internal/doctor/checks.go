@@ -81,8 +81,8 @@ func osChecks(in inputs) []Check {
 	h := in.host
 	var out []Check
 	switch {
-	case in.hostErr != nil:
-		out = append(out, check(cat, "distro", Fail, "Distribution is known", in.hostErr.Error()).with("", docOS))
+	case h.OS.ID == "":
+		out = append(out, check(cat, "distro", Warn, "Distribution is known", "no /etc/os-release: unknown distribution").with("", docOS))
 	case knownDistros[h.OS.ID]:
 		out = append(out, check(cat, "distro", OK, "Distribution is known", h.OS.Pretty).with("", docOS))
 	default:
