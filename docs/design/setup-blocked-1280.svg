@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="900" viewBox="0 0 1280 900" role="img" aria-label="The Setup tab with a blocked step and a running step">
+<title>The Setup tab with a blocked step and a running step</title>
+<desc>A step that needs root and a step that runs.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="1280" height="900" rx="0" class="bg"/>
+<line x1="220" y1="0" x2="220" y2="900" class="ln"/>
+<text x="24" y="44" class="t bd" text-anchor="start" style="font-size:15px;font-weight:800">bernie</text>
+<text x="24" y="64" class="t sm" text-anchor="start">gpu-box</text>
+<line x1="24" y1="92" x2="196" y2="92" class="ln"/>
+<rect x="14" y="94" width="192" height="30" rx="8" class="sf3"/>
+<rect x="14" y="94" width="3" height="30" rx="0" class="acc"/>
+<text x="24" y="116" class="t bd" text-anchor="start" style="font-size:13px;font-weight:700">Setup</text>
+<text x="24" y="150" class="t sb" text-anchor="start" style="font-size:13px">Dashboard</text>
+<text x="24" y="184" class="t sb" text-anchor="start" style="font-size:13px">Benchmark</text>
+<text x="24" y="218" class="t sb" text-anchor="start" style="font-size:13px">Logs</text>
+<line x1="24" y1="100" x2="196" y2="100" class="ln"/>
+<rect x="24" y="122" width="86" height="22" rx="11" class="sf" stroke="#1a7a33" stroke-width="1"/>
+<circle cx="36" cy="133" r="4" class="ok"/>
+<text x="46" y="138" class="t ok" text-anchor="start" style="font-size:11px">serving</text>
+<rect x="24" y="154" width="52" height="24" rx="6" class="sf" stroke="#828a93"/>
+<text x="50" y="170" class="t sb" text-anchor="middle" style="font-size:11px">Dark</text>
+<rect x="84" y="154" width="80" height="24" rx="6" class="sf" stroke="#828a93"/>
+<text x="124" y="170" class="t sb" text-anchor="middle" style="font-size:11px">Advanced</text>
+<text x="276" y="56" class="t h2" text-anchor="start">SETUP</text>
+<text x="279" y="108.0" class="t acc" text-anchor="start" style="font-size:34px;font-weight:900;letter-spacing:-.02em">SETTING UP THIS BOX.</text>
+<text x="276" y="108.0" class="t h1" text-anchor="start" style="font-size:34px">SETTING UP THIS BOX.</text>
+<text x="276" y="136.0" class="t sb" text-anchor="start" style="font-size:15px">Downloading the model weights, 2 of 5 shards. Two steps need root; you will run those yourself.</text>
+<rect x="279" y="159.0" width="210" height="34" rx="8" class="acc"/>
+<rect x="276" y="156.0" width="210" height="34" rx="8" class="acc"/>
+<text x="381.0" y="178.0" class="t onacc" text-anchor="middle" style="font-size:12px;font-weight:800;letter-spacing:.08em">RUN THE REST OF THE STEPS</text>
+<rect x="496" y="158.0" width="110" height="30" rx="8" class="sf" stroke="#828a93" stroke-width="1"/>
+<text x="551.0" y="178.0" class="t sb" text-anchor="middle">RE-CHECK</text>
+<line x1="276" y1="200" x2="1224" y2="200" class="ln"/>
+<text x="276" y="222" class="t lbl" text-anchor="start">THE PATH TO A SERVING MODEL</text>
+<circle cx="294" cy="280" r="18" class="sf2"/>
+<text x="294" y="284" class="t ok" text-anchor="middle" style="font-size:12px;font-weight:800">✓</text>
+<line x1="294" y1="300" x2="294" y2="348" class="ln" stroke-width="2"/>
+<text x="330" y="276" class="t bd" text-anchor="start" style="font-weight:700">Create the venv</text>
+<text x="330" y="296" class="t sb" text-anchor="start">The host build needs its own Python 3.12.</text>
+<rect x="330" y="292" width="92" height="26" rx="6" class="sf" stroke="#828a93"/>
+<text x="376" y="309" class="t sb" text-anchor="middle" style="font-size:11px">Run again</text>
+<circle cx="294" cy="368" r="18" class="sf2"/>
+<text x="294" y="372" class="t info" text-anchor="middle" style="font-size:12px;font-weight:800">◐</text>
+<line x1="294" y1="388" x2="294" y2="436" class="ln" stroke-width="2"/>
+<text x="330" y="364" class="t bd" text-anchor="start" style="font-weight:700">Download the model weights</text>
+<text x="330" y="384" class="t sb" text-anchor="start">Downloading the model weights, 2 of 5 shards.</text>
+<rect x="330" y="378" width="420" height="10" rx="5" class="sf3"/>
+<rect x="330" y="378" width="180" height="10" rx="5" class="key"/>
+<text x="330" y="404" class="t sm" text-anchor="start">43% - 1.8 GB of 2.3 GB at 45.2 MB/s - about 11 s left</text>
+<rect x="770" y="372" width="70" height="26" rx="6" class="sf" stroke="#828a93"/>
+<text x="805" y="389" class="t sb" text-anchor="middle" style="font-size:11px">the log</text>
+<circle cx="294" cy="468" r="18" class="sf2"/>
+<text x="294" y="472" class="t warn" text-anchor="middle" style="font-size:12px;font-weight:800">!</text>
+<line x1="294" y1="488" x2="294" y2="536" class="ln" stroke-width="2"/>
+<text x="330" y="464" class="t bd" text-anchor="start" style="font-weight:700">Join the video and render groups</text>
+<text x="330" y="484" class="t sb" text-anchor="start">This step needs root. Run it in a terminal, then re-check.</text>
+<rect x="330" y="476" width="460" height="34" rx="8" class="sf2" stroke="#dfe3e8"/>
+<text x="341" y="497" class="mn sb" text-anchor="start">sudo usermod -aG video,render $USER</text>
+<rect x="728" y="482" width="52" height="22" rx="6" class="sf" stroke="#828a93" stroke-width="1"/>
+<text x="754" y="497" class="t sb" text-anchor="middle" style="font-size:11px">Copy</text>
+<circle cx="294" cy="578" r="18" class="sf2"/>
+<text x="294" y="582" class="t info" text-anchor="middle" style="font-size:12px;font-weight:800">4</text>
+<line x1="294" y1="598" x2="294" y2="646" class="ln" stroke-width="2"/>
+<text x="330" y="574" class="t bd" text-anchor="start" style="font-weight:700">Set the power caps</text>
+<text x="330" y="594" class="t sb" text-anchor="start">Inference is memory-bound, so the community caps these cards at 180 W.</text>
+<rect x="330" y="586" width="460" height="34" rx="8" class="sf2" stroke="#dfe3e8"/>
+<text x="341" y="607" class="mn sb" text-anchor="start">sudo bernie tune power apply</text>
+<rect x="728" y="592" width="52" height="22" rx="6" class="sf" stroke="#828a93" stroke-width="1"/>
+<text x="754" y="607" class="t sb" text-anchor="middle" style="font-size:11px">Copy</text>
+<line x1="276" y1="700" x2="1224" y2="700" class="ln"/>
+<text x="276" y="722" class="t lbl" text-anchor="start">DOCTOR</text>
+<rect x="276" y="740" width="948" height="120" rx="18" class="sf" stroke="#dfe3e8"/>
+<rect x="296" y="760" width="66" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#b42318"/>
+<text x="305" y="775" class="t fail" text-anchor="start">✕</text>
+<text x="316" y="775" class="t fail" text-anchor="start">fail</text>
+<text x="378" y="776" class="t mn bd" text-anchor="start" style="font-size:13px">rocm.installs</text>
+<text x="296" y="806" class="t sb" text-anchor="start">Two ROCm installs were found. The one on PATH wins.</text>
+<text x="296" y="828" class="t sm" text-anchor="start">This costs speed, not correctness.</text>
+<rect x="900" y="760" width="300" height="34" rx="8" class="sf2" stroke="#dfe3e8"/>
+<text x="911" y="781" class="mn sb" text-anchor="start">which hipcc</text>
+<rect x="1138" y="766" width="52" height="22" rx="6" class="sf" stroke="#828a93" stroke-width="1"/>
+<text x="1164" y="781" class="t sb" text-anchor="middle" style="font-size:11px">Copy</text>
+</svg>

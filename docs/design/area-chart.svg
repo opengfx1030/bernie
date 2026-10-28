@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-label="The area chart">
+<title>The area chart</title>
+<desc>A measure over time with a window control.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="720" height="420" rx="0" class="bg"/>
+<text x="32" y="36" class="t h2" text-anchor="start">THE AREA CHART</text>
+<rect x="60" y="80" width="560" height="220" rx="10" class="sf" stroke="#dfe3e8"/>
+<line x1="60" y1="135.0" x2="620" y2="135.0" class="ln"/>
+<line x1="60" y1="190.0" x2="620" y2="190.0" class="ln"/>
+<line x1="60" y1="245.0" x2="620" y2="245.0" class="ln"/>
+<text x="52" y="88" class="t sm" text-anchor="end">60</text>
+<text x="52" y="194.0" class="t sm" text-anchor="end">30</text>
+<text x="52" y="304" class="t sm" text-anchor="end">0</text>
+<text x="60" y="324" class="t sm" text-anchor="start">-5 min</text>
+<text x="340.0" y="324" class="t sm" text-anchor="middle">-2.5 min</text>
+<text x="620" y="324" class="t sm" text-anchor="end">now</text>
+<path d="M 60.0 300 L 60.0 256.0 L 106.66666666666666 234.0 L 153.33333333333331 241.33333333333334 L 200.0 212.0 L 246.66666666666666 190.0 L 293.3333333333333 197.33333333333331 L 340.0 168.0 L 386.66666666666663 175.33333333333334 L 433.3333333333333 138.66666666666669 L 480.0 153.33333333333334 L 526.6666666666666 109.33333333333331 L 573.3333333333333 124.0 L 620.0 94.66666666666666 L 620.0 300 Z" class="s1" opacity="0.18"/>
+<polyline points="60.0,256.0 106.66666666666666,234.0 153.33333333333331,241.33333333333334 200.0,212.0 246.66666666666666,190.0 293.3333333333333,197.33333333333331 340.0,168.0 386.66666666666663,175.33333333333334 433.3333333333333,138.66666666666669 480.0,153.33333333333334 526.6666666666666,109.33333333333331 573.3333333333333,124.0 620.0,94.66666666666666" class="s1s" stroke-width="2"/>
+<text x="76" y="104" class="t lbl" text-anchor="start">load of the fleet</text>
+<text x="612" y="104" class="t sb" text-anchor="end">5 min | 15 min | 1 h</text>
+<circle cx="470" cy="100" r="8" class="s1"/>
+<text x="484" y="104" class="t sm" text-anchor="start">utilisation</text>
+<rect x="280.0" y="116" width="120" height="8" rx="4" class="sf3"/>
+<rect x="280.0" y="116" width="60" height="8" rx="4" class="info"/>
+<text x="340.0" y="140" class="t sm" text-anchor="middle">15 min</text>
+<text x="580" y="220" class="t sb" text-anchor="end">56%</text>
+<line x1="574" y1="200" x2="574" y2="240" class="ed" stroke-dasharray="3 3"/>
+<text x="32" y="336" class="t sm" text-anchor="start">Title, the window control, the y axis with its unit, the x axis with the time.</text>
+<text x="32" y="358" class="t sm" text-anchor="start">The area is the fill of the line at 18 %; the line is the series colour at full strength.</text>
+<text x="32" y="380" class="t sm" text-anchor="start">On hover the pointer reads the time and the value under it.</text>
+<text x="32" y="402" class="t sm" text-anchor="start">A measure with no data draws an empty axis and the sentence No samples yet.</text>
+</svg>

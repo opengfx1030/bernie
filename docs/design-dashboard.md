@@ -6,17 +6,12 @@ This file is the contract for the front-end workers. The behaviour of the
 product is [spec.md](spec.md); this file is the contract for the page.
 
 Read this file, then the sheet of the tab you build:
-
-| Sheet | What it holds |
-|---|---|
-| [design/components.md](design/components.md) | the component catalogue: anatomy, states, data inputs, the SVG of each |
-| [design/setup.md](design/setup.md) | the Setup tab: widgets, data source, refresh, empty and error copy |
-| [design/dashboard.md](design/dashboard.md) | the Dashboard tab: the same |
-| [design/benchmark.md](design/benchmark.md) | the Benchmark tab: the same |
-| [design/logs.md](design/logs.md) | the Logs tab: the same |
-
-The wireframes are in `design/*.svg`: one per tab and state, plus one per
-component. Every file of this set stays under 400 lines.
+[design/components.md](design/components.md) (the component catalogue),
+[design/setup.md](design/setup.md), [design/dashboard.md](design/dashboard.md),
+[design/benchmark.md](design/benchmark.md) and
+[design/logs.md](design/logs.md) (the tab sheets). The wireframes are in
+`design/*.svg`: one per tab and state, plus one per component. Every file of
+this set stays under 400 lines.
 
 ## 1. Principles
 
@@ -29,15 +24,15 @@ component. Every file of this set stays under 400 lines.
    tiles, copy buttons — is a pattern, not an expression. §5 records, per
    component, what the reference does, what we do and why.
 2. **Words first.** Every state is a sentence before it is a colour or a
-   number. A badge is an icon and a word. A missing number is `–`, never `0`
-   and never `NaN`. Numbers carry their unit and their range.
+   number. A badge is an icon and a word. A missing number is `–`, never `0`.
+   Numbers carry their unit and their range.
 3. **One primary action per tab.** Exactly one filled button per tab: the
    action the current state asks for. Every other control is a ghost button.
 4. **Plain and legible.** System type, no web fonts, no CDN, no images except
    text glyphs. Short sentences, active voice, second person.
-5. **Accessibility is the floor, not the goal.** Text at 4.5:1, large text
-   and control edges at 3:1, a visible focus ring, the whole page with the
-   keyboard, `role="tab"` with arrow keys, `aria-live` on the state headline.
+5. **Accessibility is the floor.** Text at 4.5:1, large text and control
+   edges at 3:1, a visible focus ring, the whole page with the keyboard,
+   `role="tab"` with arrow keys, `aria-live` on the state headline.
 6. **No framework.** Plain HTML, CSS and JavaScript embedded in the binary.
    No npm, no build step. DOM is built with `h()`; `innerHTML` never appears.
 7. **One question per tab.** Setup: what do I do to make this box serve?
@@ -48,8 +43,7 @@ component. Every file of this set stays under 400 lines.
 9. **The page is a view of the CLI.** A value on the page exists in the
    `--json` output of a command with the same name. If it does not, the
    command goes first (§7 lists the gaps). Empty states teach: no runs? Say
-   what a run is and show the command that starts one. Every problem carries
-   its fix next to it.
+   what a run is and show the command that starts one.
 
 ## 2. The shell
 
@@ -319,13 +313,12 @@ field in a domain struct changes `docs/spec.md` in the same commit.
 ### 8.2 Accessibility checklist
 
 - [ ] The tab bar is a real tablist: `role="tablist"`, `role="tab"`, `aria-controls`, `aria-selected`, a roving `tabindex`, Left/Right/Home/End move the focus.
-- [ ] Every control is a real `<button>` or `<a>`. A copy button is `type="button"`, so it never submits a form next to it.
-- [ ] The focus ring is visible on every control: a 2 px `--accent` ring with a 2 px offset, never removed.
+- [ ] Every control is a real `<button>` or `<a>`; a copy button is `type="button"`, so it never submits a form next to it. The focus ring is visible on every control: a 2 px `--accent` ring with a 2 px offset.
 - [ ] Every status is an icon and a word. No meaning is carried by colour alone.
 - [ ] Every chart has a text form: the same numbers are in a tile, a table row or a sentence.
 - [ ] The state headline is `aria-live="polite"`; the toast is `role="status"`; the tooltip is `role="tooltip"`.
 - [ ] The log viewer is `role="log"` with `aria-live="off"`; it is read on demand, not announced line by line.
-- [ ] Every touch target is at least 24 × 24 px.
+- [ ] Every touch target is at least 24 × 24 px, and every control is a real `<button>` or `<a>`.
 - [ ] `prefers-reduced-motion` removes every animation (§3.3).
 - [ ] The page works with the keyboard alone: no trap, Escape closes a disclosure and a tooltip.
 - [ ] Both palettes meet the ratios of §3.

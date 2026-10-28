@@ -10,6 +10,10 @@ Related pages:
 - [extending.md](extending.md): where to change what, and how to add a GPU
   generation.
 - [recipes.md](recipes.md): how to write a recipe.
+- [design-dashboard.md](design-dashboard.md): the design of the dashboard
+  v3. The shell, the tokens, the four tabs and the wireframes live there and
+  in [design/](design/). It is the contract for the front end; this file
+  stays the contract for the packages.
 
 ## 1. Layers
 

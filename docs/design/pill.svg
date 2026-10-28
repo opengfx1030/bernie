@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="200" viewBox="0 0 720 200" role="img" aria-label="The status pill">
+<title>The status pill</title>
+<desc>The icon and the word of a state.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="720" height="200" rx="0" class="bg"/>
+<text x="32" y="36" class="t h2" text-anchor="start">THE STATUS PILL</text>
+<text x="32" y="58" class="t sm" text-anchor="start">An icon and a word. The colour only helps.</text>
+<rect x="32" y="80" width="52" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#1a7a33"/>
+<text x="41" y="95" class="t ok" text-anchor="start">✓</text>
+<text x="52" y="95" class="t ok" text-anchor="start">ok</text>
+<rect x="96" y="80" width="66" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#8a6100"/>
+<text x="105" y="95" class="t warn" text-anchor="start">!</text>
+<text x="116" y="95" class="t warn" text-anchor="start">warn</text>
+<rect x="174" y="80" width="87" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#c2410c"/>
+<text x="183" y="95" class="t ser" text-anchor="start">▲</text>
+<text x="194" y="95" class="t ser" text-anchor="start">serious</text>
+<rect x="273" y="80" width="66" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#b42318"/>
+<text x="282" y="95" class="t fail" text-anchor="start">✕</text>
+<text x="293" y="95" class="t fail" text-anchor="start">fail</text>
+<rect x="351" y="80" width="66" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#5f6874"/>
+<text x="360" y="95" class="t skip" text-anchor="start">–</text>
+<text x="371" y="95" class="t skip" text-anchor="start">skip</text>
+<rect x="429" y="80" width="66" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#2a5fb4"/>
+<text x="438" y="95" class="t info" text-anchor="start">i</text>
+<text x="449" y="95" class="t info" text-anchor="start">info</text>
+<rect x="507" y="80" width="87" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#b3122c"/>
+<text x="516" y="95" class="t acc" text-anchor="start">◐</text>
+<text x="527" y="95" class="t acc" text-anchor="start">running</text>
+<text x="32" y="130" class="t sm" text-anchor="start">States: ok, warn, serious, fail, skip, info, running.</text>
+<text x="32" y="150" class="t sm" text-anchor="start">The word carries the meaning; the colour only helps. 12 px 600, a 1 px border in the colour.</text>
+<text x="32" y="172" class="t sm" text-anchor="start">A pill never carries a value: the value is in the number next to it.</text>
+</svg>

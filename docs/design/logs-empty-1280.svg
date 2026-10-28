@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="The Logs tab with no log">
+<title>The Logs tab with no log</title>
+<desc>The empty states of the tab.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="1280" height="720" rx="0" class="bg"/>
+<line x1="220" y1="0" x2="220" y2="900" class="ln"/>
+<text x="24" y="44" class="t bd" text-anchor="start" style="font-size:15px;font-weight:800">bernie</text>
+<text x="24" y="64" class="t sm" text-anchor="start">gpu-box</text>
+<line x1="24" y1="92" x2="196" y2="92" class="ln"/>
+<text x="24" y="116" class="t sb" text-anchor="start" style="font-size:13px">Setup</text>
+<text x="24" y="150" class="t sb" text-anchor="start" style="font-size:13px">Dashboard</text>
+<text x="24" y="184" class="t sb" text-anchor="start" style="font-size:13px">Benchmark</text>
+<rect x="14" y="196" width="192" height="30" rx="8" class="sf3"/>
+<rect x="14" y="196" width="3" height="30" rx="0" class="acc"/>
+<text x="24" y="218" class="t bd" text-anchor="start" style="font-size:13px;font-weight:700">Logs</text>
+<line x1="24" y1="100" x2="196" y2="100" class="ln"/>
+<rect x="24" y="122" width="86" height="22" rx="11" class="sf" stroke="#1a7a33" stroke-width="1"/>
+<circle cx="36" cy="133" r="4" class="ok"/>
+<text x="46" y="138" class="t ok" text-anchor="start" style="font-size:11px">serving</text>
+<rect x="24" y="154" width="52" height="24" rx="6" class="sf" stroke="#828a93"/>
+<text x="50" y="170" class="t sb" text-anchor="middle" style="font-size:11px">Dark</text>
+<rect x="84" y="154" width="80" height="24" rx="6" class="sf" stroke="#828a93"/>
+<text x="124" y="170" class="t sb" text-anchor="middle" style="font-size:11px">Advanced</text>
+<text x="276" y="56" class="t h2" text-anchor="start">LOGS</text>
+<text x="279" y="108.0" class="t acc" text-anchor="start" style="font-size:34px;font-weight:900;letter-spacing:-.02em">NO LOG YET.</text>
+<text x="276" y="108.0" class="t h1" text-anchor="start" style="font-size:34px">NO LOG YET.</text>
+<text x="276" y="136.0" class="t sb" text-anchor="start" style="font-size:15px">Start the server first, then follow its log here.</text>
+<line x1="276" y1="180" x2="1224" y2="180" class="ln"/>
+<text x="276" y="202" class="t lbl" text-anchor="start">THE RUN</text>
+<rect x="276" y="220" width="948" height="120" rx="18" class="sf" stroke="#dfe3e8"/>
+<text x="296" y="258" class="t bd" text-anchor="start" style="font-size:16px;font-weight:700">No run has ever served on this host.</text>
+<text x="296" y="280" class="t sb" text-anchor="start">A run is a model server on this host: it loads the model and then answers requests.</text>
+<text x="296" y="304" class="t sm" text-anchor="start">Start one from the Setup tab, or run it in a terminal:</text>
+<rect x="296" y="318" width="420" height="34" rx="8" class="sf2" stroke="#dfe3e8"/>
+<text x="307" y="339" class="mn sb" text-anchor="start">bernie serve flashnext-mtp2</text>
+<rect x="654" y="324" width="52" height="22" rx="6" class="sf" stroke="#828a93" stroke-width="1"/>
+<text x="680" y="339" class="t sb" text-anchor="middle" style="font-size:11px">Copy</text>
+<line x1="276" y1="380" x2="1224" y2="380" class="ln"/>
+<text x="276" y="402" class="t lbl" text-anchor="start">THE LOG</text>
+<rect x="276" y="420" width="948" height="120" rx="18" class="sf" stroke="#dfe3e8"/>
+<text x="296" y="458" class="t bd" text-anchor="start" style="font-size:16px;font-weight:700">No log yet.</text>
+<text x="296" y="480" class="t sb" text-anchor="start">Start the server first, then follow its log here.</text>
+<text x="296" y="506" class="t sm" text-anchor="start">The tail fills itself; it is never asked for.</text>
+<line x1="276" y1="580" x2="1224" y2="580" class="ln"/>
+<text x="276" y="602" class="t lbl" text-anchor="start">ADVANCED</text>
+<rect x="276" y="620" width="948" height="60" rx="18" class="sf" stroke="#dfe3e8"/>
+<text x="296" y="656" class="t sm" text-anchor="start">GET /api/runs - the runs of this host - and the raw log of the run.</text>
+</svg>

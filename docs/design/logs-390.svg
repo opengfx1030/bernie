@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-label="The Logs tab at 390 px">
+<title>The Logs tab at 390 px</title>
+<desc>The findings and the tail on a narrow screen.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="390" height="844" rx="0" class="bg"/>
+<rect x="0" y="0" width="390" height="58" rx="0" class="sf"/>
+<text x="16" y="26" class="t bd" text-anchor="start" style="font-size:15px;font-weight:800">bernie</text>
+<line x1="0" y1="58" x2="390" y2="58" class="ln"/>
+<rect x="270" y="18" width="52" height="24" rx="6" class="sf3" stroke="#828a93"/>
+<text x="296" y="34" class="t sm" text-anchor="middle" style="font-size:10px">serving</text>
+<rect x="16" y="34" width="53" height="20" rx="6" class="sf" stroke="#828a93"/>
+<text x="42.5" y="48" class="t sb" text-anchor="middle" style="font-size:11px">Setup</text>
+<rect x="77" y="34" width="81" height="20" rx="6" class="sf" stroke="#828a93"/>
+<text x="117.5" y="48" class="t sb" text-anchor="middle" style="font-size:11px">Dashboard</text>
+<rect x="166" y="34" width="81" height="20" rx="6" class="sf" stroke="#828a93"/>
+<text x="206.5" y="48" class="t sb" text-anchor="middle" style="font-size:11px">Benchmark</text>
+<rect x="255" y="34" width="46" height="20" rx="6" class="sf3" stroke="#828a93"/>
+<text x="278.0" y="48" class="t sb" text-anchor="middle" style="font-size:11px">Logs</text>
+<text x="16" y="110" class="t h2" text-anchor="start">LOGS</text>
+<text x="19" y="142.24" class="t acc" text-anchor="start" style="font-size:21px;font-weight:900;letter-spacing:-.02em">THE SERVER FAILED FOR A KNOWN REASON.</text>
+<text x="16" y="142.24" class="t h1" text-anchor="start" style="font-size:21px">THE SERVER FAILED FOR A KNOWN REASON.</text>
+<text x="16" y="159.6" class="t sb" text-anchor="start" style="font-size:9px">The log matched the rule memory.kv-too-small.</text>
+<rect x="19" y="175.0" width="120" height="34" rx="8" class="acc"/>
+<rect x="16" y="172.0" width="120" height="34" rx="8" class="acc"/>
+<text x="76.0" y="194.0" class="t onacc" text-anchor="middle" style="font-size:12px;font-weight:800;letter-spacing:.08em">DOWNLOAD</text>
+<line x1="16" y1="200" x2="374" y2="200" class="ln"/>
+<text x="16" y="222" class="t lbl" text-anchor="start">THE RUN</text>
+<rect x="16" y="240" width="358" height="70" rx="18" class="sf" stroke="#b3122c" stroke-width="2"/>
+<circle cx="44" cy="262" r="10" class="sf" stroke="#b3122c" stroke-width="2"/>
+<circle cx="44" cy="262" r="5" class="acc"/>
+<text x="66" y="258" class="t bd" text-anchor="start" style="font-weight:700">flashnext-mtp2</text>
+<text x="66" y="280" class="t sm" text-anchor="start">exited - 12 min ago</text>
+<text x="66" y="300" class="t sm" text-anchor="start">port 18096 - 2 known findings</text>
+<line x1="16" y1="340" x2="374" y2="340" class="ln"/>
+<text x="16" y="362" class="t lbl" text-anchor="start">THE KNOWN PROBLEMS</text>
+<rect x="16" y="380" width="358" height="150" rx="18" class="sf" stroke="#dfe3e8"/>
+<rect x="32" y="400" width="66" height="22" rx="11" class="sf" stroke="currentColor" stroke-width="1" style="color:#b42318"/>
+<text x="41" y="415" class="t fail" text-anchor="start">✕</text>
+<text x="52" y="415" class="t fail" text-anchor="start">fail</text>
+<text x="114" y="416" class="t mn bd" text-anchor="start" style="font-size:12px">memory.kv-too-small</text>
+<text x="32" y="444" class="t sb" text-anchor="start">The KV cache cannot hold 32 768 tokens.</text>
+<rect x="32" y="460" width="320" height="34" rx="8" class="sf2" stroke="#dfe3e8"/>
+<text x="43" y="481" class="mn sb" text-anchor="start">bernie up flashnext --set args.max-model-len=16384</text>
+<rect x="290" y="466" width="52" height="22" rx="6" class="sf" stroke="#828a93" stroke-width="1"/>
+<text x="316" y="481" class="t sb" text-anchor="middle" style="font-size:11px">Copy</text>
+<line x1="16" y1="560" x2="374" y2="560" class="ln"/>
+<text x="16" y="582" class="t lbl" text-anchor="start">THE LOG</text>
+<rect x="16" y="600" width="358" height="26" rx="9" class="sf3"/>
+<text x="195" y="617" class="t sb" text-anchor="middle" style="font-size:10px">all | info | warn | error</text>
+<rect x="16" y="640" width="358" height="190" rx="10" class="sf" fill="#111418" stroke="#dfe3e8"/>
+<text x="32" y="660" class="t mn" text-anchor="start" style="font-size:11px;fill:#c9d1d9">INFO 10-28 12:01:03 engine.py:142] Started server process</text>
+<text x="26" y="660" class="t mn" text-anchor="end" style="font-size:9px;fill:#6e7681">info</text>
+<text x="32" y="676" class="t mn" text-anchor="start" style="font-size:11px;fill:#c9d1d9">INFO 10-28 12:01:04 api_server.py:93] Route: /v1/completions</text>
+<text x="26" y="676" class="t mn" text-anchor="end" style="font-size:9px;fill:#6e7681">info</text>
+<text x="32" y="692" class="t mn" text-anchor="start" style="font-size:11px;fill:#c9d1d9">INFO 10-28 12:01:11 worker.py:217] Loading model weights, 2 of 5 shards</text>
+<text x="26" y="692" class="t mn" text-anchor="end" style="font-size:9px;fill:#6e7681">warn</text>
+<text x="32" y="708" class="t mn" text-anchor="start" style="font-size:11px;fill:#c9d1d9">INFO 10-28 12:01:29 worker.py:217] Loading model weights, 3 of 5 shards</text>
+<text x="26" y="708" class="t mn" text-anchor="end" style="font-size:9px;fill:#6e7681">info</text>
+<rect x="22" y="712" width="346" height="16" rx="3" class="sf3" opacity="0.22"/>
+<text x="32" y="724" class="t mn" text-anchor="start" style="font-size:11px;fill:#e3b341">WARNING 10-28 12:01:31 cache.py:88] KV cache size is smaller than expected</text>
+<text x="26" y="724" class="t mn" text-anchor="end" style="font-size:9px;fill:#6e7681">info</text>
+<text x="32" y="740" class="t mn" text-anchor="start" style="font-size:11px;fill:#c9d1d9">INFO 10-28 12:02:02 worker.py:301] Model loading took 58.3 seconds</text>
+<text x="26" y="740" class="t mn" text-anchor="end" style="font-size:9px;fill:#6e7681">info</text>
+<text x="16" y="844" class="t sm" text-anchor="start"></text>
+</svg>

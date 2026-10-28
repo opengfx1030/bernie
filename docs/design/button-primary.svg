@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="260" viewBox="0 0 720 260" role="img" aria-label="The primary action button">
+<title>The primary action button</title>
+<desc>The filled button of a tab and its states.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="720" height="260" rx="0" class="bg"/>
+<text x="32" y="36" class="t h2" text-anchor="start">THE PRIMARY ACTION</text>
+<rect x="35" y="63" width="190" height="34" rx="8" class="acc"/>
+<rect x="32" y="60" width="190" height="34" rx="8" class="acc"/>
+<text x="127.0" y="82" class="t onacc" text-anchor="middle" style="font-size:12px;font-weight:800;letter-spacing:.08em">SET UP THIS MACHINE</text>
+<text x="250" y="74" class="t sm" text-anchor="start">default</text>
+<text x="250" y="90" class="t sm" text-anchor="start">900 uppercase, accent fill, a 3 px hard shadow</text>
+<rect x="32" y="104" width="190" height="34" rx="8" class="acc"/>
+<text x="127.0" y="126" class="t onacc" text-anchor="middle" style="font-size:12px;font-weight:800;letter-spacing:.08em">SET UP THIS MACHINE</text>
+<text x="250" y="118" class="t sm" text-anchor="start">hover</text>
+<text x="250" y="134" class="t sm" text-anchor="start">the shadow moves to 4 px and the fill lightens</text>
+<rect x="32" y="148" width="190" height="34" rx="8" class="acc"/>
+<text x="127.0" y="170" class="t onacc" text-anchor="middle" style="font-size:12px;font-weight:800;letter-spacing:.08em">SET UP THIS MACHINE</text>
+<text x="250" y="162" class="t sm" text-anchor="start">active</text>
+<text x="250" y="178" class="t sm" text-anchor="start">the button moves up 2 px and the shadow follows</text>
+<rect x="32" y="192" width="190" height="34" rx="8" class="sf3"/>
+<text x="127.0" y="214" class="t onacc" text-anchor="middle" style="font-size:12px;font-weight:800;letter-spacing:.08em">SET UP THIS MACHINE</text>
+<text x="250" y="206" class="t sm" text-anchor="start">disabled</text>
+<text x="250" y="222" class="t sm" text-anchor="start">aria-disabled, no shadow, muted label</text>
+</svg>
