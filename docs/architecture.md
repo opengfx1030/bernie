@@ -22,6 +22,7 @@ flowchart TB
   subgraph front["Front ends"]
     CLI["internal/cli<br/>+ cli/cmds/family"]
     DASH["dashboard<br/>HTTP, SSE, web/"]
+    MCP["internal/mcp<br/>MCP tools"]
   end
   APP["internal/app<br/>shared operations"]
   FLOW["internal/flow<br/>status, up"]
@@ -43,7 +44,7 @@ flowchart TB
     HOST["host"]
     ROCM["rocm"]
   end
-  SUP["internal/support<br/>paths, execx, config"]
+  SUP["internal/support<br/>paths, execx, config, redact"]
   D1[("gpu/devices/*.yaml")]
   D2[("recipes/")]
   D3[("tunableop/<br/>tuned-moe/")]
@@ -51,6 +52,9 @@ flowchart TB
   D5[("dashboard/web/")]
   CLI --> APP
   DASH --> APP
+  MCP --> APP
+  MCP --> FLOW
+  DASH --> MCP
   APP -.-> top
   APP -.-> serving
   APP -.-> machine
@@ -73,6 +77,7 @@ flowchart TB
   BEN --> VLLM
   CLI -.-> serving
   DASH -.-> serving
+  MCP -.-> serving
   CLI -.-> machine
   DASH -.-> machine
   DOC -.-> machine
@@ -92,10 +97,13 @@ Two facts matter:
 - `gpu` imports no other bernie package. It is the root of the graph.
 - `dashboard` never imports `cli`. `cli` imports `dashboard` in two places:
   `dash` and the last step of `up`.
+- `mcp` never imports `cli` or `dashboard`. `dashboard` imports `mcp` to
+  mount `/mcp`; `cli` imports `mcp` for `bernie mcp`.
 
 Rules:
 
-1. Front ends parse input and format output. They hold no domain logic.
+1. Front ends (CLI, dashboard, MCP) parse input and format output. They hold
+   no domain logic.
 2. Domain packages return plain structs with JSON tags. They never print.
    They take a `context.Context` for anything that can block.
 3. Domain packages read the host through an injectable root (a root path or
@@ -127,8 +135,10 @@ bernie/
 │   │       ├── serving/      recipe, serve, ps, stop, logs, compose, config
 │   │       ├── tunecmd/      tune
 │   │       ├── benchcmd/     bench
-│   │       └── dashcmd/      dash
+│   │       ├── dashcmd/      dash
+│   │       └── mcpcmd/       mcp
 │   ├── app/              operations shared by the front ends, one `--json` document each
+│   ├── mcp/              MCP server: tools, confirm tokens, audit (official Go SDK)
 │   ├── flow/             status snapshot and `up`
 │   ├── doctor/           check registry (one checks_<category>.go per category)
 │   ├── setup/            install plan and non-root apply
@@ -148,6 +158,7 @@ bernie/
 │       ├── paths/            XDG config, state, data, cache
 │       ├── execx/            bounded exec of external tools
 │       ├── config/           <config>/config.yaml
+│       ├── redact/           secret redaction for documents and log text
 │       └── fixture/          test host snapshots (testdata/*.tar.gz)
 ├── dashboard/            HTTP API, SSE, embedded web/ (no build step)
 ├── recipes/              built-in recipes by family, fragments by concern, embed.go

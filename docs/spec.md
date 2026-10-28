@@ -23,11 +23,13 @@ bernie does these tasks:
 6. Apply tuning: TunableOp rows, GPU power cap.
 7. Benchmark an OpenAI-compatible server.
 8. Show all of the above in a web dashboard.
+9. Expose the same operations to agents through MCP ([§13](#13-model-context-protocol)).
 
 ## 2. Principles
 
-- **CLI first.** Every feature is a CLI command. The dashboard calls the same
-  Go packages. The dashboard has no feature that the CLI does not have.
+- **CLI first.** Every feature is a CLI command. The dashboard and the MCP
+  server call the same Go packages. Neither has a feature that the CLI does
+  not have.
 - **Machine-readable.** Every command accepts `--json` and then writes exactly
   one JSON document to stdout. Agents and scripts use this mode.
 - **One static binary.** The binary embeds the built-in recipes, the TunableOp
@@ -111,6 +113,8 @@ needs a reason in its description.
 | generation | A GPU family: `rdna2`, `rdna3`, `rdna3.5`, `rdna4`. One device-table file per generation. |
 | code target | The gfx target whose code objects a GPU runs. It is the GPU's own arch, or the arch of its `hsa_override`. |
 | device tables | The embedded YAML files in `internal/machine/gpu/devices/`. They hold the facts of each arch and each PCI device. |
+| MCP | Model Context Protocol. The agent-facing protocol of bernie ([§13](#13-model-context-protocol)). |
+| confirm token | A single-use, five-minute token that binds one MCP mutation to the plan the operator saw ([§13.5](#135-write-gate)). |
 
 ## 3. Command surface
 
@@ -737,7 +741,183 @@ hf_home: /data/hf                       # Hugging Face cache root
 set: ["env.GPU_MAX_HW_QUEUES=2"]        # default overrides, applied before --set
 ```
 
-## 13. Out of scope (draft 1)
+## 13. Model Context Protocol
+
+### 13.1 Purpose
+
+MCP is the third front end, next to the CLI and the dashboard. It exposes
+bernie to agents.
+
+MCP does not replace the CLI or the dashboard API. It adds no feature of its
+own: every tool calls the code of a CLI command, and returns the same JSON
+document as that command with `--json`.
+
+The server uses the official Go SDK. It speaks protocol revision
+`2026-07-28`, and legacy clients that start with `initialize`. It does not
+implement the deprecated HTTP+SSE transport.
+
+### 13.2 Command
+
+`bernie mcp [--allow-write]` serves one client on stdin and stdout.
+
+The server writes only MCP messages to stdout. It writes diagnostics to
+stderr. The command has no `--json` output: the protocol is structured.
+
+`--allow-write`, or `BERNIE_MCP_WRITE=1` in the environment, enables the
+mutating tools ([§13.5](#135-write-gate)).
+
+### 13.3 Transports
+
+| Transport | Where | Notes |
+|---|---|---|
+| stdio | `bernie mcp` | The client starts the process. No listening port. |
+| Streamable HTTP | `POST /mcp` on `bernie dash` | Stateless: one request per POST. Rules in [§13.10](#1310-http-guard). |
+
+### 13.4 Tools
+
+The catalog is fixed. Names, descriptions and schemas never depend on logs,
+recipes or other host data. Every tool has a closed input JSON Schema
+(`additionalProperties: false`, enums, patterns, bounds) and an output JSON
+Schema derived from the Go type of its CLI document.
+
+Read-only tools. Each returns the document of its command as
+`structuredContent`, and the same JSON as text. A command whose document is
+an array (`ps`, `bench list`, `tune power status`) returns that array.
+Secrets are redacted ([§13.7](#137-untrusted-content)).
+
+| Tool | Same document as | Input |
+|---|---|---|
+| `status` | `status` | `venv` |
+| `hw` | `hw` | none |
+| `topo` | `topo` | `bandwidth`, `venv` |
+| `doctor` | `doctor` | `categories`, `venv` |
+| `doctor_log` | `doctor --run` | `run` (a run name, never a path) |
+| `recipe_list` | `recipe list` | `all` |
+| `recipe_show` | `recipe show` | `id` |
+| `recipe_plan` | `recipe plan` | the launch flags: `id`, `set`, `mode`, `name`, `venv`, `engine`, `profile`, `no_tunableop`, `tuning` |
+| `ps` | `ps` | none |
+| `logs` | none (text) | `name`, `tail` (1 to 10000, default 100) |
+| `bench_list` | `bench list` | none |
+| `bench_show` | `bench show` | `id` |
+| `tunableop_status` | `tune tunableop status` | `venv` |
+| `power_status` | `tune power status` | none |
+
+Mutating tools ([§13.5](#135-write-gate)):
+
+| Tool | Command | Result |
+|---|---|---|
+| `serve` | `serve` (no `--foreground`, `--dry-run`) | `runner.Record`, as `serve --json` |
+| `stop` | `stop NAME` (the name is required) | `{"name", "stopped"}` |
+| `bench_run` | `bench` (loopback `url` only) | the saved `bench.Result` |
+| `setup_apply` | `setup apply` | the setup steps after the run |
+| `tune_power_set` | `tune power set` | `{"applied", "commands", "watts"}` |
+
+`up` and `config set` are not tools. An agent runs them through the CLI.
+
+`logs` returns a text document, not a CLI document, because `bernie logs`
+is a text stream:
+`{"source": "run-log", "untrusted": true, "run": "", "truncated": false, "content": ""}`.
+`content` holds at most 256 KiB, cut at a line start.
+
+`recipe_plan` and `topo` keep the side effects of their commands: `recipe
+plan` may write TunableOp rows under the data directory. `topo` with
+`bandwidth` loads the GPUs.
+
+### 13.5 Write gate
+
+MCP is read-only by default.
+
+With the write gate off, the server does not list the mutating tools and
+rejects a call to one as an unknown tool. `bernie mcp --allow-write` opens
+the gate for that process. `BERNIE_MCP_WRITE=1` opens it for a process that
+reads the variable at start (`bernie mcp` and `bernie dash`).
+
+A mutating tool runs in two calls:
+
+1. The first call has no `confirm_token`. The server computes the plan
+   without any change. It returns
+   `{"executed": false, "plan": {...}, "confirm_token": "...", "expires_at": "..."}`.
+2. The second call repeats the same arguments and adds the token. The server
+   verifies the token, runs the action and returns
+   `{"executed": true, "result": {...}}`, with the CLI document in `result`.
+
+A token:
+
+- has 256 random bits;
+- is bound to the tool, the normalized arguments, the digest of the plan and
+  the host name;
+- expires after five minutes;
+- works once: the server consumes a token whatever the verdict, so a token
+  with changed arguments or a changed plan is dead and needs a new plan call;
+- is stored as a file named by its SHA-256 under `<state>/mcp/tokens/` (mode
+  `0600`, directory `0700`). The raw token is never stored.
+
+The server runs one host-changing operation at a time (`serve`, `stop`,
+`setup_apply`, `tune_power_set`) and one benchmark at a time. A call that
+finds the slot taken fails with a busy error.
+
+### 13.6 Host safety
+
+MCP never runs `sudo` and never escalates. A step that needs root comes back
+as a command in the result (`setup_apply`, `tune_power_set`).
+`tune_power_set` writes the cap only when the server itself runs as root,
+like the CLI.
+
+A plan call changes nothing on the host, except the TunableOp rows that
+`recipe plan` writes to the data directory.
+
+A request cancelled by the client stops `setup_apply` and `bench_run`.
+`serve` and `stop` finish once they started, like the dashboard.
+
+### 13.7 Untrusted content
+
+Run logs and model output are untrusted data.
+
+The `logs` result carries `source` and `untrusted: true`. No tool description,
+schema or catalog entry is built from log text.
+
+The server redacts every result and every progress message before it leaves
+the process. It uses the rules of the dashboard: values of secret names
+(`*_TOKEN`, `*_KEY`, `*_SECRET`, `*_PASSWORD`) in environments, arguments and
+log lines, and credentials by shape (`hf_...`, `sk-...`, bearer tokens).
+`doctor_log` is the preferred way to diagnose a run: it returns catalog
+matches, not raw log text.
+
+### 13.8 Progress
+
+When the client sends a progress token, `serve`, `setup_apply` and
+`bench_run` send each line of their progress output (the lines the CLI writes
+to stderr) as `notifications/progress`. The progress value rises with each
+message.
+
+### 13.9 Audit
+
+The server appends one JSON line per tool call to `<state>/mcp/audit.jsonl`
+(mode `0600`): time, transport, client name, tool, action digest, redacted
+argument summary (at most 512 bytes), token id (hash prefix), result (`ok`,
+`planned`, `applied`, `rejected`, `failed`), duration and error class.
+
+The file never holds a bearer token, a confirm token, an environment map or a
+log body.
+
+### 13.10 HTTP guard
+
+`bernie dash` serves `/mcp` only when it listens on a loopback address.
+Otherwise `/mcp` answers 404.
+
+The guard of `/mcp` differs from the guard of `/api` ([§11](#11-dashboard)):
+
+- The `Host` header must name a loopback host.
+- A request with an `Origin` header needs a loopback origin.
+- When the dashboard has a token, the request needs
+  `Authorization: Bearer <token>`. The cookie does not authenticate `/mcp`.
+  A `token` query parameter is refused with 400.
+- The request body is a JSON-RPC message. A `tools/call` of a mutating tool
+  also needs the header `X-Bernie: 1`. A read-only call does not.
+- Only `POST` is served. Responses carry `Cache-Control: no-store`. The
+  endpoint sets no CORS header.
+
+## 14. Out of scope (draft 1)
 
 - Model quantization and checkpoint conversion.
 - Engine changes (kernels, MoE offload). They belong to the fork.

@@ -198,6 +198,22 @@ func Stop(ctx context.Context, name string) (StopResult, error)
 `app` takes typed, validated input. The CLI parses flags, the dashboard parses
 its JSON body, the MCP server checks its input schema. `app` never prints.
 
+## mcp
+
+```go
+type Options struct { Write bool; Transport, Version string; Log io.Writer }
+func New(o Options) *Server               // registers the fixed tool catalog
+func (s *Server) Run(ctx context.Context) error   // stdio
+func (s *Server) Handler() http.Handler           // Streamable HTTP, stateless
+func IsMutating(tool string) bool                 // serve, stop, bench_run, setup_apply, tune_power_set
+```
+
+A tool is a function `(ctx, in) -> canonical document` registered with its
+input type and its output type; the SDK derives and enforces both schemas.
+`confirm.go` holds the token store, `audit.go` the audit log. The
+authentication and Origin rules of `/mcp` live in `dashboard/mcp.go`
+(spec §13.10).
+
 ## flow
 
 ```go
@@ -225,6 +241,8 @@ func Config() string; func State() string; func Data() string; func Cache() stri
 func Ensure(dir string) (string, error)
 // execx: bounded exec, always with a timeout
 func Run(ctx context.Context, timeout time.Duration, name string, args ...string) (Result, error)
+// redact: hide secrets before output
+func JSON(v any) (any, error); func Text(s string) string
 // config: <config>/config.yaml
 func Load() (Config, error); func Save(c Config) error
 func (c Config) ResolveVenv(flag string) string
@@ -239,5 +257,5 @@ func Root(tb testing.TB, name string) string
 family package under `internal/cli/cmds/`. It calls `cli.Register` in
 `init()`. `cmd/bernie/main.go` blank-imports each family.
 
-`dashboard` serves the JSON API and the embedded `web/` of spec §11. A
-handler calls the same packages as the matching command.
+`dashboard` serves the JSON API and the embedded `web/` of spec §11, and
+mounts `/mcp`. A handler calls the same packages as the matching command.
