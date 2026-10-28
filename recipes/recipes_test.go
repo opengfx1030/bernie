@@ -1,6 +1,8 @@
 package recipes_test
 
 import (
+	"io/fs"
+	"path"
 	"strings"
 	"testing"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/opengfx1030/rdnactl/internal/recipe"
 	"github.com/opengfx1030/rdnactl/internal/topo"
 	"github.com/opengfx1030/rdnactl/internal/tuning"
+	"github.com/opengfx1030/rdnactl/recipes"
 )
 
 // The 11 recipes ported from opengfx1030/vllm-rdna tools/rdna/recipes.
@@ -113,7 +116,7 @@ func TestFlashnextMTP2MatchesFork(t *testing.T) {
 		t.Fatal(err)
 	}
 	gpus, tp := host(t)
-	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Sets: []string{"PLE_QUANT_DIR=/x"}, GPUs: gpus, Topo: tp, TunedMoEDir: "/data/tuned-moe"})
+	p, err := recipe.BuildPlan(r, recipe.PlanOptions{Sets: []string{"PLE_QUANT_DIR=/x"}, GPUs: gpus, Topo: tp, TunedMoE: func(string) (string, error) { return "/data/tuned-moe", nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,4 +191,89 @@ func TestHostOnlyRecipesRefuseContainerMode(t *testing.T) {
 			t.Errorf("%s in container mode: err = %v", id, err)
 		}
 	}
+}
+
+// TestTreeLayout enforces spec §2.1 on the recipe tree: at most 12 entries per
+// directory (embed.go and README.md excluded), recipe ids unique across the
+// tree (the loader reports duplicates), and every file is a *.yaml recipe.
+func TestTreeLayout(t *testing.T) {
+	err := fs.WalkDir(recipes.FS, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			es, err := fs.ReadDir(recipes.FS, p)
+			if err != nil {
+				return err
+			}
+			if len(es) > 12 {
+				t.Errorf("recipes/%s has %d entries, want at most 12", p, len(es))
+			}
+			return nil
+		}
+		if path.Ext(p) != ".yaml" {
+			t.Errorf("recipes/%s is not a recipe (*.yaml)", p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range recipe.Load().Errors {
+		if strings.HasPrefix(e.Source, "builtin:") {
+			t.Errorf("%s: %s", e.Source, e.Err)
+		}
+	}
+}
+
+// TestFragmentsLiveUnderFragments keeps the layout rule: a fragment is under
+// _fragments/ or next to the recipes of its family; a recipe never sits there.
+func TestFragmentsLiveUnderFragments(t *testing.T) {
+	s := recipe.Load()
+	for id, r := range s.Recipes {
+		if !strings.HasPrefix(r.Source, "builtin:") {
+			continue
+		}
+		inFragments := strings.HasPrefix(r.Source, "builtin:_fragments/")
+		if inFragments && !r.Fragment {
+			t.Errorf("%s: a recipe under _fragments/ (%s)", id, r.Source)
+		}
+		if r.Fragment && !inFragments && path.Dir(r.Source) == "builtin:." {
+			t.Errorf("%s: fragment at the top of the tree (%s)", id, r.Source)
+		}
+	}
+}
+
+// TestPlanByArch plans every recipe on the two-architecture host (8x V620
+// gfx1030, 2x W7800 gfx1100): it selects only GPUs of a declared arch, and a
+// recipe that does not declare gfx1100 refuses when only the W7800s are given.
+func TestPlanByArch(t *testing.T) {
+	s := recipe.Load()
+	gpus, tp := host(t)
+	w7800 := gpus[:2]
+	for _, g := range w7800 {
+		if g.GFX != "gfx1100" {
+			t.Fatalf("fixture: GPU %d is %s, want gfx1100", g.HIPIndex, g.GFX)
+		}
+	}
+	for _, id := range s.IDs(false) {
+		r, err := s.Resolve(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = recipe.BuildPlan(r, recipe.PlanOptions{Sets: requiredSets(r), GPUs: w7800, Topo: tp})
+		wantRefuse := !declares(r, "gfx1100") || r.Requires.GPUs > len(w7800)
+		switch {
+		case wantRefuse && err == nil:
+			t.Errorf("%s planned on the W7800s (arch %v, %d GPUs)", id, r.Requires.Arch, r.Requires.GPUs)
+		case wantRefuse && !strings.Contains(err.Error(), "needs"):
+			t.Errorf("%s: unexpected refusal: %v", id, err)
+		case !wantRefuse && err != nil:
+			t.Errorf("%s on the W7800s: %v", id, err)
+		}
+	}
+}
+
+func declares(r *recipe.Recipe, gfx string) bool {
+	return gpu.ArchMatch(r.Requires.Arch, gfx)
 }

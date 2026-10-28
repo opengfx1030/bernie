@@ -12,7 +12,9 @@ A recipe is one YAML file. It describes one vLLM launch: the model, the
 hardware it needs, the environment and the `vllm serve` flags.
 
 - The file name stem is the recipe id. `flashnext-mtp2.yaml` has the id
-  `flashnext-mtp2`.
+  `flashnext-mtp2`. The directory does not matter. An id is unique across the
+  whole tree: two files with the same stem in one tree are a load error that
+  names both paths.
 - An id uses lowercase letters, digits, `.`, `_` and `-`.
 - A file whose id starts with `_` is a fragment. A fragment is a shared part.
   You cannot plan or serve a fragment. Other recipes use it through `extends`.
@@ -25,9 +27,14 @@ rdnactl loads recipes in this order. A later file with the same id replaces
 an earlier one.
 
 1. The built-in recipes (embedded from `recipes/` in the source tree).
-2. `<config>/recipes/*.yaml` (default `~/.config/rdnactl/recipes/`).
+2. `<config>/recipes/` (default `~/.config/rdnactl/recipes/`).
 3. Each directory in `$RDNACTL_RECIPES` (`:`-separated).
 4. The files given to `rdnactl recipe validate FILE...`.
+
+Directories are read recursively: every `*.yaml` and `*.yml` file below them
+is a recipe. Group your own recipes in sub-directories as you like. Inside one
+directory tree an id may appear once. A file in a later directory replaces an
+earlier recipe with the same id.
 
 A file that does not load is listed by `recipe list` and `recipe validate`.
 rdnactl does not drop it silently.
@@ -54,7 +61,7 @@ model:
   revision: main                # optional. Becomes --revision.
 
 requires:
-  arch: [gfx1030]               # gfx targets or prefixes. "gfx11" matches gfx1100.
+  arch: [gfx1030]               # gfx names or prefixes: [gfx103, gfx11] matches RDNA2 and RDNA3.
   gpus: 4                       # GPUs of a matching arch
   vram_gib: 28                  # per GPU
   ram_gib: 48                   # host RAM
@@ -89,7 +96,11 @@ args:                           # vllm serve flags, without the leading --
 A recipe that is not a fragment needs these fields after the merge:
 
 - `schema`, `name`, `status`, `model.source`.
-- `requires.arch` and `requires.gpus`.
+- `requires.arch` and `requires.gpus`. `requires.arch` is a list of gfx names
+  (`gfx1030`) or prefixes (`gfx103`, `gfx11`). A GPU matches when its gfx name
+  starts with one of the entries. A recipe with several entries runs on any of
+  those architectures. Validation rejects an entry that is not `gfx` followed
+  by digits or letters.
 - `container.image` when `container` is set.
 
 `requires.gpus` must equal `tensor-parallel-size` x `pipeline-parallel-size`
@@ -114,7 +125,11 @@ x `data-parallel-size` when the recipe sets one of them.
   container mode if the recipe has an image and Docker or Podman is usable.
   Else it uses host mode.
 - In host mode, rdnactl selects the TunableOp profile from the loaded
-  `librocblas.so.5`. In container mode, it uses `container.tunableop_profile`.
+  `librocblas.so.5` and the architecture of the selected GPUs. In container
+  mode, it uses `container.tunableop_profile`.
+- In host mode, `VLLM_TUNED_CONFIG_FOLDER` (from `_tuned-moe`) points to the
+  embedded tuned-MoE folder of the selected GPUs' architecture. An architecture
+  without a folder gets no variable.
 
 ## 4. Arguments
 
@@ -194,44 +209,72 @@ rdnactl recipe plan flashnext-small        # env + command, GPU selection, warni
 rdnactl recipe plan flashnext-small --json # the plan for scripts
 ```
 
-## 9. Built-in fragments
+## 9. Layout of the built-in tree
 
-| Fragment | Content |
-|---|---|
-| `_base` | Shared environment and fixed flags of the fork launcher (`rdna_init`): spawn workers, no AITER, no hipBLASLt, FP16, TP4, 8 sequences, 2048 batched tokens, 127.0.0.1:18094. Sets the `v0.31.0-extras` image and the `rocm7.14-rocblas5.5` TunableOp profile. |
-| `_attn-fa` | FA-RDNA2 attention: `RDNA_ATTN` backend, GQA decode. Removes `FLASH_ATTENTION_TRITON_AMD_ENABLE`. |
-| `_attn-triton` | Triton attention (`TRITON_ATTN`), FA-RDNA2 off. |
-| `_rccl-pcie` | RCCL over PCIe: P2P level `pxb`, Simple protocol, no MSCCL, fine-grained PCIe memory. |
-| `_rdna-ar` | The fork's one-shot all-reduce up to 64 KiB, RCCL above. |
-| `_tuned-moe` | `VLLM_TUNED_CONFIG_FOLDER` for the fork's tuned fused-MoE configs. In container mode it is `/src/vllm/tuned-moe` in the image. In host mode rdnactl writes its embedded copy to `<data>/tuned-moe` and uses that directory. |
-| `_ple-int4` | Flash-Next PLE n-gram table, INT4, in pinned host RAM. Needs input `PLE_QUANT_DIR`. |
-| `_ple-int4-disk` | The INT4 table memory-mapped from disk through the CPU sidecar (no RAM floor). |
-| `_ple-exl3` | The PLE table from an EXL3 checkpoint through the CPU sidecar. Removes `PLE_QUANT_DIR`. |
-| `_mtp2` | MTP speculative decode with 2 tokens and capture sizes 3, 6, 12, 24. |
-| `_flashnext-common` | The shared Flash-Next AWQ-W4A16 profile on 4x gfx1030 (TP4/EP4). |
+```text
+recipes/
+  _fragments/<concern>/_*.yaml   shared parts: base, attention, comm, ple,
+                                 speculative, tuning, arch
+  flashnext/                     Qwen3.8 Flash-Next family (+ _flashnext-common)
+  qwen-dense/                    Qwen3.8-27B dense family
+  deepseek/                      DeepSeek family
+```
 
-## 10. Built-in recipes
+- A directory has at most 12 entries. A family that grows past that splits by
+  a real axis (for example `flashnext/pp/`).
+- A fragment lives in `_fragments/<concern>/`, or next to its family when only
+  that family uses it (`flashnext/_flashnext-common.yaml`).
+- `extends` names ids, never paths. Moving a file does not change any
+  `extends`.
+- A setting that exists only for one GPU architecture goes in
+  `_fragments/arch/`. A setting that is true on every architecture stays in
+  the concern fragment. The `_rdna2` fragment holds the RDNA2 kernel switches.
+  There is no RDNA3 fragment yet: add one only with settings you have
+  validated on RDNA3 hardware.
+- To add a family, create the directory. No Go code lists the directories.
+
+## 10. Built-in fragments
+
+| Fragment | Path under `recipes/` | Content |
+|---|---|---|
+| `_base` | `_fragments/base/` | Shared environment and fixed flags of the fork launcher (`rdna_init`): spawn workers, no AITER, no hipBLASLt, FP16, TP4, 8 sequences, 2048 batched tokens, 127.0.0.1:18094. Declares `requires.arch: [gfx1030]`. Sets the `v0.31.0-extras` image and the `rocm7.14-rocblas5.5` TunableOp profile. |
+| `_rdna2` | `_fragments/arch/` | RDNA2-only kernel switches: the fork's causal-conv1d forward and update kernels, off. |
+| `_attn-fa` | `_fragments/attention/` | FA-RDNA2 attention: `RDNA_ATTN` backend, GQA decode. Removes `FLASH_ATTENTION_TRITON_AMD_ENABLE`. |
+| `_attn-triton` | `_fragments/attention/` | Triton attention (`TRITON_ATTN`), FA-RDNA2 off. |
+| `_rccl-pcie` | `_fragments/comm/` | RCCL over PCIe: P2P level `pxb`, Simple protocol, no MSCCL, fine-grained PCIe memory. |
+| `_rdna-ar` | `_fragments/comm/` | The fork's one-shot all-reduce up to 64 KiB, RCCL above. |
+| `_tuned-moe` | `_fragments/tuning/` | `VLLM_TUNED_CONFIG_FOLDER` for the tuned fused-MoE configs. In container mode it is `/src/vllm/tuned-moe` in the image. In host mode rdnactl writes the embedded folder of the selected GPUs' architecture to `<data>/tuned-moe/<arch>` and uses that directory. |
+| `_ple-int4` | `_fragments/ple/` | Flash-Next PLE n-gram table, INT4, in pinned host RAM. Needs input `PLE_QUANT_DIR`. |
+| `_ple-int4-disk` | `_fragments/ple/` | The INT4 table memory-mapped from disk through the CPU sidecar (no RAM floor). |
+| `_ple-exl3` | `_fragments/ple/` | The PLE table from an EXL3 checkpoint through the CPU sidecar. Removes `PLE_QUANT_DIR`. |
+| `_mtp2` | `_fragments/speculative/` | MTP speculative decode with 2 tokens and capture sizes 3, 6, 12, 24. |
+| `_flashnext-common` | `flashnext/` | The shared Flash-Next AWQ-W4A16 profile on 4x gfx1030 (TP4/EP4). |
+
+## 11. Built-in recipes
 
 The 11 recipes come from `tools/rdna/recipes/*.env` of the
-`opengfx1030/vllm-rdna` fork. The fork comments are kept in the files.
+`opengfx1030/vllm-rdna` fork. The fork comments are kept in the files. All
+11 declare `requires.arch: [gfx1030]`: the fork kernels are validated on
+gfx1030 only. `rdnactl recipe plan` on another architecture refuses with the
+arch it needs.
 
-| Recipe | GPUs | Modes | What it is |
-|---|---|---|---|
-| `flashnext-mtp2` | 4 | host, container | Flash-Next AWQ-W4A16, MTP=2, TP4/EP4. Wins at 8x16k/1k c=8. Validated. |
-| `flashnext-mtp0` | 4 | host, container | Flash-Next AWQ-W4A16, plain decode. Wins at 8x1k/512 c=8. Validated. |
-| `flashnext` | 4 | host, container | Flash-Next production agentic serve: tool calling, reasoning parser, 6 sequences. Validated. |
-| `flashnext-pp3` | 3 | host | Flash-Next over 3 cards, TP1/PP3, layers 16,16,16, dense INT8 only, text only. Validated. |
-| `flashnext-pp3-mtp2` | 3 | host | `flashnext-pp3` with a W4A16 MTP drafter (input `MODEL`), layers 17,17,14. Experimental. |
-| `flashnext-dflash2` | 4 | host | Flash-Next with the incoai DFlash2 drafter, 3 speculative tokens. Experimental. |
-| `flashnext-exl3` | 4 | host | Flash-Next EXL3 3.05 bpw with the PLE table from the checkpoint. Experimental. |
-| `27b-awq` | 4 | host, container | Qwen3.8-27B AWQ-INT4 dense, W4A8 prefill, TP4. Validated. |
-| `27b-exl3` | 4 | host, container | Qwen3.8-27B EXL3 3.00 bpw, TP4, 20K context. Validated. |
-| `full` | 2 | host, container | Qwen3.8-27B AWQ-INT4, full HIP path, TP2. Validated. |
-| `dsv4-flash` | 4 | host, container | DeepSeek-V4-Flash K128 (fp8 + MXFP4 experts), TP4. Needs input `MODEL`. Experimental. |
+| Recipe | Path under `recipes/` | GPUs | Modes | What it is |
+|---|---|---|---|---|
+| `flashnext-mtp2` | `flashnext/` | 4 | host, container | Flash-Next AWQ-W4A16, MTP=2, TP4/EP4. Wins at 8x16k/1k c=8. Validated. |
+| `flashnext-mtp0` | `flashnext/` | 4 | host, container | Flash-Next AWQ-W4A16, plain decode. Wins at 8x1k/512 c=8. Validated. |
+| `flashnext` | `flashnext/` | 4 | host, container | Flash-Next production agentic serve: tool calling, reasoning parser, 6 sequences. Validated. |
+| `flashnext-pp3` | `flashnext/` | 3 | host | Flash-Next over 3 cards, TP1/PP3, layers 16,16,16, dense INT8 only, text only. Validated. |
+| `flashnext-pp3-mtp2` | `flashnext/` | 3 | host | `flashnext-pp3` with a W4A16 MTP drafter (input `MODEL`), layers 17,17,14. Experimental. |
+| `flashnext-dflash2` | `flashnext/` | 4 | host | Flash-Next with the incoai DFlash2 drafter, 3 speculative tokens. Experimental. |
+| `flashnext-exl3` | `flashnext/` | 4 | host | Flash-Next EXL3 3.05 bpw with the PLE table from the checkpoint. Experimental. |
+| `27b-awq` | `qwen-dense/` | 4 | host, container | Qwen3.8-27B AWQ-INT4 dense, W4A8 prefill, TP4. Validated. |
+| `27b-exl3` | `qwen-dense/` | 4 | host, container | Qwen3.8-27B EXL3 3.00 bpw, TP4, 20K context. Validated. |
+| `full` | `qwen-dense/` | 2 | host, container | Qwen3.8-27B AWQ-INT4, full HIP path, TP2. Validated. |
+| `dsv4-flash` | `deepseek/` | 4 | host, container | DeepSeek-V4-Flash K128 (fp8 + MXFP4 experts), TP4. Needs input `MODEL`. Experimental. |
 
 `rdnactl recipe list` shows the fit of each recipe on this host.
 
-## 11. Differences from the fork launcher
+## 12. Differences from the fork launcher
 
 `rdnactl recipe plan` gives the same vLLM flags and kernel environment as
 `PRINT=1 bash tools/rdna/serve_rdna.sh RECIPE=<id>`. These differences are on
@@ -251,6 +294,6 @@ purpose:
 - `VLLM_PP_LAYER_PARTITION`: the plan shows it. The fork exports it but its
   `PRINT=1` output omits it.
 - `VLLM_TUNED_CONFIG_FOLDER`: in host mode it points to rdnactl's copy of the
-  same file, not to the fork tree.
+  same files for the selected GPUs' architecture, not to the fork tree.
 - `ROCM_HOME`, `ROCM_PATH`, `HIP_PATH`, `HIP_ROOT_DIR`: rdnactl uses the
   newest ROCm install it detects, as a resolved path.

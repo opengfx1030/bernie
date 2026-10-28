@@ -34,7 +34,7 @@ func CheckFit(r *Recipe, gpus []gpu.GPU, ramBytes uint64) Fit {
 	} else {
 		var match, vramOK int
 		for _, g := range gpus {
-			if !archMatch(rq.Arch, g.GFX) {
+			if !gpu.ArchMatch(rq.Arch, g.GFX) {
 				continue
 			}
 			match++
