@@ -104,7 +104,7 @@ func TestRunSuiteRepeatsEveryCell(t *testing.T) {
 		}
 		lo, hi = min(lo, v), max(hi, v)
 	}
-	if got, want := c.Spread["output_tok_s"], hi/lo; got != want {
+	if got, want := c.Spread["output_tok_s"], lo/hi; got != want {
 		t.Errorf("the spread of the output rate is %v, want %v", got, want)
 	}
 	if c.OutputTokS < lo || c.OutputTokS > hi {

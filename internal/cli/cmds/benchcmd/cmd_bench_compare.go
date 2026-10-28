@@ -1,9 +1,9 @@
 package benchcmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/cli"
@@ -11,9 +11,13 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 )
 
-// runCompare puts two saved results side by side.
+// runCompare puts two saved results side by side and says, for every
+// metric, whether the second run is better, the same or worse.
 func runCompare(c *cli.Context, cmd *cli.Command, args []string) error {
-	pos, err := cli.Parse(c.Flags(cmd), args)
+	fs := c.Flags(cmd)
+	var band float64
+	fs.Float64Var(&band, "band", 0, "share of a change that counts as noise (default: the band of the suite)")
+	pos, err := cli.Parse(fs, args)
 	if err != nil {
 		return err
 	}
@@ -32,44 +36,76 @@ func runCompare(c *cli.Context, cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	return c.Emit(cmp, func(w io.Writer) { printComparison(w, cmp) })
+	verdict := suite.Judge(cmp, band)
+	if err := c.Emit(verdict, func(w io.Writer) { printVerdict(w, verdict) }); err != nil {
+		return err
+	}
+	return verdictExit(verdict, c.JSON)
 }
 
-// printComparison puts two results of the same workload side by side.
-func printComparison(w io.Writer, cmp *suite.Comparison) {
-	fmt.Fprintf(w, "%s  %s  %s\n", cmp.A.ID, cmp.A.Model, cmp.A.URL)
-	fmt.Fprintf(w, "%s  %s  %s\n", cmp.B.ID, cmp.B.Model, cmp.B.URL)
-	conc := make([]string, len(cmp.Workload.Concurrency))
-	for i, c := range cmp.Workload.Concurrency {
-		conc[i] = strconv.Itoa(c)
+// verdictExit is the exit code of a comparison: 0 when nothing is worse, 3
+// when a metric is worse, 1 when the comparison could not decide. In JSON
+// mode the document carries the answer, so nothing more is printed.
+func verdictExit(v *suite.Verdict, jsonOut bool) error {
+	switch v.ExitCode {
+	case 0:
+		return nil
+	case 3:
+		msg := fmt.Sprintf("%d metric(s) are worse than the baseline", v.Summary.Worse)
+		if jsonOut {
+			msg = ""
+		}
+		return &cli.ExitError{Code: cli.ExitChecks, Err: errors.New(msg)}
+	default:
+		msg := "the comparison could not decide: " + strings.Join(v.Reasons, "; ")
+		if len(v.Reasons) == 0 {
+			msg = "the comparison could not decide: the numbers of the two runs disagree too much"
+		}
+		if jsonOut {
+			msg = ""
+		}
+		return &cli.ExitError{Code: cli.ExitFailure, Err: errors.New(msg)}
 	}
-	recall := "off"
-	if cmp.Workload.Recall {
-		recall = "on"
-	}
-	fmt.Fprintf(w, "workload: protocol %s, input %d tokens, output %d tokens, concurrency %s, recall %s\n",
-		cmp.Workload.ProtocolID, cmp.Workload.InputLen, cmp.Workload.OutputLen, strings.Join(conc, ","), recall)
-	if cmp.Workload.SuiteID != "" {
-		fmt.Fprintf(w, "suite: %s (digest %s)\n", cmp.Workload.SuiteID, shortDigest(cmp.Workload.SuiteDigest))
+}
+
+// printVerdict writes the verdict of a comparison: the metrics of every
+// cell with the numbers of the two runs and the verdict of the change.
+func printVerdict(w io.Writer, v *suite.Verdict) {
+	fmt.Fprintf(w, "%s  %s\n", v.A.ID, v.A.Model)
+	fmt.Fprintf(w, "%s  %s\n", v.B.ID, v.B.Model)
+	if v.Workload.SuiteID != "" {
+		fmt.Fprintf(w, "suite %s, band %.3f, steady %.2f\n", v.Workload.SuiteID, v.Workload.CompareBand, v.Workload.CompareSteady)
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, metricHelp)
-	for _, cl := range cmp.A.Cells {
-		fmt.Fprintf(w, "result %s\n", cmp.A.ID)
-		printCell(w, &cl)
-		if other := cellOf(cmp.B, cl.Group, cl.Concurrency); other != nil {
-			fmt.Fprintf(w, "result %s\n", cmp.B.ID)
-			printCell(w, other)
+	for _, cv := range v.Cells {
+		fmt.Fprintf(w, "cell %s\n", cellLabel(cv.Group, cv.Concurrency))
+		fmt.Fprintln(w, cellRow("metric", "base", "cand", "delta %", "band", "verdict"))
+		for _, m := range cv.Metrics {
+			fmt.Fprintln(w, cellRow(m.Label, rateText(m.Base), rateText(m.Cand),
+				fmt.Sprintf("%+.1f", m.DeltaPct), fmt.Sprintf("%.3f", m.Band), m.Verdict))
+		}
+	}
+	fmt.Fprintf(w, "\n%d better, %d same, %d worse, %d noisy; recall %s\n",
+		v.Summary.Better, v.Summary.Same, v.Summary.Worse, v.Summary.Noisy, recallVerdictText(v))
+	if !v.Valid {
+		for _, r := range v.Reasons {
+			fmt.Fprintf(w, "no verdict: %s\n", r)
 		}
 	}
 }
 
-// cellOf returns the cell of a result with this group and concurrency.
-func cellOf(r *bench.Result, group string, concurrency int) *bench.Cell {
-	for i := range r.Cells {
-		if r.Cells[i].Concurrency == concurrency && r.Cells[i].Group == group {
-			return &r.Cells[i]
-		}
+// recallVerdictText names the recall gate of a comparison.
+func recallVerdictText(v *suite.Verdict) string {
+	if !v.Summary.RecallOK {
+		return "failed"
 	}
-	return nil
+	return "ok"
+}
+
+// cellLabel names a cell of a comparison.
+func cellLabel(group string, concurrency int) string {
+	if group == "" {
+		return fmt.Sprintf("c=%d", concurrency)
+	}
+	return fmt.Sprintf("%s c=%d", group, concurrency)
 }

@@ -302,7 +302,8 @@ func values(ms []bench.Measurement, read func(bench.Measurement) float64) []floa
 	return out
 }
 
-// spreadOf is the min/max ratio of the metrics over the repetitions. A
+// spreadOf is the min/max ratio of the metrics over the repetitions: 1
+// means the repetitions agree, a lower number says how far they differ. A
 // metric without a number in every repetition is left out.
 func spreadOf(reps []bench.Cell) map[string]float64 {
 	out := map[string]float64{}
@@ -324,7 +325,7 @@ func spreadOf(reps []bench.Cell) map[string]float64 {
 		if lo <= 0 {
 			continue
 		}
-		out[m.Name] = hi / lo
+		out[m.Name] = lo / hi
 	}
 	return out
 }
