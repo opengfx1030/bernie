@@ -35,10 +35,10 @@ view of the CLI. It adds no logic.
 | Task | Files |
 |---|---|
 | New endpoint | spec §11, `api.go`, `dashboard_test.go` |
-| New view or card | `web/views/<tab>.js` (one `view*` function), `web/app.css` |
+| New view or card | `web/views/<tab>.js` (one `view*` function), `web/components.css` |
 | New tab | `web/index.html` tab link, section and script tag, `views` map in `web/boot.js`, a `GET /views/...` route is already generic, this README table |
 | New live value | `telemetry.go`, `hub.go`, the sample type in `gpu`/`runner`, spec §11 |
-| Change colors or layout | `web/app.css`: use the existing `--` variables |
+| Change colors or layout | `web/tokens.css`: use the existing `--` variables |
 | Auth change | `auth.go`, spec §11, a test that shows the old attack still fails |
 
 ## Check your work

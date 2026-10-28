@@ -3,6 +3,7 @@
 
 async function viewTopology(root) {
   put(root, loading());
+  const head = stateHead("Topology", h("button.primary", { type: "button", onclick: () => viewTopology(root) }, "Re-check the links"));
   try {
     const [topo, check] = await Promise.all([
       api("/api/topo"),
@@ -12,10 +13,14 @@ async function viewTopology(root) {
     const nodes = topo.nodes || [];
     const pairs = topo.pairs || [];
     if (!nodes.length) {
-      put(root, h("div", p2pCard(check), h("div.gap"),
-        h("div.card", cardHead("Topology", "/api/topo"), h("div.empty", "No GPUs found, so there is no PCIe topology to show."))));
+      setHead(head, "No PCIe topology yet", "The tree shows how the cards are wired to each other. It appears once the host has GPUs.");
+      put(root, head, h("div", p2pCard(check), h("div.gap"),
+        h("div.card", cardHead("Topology", "/api/topo"), emptyState("There is no PCIe tree to show.", "The tree is the way the cards are wired to each other. It needs at least one GPU."))));
       return;
     }
+    const switches = new Set(nodes.map((n) => n.switch || "")).size;
+    setHead(head, nodes.length + (nodes.length === 1 ? " GPU" : " GPUs") + " behind " + switches + (switches === 1 ? " switch" : " switches"),
+      "Two cards on the same switch can copy between each other over the PCIe bus. The checklist above says whether this host may do that.");
     const groups = new Map();
     for (const n of nodes) {
       const k = n.switch || "";
@@ -38,7 +43,7 @@ async function viewTopology(root) {
         return h("td", { class: "c-" + p.class, title: `${a}↔${b}: ${p.class}, ${p.hops ?? "?"} hops, P2P ${p.p2p ? "yes" : "no"}` },
           p.class + (p.p2p ? " •" : ""), p.gbps ? h("span.gb", num(p.gbps) + " GB/s") : null);
       })))));
-    put(root, h("div", p2pCard(check), h("div.gap"),
+    put(root, head, h("div", p2pCard(check), h("div.gap"),
       h("div.cols",
         h("div.card", cardHead("PCIe tree", "/api/topo"), tree),
         h("div.card", cardHead("Link classes", "/api/topo", topo.bandwidth ? h("span.small.muted", "bandwidth: " + topo.bandwidth) : null),
@@ -59,13 +64,14 @@ function p2pCard(data) {
   const items = data.checklist || [];
   const sum = data.summary || {};
   const counts = ["ok", "warn", "fail", "skip"].map((s) => `${sum[s] || 0} ${s}`).join(" · ");
+  const empty = emptyState("Nothing to check.", "The checklist says whether two cards on this host may copy between each other over the PCIe bus. It needs at least one GPU.");
   let label = "ready", cls = "b-ok";
   if (sum.fail) { label = "not ready"; cls = "b-fail"; }
   else if (!sum.ok && !sum.warn) { label = "nothing to check"; cls = "b-skip"; }
   return h("div.card",
     cardHead("P2P readiness", "/api/topo/check"),
     h("div.row", h("span.small.muted", counts), h("span.badge", { class: cls }, label)),
-    items.length ? items.map(p2pRow) : h("div.empty", "No checklist items."));
+    items.length ? items.map(p2pRow) : empty);
 }
 
 // p2pRow shows one checklist item: its state, the cause and the fix.

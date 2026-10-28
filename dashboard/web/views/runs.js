@@ -5,17 +5,33 @@ let logES = null;
 function stopLogs() { if (logES) { logES.close(); logES = null; } }
 
 async function viewRuns(root) {
+  const head = stateHead("Runs", h("a.btn.primary", { href: "#recipes" }, "Start a run"));
   const list = h("div.card", cardHead("Runs", "/api/runs", h("button.small", { onclick: () => viewRuns(root) }, "Refresh")), loading());
-    const logs = h("div.card", cardHead("Logs"), h("div.empty", "Select a run to follow its log."));
-  put(root, list, h("div.gap"), logs);
+  const logs = h("div.card", cardHead("Logs"), emptyState("No log yet.", "Start the server first, then follow its log here."));
+  put(root, head, list, h("div.gap"), logs);
   try {
     const runs = runsOf(await api("/api/runs"));
+    setHead(head, runsHeadline(runs), runsLede(runs));
     list.lastChild.replaceWith(runsTable(runs, false, logs, root));
     // A run that is still loading shows its log right away: the model load
     // takes minutes and the log says what the server is doing.
     const loading = runs.find((r) => r.state === "starting");
     if (loading) followLogs(logs, loading.name, loading.findings);
   } catch (e) { list.lastChild.replaceWith(failed(e)); }
+}
+
+// runsHeadline says in one sentence what is running.
+function runsHeadline(runs) {
+  const live = runs.filter((r) => r.state === "ready" || r.state === "starting").length;
+  if (!runs.length) return "No run is serving";
+  if (live) return live + (live === 1 ? " run is" : " runs are") + " serving";
+  return runs.length + (runs.length === 1 ? " run has" : " runs have") + " exited";
+}
+
+// runsLede says what a run is and what to do next.
+function runsLede(runs) {
+  if (!runs.length) return "A run is a model server on this host: it loads the model and then answers requests. Start one from the Recipes tab.";
+  return "A run is a model server on this host. Its log says what it is doing, and the findings name the rule that matches a known failure.";
 }
 
 // stateNote says in one plain line what the state of a run means. A run
@@ -27,7 +43,7 @@ function stateNote(r) {
 }
 
 function runsTable(runs, compact, logCard, root) {
-  if (!runs.length) return h("div.empty", "No runs. Start one from the Recipes tab or with `bernie serve <recipe>`.");
+  if (!runs.length) return emptyState("No run is serving.", "A run is a model server on this host: it loads the model and then answers requests. Start one from the Recipes tab, or run it in a terminal:", "bernie serve <recipe>");
   const tele = new Map(((state.tele && state.tele.runs) || []).map((r) => [r.name, r]));
   return h("div.scroll", h("table",
     h("thead", h("tr", h("th", "Name"), h("th", "Recipe"), h("th", "State"), compact ? null : h("th", "Mode"), h("th", "Address"), compact ? null : h("th", "Started"), compact ? null : h("th", ""))),
