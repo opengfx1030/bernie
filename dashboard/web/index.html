@@ -8,13 +8,14 @@
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="layout.css">
 <link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="bench.css">
 <link rel="icon" href="data:,">
 </head>
 <body>
 <header class="top">
   <div class="brand"><span class="logo">bernie</span><span id="hostname" class="muted"></span><span id="gpunote" class="muted"></span></div>
   <nav id="tabs" role="tablist">
-    <a href="#overview" role="tab" data-tab="overview">Overview</a>
+    <a href="#home" role="tab" data-tab="home">Home</a>
     <a href="#gpus" role="tab" data-tab="gpus">GPUs</a>
     <a href="#topology" role="tab" data-tab="topology">Topology</a>
     <a href="#recipes" role="tab" data-tab="recipes">Recipes</a>
@@ -24,7 +25,7 @@
   <span id="live" class="live" title="telemetry stream">●</span>
 </header>
 <main>
-  <section id="tab-overview" class="tab" hidden></section>
+  <section id="tab-home" class="tab" hidden></section>
   <section id="tab-gpus" class="tab" hidden></section>
   <section id="tab-topology" class="tab" hidden></section>
   <section id="tab-recipes" class="tab" hidden></section>
@@ -33,13 +34,16 @@
 </main>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <script src="app.js"></script>
-<script src="views/overview.js"></script>
+<script src="views/home.js"></script>
+<script src="views/home_steps.js"></script>
+<script src="views/home_advanced.js"></script>
 <script src="views/gpus.js"></script>
 <script src="views/gpus_power.js"></script>
 <script src="views/topology.js"></script>
 <script src="views/recipes.js"></script>
 <script src="views/runs.js"></script>
 <script src="views/bench.js"></script>
+<script src="views/bench-suite.js"></script>
 <script src="boot.js"></script>
 </body>
 </html>

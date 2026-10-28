@@ -135,9 +135,9 @@ function cardHead(title, path, ...rest) {
  *  headline is read out when it changes. The action is the one primary
  *  button of the tab; it sits under the headline. */
 function stateHead(eyebrow, action) {
-  return h("section.state-head", { "aria-live": "polite" },
+  return h("section.state-head",
     h("p.eyebrow", eyebrow),
-    h("h1.display", "…"),
+    h("h1.display", { "aria-live": "polite" }, "…"),
     h("p.lede", ""),
     action ? h("div.head-actions", action) : null);
 }
