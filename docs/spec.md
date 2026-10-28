@@ -416,7 +416,7 @@ stability; `skip` means the check cannot run here.
 | `python` | With `--venv` (or the configured venv): Python version, `torch` imports, `torch.version.hip` set, GPU count matches, `rocm-sdk-device` wheels match the GPU code targets, Triton is below the version that dropped a GPU generation (`triton_below` in the device tables; `fail`), `vllm` imports, fork ops registered (`_rocm_C::*rdna*` schema count > 10). |
 | `container` | `docker` or `podman` present, daemon or socket usable, compose present, rootless state, SELinux mode. |
 | `resources` | RAM. Free disk in the Hugging Face cache. `/dev/shm` size. |
-| `tuning` | TunableOp profile matches the loaded rocBLAS. Power cap per GPU: `warn` when a cap is above the advice of the device table ([§9.2](#92-power)). |
+| `tuning` | TunableOp profile matches the loaded rocBLAS. Without a known venv this check is `skip`: "pass --venv to check the rocBLAS your server loads". The system rocBLAS is not the library a host-mode venv loads. Power cap per GPU: `warn` when a cap is above the advice of the device table ([§9.2](#92-power)). |
 
 ### 5.3 Log doctor
 
