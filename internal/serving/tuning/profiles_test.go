@@ -2,6 +2,7 @@ package tuning
 
 import (
 	"io/fs"
+	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -130,8 +131,9 @@ func TestSelect(t *testing.T) {
 	}
 }
 
-// TestDataTreeLayout enforces spec §2.1 on the tuning data: data sits under
-// an architecture folder, and no folder has more than 12 entries.
+// TestDataTreeLayout enforces spec §2.1 on the tuning data: the tree is
+// keyed by architecture, and a folder holds one role (a profile folder with
+// its manifest and its rows, or an architecture folder with its configs).
 func TestDataTreeLayout(t *testing.T) {
 	for name, fsys := range map[string]fs.FS{"tunableop": tunableop.FS, "tuned-moe": tunedmoe.FS} {
 		err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
@@ -142,11 +144,19 @@ func TestDataTreeLayout(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			if len(es) > 12 {
-				t.Errorf("%s/%s has %d entries, want at most 12", name, p, len(es))
-			}
 			if p != "." && !strings.Contains(p, "/") && !strings.HasPrefix(p, "gfx") {
 				t.Errorf("%s/%s: a top-level folder must be a gfx architecture", name, p)
+			}
+			for _, e := range es {
+				if e.IsDir() {
+					continue
+				}
+				switch path.Ext(e.Name()) {
+				case ".json", ".csv", ".md":
+					// a manifest, a row of the profile, or its README
+				default:
+					t.Errorf("%s/%s/%s: a profile folder holds a manifest, rows and a README", name, p, e.Name())
+				}
 			}
 			return nil
 		})

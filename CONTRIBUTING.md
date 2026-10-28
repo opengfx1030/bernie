@@ -24,12 +24,30 @@ run for each change below.
 ```bash
 git clone https://github.com/opengfx1030/bernie
 cd bernie
-make check          # gofmt + go vet + go test
+make check          # gofmt + go vet + go test + layer check
 make build          # bin/bernie
 make linux          # bin/bernie-linux-amd64 for a GPU host
 ```
 
 You need Go 1.26 or later. You do not need a GPU to run the tests.
+
+## Structure
+
+The repository is grouped by role, not by count. The rules are in
+[AGENTS.md](AGENTS.md) rule 11 and in [docs/spec.md](docs/spec.md) §2.1.
+In short:
+
+- One responsibility per package, stated in one sentence at the top of its
+  `doc.go` or main file. The public surface of each package is listed in
+  [docs/packages.md](docs/packages.md).
+- A package with two clearly separable roles becomes two packages, or two
+  sub-packages, once it passes about 15 files. Split by a real axis (device
+  generation, model family, concern), never to satisfy a count.
+- A Go file has at most about 400 lines. Split it by concept, not by line
+  count.
+- No package imports a package of a higher layer. The layers are in
+  [docs/architecture.md](docs/architecture.md) §2 and `make check` fails on a
+  violation.
 
 ## Recipe contributions
 

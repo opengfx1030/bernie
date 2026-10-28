@@ -193,26 +193,36 @@ func TestHostOnlyRecipesRefuseContainerMode(t *testing.T) {
 	}
 }
 
-// TestTreeLayout enforces spec §2.1 on the recipe tree: at most 12 entries per
-// directory (embed.go and README.md excluded), recipe ids unique across the
-// tree (the loader reports duplicates), and every file is a *.yaml recipe.
+// TestTreeLayout enforces spec §2.1 on the recipe tree: every recipe file is
+// a *.yaml, the tree is grouped by role (a family folder at the top, a
+// concern folder under _fragments) and the ids of the tree are unique.
 func TestTreeLayout(t *testing.T) {
 	err := fs.WalkDir(recipes.FS, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			es, err := fs.ReadDir(recipes.FS, p)
-			if err != nil {
-				return err
-			}
-			if len(es) > 12 {
-				t.Errorf("recipes/%s has %d entries, want at most 12", p, len(es))
+		if !d.IsDir() {
+			if path.Ext(p) != ".yaml" {
+				t.Errorf("recipes/%s is not a recipe (*.yaml)", p)
 			}
 			return nil
 		}
-		if path.Ext(p) != ".yaml" {
-			t.Errorf("recipes/%s is not a recipe (*.yaml)", p)
+		es, err := fs.ReadDir(recipes.FS, p)
+		if err != nil {
+			return err
+		}
+		for _, e := range es {
+			if e.IsDir() {
+				continue
+			}
+			switch {
+			case p == ".":
+				t.Errorf("recipes/%s: the top level holds only family folders", e.Name())
+			case p == "_fragments":
+				t.Errorf("recipes/%s: _fragments holds only concern folders", e.Name())
+			case path.Dir(p) == "_fragments" && path.Ext(e.Name()) != ".yaml":
+				t.Errorf("recipes/%s: a concern folder holds only recipes", e.Name())
+			}
 		}
 		return nil
 	})
