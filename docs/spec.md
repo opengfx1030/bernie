@@ -1152,6 +1152,10 @@ Rules for responses and tokens:
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
+| GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)) |
+| POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
+| GET | `/api/jobs/{id}` | the job document |
+| GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
 
 The `Sample` of the telemetry stream is one GPU:

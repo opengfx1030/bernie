@@ -161,6 +161,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("PUT /api/power", s.putPower)
 	mux.HandleFunc("GET /api/bench", s.getBench)
 	mux.HandleFunc("POST /api/bench", s.postBench)
+	mux.HandleFunc("GET /api/onboarding", s.getOnboarding)
+	mux.HandleFunc("POST /api/onboarding/{step}/run", s.postOnboardingRun)
+	mux.HandleFunc("GET /api/jobs/{id}", s.getJob)
+	mux.HandleFunc("GET /api/jobs/{id}/events", s.getJobEvents)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
 	})
