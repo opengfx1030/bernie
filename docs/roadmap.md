@@ -37,6 +37,12 @@ Each item has a spec section and one test that proves it.
   request cells, and every cell keeps its group, its lens, its repetitions
   and the spread of its metrics. Spec
   [§10.2](spec.md#102-suites).
+- **Repeated cells.** Every cell of a suite runs several times. The numbers
+  of the cell are the medians over the repetitions, the repetitions
+  themselves are in the result, and the spread says how well they agree. A
+  cell that lost a request is `incomplete`: its numbers stay, but no
+  verdict uses them. The result records the power cap and the clocks of
+  the cards. Spec [§10.2](spec.md#102-suites).
 - **ECC check.** The doctor check `gpu.ecc.<hip index>` reads the RAS
   counters of every card: `ok` when ECC is on and the card counted no
   memory error, `warn` when ECC is off on a card that has it or when the

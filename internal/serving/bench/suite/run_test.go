@@ -112,6 +112,38 @@ func TestRunSuiteRepeatsEveryCell(t *testing.T) {
 	}
 }
 
+// TestRunSuiteMarksIncompleteCells checks that a cell that lost a request
+// is incomplete: its numbers stay visible, but no verdict may use them.
+func TestRunSuiteMarksIncompleteCells(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	fake := vllmtest.New(vllmtest.Config{Model: "fake", TTFT: 2 * ms, ChunkDelay: ms, FailEvery: 2})
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+
+	s := &Suite{
+		Schema: Schema, ID: "t", Name: "T", Reps: 1, Warmup: 1,
+		Compare: Thresholds{Band: DefaultBand, Steady: DefaultSteady},
+		Groups: []Group{{
+			Name: "g", Kind: KindThroughput, InputLen: 64, OutputLen: 8,
+			Concurrency: []int{1}, Reps: 1, Source: Source{Kind: SourceSynthetic},
+		}},
+	}
+	r, err := Run(context.Background(), s, bench.Options{URL: srv.URL}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Cells) != 1 {
+		t.Fatalf("the suite measured %d cells, want 1", len(r.Cells))
+	}
+	c := r.Cells[0]
+	if !c.Incomplete {
+		t.Error("the cell that lost a request is not marked incomplete")
+	}
+	if c.Completed == 0 {
+		t.Error("the incomplete cell lost its numbers")
+	}
+}
+
 // TestRunSuiteTurnsOnTheRecallGate checks that the recall gate of a suite
 // reaches the cells: a suite that asks for it checks every reply.
 func TestRunSuiteTurnsOnTheRecallGate(t *testing.T) {

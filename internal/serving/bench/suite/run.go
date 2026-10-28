@@ -98,6 +98,9 @@ func groupCells(g Group, reps []bench.Cell) []bench.Cell {
 		cell.OutputLen = g.OutputLen
 		for _, r := range ofLevel {
 			cell.Reps = append(cell.Reps, repOf(r))
+			if r.WarmupFailed > 0 || r.Failed > 0 {
+				cell.Incomplete = true
+			}
 		}
 		cell.Spread = spreadOf(ofLevel)
 		out = append(out, cell)

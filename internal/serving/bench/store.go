@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/serving/tuning"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
@@ -237,12 +238,51 @@ func fingerprint(stateDir, rawURL string) map[string]string {
 		fp["gpus"] = summary
 		fp["gpu_scope"] = scope
 	}
+	if gpus, _, _ := selectedGPUs(matched); len(gpus) > 0 {
+		if caps := powerCaps(gpus); caps != "" {
+			fp["power_cap"] = caps
+		}
+		if clocks := gpuClocks(gpus); clocks != "" {
+			fp["clocks"] = clocks
+		}
+	}
 	return fp
 }
 
-// gpuFingerprint returns the GPUs used by the matched run. It falls back to
-// every host GPU when there is no run plan or the plan has no selection.
-func gpuFingerprint(rec *runRecord) (summary, scope string) {
+// powerCaps reads the power cap of the GPUs. It is empty when the host
+// publishes none.
+func powerCaps(gpus []gpu.GPU) string {
+	var parts []string
+	for _, p := range tuning.PowerStatus(gpus) {
+		parts = append(parts, fmt.Sprintf("HIP %d %.0f W", p.HIPIndex, p.CapW))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// gpuClocks reads the current clocks of the GPUs. It is empty when the
+// host publishes none.
+func gpuClocks(gpus []gpu.GPU) string {
+	var parts []string
+	for _, s := range gpu.Telemetry("/", gpus) {
+		if s.SclkMHz == nil && s.MclkMHz == nil {
+			continue
+		}
+		part := fmt.Sprintf("HIP %d", s.HIPIndex)
+		if s.SclkMHz != nil {
+			part += fmt.Sprintf(" sclk %d MHz", *s.SclkMHz)
+		}
+		if s.MclkMHz != nil {
+			part += fmt.Sprintf(" mclk %d MHz", *s.MclkMHz)
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// selectedGPUs returns the GPUs of the matched run, the scope of the
+// selection and the indices the plan names but the host does not have.
+// Without a run plan the selection is unknown, so every host GPU is listed.
+func selectedGPUs(rec *runRecord) (gpus []gpu.GPU, scope string, missing []int) {
 	if rec != nil {
 		var p planGPUFields
 		if json.Unmarshal(rec.Plan, &p) == nil {
@@ -252,31 +292,42 @@ func gpuFingerprint(rec *runRecord) (summary, scope string) {
 				for _, g := range all {
 					byIndex[g.HIPIndex] = g
 				}
-				var selected []gpu.GPU
-				var missing []int
 				for _, i := range idx {
 					if g, ok := byIndex[i]; ok {
-						selected = append(selected, g)
+						gpus = append(gpus, g)
 					} else {
 						missing = append(missing, i)
 					}
 				}
-				summary = gpuSummary(selected)
-				for _, i := range missing {
-					if summary != "" {
-						summary += ", "
-					}
-					summary += fmt.Sprintf("HIP GPU %d", i)
-				}
-				return summary, "run"
+				return gpus, "run", missing
 			}
 		}
 	}
 	all, err := gpuList("/")
 	if err != nil || len(all) == 0 {
-		return "none found", "all (run selection unknown)"
+		return nil, "all (run selection unknown)", nil
 	}
-	return gpuSummary(all), "all (run selection unknown)"
+	return all, "all (run selection unknown)", nil
+}
+
+// gpuFingerprint returns the GPUs used by the matched run. It falls back to
+// every host GPU when there is no run plan or the plan has no selection.
+func gpuFingerprint(rec *runRecord) (summary, scope string) {
+	gpus, scope, missing := selectedGPUs(rec)
+	if scope == "run" {
+		summary = gpuSummary(gpus)
+		for _, i := range missing {
+			if summary != "" {
+				summary += ", "
+			}
+			summary += fmt.Sprintf("HIP GPU %d", i)
+		}
+		return summary, scope
+	}
+	if len(gpus) == 0 {
+		return "none found", scope
+	}
+	return gpuSummary(gpus), scope
 }
 
 // gpuSummary groups GPUs by name and gfx target in HIP order, e.g.
