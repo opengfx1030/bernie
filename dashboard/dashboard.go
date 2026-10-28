@@ -143,6 +143,8 @@ func (s *server) handler() http.Handler {
 	mux.Handle("GET /{$}", withCSP(static))
 	mux.Handle("GET /app.js", withCSP(static))
 	mux.Handle("GET /app.css", withCSP(static))
+	mux.Handle("GET /boot.js", withCSP(static))
+	mux.Handle("GET /views/{file}", withCSP(static))
 
 	mux.HandleFunc("GET /api/hw", s.getHW)
 	mux.HandleFunc("GET /api/topo", s.getTopo)
