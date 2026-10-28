@@ -1169,6 +1169,9 @@ and the recall gate. `--url`, `--model`, `--tag`, `--num-prompts` and
 `--concurrency`, `--warmup` and `--recall` cannot be used with `--suite`:
 the suite decides the cells, and a half-overridden cell is no cell.
 
+In the dashboard and over MCP a request that names a suite ignores its
+cell flags: the suite decides them.
+
 A suite file:
 
 ```yaml
@@ -1369,6 +1372,17 @@ raw JSON of the endpoint behind the card in a new tab, so the document a
 person reads and the document an agent gets are the same one. Every
 command the page shows has a copy button, and the button copies the
 command exactly as it is shown.
+
+The Home tab is the first tab of the page. It renders the onboarding
+document of [§3.3](#33-the-onboarding-checklist) and holds no state of its
+own: what the server reports is what the page shows, and a re-check asks
+the server again. A step that bernie can do is started with `POST
+/api/onboarding/{step}/run`; its output arrives on the event stream of the
+job (`GET /api/jobs/{id}/events`) and the page shows it under the step. A
+step that needs root shows its commands and a copy button, and the page
+never runs them. The Advanced disclosure of the Home tab holds the raw
+document of `GET /api/onboarding` and the commands that produce it
+(`bernie status --steps`, `bernie status --json`).
 
 ## 12. Files and paths
 

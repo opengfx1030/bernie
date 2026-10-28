@@ -191,6 +191,7 @@ func (s *Server) benchRun(_ context.Context, c *call, in benchRunIn) (any, error
 		o.Suite = in.Suite
 		o.InputLen, o.OutputLen = 0, 0
 		o.Concurrency = nil
+		o.Recall = false
 	} else {
 		var err error
 		o, err = bench.Normalize(o)
