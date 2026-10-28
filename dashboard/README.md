@@ -90,6 +90,11 @@ sentence, the facts of the host with the reason under every value, and the
 checklist of [spec §3.3](../docs/spec.md#33-the-onboarding-checklist): every
 step of the path from a bare machine to a serving model, in order.
 
+The checklist takes a moment to arrive: until it does, the headline says
+what bernie is checking and the card names the phase. A checklist that is
+older than its time to live is shown with the note that bernie is checking
+the host again.
+
 The GPUs tab opens with five tiles: the load, the power, the memory, the
 hottest card and the highest clock, each with the last minute of it as a
 sparkline. Every card shows its load as a ring and its power as a meter
