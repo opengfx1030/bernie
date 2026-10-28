@@ -69,7 +69,7 @@ needs a reason in its description.
    past 12, split it by a real axis:
    - `internal/` by role: `machine/` (host, gpu, rocm, topo), `serving/`
      (recipe, runner, tuning, vllm, bench) and `support/` (execx, paths,
-     config, fixture). Packages that sit on top (`cli`, `flow`, `doctor`,
+     config, fixture). Packages that sit on top (`cli`, `app`, `flow`, `doctor`,
      `setup`, `logdoc`) stay at the top. Group by role when `internal/`
      passes 12 entries;
    - recipes by model family (`recipes/flashnext/`, `recipes/qwen-dense/`),

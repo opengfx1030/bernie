@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
@@ -112,10 +113,11 @@ func init() {
 		if len(pos) == 1 {
 			name = pos[0]
 		}
-		if err := runner.Stop(c.Ctx, name); err != nil {
+		res, err := app.Stop(c.Ctx, name)
+		if err != nil {
 			return err
 		}
-		return c.Emit(map[string]any{"stopped": true, "name": name}, func(w io.Writer) {
+		return c.Emit(res, func(w io.Writer) {
 			fmt.Fprintln(w, "stopped")
 		})
 	}

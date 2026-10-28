@@ -7,9 +7,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/machine/topo"
-	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 func init() {
@@ -21,23 +20,9 @@ func init() {
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		gpus, err := gpu.List("/")
+		t, err := app.Topo(c.Ctx, app.TopoOptions{Bandwidth: *bw, Venv: *venvFlag, Progress: c.Err})
 		if err != nil {
 			return err
-		}
-		t, err := topo.Discover("/", gpus)
-		if err != nil {
-			return err
-		}
-		if *bw {
-			cfg, err := config.Load()
-			if err != nil {
-				return err
-			}
-			c.Logf("measuring bandwidth...")
-			if err := topo.MeasureBandwidth(c.Ctx, &t, cfg.ResolveVenv(*venvFlag)); err != nil {
-				return err
-			}
 		}
 		return c.Emit(t, func(w io.Writer) { printTopo(w, t) })
 	}

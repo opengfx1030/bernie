@@ -6,15 +6,8 @@ import (
 	"io"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/app"
 )
-
-// hwReport is the `hw --json` document (spec §4.3).
-type hwReport struct {
-	Host host.Info `json:"host"`
-	GPUs []gpu.GPU `json:"gpus"`
-}
 
 func init() {
 	cmd := &cli.Command{Name: "hw", Summary: "Hardware and OS inventory", Usage: ""}
@@ -22,24 +15,19 @@ func init() {
 		if _, err := cli.Parse(c.Flags(cmd), args); err != nil {
 			return err
 		}
-		h, err := host.Probe(c.Ctx, "/")
+		r, err := app.HW(c.Ctx)
 		if err != nil {
 			return err
 		}
-		gpus, err := gpu.List("/")
-		if err != nil {
-			c.Logf("warning: %v", err)
+		if r.GPUErr != nil {
+			c.Logf("warning: %v", r.GPUErr)
 		}
-		if gpus == nil {
-			gpus = []gpu.GPU{}
-		}
-		r := hwReport{Host: h, GPUs: gpus}
 		return c.Emit(r, func(w io.Writer) { printHW(w, r) })
 	}
 	cli.Register(cmd)
 }
 
-func printHW(w io.Writer, r hwReport) {
+func printHW(w io.Writer, r app.HWReport) {
 	h := r.Host
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(tw, "host\t%s\n", h.Hostname)

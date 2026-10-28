@@ -13,15 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opengfx1030/bernie/internal/doctor"
-	"github.com/opengfx1030/bernie/internal/flow"
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/machine/host"
-	"github.com/opengfx1030/bernie/internal/machine/topo"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
-	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
-	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 // root is the host filesystem root the probes read ("/" in production).
@@ -41,39 +36,23 @@ func listGPUs() ([]gpu.GPU, error) {
 
 // GET /api/hw — `bernie hw --json`.
 func (s *server) getHW(w http.ResponseWriter, r *http.Request) {
-	h, err := host.Probe(r.Context(), root)
+	rep, err := app.HW(r.Context())
+	if err == nil && rep.GPUErr != nil && !errors.Is(rep.GPUErr, fs.ErrNotExist) {
+		err = rep.GPUErr // a host without KFD has no GPUs; other read errors are failures
+	}
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	gpus, err := listGPUs()
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, struct {
-		Host host.Info `json:"host"`
-		GPUs []gpu.GPU `json:"gpus"`
-	}{h, gpus})
+	writeJSON(w, http.StatusOK, rep)
 }
 
 // GET /api/topo — `bernie topo --json` (no bandwidth test: it loads the GPUs).
 func (s *server) getTopo(w http.ResponseWriter, r *http.Request) {
-	gpus, err := listGPUs()
+	t, err := app.Topo(r.Context(), app.TopoOptions{NoKFDOK: true})
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
-	}
-	t, err := topo.Discover(root, gpus)
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if t.Nodes == nil {
-		t.Nodes = []topo.Node{}
-	}
-	if t.Pairs == nil {
-		t.Pairs = []topo.Pair{}
 	}
 	writeJSON(w, http.StatusOK, t)
 }
@@ -81,27 +60,17 @@ func (s *server) getTopo(w http.ResponseWriter, r *http.Request) {
 // GET /api/doctor — `bernie doctor --json` (all categories, configured venv).
 func (s *server) getDoctor(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	cfg, err := config.Load()
+	rep, err := app.Doctor(r.Context(), q["category"], q.Get("venv"))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	rep := doctor.Run(r.Context(), doctor.Options{Root: root, Venv: cfg.ResolveVenv(q.Get("venv")), Categories: q["category"], HFHome: cfg.HFHome})
 	writeJSON(w, http.StatusOK, rep)
 }
 
 // GET /api/recipes — `bernie recipe list --all --json`.
 func (s *server) getRecipes(w http.ResponseWriter, r *http.Request) {
-	set := recipe.Load()
-	var gpus []gpu.GPU
-	if g, err := gpu.List(root); err == nil {
-		gpus = g // nil (no GPU data) gives fit "unknown"
-	}
-	var ram uint64
-	if h, err := host.Probe(r.Context(), root); err == nil {
-		ram = h.RAMBytes
-	}
-	writeJSON(w, http.StatusOK, recipe.List(set, gpus, ram, true))
+	writeJSON(w, http.StatusOK, app.RecipeList(true))
 }
 
 // GET /api/recipes/{id}/plan?set=K=V&mode=M — `bernie recipe plan --json`.
@@ -119,10 +88,13 @@ func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/runs — `bernie ps --json`.
 func (s *server) getRuns(w http.ResponseWriter, r *http.Request) {
-	runs, err := flow.Runs(r.Context())
+	runs, err := runner.List(r.Context())
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if runs == nil {
+		runs = []runner.Status{}
 	}
 	writeRedacted(w, http.StatusOK, runs)
 }
@@ -162,13 +134,13 @@ func (s *server) postRun(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /api/runs/{name} — `bernie stop <name>`.
 func (s *server) deleteRun(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-	if err := runner.Stop(context.WithoutCancel(r.Context()), name); err != nil {
+	res, err := app.Stop(context.WithoutCancel(r.Context()), r.PathValue("name"))
+	if err != nil {
 		httpError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	fmt.Fprintf(s.o.Log, "bernie dash: stopped run %s\n", name)
-	writeJSON(w, http.StatusOK, map[string]any{"name": name, "stopped": true})
+	fmt.Fprintf(s.o.Log, "bernie dash: stopped run %s\n", res.Name)
+	writeJSON(w, http.StatusOK, res)
 }
 
 // GET /api/runs/{name}/logs?tail=N — `bernie logs <name> -f`, one SSE event
@@ -263,13 +235,10 @@ func (s *server) getTelemetry(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/bench — `bernie bench list --json`.
 func (s *server) getBench(w http.ResponseWriter, r *http.Request) {
-	rs, err := bench.List()
+	rs, err := app.BenchList()
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
-	}
-	if rs == nil {
-		rs = []bench.Result{}
 	}
 	writeJSON(w, http.StatusOK, rs)
 }
@@ -361,29 +330,18 @@ func (s *server) postBench(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.bench.Unlock()
-	res, err := bench.Run(r.Context(), o, s.o.Log)
-	if err != nil {
+	res, _, err := app.Bench(r.Context(), o, s.o.Log)
+	var saveErr *app.SaveError
+	switch {
+	case errors.Is(err, app.ErrAllFailed):
+		httpError(w, http.StatusBadGateway, err.Error()+app.FirstCellError(res))
+	case errors.As(err, &saveErr):
+		httpError(w, http.StatusInternalServerError, err.Error())
+	case err != nil:
 		httpError(w, http.StatusBadGateway, err.Error())
-		return
+	default:
+		writeJSON(w, http.StatusOK, res)
 	}
-	if res.Completed() == 0 {
-		httpError(w, http.StatusBadGateway, "all requests failed; result not saved"+firstCellError(res))
-		return
-	}
-	if _, err := bench.Save(res); err != nil {
-		httpError(w, http.StatusInternalServerError, "save result: "+err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, res)
-}
-
-func firstCellError(r *bench.Result) string {
-	for _, c := range r.Cells {
-		if len(c.Errors) > 0 {
-			return ": " + c.Errors[0]
-		}
-	}
-	return ""
 }
 
 // decodeBody reads a JSON body (max 1 MiB) with unknown fields rejected.

@@ -7,15 +7,11 @@ import (
 	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
-	"slices"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/machine/host"
-	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/setup"
-	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 type setupFlags struct {
@@ -33,31 +29,14 @@ func addSetupFlags(fs *flag.FlagSet) setupFlags {
 
 // buildPlan probes the host and returns the setup steps.
 func buildPlan(c *cli.Context, f setupFlags) ([]setup.Step, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, err
+	if m := *f.mode; m != "" && m != "host" && m != "container" {
+		return nil, cli.Usagef("--mode must be host or container, not %q", m)
 	}
-	mode := *f.mode
-	if mode == "" {
-		mode = cfg.Mode
-	}
-	if mode != "" && mode != "host" && mode != "container" {
-		return nil, cli.Usagef("--mode must be host or container, not %q", mode)
-	}
-	h, err := host.Probe(c.Ctx, "/")
-	if err != nil {
-		return nil, err
-	}
-	gpus, _ := gpu.List("/")
-	var archs []string
-	for _, g := range gpus {
-		archs = append(archs, g.GFX)
-	}
-	r := rocm.Probe(c.Ctx, "/")
-	return setup.Plan(c.Ctx, h, r, setup.Options{
-		Mode: mode, Venv: cfg.ResolveVenv(*f.venv), Image: *f.image, ModelRepo: *f.model,
-		HFHome: cfg.ResolveHFHome(), GPUArchs: archs,
-	}), nil
+	return app.SetupPlan(c.Ctx, setupOptions(f))
+}
+
+func setupOptions(f setupFlags) app.SetupOptions {
+	return app.SetupOptions{Mode: *f.mode, Venv: *f.venv, Image: *f.image, Model: *f.model}
 }
 
 func init() {
@@ -91,7 +70,7 @@ func init() {
 		if err != nil {
 			return err
 		}
-		todo := pending(steps, only)
+		todo := app.SetupPending(steps, only)
 		if len(todo) == 0 {
 			c.Logf("nothing to run: every selected non-root step is done")
 		} else if !*yes {
@@ -100,10 +79,7 @@ func init() {
 				return fmt.Errorf("aborted (use --yes to skip the prompt)")
 			}
 		}
-		if err := setup.Apply(c.Ctx, steps, only, c.Err); err != nil {
-			return err
-		}
-		after, err := buildPlan(c, f)
+		after, err := app.SetupApply(c.Ctx, steps, setupOptions(f), only, c.Err)
 		if err != nil {
 			return err
 		}
@@ -112,21 +88,6 @@ func init() {
 
 	cmd.Subs = []*cli.Command{plan, apply}
 	cli.Register(cmd)
-}
-
-// pending lists the selected non-root steps that are not done.
-func pending(steps []setup.Step, only []string) []setup.Step {
-	var out []setup.Step
-	for _, s := range steps {
-		if s.Done || s.Root {
-			continue
-		}
-		if len(only) > 0 && !slices.Contains(only, s.ID) {
-			continue
-		}
-		out = append(out, s)
-	}
-	return out
 }
 
 func confirm(w io.Writer, prompt string) bool {

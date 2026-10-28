@@ -1,6 +1,7 @@
 package benchcmd
 
 import (
+	"errors"
 	"fmt"
 	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 )
 
@@ -24,12 +26,9 @@ func init() {
 		if _, err := cli.Parse(c.Flags(list), args); err != nil {
 			return err
 		}
-		rs, err := bench.List()
+		rs, err := app.BenchList()
 		if err != nil {
 			return err
-		}
-		if rs == nil {
-			rs = []bench.Result{}
 		}
 		return c.Emit(rs, func(w io.Writer) { printBenchList(w, rs) })
 	}
@@ -88,17 +87,12 @@ func runBench(c *cli.Context, cmd *cli.Command, args []string) error {
 		return cli.Usagef("--num-prompts and --warmup must not be negative")
 	}
 
-	r, err := bench.Run(c.Ctx, o, c.Err)
+	r, path, err := app.Bench(c.Ctx, o, c.Err)
+	if errors.Is(err, app.ErrAllFailed) {
+		printBenchResult(c.Err, r)
+	}
 	if err != nil {
 		return err
-	}
-	if r.Completed() == 0 {
-		printBenchResult(c.Err, r)
-		return fmt.Errorf("all requests failed; result not saved")
-	}
-	path, err := bench.Save(r)
-	if err != nil {
-		return fmt.Errorf("save result: %w", err)
 	}
 	c.Logf("bench: saved %s", path)
 	return c.Emit(r, func(w io.Writer) { printBenchResult(w, r) })
