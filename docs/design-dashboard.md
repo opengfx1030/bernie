@@ -231,8 +231,8 @@ redesigning anything.
 | Lede | 18 px, the second text colour, 70 characters | the same | same |
 | Eyebrow | 12 px 800, uppercase, `.14em` | the same | same |
 | Section | a 1 px top rule and 24 px of padding, a 13 px uppercase label | the same | same |
-| Facts strip | an uppercase 12 px label over a 17 px 700 value, hairline separated | the same, plus the reason under the value | adapted (bernie feature) |
-| Step timeline | 36 px counter circles, a 2 px connector, one colour per state | the same; the six states are the ones of spec §3.3 | same |
+| Facts strip | an uppercase 12 px label over a 17 px 700 value, hairline separated | the same, plus the reason under the value | adapted (bernie feature, done) |
+| Step timeline | 36 px counter circles, a 2 px connector, one colour per state | the same; the six states are the ones of spec §3.3 | same (done) |
 | Command block | mono on the second surface, an 8 px radius, the copy button pinned to the top right | the same | same |
 | Primary button | italic 900 uppercase, the key colour, a 4 px hard shadow that moves on `:active` | 900 uppercase, the accent background, a 3 px hard shadow; the accent is bernie's identity | adapted (identity) |
 | Ghost button | transparent with a 1 px border and an 8 px radius | the same | same |
@@ -246,7 +246,7 @@ redesigning anything.
 | Matrix | 2 px gaps, 6 px radius cells, one colour per class | the same; the classes of the PCIe links use `--series-1..4` | same |
 | Bar chart | SVG bars for the comparison of two runs | the same; the five metric groups of spec §10.1 are the groups | same |
 | Log viewer | 12.5 px mono on near-black, 340 px tall, `pre-wrap` | the same | same |
-| Progress bar | a 10 px track, a 6 px radius, the key colour, and one plain sentence under it | the same | same |
+| Progress bar | a 10 px track, a 6 px radius, the key colour, and one plain sentence under it | the same | same (done) |
 | Radio card | a big radio, a title, one line of detail | the same; it picks the benchmark suite | same |
 | Toast | fixed at the bottom centre, 2.6 s, `role="status"`, `aria-live="polite"` | the same | same |
 | Tooltip | a small mark that opens a fixed panel with `role="tooltip"` | the same, and it opens on focus as well | adapted (accessibility) |

@@ -1,33 +1,59 @@
+// The Advanced panel of the Setup tab: the raw documents behind the page
+// and the commands that produce them.
 "use strict";
-// ---------- Home: the advanced disclosure ----------
-// The disclosure holds the raw document behind the page and the commands
-// that produce it. It is closed by default: the beginner path is one button,
-// the expert path is the same screen plus this panel, and the agent path is
-// the same JSON.
 
-// advancedPanel is the disclosure under the hero of the Home tab.
-function advancedPanel() {
-  const body = h("div.advanced-body", loading());
+/** setupAdvancedPanel is the disclosure at the end of the tab. */
+function setupAdvancedPanel() {
+  const body = h("div.setup-advanced-body", loading());
+  const panel = h("details.advanced.setup-advanced", h("summary", "Advanced"), body);
   let loaded = false;
-  const det = h("details.advanced", h("summary", "Advanced"), body);
-  det.addEventListener("toggle", async () => {
-    if (!det.open || loaded) return;
+  panel.addEventListener("toggle", async () => {
+    if (!panel.open || loaded) return;
     loaded = true;
-    try {
-      const doc = await api("/api/onboarding");
-      const json = JSON.stringify(doc, null, 2);
-      put(body,
-        h("p.small.muted", "The document behind this page. An agent gets the same one from GET /api/onboarding."),
-        h("div.row", jsonLink("/api/onboarding"),
-          h("button.small.copy", { type: "button", "data-copy": json, "aria-label": "Copy the JSON" }, "Copy the JSON")),
-        h("pre", json),
-        h("h3", "The same thing in a terminal"),
-        cmdBlock("bernie status --steps", "Copy the command"),
-        cmdBlock("bernie status --json", "Copy the command"),
-        cmdBlock("bernie doctor --json", "Copy the command"));
-    } catch (e) {
-      put(body, failed(e));
-    }
+    await loadSetupAdvanced(body);
   });
-  return det;
+  return panel;
+}
+
+/** loadSetupAdvanced reads every document the tab used and paints it with
+ *  the command that produces the same answer. */
+async function loadSetupAdvanced(body) {
+  const entries = [];
+  const read = async (path) => {
+    try {
+      entries.push({ path: path, doc: await api(path) });
+    } catch (e) {
+      entries.push({ path: path, error: String(e.message || e) });
+    }
+  };
+  await read("/api/onboarding");
+  await read("/api/recipes");
+  await read("/api/doctor");
+  if (setupState.recipeID) {
+    await read("/api/recipes/" + encodeURIComponent(setupState.recipeID) + "/plan");
+  }
+  put(body,
+    h("p.setup-advanced-note", "The documents behind this page. An agent gets the same ones from the API."),
+    entries.map(setupAdvancedDocument),
+    h("h3", "The same thing in a terminal"),
+    cmdBlock("bernie status --steps", "Copy the command"),
+    cmdBlock("bernie status --json", "Copy the command"),
+    cmdBlock("bernie recipe list", "Copy the command"),
+    cmdBlock("bernie recipe plan " + (setupState.recipeID || "ID"), "Copy the command"),
+    cmdBlock("bernie doctor", "Copy the command"));
+}
+
+/** setupAdvancedDocument is one raw document with its endpoint and a copy
+ *  button. */
+function setupAdvancedDocument(entry) {
+  const text = entry.error
+    ? JSON.stringify({ error: entry.error }, null, 2)
+    : JSON.stringify(entry.doc, null, 2);
+  return h("div.setup-advanced-document",
+    h("div.setup-advanced-head",
+      h("span.setup-advanced-path", entry.path),
+      h("span.grow"),
+      jsonLink(entry.path),
+      copyBtn(text)),
+    h("pre.setup-advanced-json", text));
 }
