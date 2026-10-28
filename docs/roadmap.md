@@ -71,6 +71,12 @@ Each item has a spec section and one test that proves it.
   Hugging Face repo into the cache itself: a partial file continues with a
   `Range` request, the checksum of every file is checked, and the progress
   is one line with a speed. Spec [§6.1](spec.md#61-the-model-download).
+- **Power cap service.** `tune power set` writes the desired caps to
+  `<config>/power.yaml`, `tune power apply` writes them to hwmon as root, and
+  `tune power service` prints the systemd unit pair that applies the file at
+  boot and on every change. The GPUs tab shows the cap, the allowed range,
+  the desired value and the drift, and writes a new desired value. Spec
+  [§9.2](spec.md#92-power).
 
 ## Not planned
 

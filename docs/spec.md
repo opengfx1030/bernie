@@ -1136,7 +1136,7 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `stop` | `stop NAME` (the name is required) | `{"name", "stopped"}` |
 | `bench_run` | `bench` (loopback `url` only, `recall` optional) | the saved `bench.Result` |
 | `setup_apply` | `setup apply` | the setup steps after the run |
-| `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes"}` |
+| `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors"}` |
 
 `up` and `config set` are not tools. An agent runs them through the CLI.
 
