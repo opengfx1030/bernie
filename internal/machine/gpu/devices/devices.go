@@ -1,4 +1,8 @@
-package gpu
+// Package devices holds the device tables of bernie: the facts of each GPU
+// generation and of each PCI device, one YAML file per generation. The
+// tables ship in the binary and are found by walking the embedded tree, so
+// a new generation adds a file and no code.
+package devices
 
 import (
 	"bytes"
@@ -13,8 +17,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// GFXName turns a KFD gfx_target_version into a gfx target name:
+// major = v/10000, minor = (v/100)%100, step = v%100, minor and step in hex
+// (100300 -> gfx1030, 90010 -> gfx90a). Zero gives "".
+func GFXName(targetVersion int) string {
+	if targetVersion <= 0 {
+		return ""
+	}
+	major := targetVersion / 10000
+	minor := (targetVersion / 100) % 100
+	step := targetVersion % 100
+	return fmt.Sprintf("gfx%d%x%x", major, minor, step)
+}
+
 // Arch is what the device tables know about one gfx target. A target
-// belongs to one generation (devices/<generation>.yaml).
+// belongs to one generation (<generation>.yaml).
 type Arch struct {
 	GFX        string // gfx1030
 	Generation string // rdna2, rdna3, rdna3.5, rdna4
@@ -106,9 +123,9 @@ type table struct {
 // binary, so a malformed one is a build defect that the tests catch: it
 // panics instead of returning an error to every caller.
 var tables = sync.OnceValue(func() *table {
-	t, err := loadTables(devicesFS, "devices")
+	t, err := loadTables(devicesFS, ".")
 	if err != nil {
-		panic("gpu: device tables: " + err.Error())
+		panic("devices: device tables: " + err.Error())
 	}
 	return t
 })

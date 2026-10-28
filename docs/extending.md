@@ -17,7 +17,7 @@ to run. Read [architecture.md](architecture.md) first for the layers. Run
 | A recipe fragment | `recipes/_fragments/<concern>/_<id>.yaml`. Settings of one architecture go in `recipes/_fragments/arch/`. | `go test ./recipes/...` |
 | A TunableOp profile | `tunableop/<arch>/<profile>/` with `profile.json`, `tunableop_results<rank>.csv`, `provenance.json`, `README.md`. The `name` in `profile.json` equals the folder name. Fields: `tunableop/README.md`. | `go test ./internal/serving/tuning/` |
 | Tuned MoE configs | `tuned-moe/<arch>/E=...json`. Steps: `tuned-moe/README.md`. | `go test ./internal/serving/tuning/` |
-| A device (a PCI id) | A row in `internal/machine/gpu/devices/<generation>.yaml`. The arch must exist in that file. | `go test ./internal/machine/gpu/` |
+| A device (a PCI id) | A row in `internal/machine/gpu/devices/<generation>.yaml`. The arch must exist in that file. | `go test ./internal/machine/gpu/...` |
 | A GPU generation | See [section 2](#2-how-to-add-a-new-gpu-generation). | See section 2. |
 | A dashboard endpoint | A route in `dashboard/dashboard.go`, a handler in `dashboard/api.go` (or a new file), the UI call in `dashboard/web/app.js`. The handler calls the package behind the matching command. Add the row to [spec §11](spec.md#11-dashboard). Read `dashboard/AGENTS.md` first. | `go test ./dashboard/` |
 | A JSON field | The struct tag in the domain package. Update the spec in the same commit. | The tests of that package. |
@@ -34,7 +34,7 @@ data only. No Go file names a device.
    `arches`, and one row per PCI id under `devices`. Write the sources in the
    header comment. Leave a field out when you have no source for it. Fields:
    [spec §4.4](spec.md#44-device-tables).
-2. **Check the table.** Run `go test ./internal/machine/gpu/`. The test
+2. **Check the table.** Run `go test ./internal/machine/gpu/...`. The test
    rejects duplicate ids, a device that names an unknown arch, and an
    `hsa_override` that points outside the file.
 3. **Add a fixture.** Capture a real host with `scripts/capture-fixture.sh`.

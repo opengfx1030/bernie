@@ -172,7 +172,7 @@ tuning data.
 | `internal/setup/` | the install plan and the non-root apply | 2 |
 | `internal/logdoc/` | the known-failure catalogue, the phase catalogue, the log scanner | 2 |
 | `internal/machine/gpu/` | the live GPUs: KFD/DRM/PCI enumeration, the telemetry, the ECC state | 1 |
-| `internal/machine/gpu/devices/` | the device tables: one YAML per generation | 1 |
+| `internal/machine/gpu/devices/` | the device tables: one YAML per generation, and the loader that reads them | 1 |
 | `internal/machine/host/` | the OS, the package manager, the CPU, the RAM, the groups, the engines | 1 |
 | `internal/machine/rocm/` | the ROCm installs, the tools, the libraries, the venv probe | 1 |
 | `internal/machine/topo/` | the PCIe tree, the link classes, the P2P matrix, the bandwidth | 1 |
@@ -234,7 +234,8 @@ bernie/
 │   ├── logdoc/           known-failure catalog, phase catalogue (embedded YAML) and log scanner
 │   ├── machine/          what the host is
 │   │   ├── gpu/              KFD/DRM/PCI enumeration, telemetry, ECC
-│   │   │   └── devices/     the device tables: one YAML per GPU generation
+│   │   │   └── devices/     the device tables (one YAML per generation)
+│   │   │                   and their loader
 │   │   ├── host/             OS, package manager, CPU, RAM, groups, container engines
 │   │   ├── rocm/             ROCm installs, tools, libraries, venv probe
 │   │   └── topo/             PCIe tree, link classes, P2P matrix, bandwidth
@@ -388,7 +389,7 @@ flowchart LR
   ARCH --- TOP["tunableop/arch/profile/<br/>profile.json + rows"]
   ARCH --- MOE["tuned-moe/arch/<br/>E=...json"]
   ARCH --- REC["recipes/<br/>requires.arch + fragments/arch/"]
-  DEV --> R1["gpu.Lookup, LookupArch, CodeTargets<br/>used by gpu, doctor, setup"]
+  DEV --> R1["devices.Lookup, LookupArch, CodeTargets<br/>used by gpu, doctor, setup"]
   TOP --> R2["tuning.Profiles, Select<br/>used by runner, doctor"]
   MOE --> R3["tuning.MaterializeTunedMoE<br/>used by recipe plan"]
   REC --> R4["recipe.Load, CheckFit<br/>used by up, list, plan"]
@@ -413,8 +414,8 @@ Rules:
   `-synthetic` and it has a `SYNTHETIC` file at its root. The README next to
   the fixtures says which values are real and which are written by hand.
   Never present a synthetic fixture as proof of hardware support.
-- `gpu` tests check that every device table loads, ids are unique and each
-  override points to an arch of the same file.
+- `devices` tests check that every device table loads, ids are unique and
+  each override points to an arch of the same file.
 - `tuning` tests check the layout of `tunableop/` and `tuned-moe/` (top
   folders are gfx names, a profile folder holds a manifest, rows and a
   README) and that every `profile.json` name equals its folder name.

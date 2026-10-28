@@ -103,15 +103,15 @@ type inputs struct {
 	match          *tuning.Profile
 	hfCache        string
 	hfFree         uint64 // free bytes on the HF cache filesystem, 0 = unknown
-	devices        devices
+	devices        deviceNodes
 	amdgpu         bool           // amdgpu kernel module loaded
 	validated      []string       // gfx targets with validated recipes
 	groupGIDs      map[string]int // gid of video and render; a group missing here was not found
 	recipe         topo.RecipeEnv // environment of the recipe bernie would run
 }
 
-// devices is the state of the GPU device nodes.
-type devices struct {
+// deviceNodes is the state of the GPU device nodes.
+type deviceNodes struct {
 	kfdExists, kfdRW bool
 	render           []string
 	renderRW         bool
@@ -232,8 +232,8 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 	return in
 }
 
-func probeDevices(root string) devices {
-	var d devices
+func probeDevices(root string) deviceNodes {
+	var d deviceNodes
 	kfd := filepath.Join(root, "dev/kfd")
 	_, err := os.Stat(kfd)
 	d.kfdExists = err == nil

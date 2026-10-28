@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
 )
 
@@ -60,7 +60,7 @@ func pythonChecks(in inputs) []Check {
 	}
 	if in.site != "" && dirExists(filepath.Join(in.site, "_rocm_sdk_core")) {
 		var missing []string
-		targets := gpu.CodeTargets(archOrder(in.gpus))
+		targets := devices.CodeTargets(archOrder(in.gpus))
 		for _, gfx := range targets {
 			if m, _ := filepath.Glob(filepath.Join(in.site, "rocm_sdk_device_"+gfx+"-*.dist-info")); len(m) == 0 {
 				missing = append(missing, gfx)
@@ -109,7 +109,7 @@ func tritonVersion(site string) string {
 func tritonCheck(in inputs, tv string) Check {
 	const title = "Triton supports the GPU generations"
 	for _, gfx := range archOrder(in.gpus) {
-		if a, ok := gpu.LookupArch(gfx); ok && a.TritonBelow != "" && rocm.CompareVersions(tv, a.TritonBelow) >= 0 {
+		if a, ok := devices.LookupArch(gfx); ok && a.TritonBelow != "" && rocm.CompareVersions(tv, a.TritonBelow) >= 0 {
 			return check("python", "triton", Fail, title, fmt.Sprintf("triton %s removed %s support (%s)", tv, a.Label(), gfx)).
 				with(in.venv+"/bin/pip install triton==3.7.1", docHostVenv)
 		}

@@ -1,9 +1,9 @@
-package gpu
+package devices
 
 import "embed"
 
 // devicesFS holds the device tables, one file per GPU generation
-// (devices/<generation>.yaml).
+// (<generation>.yaml).
 //
-//go:embed devices/*.yaml
+//go:embed *.yaml
 var devicesFS embed.FS

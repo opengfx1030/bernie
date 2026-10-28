@@ -62,7 +62,7 @@ func base() inputs {
 		hfCache: "/data/hf", hfFree: 500 * gib,
 		amdgpu:    true,
 		groupGIDs: map[string]int{"video": 44, "render": 105},
-		devices:   devices{kfdExists: true, kfdRW: true, render: []string{"/dev/dri/renderD128"}, renderRW: true},
+		devices:   deviceNodes{kfdExists: true, kfdRW: true, render: []string{"/dev/dri/renderD128"}, renderRW: true},
 	}
 }
 
@@ -106,7 +106,7 @@ func TestEvaluateStatuses(t *testing.T) {
 			in.host.User.GIDs = []int{1000}
 			in.devices.kfdRW = false
 		}, "gpu.groups", Fail, "usermod -aG video,render"},
-		{"no kfd", func(in *inputs) { in.devices = devices{} }, "gpu.kfd", Fail, "modprobe amdgpu"},
+		{"no kfd", func(in *inputs) { in.devices = deviceNodes{} }, "gpu.kfd", Fail, "modprobe amdgpu"},
 		{"gfx1031 override advice", func(in *inputs) { in.gpus[0].GFX = "gfx1031" }, "gpu.hsa_override.gfx1031", Warn, "HSA_OVERRIDE_GFX_VERSION=10.3.0"},
 		{"gfx1031 unvalidated", func(in *inputs) { in.gpus[0].GFX = "gfx1031" }, "gpu.supported.gfx1031", Warn, "RDNA2 target; recipes are validated on gfx1030 only"},
 		{"validated arch", func(*inputs) {}, "gpu.supported.gfx1030", OK, "recipes are validated on it"},

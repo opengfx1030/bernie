@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/machine/topo"
 	"github.com/opengfx1030/bernie/internal/support/execx"
@@ -77,7 +78,7 @@ func gpuChecks(in inputs) []Check {
 	out = append(out, supportChecks(in)...)
 	var igpu, dgpu []string
 	for _, g := range in.gpus {
-		if a, _ := gpu.LookupArch(g.GFX); a.Integrated {
+		if a, _ := devices.LookupArch(g.GFX); a.Integrated {
 			igpu = append(igpu, fmt.Sprint(g.HIPIndex))
 		} else {
 			dgpu = append(dgpu, fmt.Sprint(g.HIPIndex))
@@ -182,7 +183,7 @@ func supportChecks(in inputs) []Check {
 	var out []Check
 	for _, gfx := range archOrder(in.gpus) {
 		id, title := "supported."+gfx, gfx+" is supported"
-		a, known := gpu.LookupArch(gfx)
+		a, known := devices.LookupArch(gfx)
 		switch {
 		case !known:
 			out = append(out, check(cat, id, Warn, title, gfx+" is not in the device tables: its ROCm and vLLM support is unchecked").with("", docHardware))

@@ -9,7 +9,7 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
 	"github.com/opengfx1030/bernie/internal/support/execx"
@@ -75,7 +75,7 @@ func Plan(ctx context.Context, h host.Info, r rocm.Report, o Options) []Step {
 		o.SrcDir = filepath.Join(paths.Data(), "src")
 	}
 	o.GPUArchs = uniq(o.GPUArchs)
-	pl := planner{ctx: ctx, h: h, r: r, o: o, site: sitePackages(o.Venv), targets: gpu.CodeTargets(o.GPUArchs)}
+	pl := planner{ctx: ctx, h: h, r: r, o: o, site: sitePackages(o.Venv), targets: devices.CodeTargets(o.GPUArchs)}
 	all := []Step{
 		pl.groups(), pl.rocmRuntime(), pl.containerEngine(),
 		pl.venvCreate(), pl.venvTorch(), pl.causalConv1D(), pl.flashAttn(), pl.vllmBuild(),
