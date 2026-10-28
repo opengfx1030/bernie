@@ -1,7 +1,10 @@
-package dashboard
+// Package redact hides secret values in documents and log text before they
+// leave the process: dashboard responses, MCP tool results and audit records.
+package redact
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 )
 
@@ -25,14 +28,15 @@ func secretName(name string) bool {
 	return false
 }
 
-// redactJSON returns v as generic JSON with secret values replaced:
+// JSON returns v as generic JSON with secret values replaced:
 //   - object members whose name is a secret and whose value is a string;
 //   - "KEY=VALUE" strings whose KEY is a secret (env lists, `-e K=V` argv);
 //   - "--flag=VALUE" and "--flag VALUE" in string lists when the flag is a secret.
 //
-// Plans and run records carry the operator's environment; the dashboard may be
-// reachable from the network, so it never returns secret values.
-func redactJSON(v any) (any, error) {
+// Plans and run records carry the operator's environment; the dashboard and
+// the MCP server may be reachable from the network, so they never return
+// secret values.
+func JSON(v any) (any, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
@@ -41,10 +45,10 @@ func redactJSON(v any) (any, error) {
 	if err := json.Unmarshal(b, &g); err != nil {
 		return nil, err
 	}
-	return redactValue(g), nil
+	return value(g), nil
 }
 
-func redactValue(v any) any {
+func value(v any) any {
 	switch t := v.(type) {
 	case map[string]any:
 		for k, x := range t {
@@ -52,7 +56,7 @@ func redactValue(v any) any {
 				t[k] = redacted
 				continue
 			}
-			t[k] = redactValue(x)
+			t[k] = value(x)
 		}
 		return t
 	case []any:
@@ -60,7 +64,7 @@ func redactValue(v any) any {
 		for i, x := range t {
 			s, ok := x.(string)
 			if !ok {
-				t[i] = redactValue(x)
+				t[i] = value(x)
 				prevSecretFlag = false
 				continue
 			}
@@ -75,20 +79,41 @@ func redactValue(v any) any {
 			default:
 				prevSecretFlag = false
 			}
-			t[i] = redactString(s)
+			t[i] = keyValue(s)
 		}
 		return t
 	case string:
-		return redactString(t)
+		return keyValue(t)
 	}
 	return v
 }
 
-// redactString handles one "KEY=VALUE" or "--flag=VALUE" string.
-func redactString(s string) string {
+// keyValue handles one "KEY=VALUE" or "--flag=VALUE" string.
+func keyValue(s string) string {
 	k, _, ok := strings.Cut(s, "=")
 	if !ok || k == "" || strings.ContainsAny(k, " \t") || !secretName(k) {
 		return s
 	}
 	return k + "=" + redacted
+}
+
+var (
+	// secretToken matches credentials by shape: Hugging Face and OpenAI-style
+	// keys and bearer tokens.
+	secretToken = regexp.MustCompile(`\bhf_[A-Za-z0-9]{20,}|\bsk-[A-Za-z0-9_-]{20,}|(?i:bearer)\s+[A-Za-z0-9._~+/=-]{16,}`)
+	// assignment matches `name=value`, `name: value` and `"name": "value"`.
+	assignment = regexp.MustCompile(`("?)([A-Za-z][A-Za-z0-9_.-]*)("?\s*[=:]\s*"?)([^\s"',;}]+)`)
+)
+
+// Text redacts free text such as a run log: credentials by shape, and the
+// value of every `name=value` or `name: value` whose name is a secret name.
+func Text(s string) string {
+	s = secretToken.ReplaceAllString(s, redacted)
+	return assignment.ReplaceAllStringFunc(s, func(m string) string {
+		g := assignment.FindStringSubmatch(m)
+		if !secretName(g[2]) || g[4] == redacted {
+			return m
+		}
+		return g[1] + g[2] + g[3] + redacted
+	})
 }
