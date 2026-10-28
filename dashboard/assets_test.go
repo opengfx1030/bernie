@@ -88,11 +88,11 @@ func TestCSP(t *testing.T) {
 func TestWriteGuardSecFetchSite(t *testing.T) {
 	h := newServer(Options{Listen: "0.0.0.0:7860", Token: testToken}).handler()
 	hdr := map[string]string{
-		"Host":          "gpu-box",
-		"Authorization": "Bearer " + testToken,
-		"X-Bernie":      "1",
+		"Host":           "gpu-box",
+		"Authorization":  "Bearer " + testToken,
+		"X-Bernie":       "1",
 		"Sec-Fetch-Site": "cross-site",
-		"Content-Type":  "application/json",
+		"Content-Type":   "application/json",
 	}
 	w := do(t, h, "POST", "/api/runs", hdr)
 	if w.Code != http.StatusForbidden {
@@ -156,7 +156,7 @@ func TestPayloadBudget(t *testing.T) {
 	// The numbers are honest: the next commit that breaks a line changes the
 	// doc first.
 	const htmlMax = 12 * 1024
-	const jsMax = 280 * 1024    // 259.8 KB now; the plan in §8.3 brings it to 240 KB
+	const jsMax = 280 * 1024 // 259.8 KB now; the plan in §8.3 brings it to 240 KB
 	const cssMax = 80 * 1024
 	const fontsMax = 130 * 1024
 	if html > htmlMax {
