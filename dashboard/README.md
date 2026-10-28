@@ -26,7 +26,7 @@ On a non-loopback address the server prints a token. Open the page with
 ```mermaid
 flowchart LR
   subgraph Browser
-    UI["web/app.js<br/>6 tabs"]
+    UI["web/app.js + views/*.js<br/>6 tabs"]
   end
   subgraph "package dashboard"
     API["api.go<br/>JSON + SSE"]
@@ -60,7 +60,9 @@ flowchart LR
 | `hub.go`, `telemetry.go`, `sse.go` | 1 Hz samples and event streams |
 | `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
-| `web/app.js` | Views, one function per tab (`viewOverview`, `viewGPUs`, ...) |
+| `web/app.js` | Core: helpers (`h()`, `api()`), shared state, telemetry stream |
+| `web/views/<tab>.js` | One file per tab: `viewOverview`, `viewGPUs`, ... |
+| `web/boot.js` | Router and start-up. Loaded last. |
 | `web/app.css` | Theme (light and dark), layout, components |
 | `dashboard_test.go` | API, auth and stream tests |
 

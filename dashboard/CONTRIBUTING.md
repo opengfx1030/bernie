@@ -34,7 +34,7 @@ The files in `web/` are embedded at build time. After you edit them, run
 
 1. Add the question it answers to the table in [README.md](README.md).
 2. Add a link in `web/index.html` and a `<section id="tab-<name>">`.
-3. Add `view<Name>(root)` in `web/app.js` and register it in `route()`.
+3. Add `view<Name>(root)` in `web/views/<name>.js`, add its script tag in `web/index.html`, and register it in the `views` map in `web/boot.js`.
 4. Add the endpoint it needs (spec §11, `api.go`, a test).
 
 ## Add a card or a column
