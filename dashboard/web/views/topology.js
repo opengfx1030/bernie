@@ -63,9 +63,8 @@ function p2pCard(data) {
   if (sum.fail) { label = "not ready"; cls = "b-fail"; }
   else if (!sum.ok && !sum.warn) { label = "nothing to check"; cls = "b-skip"; }
   return h("div.card",
-    h("h2", "P2P readiness", h("span.grow"),
-      h("span.small.muted", counts),
-      h("span.badge", { class: cls }, label)),
+    h("h2", "P2P readiness"),
+    h("div.row", h("span.small.muted", counts), h("span.badge", { class: cls }, label)),
     items.length ? items.map(p2pRow) : h("div.empty", "No checklist items."));
 }
 
