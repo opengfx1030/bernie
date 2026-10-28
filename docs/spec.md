@@ -1378,6 +1378,7 @@ Rules for responses and tokens:
 | DELETE | `/api/runs/{name}` | stop |
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
 | GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}` |
+| GET | `/api/gpus/history?window=5m\|15m\|1h` | the samples of the last minutes, one series per card: `{window, interval_s, points, series: [{hip_index, busy_pct, power_w, vram_used, tokens_per_s}]}`. The window is 15 m when the request names none; another window answers 400. The ring buffer of the telemetry hub keeps 30 minutes at one point every 2 s; the 1 h window holds one point every 10 s. `tokens_per_s` is the output rate of the live run: the rate is a property of the server, so every card carries the same number. The answer is cached for 2 s. |
 | GET | `/api/power` | `tune power service status` JSON |
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
 | GET | `/api/bench` | `bench list` JSON |

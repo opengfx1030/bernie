@@ -7,11 +7,15 @@ import (
 	"net/http"
 
 	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
+	"github.com/opengfx1030/bernie/dashboard/internal/telemetry"
 )
 
-// Telemetry is the live sample source used by GET /api/telemetry.
+// Telemetry is the live sample source used by GET /api/telemetry. It also
+// owns the ring buffer of the samples of the last minutes, which
+// GET /api/gpus/history reads.
 type Telemetry interface {
 	Subscribe() (<-chan []byte, func())
+	History() *telemetry.History
 }
 
 // Options configures the API routes.
@@ -45,6 +49,7 @@ func Register(mux *http.ServeMux, o Options) {
 	mux.HandleFunc("DELETE /api/runs/{name}", h.deleteRun)
 	mux.HandleFunc("GET /api/runs/{name}/logs", h.getLogs)
 	mux.HandleFunc("GET /api/telemetry", h.getTelemetry)
+	mux.HandleFunc("GET /api/gpus/history", h.getHistory)
 	mux.HandleFunc("GET /api/power", h.getPower)
 	mux.HandleFunc("PUT /api/power", h.putPower)
 	mux.HandleFunc("GET /api/bench", h.getBench)

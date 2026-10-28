@@ -45,10 +45,18 @@ type counters struct {
 
 // Sampler holds state that lives as long as one hub sampler goroutine.
 type Sampler struct {
-	mu   sync.Mutex
-	gpus []gpu.GPU
-	gpuT time.Time
-	prev map[string]counters
+	mu      sync.Mutex
+	gpus    []gpu.GPU
+	gpuT    time.Time
+	prev    map[string]counters
+	history *History // the ring buffer of the last minutes (nil = no history)
+}
+
+// SetHistory gives the sampler the ring buffer it fills. The hub owns it.
+func (s *Sampler) SetHistory(h *History) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.history = h
 }
 
 // Sample builds one telemetry document. It is the hub's sample function;
@@ -107,6 +115,15 @@ func (s *Sampler) Sample(ctx context.Context) []byte {
 		if !seen[name] {
 			delete(sp.prev, name)
 		}
+	}
+	if sp.history != nil {
+		// The output rate of the fleet: the rate is a property of the
+		// server, so every card of the history carries it.
+		fleet := 0.0
+		for i := range t.Runs {
+			fleet += t.Runs[i].GenTokS
+		}
+		sp.history.Add(now, t.GPUs, fleet)
 	}
 	b, err := json.Marshal(t)
 	if err != nil {

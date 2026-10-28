@@ -141,6 +141,7 @@ func newServer(o Options) *server {
 		s.mcp = mcp.New(mcp.Options{Write: o.MCPWrite && o.Token != "", Transport: "http", Version: o.Version, Log: o.Log}).Handler(o.Token)
 	}
 	s.tele = telemetry.NewHub(time.Second, s.sampler.Sample)
+	s.sampler.SetHistory(s.tele.History())
 	return s
 }
 
