@@ -97,8 +97,10 @@ type Set struct {
 
 // Load reads recipes in spec §7.1 order: embedded built-ins, then
 // <config>/recipes, then each directory of $RDNACTL_RECIPES, then extra
-// (directories or files). A later file with the same id replaces an earlier
-// one. Files that fail are collected in Set.Errors.
+// (directories or files). Directories are walked recursively. A later file
+// with the same id replaces an earlier one, except inside one directory tree,
+// where a duplicate id is an error naming both paths. Files that fail are
+// collected in Set.Errors.
 func Load(extra ...string) Set {
 	s := Set{Recipes: map[string]*Recipe{}, Errors: []LoadError{}}
 	s.loadFS(recipes.FS, "builtin:")
@@ -114,20 +116,39 @@ func Load(extra ...string) Set {
 	return s
 }
 
-func (s *Set) loadFS(fsys fs.FS, prefix string) {
-	names, _ := fs.Glob(fsys, "*.yaml")
-	sort.Strings(names)
-	for _, n := range names {
-		b, err := fs.ReadFile(fsys, n)
-		if err != nil {
-			s.Errors = append(s.Errors, LoadError{Source: prefix + n, Err: err.Error()})
-			continue
-		}
-		s.add(prefix+n, b)
-	}
+// layer is one root of recipe files (the embedded tree, a directory or one
+// file). A recipe id is unique inside a layer; a later layer replaces an
+// earlier one (spec §7.1).
+type layer struct {
+	s    *Set
+	seen map[string]string // id -> source
 }
 
-// loadPath loads a directory of *.yaml/*.yml files, or one file.
+func (s *Set) newLayer() *layer { return &layer{s: s, seen: map[string]string{}} }
+
+// loadFS walks fsys recursively and loads every *.yaml file.
+func (s *Set) loadFS(fsys fs.FS, prefix string) {
+	l := s.newLayer()
+	_ = fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			s.Errors = append(s.Errors, LoadError{Source: prefix + p, Err: err.Error()})
+			return nil
+		}
+		if d.IsDir() || !isRecipeFile(p) {
+			return nil
+		}
+		b, err := fs.ReadFile(fsys, p)
+		if err != nil {
+			s.Errors = append(s.Errors, LoadError{Source: prefix + p, Err: err.Error()})
+			return nil
+		}
+		l.add(prefix+p, b)
+		return nil
+	})
+}
+
+// loadPath loads one file, or every *.yaml/*.yml file below a directory
+// (recursively, in path order).
 func (s *Set) loadPath(p string, optional bool) {
 	st, err := os.Stat(p)
 	if err != nil {
@@ -136,30 +157,52 @@ func (s *Set) loadPath(p string, optional bool) {
 		}
 		return
 	}
-	files := []string{p}
-	if st.IsDir() {
-		a, _ := filepath.Glob(filepath.Join(p, "*.yaml"))
-		b, _ := filepath.Glob(filepath.Join(p, "*.yml"))
-		files = append(a, b...)
-		sort.Strings(files)
-	}
-	for _, f := range files {
-		b, err := os.ReadFile(f)
-		if err != nil {
-			s.Errors = append(s.Errors, LoadError{Source: f, Err: err.Error()})
-			continue
-		}
-		s.add(f, b)
-	}
-}
-
-func (s *Set) add(source string, b []byte) {
-	r, err := Parse(source, b)
-	if err != nil {
-		s.Errors = append(s.Errors, LoadError{Source: source, Err: err.Error()})
+	l := s.newLayer()
+	if !st.IsDir() {
+		l.addFile(p)
 		return
 	}
-	s.Recipes[r.ID] = r
+	_ = filepath.WalkDir(p, func(f string, d fs.DirEntry, err error) error {
+		if err != nil {
+			s.Errors = append(s.Errors, LoadError{Source: f, Err: err.Error()})
+			return nil
+		}
+		if !d.IsDir() && isRecipeFile(f) {
+			l.addFile(f)
+		}
+		return nil
+	})
+}
+
+func isRecipeFile(p string) bool {
+	e := filepath.Ext(p)
+	return e == ".yaml" || e == ".yml"
+}
+
+func (l *layer) addFile(f string) {
+	b, err := os.ReadFile(f)
+	if err != nil {
+		l.s.Errors = append(l.s.Errors, LoadError{Source: f, Err: err.Error()})
+		return
+	}
+	l.add(f, b)
+}
+
+// add parses one file. A second file with an id already seen in this layer
+// is an error naming both paths; the first file stays.
+func (l *layer) add(source string, b []byte) {
+	r, err := Parse(source, b)
+	if err != nil {
+		l.s.Errors = append(l.s.Errors, LoadError{Source: source, Err: err.Error()})
+		return
+	}
+	if first, dup := l.seen[r.ID]; dup {
+		l.s.Errors = append(l.s.Errors, LoadError{Source: source,
+			Err: fmt.Sprintf("duplicate recipe id %q: also defined in %s", r.ID, first)})
+		return
+	}
+	l.seen[r.ID] = source
+	l.s.Recipes[r.ID] = r
 }
 
 // IDFromSource is the file name stem of a recipe source.

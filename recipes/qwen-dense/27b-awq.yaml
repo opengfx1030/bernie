@@ -41,7 +41,7 @@
 # off). Set a positive value to trade TTFT for that bound.
 # (fork docs/rdna2/mixed-batch-stall-probe.md)
 schema: 1
-extends: [_base, _attn-fa, _rdna-ar, _tuned-moe]
+extends: [_base, _rdna2, _attn-fa, _rdna-ar, _tuned-moe]
 name: Qwen3.8-27B AWQ-INT4 dense, W4A8 prefill, TP4
 description: >-
   Qwen3.8-27B AWQ-INT4 (compressed-tensors W4A16, dense hybrid GDN) on 4x
@@ -80,8 +80,6 @@ env:
   OMP_NUM_THREADS: "4"
   TOKENIZERS_PARALLELISM: "false"
   PYTHONFAULTHANDLER: "1"
-  VLLM_CAUSAL_CONV1D_RDNA2_FWD: "0"
-  VLLM_CAUSAL_CONV1D_RDNA2_UPDATE: "0"
   VLLM_ENABLE_STARTUP_PLAN: "0"
   VLLM_RDNA_DECODE_STALL_MS: "0"
 

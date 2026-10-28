@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# Split out of the flashnext and 27b-awq recipes of opengfx1030/vllm-rdna
+# (rdna_extras) tools/rdna.
+#
+# Kernel switches of the fork that exist only for RDNA2 (gfx103x): the
+# causal-conv1d forward and update kernels written for that ISA. Recipes that
+# keep them off share this block. An RDNA3 (gfx110x) recipe does not extend
+# it. Settings that apply to every architecture stay in _base and the other
+# fragments, not here.
+schema: 1
+name: RDNA2 kernel switches
+description: Turns the fork's RDNA2 causal-conv1d forward and update kernels off.
+env:
+  VLLM_CAUSAL_CONV1D_RDNA2_FWD: "0"
+  VLLM_CAUSAL_CONV1D_RDNA2_UPDATE: "0"

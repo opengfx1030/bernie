@@ -13,6 +13,7 @@ var (
 	idPattern    = regexp.MustCompile(`^_?[a-z0-9][a-z0-9._-]*$`)
 	varPattern   = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 	argPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+	archPattern  = regexp.MustCompile(`^gfx[0-9][0-9a-z]*$`)
 	refPattern   = regexp.MustCompile(`\$\{([^}]*)\}`)
 	reservedArgs = map[string]string{
 		"model":             "model.source",
@@ -53,7 +54,7 @@ func Validate(r *Recipe) []string {
 			add("model.source: required")
 		}
 		if len(r.Requires.Arch) == 0 {
-			add("requires.arch: required, for example [gfx1030]")
+			add("requires.arch: required, a list of gfx names or prefixes, for example [gfx1030] or [gfx103, gfx11]")
 		}
 		if r.Requires.GPUs < 1 {
 			add("requires.gpus: required, at least 1")
@@ -63,6 +64,11 @@ func Validate(r *Recipe) []string {
 		}
 		if n, ok := worldSize(r.Args); ok && r.Requires.GPUs > 0 && n != r.Requires.GPUs {
 			add("requires.gpus is %d, but tensor x pipeline x data parallel size is %d", r.Requires.GPUs, n)
+		}
+	}
+	for _, a := range r.Requires.Arch {
+		if !archPattern.MatchString(a) {
+			add("requires.arch: %q is not a gfx name or prefix (for example gfx1030, gfx103, gfx11)", a)
 		}
 	}
 	if r.Requires.GPUs < 0 || r.Requires.VRAMGiB < 0 || r.Requires.RAMGiB < 0 {

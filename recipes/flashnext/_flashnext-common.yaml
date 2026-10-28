@@ -12,7 +12,7 @@
 #   PLE=int4 (_ple-int4, ~30 GB) and asks for PLE_QUANT_DIR. See _ple-int4.yaml
 #   for int4-disk and bf16.
 schema: 1
-extends: [_base, _attn-fa, _rdna-ar, _tuned-moe, _ple-int4]
+extends: [_base, _rdna2, _attn-fa, _rdna-ar, _tuned-moe, _ple-int4]
 name: Flash-Next AWQ-W4A16 common profile
 description: >-
   Qwen3.8 Flash-Next AWQ-W4A16 on 4x gfx1030: V2 model runner, FA-RDNA2,
@@ -46,8 +46,6 @@ env:
   OMP_NUM_THREADS: "4"
   TOKENIZERS_PARALLELISM: "false"
   PYTHONFAULTHANDLER: "1"
-  VLLM_CAUSAL_CONV1D_RDNA2_FWD: "0"
-  VLLM_CAUSAL_CONV1D_RDNA2_UPDATE: "0"
   VLLM_ENABLE_STARTUP_PLAN: "0"
   # Decode-stall cap: opt-in (16k c=8 output -13 % for a 505 -> 341 ms max
   # decode gap). See docs/rdna2/mixed-batch-stall-probe.md "Decode-stall cap"
