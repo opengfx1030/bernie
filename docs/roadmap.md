@@ -52,6 +52,14 @@ Each item has a spec section and one test that proves it.
   `corpus_sha256`, input, output, concurrency, recall) and `bernie bench
   compare` refuses two results of different workloads. Spec
   [§10](spec.md#10-benchmark).
+- **Numeric GPU group ids.** A container run adds the numeric ids of the
+  GPU groups of the host, never their names: the image has no /etc/group to
+  resolve a name in. The plan shows the ids and where they came from. Spec
+  [§8.2](spec.md#82-container-mode).
+- **Resumable model download.** The model step fetches the files of a
+  Hugging Face repo into the cache itself: a partial file continues with a
+  `Range` request, the checksum of every file is checked, and the progress
+  is one line with a speed. Spec [§6.1](spec.md#61-the-model-download).
 
 ## Not planned
 
