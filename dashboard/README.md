@@ -169,13 +169,18 @@ shows the run as `starting`, says in words that the server is loading the
 model, and follows the log of that run. The Setup tab shows the same
 state in words.
 
-The Benchmark tab shows one table per cell: the prefill and the decode speed
-(the rate of the whole cell and the distribution of the rates of its
-requests), the time to first token in seconds, the inter-token latency in
-milliseconds and the output rate. A number that was not measured shows `–`.
+The Benchmark tab answers one question: how fast is the server, and does it
+read the whole prompt? It opens with the last result in one sentence, then
+the suites as radio cards with their digest, the table of the cells (the
+prefill and the decode speed, the time to the first token, the latency
+between the tokens and the output rate, each with the mean, the median and
+the 95th percentile), the curve of the prompt length, the comparison of two
+results with a verdict on every group, the receipt of that comparison and
+the history of the saved results. A number that was not measured shows `–`.
 When the server has a `/metrics` endpoint, a line under the table says what
-the server measured over the same requests. The history lists the best
-output, decode and prefill rate of every saved result.
+the server measured over the same requests. `Run the suite` starts the run
+and the card under the suites follows it: the phase, the rate and the time.
+The A/B section measures one server, then the other, then the first again.
 
 ## UI and UX rules
 
