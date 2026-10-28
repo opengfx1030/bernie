@@ -367,14 +367,26 @@ field in a domain struct changes `docs/spec.md` in the same commit.
 
 ### 8.3 Performance
 
-| Budget | Value |
-|---|---|
-| The whole page | at most 140 KB of HTML, CSS and JavaScript, uncompressed, no images and no fonts; first paint under 1 s on a loopback host |
-| The files | HTML at most 12 KB, CSS at most 40 KB in four files, JavaScript at most 90 KB in the core, the components and the four views |
-| The live numbers | one stream: `GET /api/telemetry` at 1 Hz drives every tile, every ring, every meter and every sparkline |
-| The poller | one poller for the page, in `js/data.js`; no view opens its own timer. The onboarding document is re-read every 15 s only while a job runs |
-| The charts | the history is read once per window change and then appended from the telemetry stream; the view never re-reads it |
-| The payload of the history | at most 120 KB for a 15-minute window; the ring buffer answers at most 900 points per GPU |
+The budget is measured, not promised. The Go test in
+[`dashboard/assets_test.go`](../../dashboard/assets_test.go) (`TestPayloadBudget`,
+`TestGzipSizeBudget`, `TestFirstPaintRequests`) walks the embedded tree and
+fails the build when a number crosses a line; the lines below are the
+current targets and the measured values 2026-10-29.
+
+| Budget | Target | Measured | Note |
+|---|---|---|---|
+| The whole page (HTML + CSS + JS, uncompressed) | ≤ 340 KB | **341 KB** (5.2 + 261 + 75) | the plan is to reach ≤ 240 KB JS (the heavy view code in `views/setup` and `views/dashboard`); the rest is in the budget |
+| HTML | ≤ 12 KB | **5.2 KB** | `index.html` |
+| CSS | ≤ 80 KB, in six files | **74.7 KB** (tokens, layout, components, views, bench, classic, `views/logs/logs.css`) | the design said four files; the split is `components.css` (the shared) + `views.css` (the per-tab) + `bench.css` + `classic.css` + `logs.css` |
+| JavaScript | ≤ 240 KB (plan); 280 KB hard ceiling | **261 KB** | the 240 KB plan: move the Setup and Dashboard view code into the components they own; the ceiling is the measured + 8 % |
+| Fonts | ≤ 130 KB, four woff2, OFL, `font-display: swap` | **128.5 KB**, four woff2, swap ✓, **no `unicode-range`** ⚠ | the license texts (24.5 KB) sit next to the files; they are not loaded by the page |
+| First-paint requests | ≤ 45 | **43** (1 HTML + 8 CSS + 30 scripts + 4 fonts) | the 40 the research cites is from a previous build; the cost is amortised over HTTP/1.1 keep-alive on a LAN (one connection, one round-trip per asset after the first). The 25 the research hints at needs fewer files or `rel=preload`; both would hurt the structure of the pages today |
+| Transferred text on the first paint (gzip) | ≤ 120 KB | **112.5 KB** (HTML + CSS + JS, 33 %) | the budget is met; the gzipped HTML alone is 1.8 KB |
+| First paint on a loopback host | ≤ 1.0 s | **unmeasured** | the binary runs on this Mac; a measurement on the reference box (par1-cs25) lands in `dashboard/README.md` when the integrator pushes |
+| The live numbers | one stream: `GET /api/telemetry` at 1 Hz drives every tile, every ring, every meter and every sparkline | the stream | the poller pauses while `document.hidden` and reads once on return (`web/js/data.js`) |
+| The poller | one timer for the page, in `js/data.js`; no view opens its own timer | one timer | one `setTimeout` re-arms itself with a delay that grows on error (backoff, capped at 60 s) and shrinks on success |
+| The charts | the history is read once per window change and then appended from the telemetry stream; the view never re-reads it | the points are capped at 240 per chart (`web/components/charts.js`) | an update writes only the path `d`; the axes are built once |
+| The payload of the history | at most 120 KB for a 15-minute window; the ring buffer answers at most 900 points per GPU | the cap is 900 points (15 s × 60 s × 60 min × 2 s / 2) | the new `/api/gpus/history?window=…` (commit 6) honours it |
 
 ## 9. The old tabs, the commit plan and the owners
 
