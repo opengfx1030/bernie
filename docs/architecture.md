@@ -23,6 +23,7 @@ flowchart TB
     CLI["internal/cli<br/>+ cli/cmds/family"]
     DASH["dashboard<br/>HTTP, SSE, web/"]
   end
+  APP["internal/app<br/>shared operations"]
   FLOW["internal/flow<br/>status, up"]
   subgraph top["Domain, top level"]
     DOC["doctor"]
@@ -48,6 +49,11 @@ flowchart TB
   D3[("tunableop/<br/>tuned-moe/")]
   D4[("logdoc/catalog.yaml")]
   D5[("dashboard/web/")]
+  CLI --> APP
+  DASH --> APP
+  APP -.-> top
+  APP -.-> serving
+  APP -.-> machine
   CLI --> FLOW
   CLI --> DASH
   CLI --> DOC
@@ -102,6 +108,11 @@ Rules:
 6. `flow` holds the two product-level chains (`status` and `up`).
    `runner.Prepare` is the only place that turns a recipe id into a ready
    plan. The CLI and the dashboard both call it.
+7. `app` holds the operations that more than one front end runs and that no
+   domain package owns: `hw`, `topo`, `doctor`, the run-log scan, `recipe
+   list`, `tune` status and power, `setup` plan and apply, `bench` (run and
+   save). Each returns the struct of its `--json` document. `app` never
+   prints and never imports a front end.
 
 ## 2. Repository layout
 
@@ -117,6 +128,7 @@ bernie/
 │   │       ├── tunecmd/      tune
 │   │       ├── benchcmd/     bench
 │   │       └── dashcmd/      dash
+│   ├── app/              operations shared by the front ends, one `--json` document each
 │   ├── flow/             status snapshot and `up`
 │   ├── doctor/           check registry (one checks_<category>.go per category)
 │   ├── setup/            install plan and non-root apply

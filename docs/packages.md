@@ -174,6 +174,30 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error)
 func Save(r *Result) (string, error); func List() ([]Result, error); func Get(id string) (*Result, error)
 ```
 
+## app
+
+```go
+// Each function returns the canonical struct of its `--json` document.
+func HW(ctx context.Context) (HWReport, error)                          // GPUErr: why GPUs is empty
+func Topo(ctx context.Context, o TopoOptions) (topo.Topology, error)    // Bandwidth, Venv, NoKFDOK, Progress
+func Doctor(ctx context.Context, categories []string, venv string) (doctor.Report, error)
+func RunLog(ctx context.Context, name string) (LogReport, error)        // doctor --run
+func NewLogReport(matches []logdoc.Match) LogReport                     // never null
+func RecipeList(all bool) recipe.Listing
+func TunableOpStatus(venv string) (TunableOpState, error)
+func PowerStatus() ([]tuning.Power, error)
+func PowerSet(idx []int, watts float64) (PowerResult, error)            // root: writes; else commands
+func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error)
+func SetupPending(steps []setup.Step, only []string) []setup.Step
+func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) ([]setup.Step, error)
+func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Result, string, error) // ErrAllFailed, *SaveError
+func BenchList() ([]bench.Result, error)                                // never null
+func Stop(ctx context.Context, name string) (StopResult, error)
+```
+
+`app` takes typed, validated input. The CLI parses flags, the dashboard parses
+its JSON body, the MCP server checks its input schema. `app` never prints.
+
 ## flow
 
 ```go

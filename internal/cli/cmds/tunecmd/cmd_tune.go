@@ -4,16 +4,13 @@ import (
 	"fmt"
 	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
-	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 func init() {
@@ -47,7 +44,7 @@ func init() {
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		st, err := tunableOpStatus(*venvFlag)
+		st, err := app.TunableOpStatus(*venvFlag)
 		if err != nil {
 			return err
 		}
@@ -75,7 +72,7 @@ func init() {
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		st, err := tunableOpStatus(*venvFlag)
+		st, err := app.TunableOpStatus(*venvFlag)
 		if err != nil {
 			return err
 		}
@@ -114,11 +111,10 @@ func init() {
 		if _, err := cli.Parse(c.Flags(pstatus), args); err != nil {
 			return err
 		}
-		gpus, err := gpu.List("/")
+		ps, err := app.PowerStatus()
 		if err != nil {
 			return err
 		}
-		ps := tuning.PowerStatus(gpus)
 		return c.Emit(ps, func(w io.Writer) {
 			tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(tw, "GPU\tNAME\tCAP W\tMIN W\tMAX W")
@@ -154,22 +150,17 @@ func init() {
 				idx = append(idx, n)
 			}
 		}
-		gpus, err := gpu.List("/")
+		res, err := app.PowerSet(idx, watts)
 		if err != nil {
 			return err
 		}
-		cmds, err := tuning.SetPower(gpus, idx, watts)
-		if err != nil {
-			return err
-		}
-		res := map[string]any{"watts": watts, "applied": cmds == nil, "commands": cmds}
 		return c.Emit(res, func(w io.Writer) {
-			if cmds == nil {
+			if res.Applied {
 				fmt.Fprintf(w, "power cap set to %.0f W\n", watts)
 				return
 			}
 			fmt.Fprintln(w, "# not root: run these commands")
-			for _, l := range cmds {
+			for _, l := range res.Commands {
 				fmt.Fprintln(w, l)
 			}
 		})
@@ -178,69 +169,6 @@ func init() {
 
 	tune.Subs = []*cli.Command{top, power}
 	cli.Register(tune)
-}
-
-// tunableOpState is `tune tunableop status`.
-type tunableOpState struct {
-	Venv    string `json:"venv"`
-	ROCBLAS string `json:"rocblas"`
-	SHA256  string `json:"sha256"`
-	// Archs are the gfx targets of the GPUs the profile must fit: the host's
-	// GPUs, or the ones HIP_VISIBLE_DEVICES lists. Empty: no GPU data.
-	Archs   []string `json:"archs"`
-	Profile string   `json:"profile"`
-	RowsDir string   `json:"rows_dir"`
-	PerUser string   `json:"per_user_file"`
-}
-
-func tunableOpStatus(venvFlag string) (tunableOpState, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return tunableOpState{}, err
-	}
-	st := tunableOpState{Venv: cfg.ResolveVenv(venvFlag), PerUser: tuning.PerUserFile(), Archs: hostArchs()}
-	st.ROCBLAS = rocm.FindROCBLAS("/", st.Venv)
-	if st.ROCBLAS == "" {
-		return st, nil
-	}
-	if st.SHA256, err = tuning.HashLib(st.ROCBLAS); err != nil {
-		return st, err
-	}
-	p, err := tuning.Select(st.SHA256, "", st.Archs)
-	if err != nil {
-		return st, err
-	}
-	if p != nil {
-		st.Profile, st.RowsDir = p.Name, tuning.RowsDir(p.Name)
-	}
-	return st, nil
-}
-
-// hostArchs returns the gfx targets of the host's GPUs, limited to the
-// HIP_VISIBLE_DEVICES indices when that variable lists indices. It returns
-// nil when the GPUs cannot be listed.
-func hostArchs() []string {
-	gpus, err := gpu.List("/")
-	if err != nil {
-		return nil
-	}
-	var idx []int
-	if v := os.Getenv("HIP_VISIBLE_DEVICES"); v != "" {
-		for _, f := range strings.Split(v, ",") {
-			n, err := strconv.Atoi(strings.TrimSpace(f))
-			if err != nil {
-				idx = nil // not an index list (UUIDs): do not restrict
-				break
-			}
-			idx = append(idx, n)
-		}
-	}
-	if idx == nil {
-		for _, g := range gpus {
-			idx = append(idx, g.HIPIndex)
-		}
-	}
-	return gpu.Archs(gpus, idx)
 }
 
 func short12(s string) string {

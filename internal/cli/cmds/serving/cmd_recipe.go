@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
-	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -14,8 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/opengfx1030/bernie/internal/machine/gpu"
-	"github.com/opengfx1030/bernie/internal/machine/host"
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 )
@@ -30,8 +28,7 @@ func init() {
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		gpus, _ := gpu.List("/")
-		l := recipe.List(recipe.Load(), gpus, hostRAM(), *all)
+		l := app.RecipeList(*all)
 		return c.Emit(l, func(w io.Writer) { printRecipeList(w, l, *all) })
 	}
 
@@ -119,14 +116,6 @@ func prepareFlags(fs *flag.FlagSet, o *runner.PrepareOptions, sets *cli.MultiFla
 	fs.StringVar(&o.Profile, "profile", "", "force a TunableOp profile (validated against the loaded rocBLAS in host mode)")
 	fs.BoolVar(&o.NoTunableOp, "no-tunableop", false, "do not set TunableOp")
 	fs.BoolVar(&o.Tuning, "tuning", false, "TunableOp online tuning into the per-user rows file")
-}
-
-func hostRAM() uint64 {
-	b, err := os.ReadFile("/proc/meminfo")
-	if err != nil {
-		return 0
-	}
-	return host.ParseMemTotal(string(b))
 }
 
 func printRecipeList(w io.Writer, l recipe.Listing, all bool) {

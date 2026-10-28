@@ -1,23 +1,16 @@
 package health
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/logdoc"
-	"github.com/opengfx1030/bernie/internal/serving/recipe"
-	"github.com/opengfx1030/bernie/internal/support/config"
-	"github.com/opengfx1030/bernie/internal/support/execx"
-	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 func init() {
@@ -46,11 +39,10 @@ func init() {
 				return cli.Usagef("unknown category %q (have %s)", cat, strings.Join(doctor.Categories, ", "))
 			}
 		}
-		cfg, err := config.Load()
+		r, err := app.Doctor(c.Ctx, cats, *venvFlag)
 		if err != nil {
 			return err
 		}
-		r := doctor.Run(c.Ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(*venvFlag), Categories: cats, HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(recipe.Load())})
 		if err := c.Emit(r, func(w io.Writer) { printDoctor(w, r) }); err != nil {
 			return err
 		}
@@ -92,91 +84,45 @@ func printDoctor(w io.Writer, r doctor.Report) {
 	fmt.Fprintf(w, "\n%d ok, %d warn, %d fail, %d skip\n", s[doctor.OK], s[doctor.Warn], s[doctor.Fail], s[doctor.Skip])
 }
 
-// logReport is the --json document of the log doctor.
-type logReport struct {
-	Matches []logdoc.Match `json:"matches"`
-}
-
 // doctorLog scans one log (a file, stdin or a run's log) and prints the
 // matched rules. It fails with exit code 3 when any rule matches.
 func doctorLog(c *cli.Context, file, run string) error {
-	rules, err := logdoc.Load()
-	if err != nil {
-		return err
-	}
 	var src string
-	var matches []logdoc.Match
-	switch {
-	case run != "":
+	var rep app.LogReport
+	var err error
+	if run != "" {
 		src = "run " + run
-		matches, err = scanRunLog(c, rules, run)
-	case file == "-":
-		src = "stdin"
-		matches = logdoc.Scan(os.Stdin, rules)
-	default:
-		src = file
-		var f *os.File
-		if f, err = os.Open(file); err == nil {
-			matches = logdoc.Scan(f, rules)
-			f.Close()
-		}
+		rep, err = app.RunLog(c.Ctx, run)
+	} else {
+		rep, src, err = scanLogFile(file)
 	}
 	if err != nil {
 		return err
-	}
-	rep := logReport{Matches: matches}
-	if rep.Matches == nil {
-		rep.Matches = []logdoc.Match{}
 	}
 	if err := c.Emit(rep, func(w io.Writer) { printLogReport(w, src, rep.Matches) }); err != nil {
 		return err
 	}
-	if len(matches) > 0 {
-		return cli.ChecksFailed("%d known failure(s) in %s", len(matches), src)
+	if len(rep.Matches) > 0 {
+		return cli.ChecksFailed("%d known failure(s) in %s", len(rep.Matches), src)
 	}
 	return nil
 }
 
-// scanRunLog scans the log of a run. A host run's log is the file named by the
-// "log" field of run.json (serve.log in the run directory when the field is
-// empty or the file is gone). A container run's log comes from the engine.
-func scanRunLog(c *cli.Context, rules []logdoc.Rule, name string) ([]logdoc.Match, error) {
-	dir := filepath.Join(paths.State(), "runs", name)
-	b, err := os.ReadFile(filepath.Join(dir, "run.json"))
+// scanLogFile matches a log file, or stdin for "-".
+func scanLogFile(file string) (app.LogReport, string, error) {
+	rules, err := logdoc.Load()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("no run named %q (looked in %s)", name, dir)
-		}
-		return nil, err
+		return app.LogReport{}, "", err
 	}
-	var rec struct {
-		Engine    string `json:"engine"`
-		Container string `json:"container"`
-		Log       string `json:"log"`
+	if file == "-" {
+		return app.NewLogReport(logdoc.Scan(os.Stdin, rules)), "stdin", nil
 	}
-	if err := json.Unmarshal(b, &rec); err != nil {
-		return nil, fmt.Errorf("run %s: bad run.json: %w", name, err)
-	}
-	if rec.Engine != "" && rec.Container != "" {
-		res, err := execx.Run(c.Ctx, 60*time.Second, rec.Engine, "logs", rec.Container)
-		if err != nil {
-			return nil, err
-		}
-		if !res.OK() {
-			return nil, fmt.Errorf("%s logs %s failed: %s", rec.Engine, rec.Container, execx.FirstLine(res.Stderr))
-		}
-		return logdoc.Scan(io.MultiReader(strings.NewReader(res.Stdout), strings.NewReader(res.Stderr)), rules), nil
-	}
-	path := rec.Log
-	if _, err := os.Stat(path); path == "" || err != nil {
-		path = filepath.Join(dir, "serve.log")
-	}
-	f, err := os.Open(path)
+	f, err := os.Open(file)
 	if err != nil {
-		return nil, err
+		return app.LogReport{}, "", err
 	}
 	defer f.Close()
-	return logdoc.Scan(f, rules), nil
+	return app.NewLogReport(logdoc.Scan(f, rules)), file, nil
 }
 
 func printLogReport(w io.Writer, src string, ms []logdoc.Match) {
@@ -185,11 +131,5 @@ func printLogReport(w io.Writer, src string, ms []logdoc.Match) {
 		return
 	}
 	fmt.Fprintf(w, "%d known failure(s) in %s\n", len(ms), src)
-	for _, m := range ms {
-		fmt.Fprintf(w, "\n[%s] %s (line %d)\n", m.Severity, m.ID, m.LineNo)
-		fmt.Fprintf(w, "  cause: %s\n", m.Cause)
-		fmt.Fprintf(w, "  fix:   %s\n", m.Fix)
-		fmt.Fprintf(w, "  doc:   %s\n", m.Doc)
-		fmt.Fprintf(w, "  line:  %s\n", strings.TrimSpace(m.Line))
-	}
+	cli.WriteMatches(w, ms)
 }
