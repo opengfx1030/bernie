@@ -54,7 +54,7 @@ func printSuiteList(w io.Writer, all []*suite.Info) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "ID\tNAME\tCELLS\tREPS\tEST\tDIGEST")
 	for _, s := range all {
-		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%s\t%s\n", s.ID, s.Name, s.Cells(), s.Reps, estText(s.EstS()), shortDigest(s.Digest))
+		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%s\t%s\n", s.ID, s.Name, s.Cells(), s.Reps, estText(s.EstS()), suite.ShortDigest(s.Digest))
 	}
 	tw.Flush()
 	for _, s := range all {
@@ -113,12 +113,4 @@ func estText(s int) string {
 		return "–"
 	}
 	return strconv.Itoa(s) + "s"
-}
-
-// shortDigest is the first twelve characters of a digest.
-func shortDigest(d string) string {
-	if len(d) <= 12 {
-		return d
-	}
-	return d[:12]
 }

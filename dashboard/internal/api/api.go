@@ -29,6 +29,7 @@ type Options struct {
 type handler struct {
 	log       io.Writer
 	telemetry Telemetry
+	bench     *benchJobs
 }
 
 // Register adds every dashboard API route to mux.
@@ -36,7 +37,7 @@ func Register(mux *http.ServeMux, o Options) {
 	if o.Log == nil {
 		o.Log = io.Discard
 	}
-	h := &handler{log: o.Log, telemetry: o.Telemetry}
+	h := &handler{log: o.Log, telemetry: o.Telemetry, bench: newBenchJobs()}
 
 	mux.HandleFunc("GET /api/hw", h.getHW)
 	mux.HandleFunc("GET /api/topo", h.getTopo)
@@ -59,6 +60,10 @@ func Register(mux *http.ServeMux, o Options) {
 	mux.HandleFunc("GET /api/bench/suites", h.getBenchSuites)
 	mux.HandleFunc("GET /api/bench/compare", h.getBenchCompare)
 	mux.HandleFunc("POST /api/bench", h.postBench)
+	mux.HandleFunc("POST /api/bench/run", h.postBenchRun)
+	mux.HandleFunc("POST /api/bench/ab", h.postBenchAB)
+	mux.HandleFunc("GET /api/bench/{id}", h.getBenchJob)
+	mux.HandleFunc("GET /api/bench/{id}/events", h.getBenchEvents)
 	mux.HandleFunc("GET /api/onboarding", h.getOnboarding)
 	mux.HandleFunc("POST /api/onboarding/{step}/run", h.postOnboardingRun)
 	mux.HandleFunc("GET /api/jobs/{id}", h.getJob)

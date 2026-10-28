@@ -1386,6 +1386,11 @@ Rules for responses and tokens:
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
+| POST | `/api/bench/run` | the same body as `POST /api/bench`, but the run happens in the background → `{"id": "b-7f3a"}` (202). The state of the run is `GET /api/bench/{id}`. |
+| POST | `/api/bench/ab` | `{"base": "", "cand": "", "suite": "", "model": "", "num_prompts": 0, "seed": 0, "tag": ""}` → `{"id": "b-7f3a"}` (202). A URL arm must be a server of this host. The state of the run is `GET /api/bench/{id}`. |
+| GET | `/api/bench/{id}` | the state of a benchmark run: `{"id", "status", "phase", "done", "total", "result_id"}`. `status` is `running`, `done` or `failed`; `phase` names the cell the run is on; `done` counts the finished cells, `total` is the number of cells of the run and `result_id` is the id of the saved result. |
+| GET | `/api/bench/{id}/events` | Server-sent events of a benchmark run: one `log` event per progress line, a `progress` event with the job document, then a `done` or `failed` event with the job document. |
+| GET | `/api/bench/compare?a=ID&b=ID&format=markdown` | the receipt of the comparison as `text/markdown`: the text of `bernie bench compare A B --markdown`. |
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
 | GET | `/api/jobs/{id}` | the job document |

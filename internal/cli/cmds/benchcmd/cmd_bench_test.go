@@ -98,9 +98,7 @@ func TestPrintReceiptIsMarkdown(t *testing.T) {
 		Summary: suite.Summary{Same: 1, RecallOK: true},
 		Valid:   true,
 	}
-	var b strings.Builder
-	printReceipt(&b, v)
-	out := b.String()
+	out := suite.Receipt(v)
 	for _, want := range []string{
 		"# Benchmark receipt",
 		"## Scope",

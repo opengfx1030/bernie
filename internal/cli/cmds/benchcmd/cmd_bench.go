@@ -11,6 +11,7 @@ import (
 
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
+	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 )
 
 func init() {
@@ -127,7 +128,7 @@ func printBenchResult(w io.Writer, r *bench.Result) {
 	}
 	fmt.Fprintln(w)
 	if r.Suite != nil {
-		fmt.Fprintf(w, "suite %s, digest %s\n", r.Suite.ID, shortDigest(r.Suite.Digest))
+		fmt.Fprintf(w, "suite %s, digest %s\n", r.Suite.ID, suite.ShortDigest(r.Suite.Digest))
 	}
 	if fp := fingerprintLine(r.Fingerprint); fp != "" {
 		fmt.Fprintln(w, fp)
@@ -137,20 +138,20 @@ func printBenchResult(w io.Writer, r *bench.Result) {
 	for _, cl := range r.Cells {
 		printCell(w, &cl)
 		for _, e := range cl.Errors {
-			fmt.Fprintf(w, "%s error: %s\n", cellName(&cl), e)
+			fmt.Fprintf(w, "%s error: %s\n", suite.CellLabel(cl.Group, cl.Concurrency), e)
 		}
 		if cl.Recall != nil {
 			fmt.Fprintf(w, "%s recall %d/%d passed (hidden fact at %d%% of the prompt, %s)\n",
-				cellName(&cl), cl.Recall.Passed, cl.Recall.Asked, int(cl.Recall.Depth*100), recallMethodText(cl.Recall.Method))
+				suite.CellLabel(cl.Group, cl.Concurrency), cl.Recall.Passed, cl.Recall.Asked, int(cl.Recall.Depth*100), recallMethodText(cl.Recall.Method))
 			if cl.Recall.Passed < cl.Recall.Asked {
-				fmt.Fprintf(w, "%s the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", cellName(&cl))
+				fmt.Fprintf(w, "%s the server did not repeat the hidden fact: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", suite.CellLabel(cl.Group, cl.Concurrency))
 			}
 		}
 		if cl.Check != nil {
 			fmt.Fprintf(w, "%s check %d/%d passed (%s)\n",
-				cellName(&cl), cl.Check.Passed, cl.Check.Asked, recallMethodText(cl.Check.Method))
+				suite.CellLabel(cl.Group, cl.Concurrency), cl.Check.Passed, cl.Check.Asked, recallMethodText(cl.Check.Method))
 			if cl.Check.Passed < cl.Check.Asked {
-				fmt.Fprintf(w, "%s the server did not hold the declared answer: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", cellName(&cl))
+				fmt.Fprintf(w, "%s the server did not hold the declared answer: it may not read the whole prompt, so the speed numbers of this cell are meaningless\n", suite.CellLabel(cl.Group, cl.Concurrency))
 			}
 		}
 	}
@@ -168,25 +169,17 @@ const dash = "–"
 // spec §10.
 func printCell(w io.Writer, cl *bench.Cell) {
 	fmt.Fprintf(w, "cell %s   %d ok / %d failed   wall %.2f s   %s tok/chunk   in/out %s/%s tok\n",
-		cellName(cl), cl.Completed, cl.Failed, cl.DurationS, chunkText(cl.TokensPerChunk),
+		suite.CellLabel(cl.Group, cl.Concurrency), cl.Completed, cl.Failed, cl.DurationS, chunkText(cl.TokensPerChunk),
 		countText(cl.MeanPromptTokens), countText(cl.MeanOutputTokens))
 	fmt.Fprintln(w, cellRow("metric", "agg", "req mean", "req p50", "req p95", "req min", "req max"))
 	fmt.Fprintln(w, rateRow("prefill tok/s", cl.Prefill))
 	fmt.Fprintln(w, rateRow("decode tok/s", cl.Decode))
 	fmt.Fprintln(w, distRow("TTFT s", cl.TTFTs, secText))
 	fmt.Fprintln(w, distRow("ITL ms", cl.ITLms, msText))
-	fmt.Fprintln(w, cellRow("output tok/s", rateText(cl.OutputTokS), dash, dash, dash, dash, dash))
+	fmt.Fprintln(w, cellRow("output tok/s", suite.RateText(cl.OutputTokS), dash, dash, dash, dash, dash))
 	if cl.ServerSide != nil {
 		fmt.Fprintf(w, "server side: %s\n", serverSideText(cl.ServerSide))
 	}
-}
-
-// cellName names a cell: its group and its concurrency level.
-func cellName(cl *bench.Cell) string {
-	if cl.Group == "" {
-		return fmt.Sprintf("c=%d", cl.Concurrency)
-	}
-	return fmt.Sprintf("%s c=%d", cl.Group, cl.Concurrency)
 }
 
 // cellRow formats one line of the cell table: the name on the left, the
@@ -206,8 +199,8 @@ func rateRow(label string, r *bench.Rate) string {
 	if r == nil {
 		return cellRow(label, dash, dash, dash, dash, dash, dash)
 	}
-	return cellRow(label, rateText(r.AggTokS), rateText(dMean(r.Req)), rateText(dP50(r.Req)),
-		rateText(dP95(r.Req)), rateText(dMin(r.Req)), rateText(dMax(r.Req)))
+	return cellRow(label, suite.RateText(r.AggTokS), suite.RateText(dMean(r.Req)), suite.RateText(dP50(r.Req)),
+		suite.RateText(dP95(r.Req)), suite.RateText(dMin(r.Req)), suite.RateText(dMax(r.Req)))
 }
 
 // distRow is the row of a latency: the distribution over the requests.
@@ -264,15 +257,8 @@ func dMax(d *bench.Dist) float64 {
 	return d.Max
 }
 
-// rateText formats a token rate, secText a time in seconds and msText a
-// time in milliseconds. A number that was not measured shows as "–".
-func rateText(v float64) string {
-	if v <= 0 {
-		return dash
-	}
-	return fmt.Sprintf("%.1f", v)
-}
-
+// secText formats a time in seconds and msText a time in milliseconds. A
+// number that was not measured shows as "–".
 func secText(v float64) string {
 	if v <= 0 {
 		return dash
@@ -378,7 +364,7 @@ func printBenchList(w io.Writer, rs []bench.Result) {
 			}
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%d/%d\t%s\t%s\t%s\t%s\t%s\n", r.ID, r.Time.Local().Format("2006-01-02 15:04"),
-			r.Model, r.Options.InputLen, r.Options.OutputLen, strings.Join(cs, ","), rateText(best), rateText(bestDecode),
+			r.Model, r.Options.InputLen, r.Options.OutputLen, strings.Join(cs, ","), suite.RateText(best), suite.RateText(bestDecode),
 			recallText(resultRecall(&r)), r.Tag)
 	}
 	tw.Flush()

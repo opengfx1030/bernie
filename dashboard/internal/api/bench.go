@@ -35,7 +35,9 @@ func (h *handler) getBenchSuites(w http.ResponseWriter, r *http.Request) {
 	httpjson.Write(w, http.StatusOK, all)
 }
 
-// GET /api/bench/compare?a=ID&b=ID — the verdict of two saved results.
+// GET /api/bench/compare?a=ID&b=ID — the verdict of two saved results. With
+// `format=markdown` the answer is the receipt of the comparison as markdown:
+// the text of `bernie bench compare A B --markdown`.
 func (h *handler) getBenchCompare(w http.ResponseWriter, r *http.Request) {
 	a := r.URL.Query().Get("a")
 	b := r.URL.Query().Get("b")
@@ -58,7 +60,12 @@ func (h *handler) getBenchCompare(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	httpjson.Write(w, http.StatusOK, suite.Judge(cmp, 0))
+	verdict := suite.Judge(cmp, 0)
+	if r.URL.Query().Get("format") == "markdown" {
+		writeBenchMarkdown(w, verdict)
+		return
+	}
+	httpjson.Write(w, http.StatusOK, verdict)
 }
 
 // benchRequest mirrors the `bernie bench` flags. Absent fields take the CLI
