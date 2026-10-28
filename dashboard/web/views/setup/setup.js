@@ -19,8 +19,8 @@ const SETUP_STEP_NAMES = {
 };
 
 // SETUP_SMOKE_ENABLED says whether the endpoint that answers one prompt
-// exists. It stays false until the backend lands it.
-const SETUP_SMOKE_ENABLED = false;
+// exists. The backend landed POST /api/smoke with the shape of spec §11.
+const SETUP_SMOKE_ENABLED = true;
 
 // setupState holds the documents of the tab and the nodes it paints.
 const setupState = {
@@ -159,12 +159,13 @@ function setupHeadline(doc) {
   const names = pending.slice(0, 3).map((s) => SETUP_STEP_NAMES[s.id] || s.title || s.id);
   const more = pending.length > 3 ? " and " + (pending.length - 3) + " more" : "";
   const missing = names.join(", ") + more;
+  const sentence = missing.charAt(0).toUpperCase() + missing.slice(1);
   const rootClause = roots.length
     ? " " + roots.length + (roots.length === 1 ? " step needs" : " steps need") + " root; you will run " + (roots.length === 1 ? "it" : "them") + " yourself."
     : "";
   return {
     title: pending.length + (pending.length === 1 ? " STEP LEFT" : " STEPS LEFT") + " BEFORE THIS BOX CAN SERVE.",
-    lede: "The " + missing + (pending.length === 1 ? " is" : " are") + " not there yet." + rootClause,
+    lede: sentence + (pending.length === 1 ? " is" : " are") + " not there yet." + rootClause,
     action: "setup",
   };
 }
@@ -573,8 +574,14 @@ function focusSetupVerify() {
   focusSetupStep("verify");
 }
 
-/** setupToggleAdvanced opens or closes the raw documents of the tab. */
+/** setupToggleAdvanced opens or closes the raw documents of the tab. The
+ *  page-wide Advanced switch owns the state, so the rail button and this
+ *  button always agree. */
 function setupToggleAdvanced() {
+  if (typeof toggleAdvanced === "function") {
+    toggleAdvanced();
+    return;
+  }
   const panel = setupState.advanced;
   if (!panel) return;
   panel.open = !panel.open;

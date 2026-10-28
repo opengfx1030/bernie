@@ -5,12 +5,20 @@
 /** setupAdvancedPanel is the disclosure at the end of the tab. */
 function setupAdvancedPanel() {
   const body = h("div.setup-advanced-body", loading());
-  const panel = h("details.advanced.setup-advanced", h("summary", "Advanced"), body);
+  const summary = h("summary", "Advanced");
+  const panel = h("details.advanced.setup-advanced", summary, body);
   let loaded = false;
   panel.addEventListener("toggle", async () => {
     if (!panel.open || loaded) return;
     loaded = true;
     await loadSetupAdvanced(body);
+  });
+  // The panel follows the page-wide Advanced switch: the summary and the
+  // rail button open the same panels.
+  summary.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (typeof toggleAdvanced === "function") toggleAdvanced();
+    else panel.open = !panel.open;
   });
   return panel;
 }
