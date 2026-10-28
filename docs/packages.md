@@ -243,11 +243,12 @@ type UpOptions struct { Recipe string; Sets []string; Mode, Venv, Engine, Name s
     Yes bool; Confirm func(prompt string) bool; Wait time.Duration }
 type Blocked struct { Reason string; Commands []string }                      // exit code 3
 func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error)
-func WaitHealthy(ctx context.Context, name string, limit time.Duration) error // *StartupExit when the run exits first
-type Run struct { runner.Status; Findings []logdoc.Match }                    // Findings only for an exited run
+func WaitHealthy(ctx context.Context, name string, limit time.Duration, progress io.Writer) error // *StartupExit when the run exits first
+type Run struct { runner.Status; Findings []logdoc.Match; Phase *logdoc.Phase } // Findings only for an exited run
 type StartupExit struct { Name string; Findings []logdoc.Match }               // error of a run that exited before /health
 func Runs(ctx context.Context) ([]Run, error)                                  // `ps`: runner.List plus findings
 func Findings(ctx context.Context, r runner.Record) []logdoc.Match            // scan of an exited run's log, 2 s budget
+func Phase(ctx context.Context, r runner.Record) (logdoc.Phase, bool)         // phase of a live run, from the tail of its log
 ```
 
 `flow` never starts the dashboard. The front end does that after `Up` returns.

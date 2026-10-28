@@ -15,7 +15,6 @@ Each item has a spec section and one test that proves it.
 |---|---|---|---|
 | 1 | **Fit in recipe data.** A recipe lists `download_gb`, `vram_gib`, `ram_gib`, `kv_bytes_per_token`. `recipe list` shows `fits`, `tight: <reason>` or `no: <reason>`. | §7.2, §7.8 | `recipe list --json` on a fixture host: each recipe has `fit.verdict`; `fit.reasons` is non-empty unless `fits`. |
 | 2 | **Plan shrinks to fit.** `recipe plan` lowers `max-model-len` (32K, 16K, 8K) until the KV budget fits free VRAM. Each change is in `plan.adjustments[]` with a reason. A `--set` value is never changed. | §7 | `recipe plan --json` on a 16 GB fixture shows the adjustment; `--set args.max-model-len=8192` stays 8192. |
-| 3 | **Progress words.** One function turns the tail of a setup or serve log into one sentence ("Downloading 12.3 of 66.4 GB"). `serve` and `up` print it. | §3.1, §8 | Unit test on log tails; `serve` prints the sentence within 2 s of the log line. |
 | 4 | **Ready means answers.** A run is `ready` only after `/health` and a one-token completion succeed. | §3.1, §8.3 | A run with the model unloaded stays `starting` and says why. |
 | 5 | **Log doctor on failure.** When a run exits during startup, `serve` and `up` print the matched rule: id, cause, fix. | §5.3 | A fixture log with a known error prints that rule. |
 | 6 | **Next command in every state.** `status --json` has `next` for: no GPU, no recipe fits, recipe fits, run starting, run ready. | §3.1 | Fixture set covers the five states. |
@@ -31,6 +30,16 @@ Each item has a spec section and one test that proves it.
 
 ## Shipped
 
+- **Progress words.** One function turns the tail of a serve log into one
+  sentence ("Loading the model weights, 2 of 5 shards"). `serve` and `up`
+  print it when it changes, `ps --json` and `status --json` carry the phase
+  of a live run, and the Runs tab shows the sentence under the state badge.
+  Spec [§5.4](spec.md#54-log-phase).
+- **P2P readiness checklist.** `bernie topo --check` and the doctor category
+  `topo.p2p` answer whether multi-GPU peer-to-peer copies and the custom
+  all-reduce work on this host, and say why when they do not. The Topology
+  tab shows the same checklist. Spec
+  [§4.5](spec.md#45-p2p-readiness-checklist).
 - **MCP server.** `bernie mcp` on stdio and `POST /mcp` on the dashboard,
   read-only by default, write tools behind `--allow-write` and a confirm
   token. It reuses the `--json` code paths. Spec [§13](spec.md#13-model-context-protocol),

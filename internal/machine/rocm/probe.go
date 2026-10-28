@@ -62,6 +62,20 @@ func Probe(ctx context.Context, root string) Report {
 	return r
 }
 
+// FindTool returns the path of a ROCm tool: on PATH (live host only), else
+// in the newest install of the tree under root. It runs no tool.
+func FindTool(root, name string) string {
+	if root == "" {
+		root = "/"
+	}
+	if root == "/" {
+		if p := execx.Which(name); p != "" {
+			return p
+		}
+	}
+	return installTool(root, FindInstalls(root), name)
+}
+
 // FindInstalls lists ROCm trees: /opt/rocm*, /opt/rocm*/core-* (TheRock
 // layout) and a distro install in /usr. Trees reached through several
 // symlinks are reported once, by their resolved path.

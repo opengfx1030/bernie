@@ -57,6 +57,13 @@ function ago(t) {
 function badge(status) { return h("span.badge", { class: "b-" + status }, status || "?"); }
 function sh(a) { return /^[\w@%+=:,./-]+$/.test(a) ? a : "'" + a.replace(/'/g, "'\\''") + "'"; }
 
+// copyBtn copies a command to the clipboard (every fix command has one).
+function copyBtn(text) {
+  return h("button.small", { onclick: async () => {
+    try { await navigator.clipboard.writeText(text); toast("Copied.", true); } catch (e) { toast("Copy failed: " + e.message); }
+  } }, "Copy");
+}
+
 let toastTimer;
 function toast(msg, ok) {
   const t = $("#toast");

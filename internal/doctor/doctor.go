@@ -12,6 +12,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/machine/topo"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
 )
 
@@ -28,7 +29,7 @@ const (
 )
 
 // Categories in report order.
-var Categories = []string{"os", "gpu", "kernel", "rocm", "python", "container", "resources", "tuning"}
+var Categories = []string{"os", "gpu", "kernel", "topo.p2p", "rocm", "python", "container", "resources", "tuning"}
 
 // Check is one doctor test.
 type Check struct {
@@ -58,6 +59,9 @@ type Options struct {
 	Categories     []string
 	HFHome         string
 	ValidatedArchs []string
+	// RecipeEnv is the environment of the recipe bernie would run. It fills
+	// the informational recipe item of the topo.p2p category.
+	RecipeEnv topo.RecipeEnv
 }
 
 // Failed reports whether any check failed.
@@ -69,6 +73,7 @@ type inputs struct {
 	host      host.Info
 	gpus      []gpu.GPU
 	gpuErr    error
+	ecc       []gpu.ECC // ECC state of every GPU, in HIP order
 	rocm      rocm.Report
 	venv      string
 	venvRep   rocm.VenvReport
@@ -84,6 +89,7 @@ type inputs struct {
 	amdgpu    bool           // amdgpu kernel module loaded
 	validated []string       // gfx targets with validated recipes
 	groupGIDs map[string]int // gid of video and render; a group missing here was not found
+	recipe    topo.RecipeEnv // environment of the recipe bernie would run
 }
 
 // devices is the state of the GPU device nodes.
@@ -136,7 +142,7 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 		}
 		return false
 	}
-	in := inputs{root: root, venv: o.Venv, validated: o.ValidatedArchs}
+	in := inputs{root: root, venv: o.Venv, validated: o.ValidatedArchs, recipe: o.RecipeEnv}
 	var wg sync.WaitGroup
 	run := func(f func()) {
 		wg.Add(1)
@@ -170,6 +176,12 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 	in.hfCache = hfCache(o.HFHome)
 	in.hfFree = freeBytes(in.hfCache)
 	wg.Wait()
+	if need("gpu") {
+		// The ECC counters come from sysfs; amd-smi is the fallback for the
+		// cards whose kernel exposes none.
+		in.ecc = gpu.ECCAll(root, in.gpus)
+		in.ecc = gpu.ECCTool(ctx, in.gpus, in.ecc, rocm.FindTool(root, "amd-smi"))
+	}
 	if need("gpu") && in.host.User.Name != "" {
 		in.groupGIDs = resolveGroups(ctx, root, deviceGroups)
 	}

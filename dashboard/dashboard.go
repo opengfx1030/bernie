@@ -148,6 +148,7 @@ func (s *server) handler() http.Handler {
 
 	mux.HandleFunc("GET /api/hw", s.getHW)
 	mux.HandleFunc("GET /api/topo", s.getTopo)
+	mux.HandleFunc("GET /api/topo/check", s.getTopoCheck)
 	mux.HandleFunc("GET /api/doctor", s.getDoctor)
 	mux.HandleFunc("GET /api/recipes", s.getRecipes)
 	mux.HandleFunc("GET /api/recipes/{id}/plan", s.getPlan)
