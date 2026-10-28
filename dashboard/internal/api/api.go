@@ -48,6 +48,8 @@ func Register(mux *http.ServeMux, o Options) {
 	mux.HandleFunc("POST /api/runs", h.postRun)
 	mux.HandleFunc("DELETE /api/runs/{name}", h.deleteRun)
 	mux.HandleFunc("GET /api/runs/{name}/logs", h.getLogs)
+	mux.HandleFunc("GET /api/runs/{name}/log", h.getRunLog)
+	mux.HandleFunc("GET /api/runs/{name}/findings", h.getRunFindings)
 	mux.HandleFunc("GET /api/telemetry", h.getTelemetry)
 	mux.HandleFunc("GET /api/gpus/history", h.getHistory)
 	mux.HandleFunc("POST /api/smoke", h.postSmoke)
