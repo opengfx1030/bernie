@@ -35,14 +35,14 @@ const METRIC_COLS = [
   { key: "flags", label: "FLAGS", left: true },
 ];
 
-/** COMPARE_METRICS are the five groups of a comparison and the name each one
- *  carries on the chart. */
+/** COMPARE_METRICS are the five groups of a comparison, the name each one
+ *  carries on the chart and the unit of its numbers. */
 const COMPARE_METRICS = [
-  { metric: "prefill.agg_tok_s", label: "PREFILL" },
-  { metric: "decode.agg_tok_s", label: "DECODE" },
-  { metric: "ttft_s.p50", label: "TTFT" },
-  { metric: "itl_ms.p50", label: "ITL" },
-  { metric: "output_tok_s", label: "OUT" },
+  { metric: "prefill.agg_tok_s", label: "PREFILL", unit: "tok/s" },
+  { metric: "decode.agg_tok_s", label: "DECODE", unit: "tok/s" },
+  { metric: "ttft_s.p50", label: "TTFT", unit: "s" },
+  { metric: "itl_ms.p50", label: "ITL", unit: "ms" },
+  { metric: "output_tok_s", label: "OUT", unit: "tok/s" },
 ];
 
 /** The helpers below still belong to the old Dashboard tab: they move to
@@ -139,13 +139,6 @@ function benchRate(rate, key, digits) {
   if (!rate) return "–";
   if (key === "agg") return rate.agg_tok_s ? benchNum(rate.agg_tok_s, digits) : "–";
   return benchDist(rate.req, key, digits);
-}
-
-/** benchUnit guesses the unit of a metric from its name. */
-function benchUnit(metric) {
-  if (/_ms$/.test(metric)) return "ms";
-  if (/_s$/.test(metric)) return "s";
-  return "tok/s";
 }
 
 /** benchDigits is the number of decimals a unit carries. */
@@ -269,7 +262,7 @@ function compareGroups(cmp) {
     }
     if (!best) continue;
     out.push({
-      metric: m.metric, label: m.label, unit: benchUnit(m.metric),
+      metric: m.metric, label: m.label, unit: m.unit,
       base: best.m.base, cand: best.m.cand, verdict: best.m.verdict,
       higher: best.m.higher_is_better,
       cell: (best.cell.group || "") + " at " + best.cell.concurrency,
