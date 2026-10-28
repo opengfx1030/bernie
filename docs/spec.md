@@ -1424,6 +1424,18 @@ The desired power state is `<config>/power.yaml` ([§9.2](#92-power)). The
 generated systemd units are `<state>/power/bernie-power.service` and
 `<state>/power/bernie-power.path`.
 
+The cached facts live in `<state>/facts`. A fact has a key, a fingerprint of
+the host state it was read from and a time to live. A fact older than its
+time to live is still served and is refreshed in the background: a reader
+never waits for a probe it does not need. A fingerprint that does not match
+the host state anymore makes the fact a miss, so a rebuilt venv or a new
+ROCm tree is probed again.
+
+| Key | Fact | Time to live |
+|---|---|---|
+| `venv/probe/<venv>` | the torch and vLLM imports of a venv | 10 min |
+| `rocm/installs/<root>` | the ROCm trees under a root | 10 min |
+
 The `venv` key is the third step of the venv order of
 [§6.2](#62-the-host-venv). It names the venv of every host-mode command
 that does not get a `--venv` of its own.

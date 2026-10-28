@@ -3,6 +3,7 @@ package rocm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,7 +13,21 @@ import (
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/support/factcache"
+	"github.com/opengfx1030/bernie/internal/support/pyenv"
 )
+
+// The facts rocm caches under the state directory, and how long they live.
+const (
+	// VenvProbeTTL is how long the torch and vLLM imports of a venv are
+	// trusted. The probe starts the venv's Python, which takes seconds.
+	VenvProbeTTL = 10 * time.Minute
+	// InstallsTTL is how long the ROCm trees of a root are trusted.
+	InstallsTTL = 10 * time.Minute
+)
+
+// venvProbeTimeout bounds the probe script of a venv.
+const venvProbeTimeout = 30 * time.Second
 
 // Tools probed on PATH (then in the install bin dirs).
 var Tools = []string{"rocminfo", "hipcc", "amd-smi", "rocm-smi", "rocm-bandwidth-test"}
@@ -273,8 +288,27 @@ done()
 `
 
 // ProbeVenv runs the probe script with the venv's Python and the wheel
-// library path (bounded to 60 s).
+// library path (bounded to 30 s). The result is cached under the state
+// directory: importing torch and vLLM takes seconds, and the answer only
+// changes when the venv changes.
 func ProbeVenv(ctx context.Context, venv string) VenvReport {
+	rep, _, _, err := factcache.Get(ctx, venvProbeKey(venv), venvFingerprint(venv), VenvProbeTTL,
+		func(ctx context.Context) (VenvReport, error) {
+			r := probeVenv(ctx, venv)
+			if r.Err != "" {
+				return r, errors.New(r.Err)
+			}
+			return r, nil
+		})
+	if err != nil && rep.Err == "" {
+		rep.Err = err.Error()
+	}
+	return rep
+}
+
+// probeVenv runs the probe script of a venv. It never caches: a failed
+// probe is not a fact of the host.
+func probeVenv(ctx context.Context, venv string) VenvReport {
 	rep := VenvReport{Venv: venv}
 	py := filepath.Join(venv, "bin", "python")
 	if !isFile(py) {
@@ -290,7 +324,7 @@ func ProbeVenv(ctx context.Context, venv string) VenvReport {
 		}
 		env = append(env, "LD_LIBRARY_PATH="+ld)
 	}
-	res, err := execx.RunEnv(ctx, 60*time.Second, env, py, "-I", "-c", venvProbeScript)
+	res, err := execx.RunEnv(ctx, venvProbeTimeout, env, py, "-I", "-c", venvProbeScript)
 	if err != nil {
 		rep.Err = err.Error()
 		return rep
@@ -299,6 +333,29 @@ func ProbeVenv(ctx context.Context, venv string) VenvReport {
 		rep.Err = "probe failed: " + lastLine(res.Stderr+res.Stdout)
 	}
 	return rep
+}
+
+// venvProbeKey is the cache key of the probe of a venv.
+func venvProbeKey(venv string) string { return "venv/probe/" + venv }
+
+// venvFingerprint names the state of a venv: the times of the files that
+// change when the venv is rebuilt.
+func venvFingerprint(venv string) string {
+	paths := append([]string{filepath.Join(venv, "pyvenv.cfg")}, pyenv.SitePackages(venv)...)
+	var out []string
+	for _, p := range paths {
+		out = append(out, stamp(p))
+	}
+	return strings.Join(out, ",")
+}
+
+// stamp returns the modification time of a path, or "-" when it is gone.
+func stamp(p string) string {
+	st, err := os.Stat(p)
+	if err != nil {
+		return "-"
+	}
+	return st.ModTime().UTC().Format(time.RFC3339Nano)
 }
 
 // parseVenvOutput fills rep from the marked JSON line.

@@ -1,17 +1,53 @@
 package rocm
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/opengfx1030/bernie/internal/support/factcache"
 )
+
+// installsKey is the cache key of the ROCm trees of a root.
+func installsKey(root string) string { return "rocm/installs/" + root }
+
+// installsFingerprint names the ROCm trees of a root: the times of the
+// directories that hold them.
+func installsFingerprint(root string) string {
+	var out []string
+	for _, pat := range []string{"opt/rocm*", "opt/rocm*/core-*"} {
+		m, _ := filepath.Glob(filepath.Join(root, pat))
+		for _, d := range m {
+			out = append(out, stamp(d))
+		}
+	}
+	return strings.Join(out, ",")
+}
 
 // FindInstalls lists ROCm trees: /opt/rocm*, /opt/rocm*/core-* (TheRock
 // layout) and a distro install in /usr. Trees reached through several
 // symlinks are reported once, by their resolved path. A tree inside another
 // ROCm tree is nested under it, not a second install.
+//
+// On the live host the list is cached under the state directory: the trees
+// change when ROCm is installed or removed, and the walk of a big tree
+// costs time.
 func FindInstalls(root string) []Install {
+	if root != "/" {
+		return findInstalls(root)
+	}
+	installs, _, _, err := factcache.Get(context.Background(), installsKey(root), installsFingerprint(root), InstallsTTL,
+		func(context.Context) ([]Install, error) { return findInstalls(root), nil })
+	if err != nil {
+		return findInstalls(root)
+	}
+	return installs
+}
+
+// findInstalls lists the ROCm trees under root.
+func findInstalls(root string) []Install {
 	var cands []string
 	for _, pat := range []string{"opt/rocm*", "opt/rocm*/core-*"} {
 		m, _ := filepath.Glob(filepath.Join(root, pat))
