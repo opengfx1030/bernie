@@ -17,13 +17,12 @@
 const classic = {
   built: false,
   panel: null,
-  stream: null,
-  tele: null,      // the last telemetry document
+  unsub: null,     // the way back from the one telemetry stream of the page
   hist: [],        // [{t, gen, prompt, running, waiting, kv, spec}] the last minutes
   snip: "curl",    // the connect snippet: curl or python
   charts: new Map(),
   counts: {},      // the last value of every counted number
-  el: {},          // the parts the stream updates
+  el: {},          // the parts the page updates
   tip: null,       // the tooltip of the charts and of the marks
 };
 
@@ -41,24 +40,25 @@ function viewClassic(panel) {
     classicBuild();
     classic.built = true;
   }
-  classicUpdate();
-  classicStream();
+  classicUpdate(state.tele);
+  classicSubscribe();
   classicHistory();
 }
 
-/** classicStream follows the shared telemetry stream of js/data.js. */
-function classicStream() {
-  if (classic.stream) return classic.stream;
-  if (typeof openTelemetry !== "function") return null;
-  classic.stream = openTelemetry({
-    message: (doc) => {
-      if (!doc) return;
-      classic.tele = doc;
-      classicSample(doc);
-      if (typeof state !== "undefined" && state.tab === "classic") classicUpdate();
-    },
+/** classicSubscribe rides the one telemetry stream of the page. The view
+ *  opens no stream of its own: it registers its repaint with the registry
+ *  of js/data.js, and the page keeps one connection to /api/telemetry. The
+ *  registry calls the callbacks of the open tab after every sample, in one
+ *  frame, with the document of that sample. */
+function classicSubscribe() {
+  if (classic.unsub) return classic.unsub;
+  if (typeof onTabFrame !== "function") return null;
+  classic.unsub = onTabFrame("classic", (doc) => {
+    if (!doc) return;
+    classicSample(doc);
+    classicUpdate(doc);
   });
-  return classic.stream;
+  return classic.unsub;
 }
 
 /** classicHistory reads the five minutes of the server's output rate. The
@@ -77,7 +77,7 @@ async function classicHistory() {
     }));
     classic.hist = classic.hist.length ? classic.hist.concat(seeded.filter((p) => p.t < classic.hist[0].t)) : seeded;
     if (classic.hist.length > CLASSIC_HIST) classic.hist = classic.hist.slice(-CLASSIC_HIST);
-    if (typeof state !== "undefined" && state.tab === "classic") classicUpdate();
+    if (typeof state !== "undefined" && state.tab === "classic") classicUpdate(state.tele);
   } catch (e) {
     // The chart starts empty and fills from the live stream.
   }
@@ -102,9 +102,11 @@ function classicSample(doc) {
 /* ---------- the model: bernie's data in the shape of the reference -------- */
 
 /** classicModel reads the state of the host and answers the questions the
- *  reference's dashboard view asks. */
-function classicModel() {
-  const tele = classic.tele || (typeof state !== "undefined" ? state.tele : null) || { gpus: [], runs: [] };
+ *  reference's dashboard view asks. The document is the one of the sample
+ *  that arrived; without one the last document of the shared state is
+ *  used. */
+function classicModel(doc) {
+  const tele = doc || (typeof state !== "undefined" ? state.tele : null) || { gpus: [], runs: [] };
   const hw = (typeof state !== "undefined" && state.hw) || null;
   const list = (typeof state !== "undefined" && state.runs) || [];
   const runs = tele.runs || [];
@@ -296,7 +298,7 @@ function classicBuild() {
           b.classList.toggle("on", on);
           b.setAttribute("aria-pressed", String(on));
         }
-        classicUpdate();
+        classicUpdate(state.tele);
       },
     }, label));
   }
@@ -340,11 +342,14 @@ function classicTip(anchor, text) {
 
 /* ---------- the update ---------- */
 
-/** classicUpdate paints the tab with the data of this host. */
-function classicUpdate() {
+/** classicUpdate paints the tab with the data of this host. The doc is the
+ *  one of the sample that arrived (the registry of js/data.js passes it
+ *  through); without one the view paints the last document of the shared
+ *  state, so the first paint at tab-open uses what the page already has. */
+function classicUpdate(doc) {
   const el = classic.el;
   if (!el || !classic.panel) return;
-  const m = classicModel();
+  const m = classicModel(doc);
 
   // the hero: the state, the name of the run and the address
   el.pill.className = "pill " + m.dot;
