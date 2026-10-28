@@ -73,7 +73,7 @@ Each tab answers one question. Keep it that way.
 | Tab | Question it answers | Data | Actions |
 |---|---|---|---|
 | Overview | Is this host ready, and what do I do next? | `/api/hw`, `/api/doctor`, `/api/runs` | none |
-| GPUs | How busy and how hot is each GPU? | `/api/telemetry` | none |
+| GPUs | How busy, how hot and at which clock is each GPU? | `/api/telemetry`, `/api/hw` | none |
 | Topology | Which GPUs talk fast to which, and will P2P work? | `/api/topo`, `/api/topo/check` | none |
 | Recipes | What can I serve, and what will it run? | `/api/recipes`, `.../plan` | start a run |
 | Runs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs |

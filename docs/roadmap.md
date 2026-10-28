@@ -30,7 +30,18 @@ Each item has a spec section and one test that proves it.
 
 ## Shipped
 
-- **Progress words.** One function turns the tail of a serve log into one
+- **ECC check.** The doctor check `gpu.ecc.<hip index>` reads the RAS
+  counters of every card: `ok` when ECC is on and the card counted no
+  memory error, `warn` when ECC is off on a card that has it or when the
+  card corrected errors, `fail` when the card counted uncorrectable ones.
+  The counters come from sysfs, `amd-smi` is the fallback. Spec
+  [§5.2](spec.md#52-required-checks).
+- **Junction and memory temperature, clocks.** The telemetry sample carries
+  the temperature of the memory junction, the temperature of the memory and
+  the shader and memory clocks of every card. The GPUs tab shows them with
+  their units and the word `hot` when a card reaches the limit of its
+  device table. Spec [§11](spec.md#11-dashboard).
+- **Progress words.** One function turns the tail of a setup or serve log into one
   sentence ("Loading the model weights, 2 of 5 shards"). `serve` and `up`
   print it when it changes, `ps --json` and `status --json` carry the phase
   of a live run, and the Runs tab shows the sentence under the state badge.
