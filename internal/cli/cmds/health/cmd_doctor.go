@@ -19,7 +19,6 @@ func init() {
 		fs := c.Flags(cmd)
 		var cats cli.MultiFlag
 		fs.Var(&cats, "category", "limit to a category: "+strings.Join(doctor.Categories, ", ")+" (repeatable)")
-		venvFlag := fs.String("venv", "", "venv for the python checks (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 		logFlag := fs.String("log", "", "match a vLLM log file against the known-failure catalog instead of running host checks (- reads stdin)")
 		runFlag := fs.String("run", "", "like --log, for the log of the run NAME")
 		if _, err := cli.Parse(fs, args); err != nil {
@@ -29,7 +28,7 @@ func init() {
 			if *logFlag != "" && *runFlag != "" {
 				return cli.Usagef("--log and --run are mutually exclusive")
 			}
-			if len(cats) > 0 || *venvFlag != "" {
+			if len(cats) > 0 || c.Venv != "" {
 				return cli.Usagef("--category and --venv apply to host checks, not to --log or --run")
 			}
 			return doctorLog(c, *logFlag, *runFlag)
@@ -39,7 +38,7 @@ func init() {
 				return cli.Usagef("unknown category %q (have %s)", cat, strings.Join(doctor.Categories, ", "))
 			}
 		}
-		r, err := app.Doctor(c.Ctx, cats, *venvFlag)
+		r, err := app.Doctor(c.Ctx, cats, c.Venv)
 		if err != nil {
 			return err
 		}

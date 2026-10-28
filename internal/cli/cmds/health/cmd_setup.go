@@ -18,10 +18,10 @@ type setupFlags struct {
 	mode, venv, image, model *string
 }
 
-func addSetupFlags(fs *flag.FlagSet) setupFlags {
+func addSetupFlags(c *cli.Context, fs *flag.FlagSet) setupFlags {
 	return setupFlags{
 		mode:  fs.String("mode", "", "host or container (default: config mode, else both)"),
-		venv:  fs.String("venv", "", "venv for host mode (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV, else "+setup.DefaultVenv()+")"),
+		venv:  &c.Venv,
 		image: fs.String("image", "", "image for container mode (default "+setup.DefaultImage+")"),
 		model: fs.String("model", "", "Hugging Face repo to download (adds the model.download step)"),
 	}
@@ -45,7 +45,7 @@ func init() {
 	plan := &cli.Command{Name: "plan", Summary: "Ordered install steps for this host", Usage: "[--mode M] [--venv DIR] [--image I] [--model REPO]"}
 	plan.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(plan)
-		f := addSetupFlags(fs)
+		f := addSetupFlags(c, fs)
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func init() {
 	apply := &cli.Command{Name: "apply", Summary: "Run the steps that do not need root; print the root steps", Usage: "[--mode M] [--step ID]... [--yes]"}
 	apply.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(apply)
-		f := addSetupFlags(fs)
+		f := addSetupFlags(c, fs)
 		var only cli.MultiFlag
 		fs.Var(&only, "step", "run only this step (repeatable)")
 		yes := fs.Bool("yes", false, "do not ask for confirmation")

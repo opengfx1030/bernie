@@ -39,11 +39,10 @@ func init() {
 	status := &cli.Command{Name: "status", Summary: "Loaded rocBLAS build and its matching profile", Usage: "[--venv DIR]"}
 	status.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(status)
-		venvFlag := fs.String("venv", "", "venv (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		st, err := app.TunableOpStatus(*venvFlag)
+		st, err := app.TunableOpStatus(c.Venv)
 		if err != nil {
 			return err
 		}
@@ -65,13 +64,12 @@ func init() {
 	env := &cli.Command{Name: "env", Summary: "export lines for TunableOp (materializes the rows)", Usage: "[--venv DIR] [--profile P] [--tuning]"}
 	env.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(env)
-		venvFlag := fs.String("venv", "", "venv (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 		profile := fs.String("profile", "", "explicit profile (validated against the loaded rocBLAS)")
 		tune := fs.Bool("tuning", false, "online tuning into the per-user rows file")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		st, err := app.TunableOpStatus(*venvFlag)
+		st, err := app.TunableOpStatus(c.Venv)
 		if err != nil {
 			return err
 		}

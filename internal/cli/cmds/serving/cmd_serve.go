@@ -36,6 +36,7 @@ func init() {
 		if err != nil {
 			return err
 		}
+		o.Venv = c.Venv
 		if len(pos) != 1 {
 			return cli.Usagef("serve needs exactly one recipe id")
 		}
@@ -185,6 +186,7 @@ func init() {
 		if err != nil {
 			return err
 		}
+		o.Venv = c.Venv
 		if len(pos) != 1 {
 			return cli.Usagef("compose needs exactly one recipe id")
 		}

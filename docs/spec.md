@@ -174,6 +174,9 @@ other file, script or compose file is required.
   positional and kept verbatim. A `--json` that directly follows a flag
   (`--set --json`) is that flag's value if the flag takes a value. Otherwise
   it is the global flag.
+- `--venv DIR` is global too. It can come before the command, between a
+  command family and its subcommand, or after the command. It names the
+  host-mode venv for commands that use one.
 - Explicit help (`--help`, `-h`, `help`) is printed on stdout and exits 0.
 - Diagnostics and progress go to stderr.
 - Flags and positional arguments can be in any order.
