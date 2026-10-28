@@ -1208,6 +1208,24 @@ group in `group` and the lens of the group in `input_len` and
 `suite_digest`; its `input_len` and `output_len` are zero, because the lens
 of a suite run is per cell.
 
+Every cell of a group runs `reps` times. The numbers of the cell are the
+medians over those repetitions. The repetitions themselves are in the cell
+under `reps`, so a reader can recompute the medians. The `spread` of the
+cell is the min/max ratio of every metric over the repetitions: a spread
+near 1 means the repetitions agree.
+
+The suite pauses `cooldown_s` seconds between two repetitions. The pause
+keeps the card out of a thermal and power steady state, so the repetitions
+measure the same work.
+
+A cell is `incomplete` when a warm-up request failed or a repetition lost a
+request. The numbers of an incomplete cell stay visible, because a hidden
+cell is worse than a labelled one, but no verdict is issued for it.
+
+The fingerprint of a result records the power cap and the clocks of the
+cards of the run, when the host publishes them. They say what the cards
+did while the benchmark ran.
+
 ## 11. Dashboard
 
 `bernie dash` serves an embedded web UI and a JSON API. It listens on

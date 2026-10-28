@@ -253,6 +253,10 @@ func medianMeasurement(ms []bench.Measurement) bench.Measurement {
 	out.MeanOutputTokens = medianOf(values(ms, func(m bench.Measurement) float64 { return m.MeanOutputTokens }))
 	out.MeanCachedPromptTokens = medianOf(values(ms, func(m bench.Measurement) float64 { return m.MeanCachedPromptTokens }))
 	out.TokensPerChunk = medianOf(values(ms, func(m bench.Measurement) float64 { return m.TokensPerChunk }))
+	out.WarmupFailed = 0
+	for _, m := range ms {
+		out.WarmupFailed = max(out.WarmupFailed, m.WarmupFailed)
+	}
 	// The recall check counts every reply of every repetition.
 	var asked, passed int
 	for _, m := range ms {
