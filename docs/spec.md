@@ -218,7 +218,7 @@ other file, script or compose file is required.
 | `bernie recipe plan <id> [--set K=V]... [--mode M] [--name N]` | no | The plan, as an exact command and environment. |
 | `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--wait D] [--dash[=ADDR]] [--dry-run]` | yes | Start a run. |
 | `bernie ps` | no | Runs, with state and health. For an exited run: the known failures in its log. |
-| `bernie smoke [--url URL] [--model NAME]` | no | Check that the running server answers: `/health`, then one completion of one token. `--url` picks the server (default: the running run). |
+| `bernie smoke [--url URL] [--model NAME]` | no | Check that the running server answers: `/health`, then one completion. The answer carries the time to the first token, the number of tokens and the output speed. `--url` picks the server (default: the running run). |
 | `bernie stop [NAME]` | yes | Stop a run (the only run if NAME is absent). |
 | `bernie logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
 | `bernie compose <id> [--set K=V]... [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
@@ -1379,6 +1379,7 @@ Rules for responses and tokens:
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
 | GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}` |
 | GET | `/api/gpus/history?window=5m\|15m\|1h` | the samples of the last minutes, one series per card: `{window, interval_s, points, series: [{hip_index, busy_pct, power_w, vram_used, tokens_per_s}]}`. The window is 15 m when the request names none; another window answers 400. The ring buffer of the telemetry hub keeps 30 minutes at one point every 2 s; the 1 h window holds one point every 10 s. `tokens_per_s` is the output rate of the live run: the rate is a property of the server, so every card carries the same number. The answer is cached for 2 s. |
+| POST | `/api/smoke` | one prompt to a run of this host: `{"prompt": "", "run": "", "model": ""}` → `{url, model, health, reply, ttft_ms, output_tokens, tok_s}`. The target is the run that serves, or the run named by `run`; a name that does not serve answers 404. The prompt is empty by default (then the prompt is "Hello"). The target is always a server of this host; a server that does not answer answers 502 with the reason. |
 | GET | `/api/power` | `tune power service status` JSON |
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
 | GET | `/api/bench` | `bench list` JSON |

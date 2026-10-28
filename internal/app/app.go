@@ -62,12 +62,14 @@ func OnboardingJobLog(id string) ([]string, error) {
 
 // SmokeOptions are the inputs of the smoke check.
 type SmokeOptions struct {
-	URL   string // base URL of the server; "" = the running run
-	Model string // model name; "" = the first id of /v1/models
+	URL    string // base URL of the server; "" = the running run
+	Model  string // model name; "" = the first id of /v1/models
+	Prompt string // the prompt to send; "" = the default one
 }
 
-// Smoke asks a server for one token: the smallest request that proves the
-// server answers (spec §3.1).
+// Smoke asks a server for one answer: the smallest request that proves the
+// server answers (spec §3.1). The answer carries the time to the first
+// token, the number of tokens and the output speed.
 func Smoke(ctx context.Context, o SmokeOptions) (*onboarding.SmokeResult, error) {
 	url := o.URL
 	if url == "" {
@@ -77,5 +79,23 @@ func Smoke(ctx context.Context, o SmokeOptions) (*onboarding.SmokeResult, error)
 		}
 		url = run.URL
 	}
-	return onboarding.Smoke(ctx, url, o.Model)
+	return onboarding.SmokePrompt(ctx, url, o.Model, o.Prompt)
+}
+
+// SmokeTarget returns the URL of the run to talk to: the run with this name,
+// else the run that is serving. It fails with onboarding.ErrNoLiveRun when
+// nothing serves and with onboarding.ErrRunGone when the named run is gone.
+func SmokeTarget(ctx context.Context, name string) (string, error) {
+	if name != "" {
+		run, err := onboarding.RunByName(ctx, name)
+		if err != nil {
+			return "", err
+		}
+		return run.URL, nil
+	}
+	run, err := onboarding.LiveRun(ctx)
+	if err != nil {
+		return "", err
+	}
+	return run.URL, nil
 }

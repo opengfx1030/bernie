@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/serving/runner"
-	"github.com/opengfx1030/bernie/internal/serving/vllm"
 	"github.com/opengfx1030/bernie/internal/setup"
 )
 
@@ -167,51 +165,6 @@ func (a *Action) verify(ctx context.Context, log io.Writer) error {
 	}
 	fmt.Fprintf(log, "the server answered: %s\n", res.Reply)
 	return nil
-}
-
-// SmokeResult is the smoke check document.
-type SmokeResult struct {
-	URL    string `json:"url"`
-	Model  string `json:"model"`
-	Health bool   `json:"health"`
-	Reply  string `json:"reply"`
-}
-
-// Smoke checks that a server answers: /health first, then one completion of
-// one token. It is the smallest request that proves the server works.
-func Smoke(ctx context.Context, baseURL, model string) (*SmokeResult, error) {
-	c := vllm.New(baseURL)
-	if err := c.Health(ctx); err != nil {
-		return nil, fmt.Errorf("health check failed: %w", err)
-	}
-	if model == "" {
-		if ids, err := c.Models(ctx); err == nil && len(ids) > 0 {
-			model = ids[0]
-		}
-	}
-	text, err := c.Complete(ctx, model, smokePrompt, 1)
-	if err != nil {
-		return nil, fmt.Errorf("completion failed: %w", err)
-	}
-	return &SmokeResult{URL: c.BaseURL(), Model: model, Health: true, Reply: strings.TrimSpace(text)}, nil
-}
-
-// smokePrompt is the prompt of the smoke check: one word, one token.
-const smokePrompt = "Hello"
-
-// LiveRun returns the run that is not exited.
-func LiveRun(ctx context.Context) (*Run, error) {
-	list, err := runner.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range list {
-		if r.State != runner.StateExited {
-			run := Run{Name: r.Name, Recipe: r.Recipe, State: r.State, Mode: r.Mode, URL: r.URL()}
-			return &run, nil
-		}
-	}
-	return nil, errors.New("no server is running")
 }
 
 // healthPoll is the delay between two checks of the run state.

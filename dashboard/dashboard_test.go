@@ -56,7 +56,7 @@ func TestLoopbackMode(t *testing.T) {
 		t.Fatalf("foreign Host: got %d, want 403", w.Code)
 	}
 	// Mutations need X-Bernie: 1.
-	for _, m := range []string{"POST /api/runs", "DELETE /api/runs/x", "POST /api/bench"} {
+	for _, m := range []string{"POST /api/runs", "DELETE /api/runs/x", "POST /api/bench", "POST /api/smoke"} {
 		method, path, _ := strings.Cut(m, " ")
 		if w := do(t, h, method, path, map[string]string{"Host": "127.0.0.1:7860"}); w.Code != http.StatusForbidden {
 			t.Errorf("%s without X-Bernie: got %d, want 403", m, w.Code)
