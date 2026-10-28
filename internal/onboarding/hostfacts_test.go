@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
@@ -62,6 +63,35 @@ func TestBuildCarriesTheFacts(t *testing.T) {
 	doc := Build(&Facts{Host: host.Info{RAMBytes: 32 << 30}})
 	if len(doc.Facts) == 0 {
 		t.Fatal("the document holds no facts")
+	}
+}
+
+// TestStepsCarryTheJobOfTheStep checks that a step names the job that made
+// it: the page re-attaches to it with the id.
+func TestStepsCarryTheJobOfTheStep(t *testing.T) {
+	now := time.Now().UTC()
+	old := now.Add(-time.Hour)
+	f := &Facts{Jobs: []Job{
+		{ID: "job-old", Step: StepModel, State: JobDone, StartedAt: old, FinishedAt: &old},
+		{ID: "job-new", Step: StepModel, State: JobRunning, StartedAt: now},
+		{ID: "job-serve", Step: StepServe, State: JobDone, StartedAt: now, FinishedAt: &now},
+	}}
+	doc := Build(f)
+	steps := map[string]Step{}
+	for _, s := range doc.Steps {
+		steps[s.ID] = s
+	}
+	model := steps[StepModel]
+	if model.JobID != "job-new" || model.JobState != JobRunning {
+		t.Errorf("the model step carries %q (%q)", model.JobID, model.JobState)
+	}
+	serve := steps[StepServe]
+	if serve.JobID != "job-serve" || serve.JobState != JobDone {
+		t.Errorf("the serve step carries %q (%q)", serve.JobID, serve.JobState)
+	}
+	// A job that finished long ago belongs to no step.
+	if hw := steps[StepHardware]; hw.JobID != "" {
+		t.Errorf("the hardware step carries the job %q", hw.JobID)
 	}
 }
 

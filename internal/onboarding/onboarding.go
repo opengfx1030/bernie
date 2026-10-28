@@ -9,6 +9,8 @@
 // runs of a step). Every front end reads the same document.
 package onboarding
 
+import "time"
+
 // The state of a step.
 //
 //	done: the postcondition holds.
@@ -74,6 +76,11 @@ type Step struct {
 	Progress *Progress `json:"progress,omitempty"`
 	// Problems are the doctor checks that hold the step back.
 	Problems []Problem `json:"problems,omitempty"`
+	// JobID is the id of the job of this step, when a job is running or
+	// has just finished. The page re-attaches to it with the id.
+	JobID string `json:"job_id,omitempty"`
+	// JobState is the state of that job: running, done or failed.
+	JobState string `json:"job_state,omitempty"`
 }
 
 // Progress is the progress of a running step: the phase sentence and, when
@@ -113,7 +120,36 @@ func Build(f *Facts) *Document {
 	)
 	doc.Next = nextStep(doc.Steps)
 	doc.Facts = factsOf(f)
+	attachJobs(doc.Steps, f.Jobs)
 	return doc
+}
+
+// attachJobs gives every step the job that made it: the page re-attaches to
+// the job of a step that runs, or that has just finished.
+func attachJobs(steps []Step, jobs []Job) {
+	for i := range steps {
+		j := lastJob(jobs, steps[i].ID)
+		if j == nil {
+			continue
+		}
+		if j.State != JobRunning && !recentJob(j) {
+			continue
+		}
+		steps[i].JobID = j.ID
+		steps[i].JobState = j.State
+	}
+}
+
+// recentJobAge is how long a finished job still belongs to its step: a page
+// that reloads right after the run shows its result.
+const recentJobAge = 5 * time.Minute
+
+// recentJob reports whether a job finished a moment ago.
+func recentJob(j *Job) bool {
+	if j.FinishedAt == nil {
+		return true
+	}
+	return time.Since(*j.FinishedAt) < recentJobAge
 }
 
 // nextStep returns the id of the step to do now: the first step of the path

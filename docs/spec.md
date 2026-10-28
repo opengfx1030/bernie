@@ -275,7 +275,7 @@ A step has this record:
 {"id": "hardware", "title": "", "state": "done|todo|running|blocked|skipped",
  "summary": "", "detail": "", "command": "", "can_run": false,
  "root_commands": [], "progress": {"phase": "", "done": 0, "total": 0},
- "problems": []}
+ "problems": [], "job_id": "", "job_state": ""}
 ```
 
 - `id` is stable: `hardware`, `access`, `rocm`, `python-env`, `model`,
@@ -294,6 +294,11 @@ A step has this record:
   the work when the step knows it.
 - `problems` are the doctor checks that hold the step back, with their fix
   and their documentation link.
+- `job_id` is the id of the job of this step, when a job is running or has
+  finished less than five minutes ago. `job_state` is the state of that job:
+  `running`, `done` or `failed`. A step that is `running` without a `job_id`
+  is the serving run, not an onboarding job. The page re-attaches to the job
+  with the id.
 
 The document also holds the facts of the host: the numbers the page shows
 above the steps, each with the reason why it matters.
@@ -352,6 +357,17 @@ A job carries the numbers of the work when the step counts them:
 The phase is the step the job is on. The bytes, the rate and the time to
 finish are there for a download; the file counts are there when the step
 counts the files. A number that is not measured is absent.
+
+`GET /api/jobs` lists the jobs of this host, newest first:
+`[{id, step, state, started_at, finished_at, phase, progress}]`. The list
+holds at most 50 jobs.
+
+`GET /api/jobs/{id}/events` replays the buffered lines of the job from the
+beginning, so a page that reloads finds the whole output again. Every line
+event carries the number of the line as its id; a client that re-attaches
+sends it back in the `Last-Event-ID` header (or in `last_event_id`) and gets
+the lines after it. A job that failed or finished stays readable: its
+document lives on disk.
 
 ## 4. Host inspection (`hw`, `topo`)
 
@@ -1424,8 +1440,9 @@ does not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/bench/compare?a=ID&b=ID&format=markdown` | the receipt of the comparison as `text/markdown`: the text of `bernie bench compare A B --markdown`. |
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
+| GET | `/api/jobs` | the jobs of this host, newest first: `[{id, step, state, started_at, finished_at, phase, progress}]`. The list holds at most 50 jobs; `limit` takes 1 to 200. |
 | GET | `/api/jobs/{id}` | the job document: `{"id", "step", "state", "phase", "progress", "error", "findings", "lines", "started_at", "finished_at"}`. `progress` holds the numbers of the work when the step counts them ([§3.3](#33-the-onboarding-checklist)). |
-| GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. |
+| GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. The stream replays the buffered lines from the beginning; every line event carries the number of the line as its id, and `Last-Event-ID` (or `last_event_id`) asks for the lines after it. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
 
 The `Sample` of the telemetry stream is one GPU:
@@ -1559,6 +1576,7 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `tunableop_status` | `tune tunableop status` | `venv` |
 | `power_status` | `tune power service status` | none |
 | `onboarding_status` | `status --steps` (the `onboarding` field of `status --json`) | `venv` |
+| `jobs` | none (the onboarding jobs of this host) | none |
 
 Mutating tools ([§13.5](#135-write-gate)):
 
