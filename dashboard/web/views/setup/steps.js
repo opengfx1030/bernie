@@ -12,25 +12,30 @@ const setupLogs = {};
 // setupStreams holds the open job streams, by step id.
 const setupStreams = {};
 
+// setupJobRead is the moment each job was read the last time, so a replay
+// of many lines does not ask the server for the same document again and
+// again.
+const setupJobRead = {};
+
 /**
  * runSetupStep starts one step of the checklist. The server answers with a
  * job; the job stream carries the output and the end of the work.
  */
 async function runSetupStep(step, options = {}) {
   const id = step.id;
-  setupProgress[id] = { phase: "Starting…", pct: 0 };
+  setupProgress[id] = { phase: "Starting…", started: Date.now() };
   setupLogs[id] = [];
   paintSetupProgress(id);
   let job = null;
   try {
     job = await api("/api/onboarding/" + encodeURIComponent(id) + "/run", { method: "POST", body: {} });
   } catch (e) {
-    setupProgress[id] = { phase: "Failed: " + (e.message || e), pct: 0, failed: true };
+    setupProgress[id] = { phase: "Failed: " + (e.message || e), started: Date.now(), failed: true };
     paintSetupProgress(id);
     return;
   }
   if (!job || job.root_required) {
-    setupProgress[id] = { phase: "This step needs root. Run it in a terminal, then re-check.", pct: 0, failed: true };
+    setupProgress[id] = { phase: "This step needs root. Run it in a terminal, then re-check.", started: Date.now(), failed: true };
     paintSetupProgress(id);
     return;
   }
@@ -54,15 +59,15 @@ function followSetupJob(step, job, options) {
     try { doc = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (e) { doc = null; }
     const previous = setupProgress[id] || {};
     if (name === "done") {
-      setupProgress[id] = { phase: "Done.", pct: 100 };
+      previous.phase = "Done.";
+      previous.pct = 100;
+      previous.failed = false;
     } else {
-      setupProgress[id] = {
-        phase: "Failed: " + ((doc && doc.error) || "the step did not finish."),
-        pct: previous.pct || 0,
-        failed: true,
-      };
+      previous.phase = "Failed: " + ((doc && doc.error) || "the step did not finish.");
+      previous.failed = true;
       if (doc && Array.isArray(doc.lines) && doc.lines.length) setupLogs[id] = doc.lines.slice();
     }
+    setupProgress[id] = previous;
     paintSetupProgress(id);
     if (options.onRefresh) options.onRefresh();
   };
@@ -87,20 +92,39 @@ function followSetupJob(step, job, options) {
 /** loadSetupJobProgress reads the numbers of a running job: the phase, the
  *  fraction and the rate of the work. */
 async function loadSetupJobProgress(jobID, stepID) {
+  const now = Date.now();
+  const last = setupJobRead[jobID] || 0;
+  if (now - last < 400) return;
+  setupJobRead[jobID] = now;
   let job = null;
   try { job = await api("/api/jobs/" + encodeURIComponent(jobID)); } catch (e) { return; }
-  const p = job && job.progress;
-  if (!p) return;
+  if (!job) return;
   const current = setupProgress[stepID] || (setupProgress[stepID] = {});
-  current.pct = setupProgressPercent(p);
-  current.detail = setupProgressDetail(p, current.pct);
-  if (p.phase) current.phase = p.phase;
-  else if (!current.phase) current.phase = setupProgressSentence(p);
+  if (!current.started) current.started = setupJobStart(job);
+  setupApplyJobProgress(current, job.progress);
   paintSetupProgress(stepID);
 }
 
+/** setupJobStart is the moment a job began, in milliseconds. */
+function setupJobStart(job) {
+  if (!job || !job.started_at) return Date.now();
+  const t = Date.parse(job.started_at);
+  return isNaN(t) ? Date.now() : t;
+}
+
+/** setupApplyJobProgress writes the numbers of a job into the live state.
+ *  A step that measures nothing keeps no percent: an unknown fraction is
+ *  not 0 %. */
+function setupApplyJobProgress(state, p) {
+  if (!p) return;
+  const pct = setupProgressPercent(p);
+  if (pct !== null) state.pct = pct;
+  state.detail = setupProgressDetail(p, state);
+  if (p.phase) state.phase = p.phase;
+}
+
 /** setupProgressPercent is the fraction of the work that is done, in
- *  percent. Bytes come first; files are the fallback. */
+ *  percent, or null when the step measures nothing. */
 function setupProgressPercent(p) {
   let done = 0;
   let total = 0;
@@ -111,7 +135,7 @@ function setupProgressPercent(p) {
     done = p.files_done || 0;
     total = p.files_total;
   }
-  if (!total) return 0;
+  if (!total) return null;
   return Math.max(0, Math.min(100, Math.round((done * 100) / total)));
 }
 
@@ -128,8 +152,11 @@ function setupProgressSentence(p) {
 }
 
 /** setupProgressDetail is the line under the bar: the percent, the size,
- *  the rate and the time that is left. */
-function setupProgressDetail(p, pct) {
+ *  the rate and the time that is left. The estimate is shown only when the
+ *  server measured it, and it is corrected in words when the work takes
+ *  longer than the estimate. */
+function setupProgressDetail(p, state) {
+  const pct = typeof state.pct === "number" ? state.pct : 0;
   let text = pct + "%";
   if (p.bytes_total) {
     text += " - " + bytes(p.bytes_done || 0) + " of " + bytes(p.bytes_total);
@@ -137,8 +164,32 @@ function setupProgressDetail(p, pct) {
   } else if (p.files_total) {
     text += " - " + (p.files_done || 0) + " of " + p.files_total + " files";
   }
-  if (p.eta_s) text += " - about " + setupDuration(p.eta_s) + " left";
+  if (p.eta_s) {
+    const eta = setupDuration(p.eta_s);
+    if (setupElapsed(state) > p.eta_s + 5) text += " - longer than the " + eta + " estimate";
+    else text += " - about " + eta + " left";
+  }
   return text;
+}
+
+/** setupElapsed is how long the work has been going, in seconds. */
+function setupElapsed(state) {
+  if (!state || !state.started) return 0;
+  return Math.max(0, Math.round((Date.now() - state.started) / 1000));
+}
+
+/** setupElapsedText is the elapsed time in words. */
+function setupElapsedText(state) {
+  const s = setupElapsed(state);
+  if (s < 60) return s + " s";
+  return Math.round(s / 60) + " min";
+}
+
+/** setupLiveDetail is the line under the sentence. When the work is not
+ *  measured it says so and says how long it has been going. */
+function setupLiveDetail(state) {
+  if (typeof state.pct === "number") return state.detail || "";
+  return "working… " + setupElapsedText(state);
 }
 
 /** setupRate is a download rate in one unit. */
@@ -155,28 +206,70 @@ function setupDuration(seconds) {
   return Math.round(s / 60) + " min";
 }
 
+/** attachSetupJobs re-opens the event stream of every job the checklist
+ *  names, so a reload during a long step shows its progress again. */
+async function attachSetupJobs(steps) {
+  for (const step of steps || []) {
+    if (!step.job_id) continue;
+    await attachSetupJob(step);
+  }
+}
+
+/** attachSetupJob shows the progress of the job of a step and follows it
+ *  while it runs. The stream replays the output of the job from its first
+ *  line, so the reader sees the whole thing. */
+async function attachSetupJob(step) {
+  const id = step.id;
+  if (setupStreams[id]) return;
+  let job = null;
+  try { job = await api("/api/jobs/" + encodeURIComponent(step.job_id)); } catch (e) { return; }
+  if (!job) return;
+  const state = { phase: job.phase || "Working…", started: setupJobStart(job) };
+  setupProgress[id] = state;
+  if (step.job_state === "running") {
+    setupLogs[id] = [];
+    followSetupJob(step, job, { onRefresh: setupState.onRefresh });
+    return;
+  }
+  setupLogs[id] = Array.isArray(job.lines) ? job.lines.slice() : [];
+  if (step.job_state === "failed") {
+    state.phase = "Failed: " + (job.error || "the step did not finish.");
+    state.failed = true;
+  } else {
+    state.pct = 100;
+  }
+  setupApplyJobProgress(state, job.progress);
+  paintSetupTimeline();
+}
+
 /** paintSetupProgress writes the live progress into the row of a step. */
 function paintSetupProgress(id) {
   const box = document.querySelector('[data-step="' + id + '"] .step-progress');
   if (!box) return;
-  const p = setupProgress[id] || {};
-  const sentence = box.querySelector(".progress-sentence");
+  const state = setupProgress[id] || {};
+  const sentence = box.querySelector(".step-progress-sentence");
   if (!sentence) {
     paintSetupTimeline();
     return;
   }
-  sentence.textContent = p.phase || "";
+  sentence.textContent = state.phase || "";
+  const measured = typeof state.pct === "number";
   const bar = box.querySelector(".step-bar");
+  if (measured !== !!bar) {
+    // The bar appears when the work becomes measured and goes when it does
+    // not. The row is drawn again.
+    paintSetupTimeline();
+    return;
+  }
   if (bar) {
-    const pct = typeof p.pct === "number" ? p.pct : 0;
-    bar.setAttribute("aria-valuenow", String(pct));
+    bar.setAttribute("aria-valuenow", String(state.pct));
     const fill = bar.querySelector("i");
-    if (fill) fill.style.width = pct + "%";
+    if (fill) fill.style.width = state.pct + "%";
   }
   const detail = box.querySelector(".step-progress-detail");
-  if (detail) detail.textContent = p.detail || "";
+  if (detail) detail.textContent = setupLiveDetail(state);
   const lines = setupLogs[id] || [];
-  let log = box.querySelector(".step-log");
+  const log = box.querySelector(".step-log");
   if (lines.length && !log) {
     paintSetupTimeline();
     return;

@@ -111,6 +111,7 @@ async function loadSetupDocument(gen) {
   paintSetupStale(doc);
   paintSetupTimeline(doc);
   await paintSetupFacts(doc);
+  attachSetupJobs(doc.steps);
 }
 
 /** paintSetupHead writes the state of the machine in one sentence and the
@@ -123,7 +124,7 @@ function paintSetupHead(doc) {
 }
 
 /** setupHeadline says what the machine is in one sentence, with the lede
- *  under it and the action that follows. */
+ *  under it naming the single next action and who does it. */
 function setupHeadline(doc) {
   const steps = doc.steps || [];
   const path = steps.filter((s) => !SETUP_EXTRA_STEPS.includes(s.id));
@@ -131,7 +132,6 @@ function setupHeadline(doc) {
   const running = path.find((s) => s.state === "running");
   const hardware = steps.find((s) => s.id === "hardware");
   const serve = steps.find((s) => s.id === "serve");
-  const roots = pending.filter((s) => (s.root_commands || []).length);
   if (setupServerServing(serve)) {
     return {
       title: "THIS BOX IS SERVING.",
@@ -141,7 +141,9 @@ function setupHeadline(doc) {
   }
   if (running) {
     const phase = (running.progress && running.progress.phase) || running.summary || "bernie is working on the next step.";
-    return { title: "SETTING UP THIS BOX.", lede: phase, action: "continue" };
+    const live = setupProgress[running.id];
+    const tail = live ? " · working for " + setupElapsedText(live) : "";
+    return { title: "SETTING UP THIS BOX.", lede: phase + tail, action: "continue" };
   }
   if (!pending.length) {
     return {
@@ -157,16 +159,20 @@ function setupHeadline(doc) {
       action: "doctor",
     };
   }
-  const names = pending.slice(0, 3).map((s) => SETUP_STEP_NAMES[s.id] || s.title || s.id);
-  const more = pending.length > 3 ? " and " + (pending.length - 3) + " more" : "";
-  const missing = names.join(", ") + more;
-  const sentence = missing.charAt(0).toUpperCase() + missing.slice(1);
-  const rootClause = roots.length
-    ? " " + roots.length + (roots.length === 1 ? " step needs" : " steps need") + " root; you will run " + (roots.length === 1 ? "it" : "them") + " yourself."
+  const rootClause = pending.some((s) => (s.root_commands || []).length)
+    ? " Copy the command, run it as root in a terminal, then press Re-check."
     : "";
+  const runnable = path.find((s) => s.state === "todo" && s.can_run);
+  let lede = rootClause;
+  if (runnable) {
+    const verb = (stepActionLabel(runnable, false) || "").charAt(0).toLowerCase() + (stepActionLabel(runnable, false) || "").slice(1);
+    lede = "Next: " + verb + ". bernie does it here." + rootClause;
+  } else if (!rootClause) {
+    lede = "The doctor report says what is missing.";
+  }
   return {
     title: pending.length + (pending.length === 1 ? " STEP LEFT" : " STEPS LEFT") + " BEFORE THIS BOX CAN SERVE.",
-    lede: sentence + (pending.length === 1 ? " is" : " are") + " not there yet." + rootClause,
+    lede: lede,
     action: "setup",
   };
 }
@@ -179,12 +185,12 @@ function setupServerEndpoint(serve) {
   return "the port of the plan";
 }
 
-/** setupHeadActions are the actions of the tab. There is one filled button:
- *  the action the state asks for. */
+/** setupHeadActions are the actions of the tab. The filled button names
+ *  the step it starts: never only "Run" or "Next". */
 function setupHeadActions(doc, say) {
   const out = [];
   if (say.action === "doctor") {
-    out.push(h("button", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
+    out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
     return out;
   }
   if (say.action === "continue") {
@@ -203,13 +209,24 @@ function setupHeadActions(doc, say) {
     return out;
   }
   const next = setupNextRunnable(doc);
+  const rootNext = !next && setupNextRoot(doc);
   if (next) {
     out.push(h("button.primary", {
       type: "button",
       onclick: () => runSetupStep(next, { onRefresh: () => loadSetupDocument() }),
-    }, "Set up this machine"));
+    }, stepActionLabel(next, false)));
+  } else if (rootNext) {
+    out.push(h("button.primary", {
+      type: "button",
+      onclick: () => { setupCopyText(rootNext.command); focusSetupStep(rootNext.id); },
+    }, "Copy the root command"));
+    out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the next command"));
+    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    return out;
   } else {
-    out.push(h("button.primary", { type: "button", onclick: () => focusSetupStep(doc.next) }, "Show the commands"));
+    out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
+    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    return out;
   }
   out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the command"));
   out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
@@ -223,6 +240,13 @@ function setupNextRunnable(doc) {
   return path.find((s) => s.state === "todo" && s.can_run) || null;
 }
 
+/** setupNextRoot is the next step that needs root. */
+function setupNextRoot(doc) {
+  const steps = (doc && doc.steps) || [];
+  const path = steps.filter((s) => !SETUP_EXTRA_STEPS.includes(s.id));
+  return path.find((s) => s.state === "blocked" && (s.root_commands || []).length) || null;
+}
+
 /** setupRunNextStep starts the next step bernie can do. */
 function setupRunNextStep() {
   const doc = setupState.doc;
@@ -232,6 +256,21 @@ function setupRunNextStep() {
     return;
   }
   runSetupStep(next, { onRefresh: () => loadSetupDocument() });
+}
+
+/** setupExplainWait says what a later step waits for. */
+function setupExplainWait(step) {
+  const doc = setupState.doc;
+  if (!doc) return;
+  const currentID = doc.next || (pathSteps(doc)[0] || {}).id || "";
+  const current = (doc.steps || []).find((s) => s.id === currentID);
+  const name = current ? stepActionLabel(current, false) : "the step before it";
+  toast(name + " first.");
+}
+
+/** pathSteps is the path of the checklist, with the extras removed. */
+function pathSteps(doc) {
+  return (doc && doc.steps || []).filter((s) => !SETUP_EXTRA_STEPS.includes(s.id));
 }
 
 /** setupCopyNextCommand copies the command of the next step. */
@@ -257,7 +296,12 @@ async function setupCopyText(text) {
   } catch (e) { ok = false; }
   if (!ok) {
     try {
-      const area = h("textarea", { style: "position:fixed;left:-9999px;top:0" });
+      const area = h("textarea");
+      // The styles are set through the CSSOM, never as an inline style
+      // attribute: the page may not carry inline styles.
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      area.style.top = "0";
       area.value = text;
       document.body.append(area);
       area.select();
@@ -312,17 +356,21 @@ function paintSetupTimeline(doc) {
   const steps = doc.steps || [];
   for (const step of steps) {
     if (step.progress && !setupProgress[step.id]) {
+      const state = { phase: step.progress.phase || "", started: Date.now() };
       const total = step.progress.total || 0;
-      setupProgress[step.id] = {
-        phase: step.progress.phase || "",
-        pct: total ? Math.round((step.progress.done * 100) / total) : 0,
-      };
+      if (total) {
+        const p = { phase: step.progress.phase, files_total: total, files_done: step.progress.done || 0 };
+        setupApplyJobProgress(state, p);
+      }
+      setupProgress[step.id] = state;
     }
   }
   put(setupState.timeline, stepTimeline(steps, {
     extraIDs: SETUP_EXTRA_STEPS,
+    nextID: doc.next,
     onRun: runSetupStep,
     onRefresh: () => loadSetupDocument(),
+    onWait: setupExplainWait,
     linkFor: setupStepLink,
     progress: setupProgress,
     logs: setupLogs,
