@@ -257,27 +257,26 @@ function chartClock(t) {
  *  middle and the name of the card under it. A card that does not report its
  *  load shows a dash, never a zero. The element carries an update method. */
 function ring(pct, label, opts) {
-  const options = opts || {};
-  const R = 36, C = 2 * Math.PI * R;
-  const box = h("div.ring-wrap");
-  const svg = chartSvg("svg", { class: "ring", viewBox: "0 0 84 84", role: "img", "aria-label": "the load of " + (label || "the card") });
-  const track = chartSvg("circle", { class: "ring-bg", cx: 42, cy: 42, r: R });
-  const arc = chartSvg("circle", { class: "ring-fg", cx: 42, cy: 42, r: R, "stroke-dasharray": C.toFixed(2) });
-  const value = chartSvg("text", { class: "ring-n", x: 42, y: 47 });
-  svg.append(track, arc, value);
+  // A horizontal 0-100% bar. The old donut sat at 84 px and crowded the card;
+  // the bar reads the same number with the same words.
+  const box = h("div.ring-wrap", { class: "ring-wrap" });
+  const num = h("div", { class: "ring-n" }, "–");
+  const track = h("div", { class: "ring-track", role: "img" });
+  const fill = h("i", { class: "ring-fill" });
   const cap = h("div", { class: "ring-caption" }, label || "");
-  box.append(svg, cap);
+  track.append(fill);
+  box.append(num, track, cap);
   const paint = (v) => {
     if (v == null || !isFinite(v)) {
-      arc.setAttribute("stroke-dashoffset", C.toFixed(2));
-      value.textContent = "–";
-      svg.setAttribute("aria-label", "the load of " + (label || "the card") + " is not published");
+      fill.style.width = "0%";
+      num.textContent = "–";
+      track.setAttribute("aria-label", "the load of " + (label || "the card") + " is not published");
       return;
     }
     const p = Math.max(0, Math.min(100, v));
-    arc.setAttribute("stroke-dashoffset", (C * (1 - p / 100)).toFixed(2));
-    value.textContent = String(Math.round(p));
-    svg.setAttribute("aria-label", "the load of " + (label || "the card") + ": " + Math.round(p) + " %");
+    fill.style.width = p.toFixed(1) + "%";
+    num.textContent = String(Math.round(p));
+    track.setAttribute("aria-label", "the load of " + (label || "the card") + ": " + Math.round(p) + " %");
   };
   paint(pct);
   box.update = (v) => paint(v);
