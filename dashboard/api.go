@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/machine/topo"
@@ -118,13 +119,10 @@ func (s *server) getPlan(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/runs — `bernie ps --json`.
 func (s *server) getRuns(w http.ResponseWriter, r *http.Request) {
-	runs, err := runner.List(r.Context())
+	runs, err := flow.Runs(r.Context())
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
-	}
-	if runs == nil {
-		runs = []runner.Status{}
 	}
 	writeRedacted(w, http.StatusOK, runs)
 }
