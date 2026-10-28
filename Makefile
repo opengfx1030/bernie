@@ -14,7 +14,7 @@ SHA256   := $(shell command -v sha256sum >/dev/null 2>&1 && echo sha256sum || ec
 ENGINE   ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || { command -v podman >/dev/null 2>&1 && echo podman; })
 IMAGE    ?= ghcr.io/opengfx1030/bernie
 
-.PHONY: build linux test lint check fmt clean dist packages image sums
+.PHONY: build linux test lint check fmt clean dist packages image sums layers
 
 build:
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o $(BIN)/bernie ./cmd/bernie
@@ -29,7 +29,11 @@ lint:
 	@out=$$(gofmt -l .); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
 	go vet ./...
 
-check: lint test
+# layers: no package imports a package of a higher layer (docs/architecture.md §2).
+layers:
+	@scripts/check-layers.sh
+
+check: lint test layers
 
 fmt:
 	gofmt -w .
