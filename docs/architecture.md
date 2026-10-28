@@ -45,7 +45,7 @@ flowchart TB
     HOST["host"]
     ROCM["rocm"]
   end
-  SUP["internal/support<br/>paths, execx, config, redact"]
+  SUP["internal/support<br/>paths, execx, config, redact,<br/>pyenv, factcache"]
   D1[("gpu/devices/*.yaml")]
   D2[("recipes/")]
   D3[("tunableop/<br/>tuned-moe/")]
@@ -172,6 +172,8 @@ bernie/
 │       ├── execx/            bounded exec of external tools
 │       ├── config/           <config>/config.yaml
 │       ├── redact/           secret redaction for documents and log text
+│       ├── pyenv/            the layout of a Python venv, read without an interpreter
+│       ├── factcache/        slow, stable host facts under <state>/facts
 │       └── fixture/          test host snapshots (testdata/*.tar.gz)
 ├── dashboard/            HTTP API, SSE, embedded web/ (no build step)
 ├── recipes/              built-in recipes by family, fragments by concern, embed.go
