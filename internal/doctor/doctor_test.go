@@ -278,3 +278,27 @@ func TestRunFixtureSupportedChecks(t *testing.T) {
 		t.Errorf("rx6800xt = %+v", c)
 	}
 }
+
+func TestP2PCategory(t *testing.T) {
+	r := Run(context.Background(), Options{Root: fixture.Root(t, "par1-cs25"), Categories: []string{"topo.p2p"}})
+	if len(r.Checks) != 8 {
+		t.Fatalf("checks = %d, want 8: %v", len(r.Checks), ids(r.Checks))
+	}
+	if c := find(t, r.Checks, "topo.p2p.kfd_links"); c.Status != OK || !strings.Contains(c.Detail, "45 of 45") {
+		t.Errorf("topo.p2p.kfd_links = %+v", c)
+	}
+	if c := find(t, r.Checks, "topo.p2p.large_bar"); c.Status != OK || !strings.Contains(c.Detail, "32.0 GiB") {
+		t.Errorf("topo.p2p.large_bar = %+v", c)
+	}
+	if c := find(t, r.Checks, "topo.p2p.link_classes"); c.Status != Warn || c.Fix == "" {
+		t.Errorf("topo.p2p.link_classes = %+v", c)
+	}
+	// The synthetic host without peer links, without iommu=pt and without an
+	// ACS override warns on every item that can fail.
+	r = Run(context.Background(), Options{Root: fixture.Root(t, "p2p-degraded-synthetic"), Categories: []string{"topo.p2p"}})
+	for _, id := range []string{"topo.p2p.kfd_links", "topo.p2p.large_bar", "topo.p2p.iommu", "topo.p2p.acs", "topo.p2p.link_speed"} {
+		if c := find(t, r.Checks, id); c.Status != Warn {
+			t.Errorf("%s = %+v, want warn", id, c)
+		}
+	}
+}

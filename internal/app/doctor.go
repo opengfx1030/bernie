@@ -8,11 +8,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/logdoc"
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/support/config"
 	"github.com/opengfx1030/bernie/internal/support/execx"
@@ -26,10 +28,17 @@ func Doctor(ctx context.Context, categories []string, venv string) (doctor.Repor
 	if err != nil {
 		return doctor.Report{}, err
 	}
-	return doctor.Run(ctx, doctor.Options{
+	set := recipe.Load()
+	opts := doctor.Options{
 		Root: root, Venv: cfg.ResolveVenv(venv), Categories: categories,
-		HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(recipe.Load()),
-	}), nil
+		HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(set),
+	}
+	if len(categories) == 0 || slices.Contains(categories, "topo.p2p") {
+		gpus, _ := gpu.List(root)
+		env, _ := recipeEnv(set, "", gpus)
+		opts.RecipeEnv = env
+	}
+	return doctor.Run(ctx, opts), nil
 }
 
 // LogReport is the `doctor --log` and `doctor --run` document (spec §5.3).

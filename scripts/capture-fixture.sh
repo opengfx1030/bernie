@@ -61,6 +61,7 @@ dev_files="vendor device subsystem_vendor subsystem_device class revision
 mem_info_vram_total mem_info_vram_used mem_info_vis_vram_total
 current_link_speed current_link_width max_link_speed max_link_width numa_node
 product_name product_number gpu_busy_percent power_dpm_force_performance_level
+resource
 pp_dpm_sclk pp_dpm_mclk"
 hwmon_files="name power1_cap power1_cap_min power1_cap_max power1_cap_default
 power1_average power1_input power1_label temp1_input temp1_label temp1_crit

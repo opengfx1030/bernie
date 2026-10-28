@@ -12,13 +12,21 @@ import (
 )
 
 func init() {
-	cmd := &cli.Command{Name: "topo", Summary: "PCIe tree, P2P matrix and link classes", Usage: "[--bandwidth] [--venv DIR]"}
+	cmd := &cli.Command{Name: "topo", Summary: "PCIe tree, P2P matrix and link classes", Usage: "[--bandwidth] [--venv DIR] [--check] [--recipe ID]"}
 	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
 		bw := fs.Bool("bandwidth", false, "measure GPU-to-GPU copy bandwidth (runs GPU copies)")
 		venvFlag := fs.String("venv", "", "venv for the torch peer-copy probe (when rocm-bandwidth-test is missing)")
+		check := fs.Bool("check", false, "print the P2P readiness checklist")
+		recipeFlag := fs.String("recipe", "", "recipe whose NCCL/RCCL environment the checklist shows (default: the best fit)")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
+		}
+		if *check && *bw {
+			return cli.Usagef("--check and --bandwidth are mutually exclusive")
+		}
+		if *check {
+			return printChecklist(c, *recipeFlag)
 		}
 		t, err := app.Topo(c.Ctx, app.TopoOptions{Bandwidth: *bw, Venv: *venvFlag, Progress: c.Err})
 		if err != nil {
@@ -27,6 +35,46 @@ func init() {
 		return c.Emit(t, func(w io.Writer) { printTopo(w, t) })
 	}
 	cli.Register(cmd)
+}
+
+// printChecklist prints the P2P readiness checklist (spec §4.5).
+func printChecklist(c *cli.Context, recipeID string) error {
+	rep, err := app.P2PChecklist(c.Ctx, app.P2PChecklistOptions{Recipe: recipeID})
+	if err != nil {
+		return err
+	}
+	if err := c.Emit(rep, func(w io.Writer) { printP2PChecklist(w, rep) }); err != nil {
+		return err
+	}
+	if rep.Summary["fail"] > 0 {
+		return cli.ChecksFailed("%d P2P readiness checks failed", rep.Summary["fail"])
+	}
+	return nil
+}
+
+var p2pMark = map[string]string{"ok": "ok  ", "warn": "WARN", "fail": "FAIL", "skip": "skip"}
+
+func printP2PChecklist(w io.Writer, rep app.P2PChecklistReport) {
+	fmt.Fprintln(w, "P2P readiness checklist")
+	for _, it := range rep.Checklist {
+		fmt.Fprintf(w, "  [%s] %s: %s\n", p2pMark[string(it.Status)], it.Title, it.Detail)
+		if it.Fix != "" {
+			fmt.Fprintf(w, "         fix: %s\n", it.Fix)
+		}
+		if it.Doc != "" {
+			fmt.Fprintf(w, "         doc: %s\n", it.Doc)
+		}
+	}
+	s := rep.Summary
+	fmt.Fprintf(w, "\n%d ok, %d warn, %d fail, %d skip\n", s["ok"], s["warn"], s["fail"], s["skip"])
+	switch {
+	case s["fail"] > 0:
+		fmt.Fprintln(w, "not ready: a failed item blocks peer-to-peer copies")
+	case s["ok"] == 0 && s["warn"] == 0:
+		fmt.Fprintln(w, "nothing to check on this host")
+	default:
+		fmt.Fprintln(w, "ready: the GPUs can copy peer to peer")
+	}
 }
 
 func printTopo(w io.Writer, t topo.Topology) {

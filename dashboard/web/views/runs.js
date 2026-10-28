@@ -24,7 +24,8 @@ function runsTable(runs, compact, logCard, root) {
       return h("tr",
         h("td", h("b", r.name)),
         h("td", r.recipe),
-        h("td", badge(r.state), t && t.stats ? h("div.small.muted", `${num(t.stats.requests_running, 0)} running · ${num(t.gen_tok_s)} tok/s`) : null,
+        h("td", badge(r.state), r.phase && r.phase.sentence ? h("div.small", r.phase.sentence) : null,
+          t && t.stats ? h("div.small.muted", `${num(t.stats.requests_running, 0)} running · ${num(t.gen_tok_s)} tok/s`) : null,
           r.findings && r.findings.length ? h("div.small.muted", "Known failure: " + r.findings.map((f) => f.id).join(", ")) : null),
         compact ? null : h("td", r.mode + (r.engine ? " (" + r.engine + ")" : "")),
         h("td.mono", r.port ? h("a", { href: runURL(r) + "/v1/models", target: "_blank", rel: "noopener noreferrer" }, (r.host || "127.0.0.1") + ":" + r.port) : "–"),
@@ -43,12 +44,6 @@ async function stopRun(ev, name, root) {
     toast(`Stopped ${name}.`, true);
   } catch (e) { toast("Stop failed: " + e.message); }
   viewRuns(root);
-}
-
-function copyBtn(text) {
-  return h("button.small", { onclick: async () => {
-    try { await navigator.clipboard.writeText(text); toast("Copied.", true); } catch (e) { toast("Copy failed: " + e.message); }
-  } }, "Copy");
 }
 
 // findingsBox shows the known failures logdoc found in the log of an exited run (spec §5.3).

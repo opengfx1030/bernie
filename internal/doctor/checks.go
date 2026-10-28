@@ -32,7 +32,7 @@ const gib = 1 << 30
 // evaluate runs every check on the gathered inputs.
 func evaluate(in inputs) []Check {
 	var out []Check
-	for _, f := range []func(inputs) []Check{osChecks, gpuChecks, kernelChecks, rocmChecks, pythonChecks, containerChecks, resourceChecks, tuningChecks} {
+	for _, f := range []func(inputs) []Check{osChecks, gpuChecks, kernelChecks, p2pChecks, rocmChecks, pythonChecks, containerChecks, resourceChecks, tuningChecks} {
 		out = append(out, f(in)...)
 	}
 	return out

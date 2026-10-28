@@ -349,6 +349,46 @@ func TestTokenRefusedInAPIQuery(t *testing.T) {
 	}
 }
 
+// GET /api/topo/check returns the P2P readiness checklist of the host.
+func TestTopoCheckEndpoint(t *testing.T) {
+	h := newServer(Options{Listen: "127.0.0.1:7860"}).handler()
+	w := do(t, h, "GET", "/api/topo/check", map[string]string{"Host": "127.0.0.1:7860"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /api/topo/check: %d %s", w.Code, w.Body.String())
+	}
+	var rep struct {
+		Ready     bool           `json:"ready"`
+		Summary   map[string]int `json:"summary"`
+		Checklist []struct {
+			ID     string `json:"id"`
+			Title  string `json:"title"`
+			Status string `json:"status"`
+			Detail string `json:"detail"`
+		} `json:"checklist"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &rep); err != nil {
+		t.Fatalf("json: %v\n%s", err, w.Body.String())
+	}
+	if len(rep.Checklist) == 0 {
+		t.Fatal("no checklist items")
+	}
+	for _, item := range rep.Checklist {
+		if item.ID == "" || item.Title == "" {
+			t.Errorf("incomplete item: %+v", item)
+		}
+		switch item.Status {
+		case "ok", "warn", "fail", "skip":
+		default:
+			t.Errorf("item %s has status %q", item.ID, item.Status)
+		}
+	}
+	for _, status := range []string{"ok", "warn", "fail", "skip"} {
+		if _, ok := rep.Summary[status]; !ok {
+			t.Errorf("summary lacks %s: %v", status, rep.Summary)
+		}
+	}
+}
+
 // The server writes no per-request lines: a URL's query string (the token)
 // never reaches Options.Log.
 func TestRequestsNeverLogQuery(t *testing.T) {
