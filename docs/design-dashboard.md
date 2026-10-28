@@ -13,15 +13,23 @@ Read this file, then the sheet of the tab you build:
 `design/*.svg`: one per tab and state, plus one per component. Every file of
 this set stays under 400 lines.
 
+The wireframes draw the layout and the information design. The colours and the
+type of the shipped page are the ones of [design/tokens.md](design/tokens.md):
+the drawings were made before the reference became the source of the palette,
+so a drawing and the page differ in colour and in the letterforms, never in
+the arrangement.
+
 ## 1. Principles
 
-1. **Clean room, ours.** Every word, colour, name, number and layout in the
-   dashboard is written by us. Nothing is copied from another product: no
-   markup, no CSS, no text, no assets, no brand, no font by CDN. Facts that
-   belong to the machine (a threshold, a sysfs path, a metric name) are
-   re-expressed in our own words. The information design we follow — a state
-   headline, one primary action, a step timeline, facts with reasons, KPI
-   tiles, copy buttons — is a pattern, not an expression. §5 records, per
+1. **Ours, with the author's permission.** The reference (vllm-rdna-dash by
+   CrispyGinger) is the source of the palette, the type and the rail. The
+   author has given permission to use its design and parts of its markup and
+   CSS; every file that carries them says so in its header, and the
+   third-party list records the use. The words, the numbers, the API and the
+   information design are ours: a state headline, one primary action, a step
+   timeline, facts with reasons, KPI tiles and copy buttons are a pattern, not
+   an expression. Facts that belong to the machine (a threshold, a sysfs path,
+   a metric name) are re-expressed in our own words. §5 records, per
    component, what the reference does, what we do and why.
 2. **Words first.** Every state is a sentence before it is a colour or a
    number. A badge is an icon and a word. A missing number is `–`, never `0`.
