@@ -16,6 +16,7 @@ type Install struct {
 type Report struct {
 	Installs   []Install         `json:"installs"`
 	Tools      map[string]string `json:"tools"` // rocminfo, hipcc, amd-smi, rocm-smi, rocm-bandwidth-test -> path ("" = missing)
+	OnPath     map[string]bool   `json:"on_path,omitempty"`
 	ROCBLAS    string            `json:"rocblas"`
 	HIPVersion string            `json:"hip_version"`
 	Agents     []string          `json:"agents"` // gfx names listed by rocminfo

@@ -23,11 +23,12 @@ func Probe(ctx context.Context, root string) Report {
 	if root == "" {
 		root = "/"
 	}
-	r := Report{Installs: FindInstalls(root), Tools: map[string]string{}, Agents: []string{}}
+	r := Report{Installs: FindInstalls(root), Tools: map[string]string{}, OnPath: map[string]bool{}, Agents: []string{}}
 	for _, t := range Tools {
 		p := ""
 		if root == "/" {
 			p = execx.Which(t)
+			r.OnPath[t] = p != ""
 		}
 		if p == "" {
 			p = installTool(root, r.Installs, t)
