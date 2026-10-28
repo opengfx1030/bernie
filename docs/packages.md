@@ -335,6 +335,11 @@ type VenvResolution struct { Path, Source string; Candidates []string }
 func SitePackages(venv string) []string
 func SearchPaths(venv string) []string
 func HasModule(venv, module string) bool
+// factcache: slow, stable facts under <state>/facts
+func Load(key, fingerprint string, ttl time.Duration, value any) (age time.Duration, fresh bool)
+func Save(key, fingerprint string, value any) error
+func Get[T any](ctx context.Context, key, fingerprint string, ttl time.Duration,
+    produce func(context.Context) (T, error)) (value T, age time.Duration, stale bool, err error)
 // fixture: test host snapshots
 func Root(tb testing.TB, name string) string
 ```
