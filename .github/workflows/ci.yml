@@ -18,6 +18,8 @@ jobs:
           go-version-file: go.mod
       - name: gofmt + vet
         run: make lint
+      - name: import layers
+        run: make layers
       - name: modules (verified and tidy)
         run: |
           go mod verify
