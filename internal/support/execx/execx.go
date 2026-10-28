@@ -48,6 +48,9 @@ func RunEnv(ctx context.Context, timeout time.Duration, env []string, name strin
 	if env != nil {
 		cmd.Env = append(cmd.Environ(), env...)
 	}
+	// A grandchild (a shell's sleep) can keep the output pipes open after the
+	// killed child exits; WaitDelay closes them so the timeout always bounds Run.
+	cmd.WaitDelay = time.Second
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err = cmd.Run()
