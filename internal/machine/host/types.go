@@ -25,6 +25,9 @@ type User struct {
 	UID    int      `json:"uid"`
 	Home   string   `json:"home"`
 	Groups []string `json:"groups"`
+	// GIDs are the primary and supplementary group ids of the process. Group
+	// names can be unresolvable in a static binary (LDAP, SSSD), ids never are.
+	GIDs []int `json:"-"`
 }
 
 // Engine is a container engine found on PATH.

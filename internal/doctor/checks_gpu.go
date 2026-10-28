@@ -33,13 +33,19 @@ func gpuChecks(in inputs) []Check {
 	if u.Name == "" {
 		out = append(out, check(cat, "groups", Skip, "User is in video and render", "no user information for this root"))
 	} else {
-		var missing []string
-		for _, g := range []string{"video", "render"} {
-			if !u.InGroup(g) {
+		// Compare gids: names do not resolve for LDAP/SSSD groups.
+		var missing, unknown []string
+		for _, g := range deviceGroups {
+			if gid, ok := in.groupGIDs[g]; !ok {
+				unknown = append(unknown, g)
+			} else if !hasGID(u.GIDs, gid) {
 				missing = append(missing, g)
 			}
 		}
 		switch {
+		case len(missing) == 0 && len(unknown) > 0:
+			out = append(out, check(cat, "groups", Warn, "User is in video and render",
+				fmt.Sprintf("cannot tell: group %s not found in /etc/group or by getent", strings.Join(unknown, ", "))).with(groupsFix, docGroups))
 		case len(missing) == 0:
 			out = append(out, check(cat, "groups", OK, "User is in video and render", u.Name))
 		case d.kfdRW && d.renderRW:

@@ -46,7 +46,7 @@ func base() inputs {
 		host: host.Info{
 			OS: host.OSRelease{ID: "fedora", VersionID: "43", Pretty: "Fedora Linux 43"}, PkgManager: "dnf",
 			Kernel: "7.1.7", Cmdline: "ro iommu=pt", RAMBytes: 512 * gib, ShmBytes: 64 * gib, SELinux: "enforcing",
-			User:    host.User{Name: "op", Groups: []string{"op", "video", "render"}},
+			User:    host.User{Name: "op", Groups: []string{"op", "video", "render"}, GIDs: []int{1000, 44, 105}},
 			Engines: []host.Engine{{Name: "docker", Version: "29.8.1", Usable: true, Compose: "docker compose"}},
 		},
 		gpus:      v620s(4, 180),
@@ -60,8 +60,9 @@ func base() inputs {
 		libSHA:  "f30bb442e9b5a3c479f6aa60c4d0d0740f67db2957fc0a5c416253e1bf320262",
 		match:   &tuning.Profile{Name: "rocm7.14-rocblas5.5", ROCBLAS: "5.5"},
 		hfCache: "/data/hf", hfFree: 500 * gib,
-		amdgpu:  true,
-		devices: devices{kfdExists: true, kfdRW: true, render: []string{"/dev/dri/renderD128"}, renderRW: true},
+		amdgpu:    true,
+		groupGIDs: map[string]int{"video": 44, "render": 105},
+		devices:   devices{kfdExists: true, kfdRW: true, render: []string{"/dev/dri/renderD128"}, renderRW: true},
 	}
 }
 
@@ -92,9 +93,17 @@ func TestEvaluateStatuses(t *testing.T) {
 		{"7.2.0 is safe", func(in *inputs) { in.rocm.Installs[0].Version = "7.2.0" }, "rocm.version", OK, ""},
 		{"rocminfo partial", func(in *inputs) { in.rocm.Agents = in.rocm.Agents[:2] }, "rocm.rocminfo", Warn, "2 of 4"},
 		{"rocminfo missing skip", func(in *inputs) { delete(in.rocm.Tools, "rocminfo") }, "rocm.rocminfo", Skip, "sudo dnf install -y rocminfo"},
-		{"groups missing but world-rw devices", func(in *inputs) { in.host.User.Groups = []string{"op", "video"} }, "gpu.groups", Warn, "render"},
+		{"groups missing but world-rw devices", func(in *inputs) { in.host.User.GIDs = []int{1000, 44} }, "gpu.groups", Warn, "render"},
+		{"groups held under other names (LDAP gid match)", func(in *inputs) {
+			in.host.User.Groups = []string{"op", "105", "44"}
+		}, "gpu.groups", OK, ""},
+		{"group not found on host is a warn, not a fail", func(in *inputs) {
+			delete(in.groupGIDs, "render")
+			in.host.User.GIDs = []int{1000, 44}
+			in.devices.kfdRW = false
+		}, "gpu.groups", Warn, "group render not found"},
 		{"groups missing and kfd denied", func(in *inputs) {
-			in.host.User.Groups = []string{"op"}
+			in.host.User.GIDs = []int{1000}
 			in.devices.kfdRW = false
 		}, "gpu.groups", Fail, "usermod -aG video,render"},
 		{"no kfd", func(in *inputs) { in.devices = devices{} }, "gpu.kfd", Fail, "modprobe amdgpu"},
