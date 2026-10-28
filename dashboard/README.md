@@ -62,7 +62,9 @@ flowchart LR
 | `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
 | `web/app.js` | Core: helpers (`h()`, `api()`, `copyBtn()`, `cmdBlock()`), shared state, telemetry stream |
-| `web/views/<tab>.js` | One file per tab: `viewOverview`, `viewGPUs`, ... |
+| `web/views/<tab>.js` | One file per tab: `viewHome`, `viewGPUs`, ... |
+| `web/views/home_steps.js` | The step timeline of the Home tab: the Run button, the root commands and the progress |
+| `web/views/home_advanced.js` | The Advanced disclosure of the Home tab: the raw document and the commands |
 | `web/boot.js` | Router and start-up. Loaded last. |
 | `web/tokens.css` | The two palettes (light and dark), the type, the spacing and the radii |
 | `web/layout.css` | The shell, the grids, the cards and the state headline |
@@ -75,16 +77,28 @@ Each tab answers one question. Keep it that way.
 
 | Tab | Question it answers | Data | Actions |
 |---|---|---|---|
-| Overview | Is this host ready, and what do I do next? | `/api/hw`, `/api/doctor`, `/api/runs` | none |
+| Home | Is this host ready, and what do I do next? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/runs` | run a step |
 | GPUs | How busy, how hot and at which clock is each GPU? | `/api/telemetry`, `/api/hw` | none |
 | Topology | Which GPUs talk fast to which, and will P2P work? | `/api/topo`, `/api/topo/check` | none |
 | Recipes | What can I serve, and what will it run? | `/api/recipes`, `.../plan` | start a run |
 | Runs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs |
 | Bench | How fast is it, and does it read the whole prompt? | `/api/bench` | start a bench |
 
+The Home tab is the first tab. It was the Overview tab; the old link
+(`#overview`) still opens it. It opens with the state of the machine in one
+sentence, the facts of the host with the reason under every value, and the
+checklist of [spec §3.3](../docs/spec.md#33-the-onboarding-checklist): every
+step of the path from a bare machine to a serving model, in order.
+
+A step that bernie can do has a Run button. The step runs in the background
+and its output goes under the step. A step that needs root has the command
+and a copy button, and no Run button: bernie never runs a command as root.
+The Advanced disclosure holds the raw document of the checklist and the
+commands that produce it (`bernie status --steps`, `bernie status --json`).
+
 `up` starts the dashboard before the server is healthy. The Runs tab then
 shows the run as `starting`, says in words that the server is loading the
-model, and follows the log of that run. The Overview tab shows the same
+model, and follows the log of that run. The Home tab shows the same
 state in words.
 
 The Bench tab shows one table per cell: the prefill and the decode speed
@@ -105,7 +119,7 @@ minute. An agent can read the same page as text.
    has a word. Color never carries the meaning alone.
 3. **Every problem has a fix next to it.** Show the cause and the command to
    run. A copy button sits on every command. Never show a bare error code.
-4. **Next step is always visible.** The Overview tab shows one next command
+4. **Next step is always visible.** The Home tab shows one next command
    for the current state (no GPU, no recipe fits, ready to serve, starting,
    running). Every tab has at most one primary button; the rest are ghost
    buttons.
