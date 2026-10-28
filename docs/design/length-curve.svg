@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420" role="img" aria-label="The length curve">
+<title>The length curve</title>
+<desc>The prefill and the time to first token against the prompt length.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="720" height="420" rx="0" class="bg"/>
+<text x="32" y="36" class="t h2" text-anchor="start">THE LENGTH CURVE</text>
+<rect x="80" y="80" width="520" height="220" rx="10" class="sf" stroke="#dfe3e8"/>
+<line x1="80" y1="135.0" x2="600" y2="135.0" class="ln"/>
+<line x1="80" y1="190.0" x2="600" y2="190.0" class="ln"/>
+<line x1="80" y1="245.0" x2="600" y2="245.0" class="ln"/>
+<text x="72" y="88" class="t sm" text-anchor="end">2 500</text>
+<text x="72" y="194.0" class="t sm" text-anchor="end">1 250</text>
+<text x="72" y="304" class="t sm" text-anchor="end">0</text>
+<text x="608" y="88" class="t sm" text-anchor="start">8.0 s</text>
+<text x="608" y="304" class="t sm" text-anchor="start">0.0 s</text>
+<text x="80" y="326" class="t sm" text-anchor="start">2048</text>
+<text x="340.0" y="326" class="t sm" text-anchor="middle">8192</text>
+<text x="600" y="326" class="t sm" text-anchor="end">16384</text>
+<text x="22" y="68" class="t lbl" text-anchor="start">prefill tok/s</text>
+<text x="630" y="68" class="t lbl" text-anchor="start">TTFT s</text>
+<polyline points="80.0,96.72 210.0,196.16000000000003 340.0,243.68 470.0,262.16 600.0,263.92" class="s1s" stroke-width="2"/>
+<polyline points="80.0,287.9 210.0,247.75 340.0,187.25 470.0,126.75 600.0,129.5" class="s2s" stroke-width="2"/>
+<circle cx="80.0" cy="96.72" r="4" class="s1"/>
+<text x="80.0" y="84.72" class="t sm" text-anchor="middle">2310</text>
+<circle cx="210.0" cy="196.16000000000003" r="4" class="s1"/>
+<text x="210.0" y="184.16000000000003" class="t sm" text-anchor="middle">1180</text>
+<circle cx="340.0" cy="243.68" r="4" class="s1"/>
+<text x="340.0" y="231.68" class="t sm" text-anchor="middle">640</text>
+<circle cx="470.0" cy="262.16" r="4" class="s1"/>
+<text x="470.0" y="250.16000000000003" class="t sm" text-anchor="middle">430</text>
+<circle cx="600.0" cy="263.92" r="4" class="s1"/>
+<text x="600.0" y="251.92000000000002" class="t sm" text-anchor="middle">410</text>
+<circle cx="80.0" cy="287.9" r="4" class="s2"/>
+<text x="80.0" y="305.9" class="t sm" text-anchor="middle">0.44 s</text>
+<circle cx="210.0" cy="247.75" r="4" class="s2"/>
+<text x="210.0" y="265.75" class="t sm" text-anchor="middle">1.9 s</text>
+<circle cx="340.0" cy="187.25" r="4" class="s2"/>
+<text x="340.0" y="205.25" class="t sm" text-anchor="middle">4.1 s</text>
+<circle cx="470.0" cy="126.75" r="4" class="s2"/>
+<text x="470.0" y="144.75" class="t sm" text-anchor="middle">6.3 s</text>
+<circle cx="600.0" cy="129.5" r="4" class="s2"/>
+<text x="600.0" y="147.5" class="t sm" text-anchor="middle">6.2 s</text>
+<circle cx="80" cy="340" r="7" class="s1"/>
+<text x="94" y="344" class="t sm" text-anchor="start">prefill tok/s</text>
+<circle cx="220" cy="340" r="7" class="s2"/>
+<text x="234" y="344" class="t sm" text-anchor="start">time to first token</text>
+<text x="32" y="372" class="t sm" text-anchor="start">The x axis is the prompt length on a log scale; every point carries its number.</text>
+<text x="32" y="392" class="t sm" text-anchor="start">The curve shows how the prefill and the time to first token grow with the prompt.</text>
+<text x="32" y="412" class="t sm" text-anchor="start">It is drawn from the cells of a ladder suite: the long-context suite.</text>
+</svg>

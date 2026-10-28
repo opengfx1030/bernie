@@ -136,12 +136,27 @@ Each item has a spec section and one test that proves it.
   dashboard draws it as the length curve. Spec
   [§10.2](spec.md#102-suites).
 
+## The next dashboard
+
+The design of the new dashboard is written down: the shell, the tokens, the
+four tabs (Setup, Dashboard, Benchmark, Logs), the copy of every state and
+the wireframes are in [design-dashboard.md](design-dashboard.md) and in
+[design/](design/). It is a design, not a plan: the first commit that uses
+it is the shell, and every commit names the files it touches.
+
+| # | Item | Spec | Test |
+|---|---|---|---|
+| 10 | **The dashboard v3 shell.** Four tabs in a rail, the measured tokens, one primary action per tab, a toast, a tooltip and an Advanced panel on every tab. | [design-dashboard.md](design-dashboard.md) | the four tabs open from their hash routes, the old routes still work, and the page does not scroll sideways at 390 px |
+
 ## Not planned
 
 These add surface without helping first-run success. Reopen only with a
 concrete user request.
 
-- Dashboard chat page. The `chat` command covers the check.
+- Dashboard chat page. The `chat` command covers the check. The page is
+  deferred, not cancelled: its sketch is in
+  [design-dashboard.md](design-dashboard.md) §10, and the Dashboard tab
+  carries a one-prompt `Try it` box meanwhile.
 - `connect --write` and self-check. Print-only first.
 - Demo mode for the dashboard.
 - "Did you mean" suggestions beyond what the flag parser prints.

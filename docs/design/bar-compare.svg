@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="460" viewBox="0 0 720 460" role="img" aria-label="The bar comparison">
+<title>The bar comparison</title>
+<desc>Two runs side by side, one cluster per metric group.</desc>
+<defs><style>
+.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
+.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
+.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
+.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
+.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
+.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
+.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
+.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
+.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
+.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
+.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+</style></defs>
+<rect x="0" y="0" width="720" height="460" rx="0" class="bg"/>
+<text x="32" y="36" class="t h2" text-anchor="start">THE BAR COMPARISON</text>
+<rect x="32" y="-60.0" width="42" height="140.0" rx="3" class="s1"/>
+<rect x="78" y="-52.121212121212125" width="42" height="132.12121212121212" rx="3" class="s2"/>
+<text x="32" y="98" class="t sm" text-anchor="middle">2310</text>
+<text x="78" y="98" class="t sm" text-anchor="middle">2180</text>
+<text x="76" y="116" class="t sm" text-anchor="middle">prefill</text>
+<text x="76" y="52" class="t ok" text-anchor="middle">better</text>
+<rect x="166" y="-60.0" width="42" height="140.0" rx="3" class="s1"/>
+<rect x="212" y="-56.755793226381456" width="42" height="136.75579322638146" rx="3" class="s2"/>
+<text x="166" y="98" class="t sm" text-anchor="middle">56.1</text>
+<text x="212" y="98" class="t sm" text-anchor="middle">54.8</text>
+<text x="210" y="116" class="t sm" text-anchor="middle">decode</text>
+<text x="210" y="52" class="t skip" text-anchor="middle">same</text>
+<rect x="300" y="-40.78431372549021" width="42" height="120.78431372549021" rx="3" class="s1"/>
+<rect x="346" y="-60.0" width="42" height="140.0" rx="3" class="s2"/>
+<text x="300" y="98" class="t sm" text-anchor="middle">0.44</text>
+<text x="346" y="98" class="t sm" text-anchor="middle">0.51</text>
+<text x="344" y="116" class="t sm" text-anchor="middle">TTFT s</text>
+<text x="344" y="52" class="t ok" text-anchor="middle">better</text>
+<rect x="434" y="-51.34020618556701" width="42" height="131.340206185567" rx="3" class="s1"/>
+<rect x="480" y="-60.0" width="42" height="140.0" rx="3" class="s2"/>
+<text x="434" y="98" class="t sm" text-anchor="middle">18.2</text>
+<text x="480" y="98" class="t sm" text-anchor="middle">19.4</text>
+<text x="478" y="116" class="t sm" text-anchor="middle">ITL ms</text>
+<text x="478" y="52" class="t fail" text-anchor="middle">worse</text>
+<rect x="568" y="-60.0" width="42" height="140.0" rx="3" class="s1"/>
+<rect x="614" y="-54.88461538461539" width="42" height="134.8846153846154" rx="3" class="s2"/>
+<text x="568" y="98" class="t sm" text-anchor="middle">52</text>
+<text x="614" y="98" class="t sm" text-anchor="middle">50.1</text>
+<text x="612" y="116" class="t sm" text-anchor="middle">output tok/s</text>
+<text x="612" y="52" class="t skip" text-anchor="middle">same</text>
+<line x1="32" y1="80" x2="688" y2="80" class="ln"/>
+<circle cx="80" cy="392" r="7" class="s1"/>
+<text x="94" y="396" class="t sm" text-anchor="start">baseline 2026-10-28</text>
+<circle cx="280" cy="392" r="7" class="s2"/>
+<text x="294" y="396" class="t sm" text-anchor="start">candidate 2026-10-28</text>
+<text x="600" y="396" class="t sm" text-anchor="end">TTFT and ITL: smaller is better</text>
+<text x="32" y="432" class="t sm" text-anchor="start">One cluster per metric group; the value on every bar; a verdict chip over every cluster.</text>
+<text x="32" y="452" class="t sm" text-anchor="start">When the two runs do not measure the same workload, the chart is not drawn.</text>
+</svg>
