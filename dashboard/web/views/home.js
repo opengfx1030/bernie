@@ -47,6 +47,7 @@ async function refreshHome(root, stepsCard, factsCard, actions) {
   try {
     doc = await api("/api/onboarding");
   } catch (e) {
+    setHead(root.querySelector(".state-head"), "The state of this machine is unknown", String(e.message || e));
     put(stepsCard, cardHead("The path to a serving model", "/api/onboarding"), failed(e));
     return;
   }
