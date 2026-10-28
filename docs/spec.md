@@ -139,10 +139,18 @@ other file, script or compose file is required.
      `--no-dash` is given.
 
   A stop before step 6 ("blocked") prints what the operator must do and
-  exits with code 3.
+  exits with code 3. A run that exits before `/health` answers ends `up`
+  with a failure: `up` scans the run's log ([§5.3](#53-log-doctor)). When a
+  rule matches, `up` prints every match (rule id, cause, fix, doc link, the
+  matching line) on stderr and exits with code 3. Otherwise it prints
+  `NAME exited during startup; see: bernie logs NAME` and exits with code 1.
 - With `--json`, `status` and `up` write one JSON document. `up --json`
   never prompts; it requires `--yes` to change the host. A blocked `up`
-  writes `{"blocked": {"reason": "", "commands": []}}`.
+  writes `{"blocked": {"reason": "", "commands": []}}`. An `up` whose run
+  exited during startup with matching rules writes
+  `{"run": "NAME", "log_findings": [Match]}` (exit code 3; `Match` is the
+  object of [§5.3](#53-log-doctor)). `status --json` and `ps --json` add
+  `findings` to the entry of an exited run ([§8.3](#83-run-record)).
 
 ### 3.2 Rules
 
@@ -174,8 +182,8 @@ other file, script or compose file is required.
 | `bernie recipe show <id>` | no | The merged recipe (after `extends`). |
 | `bernie recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
 | `bernie recipe plan <id> [--set K=V]... [--mode M] [--name N]` | no | The plan, as an exact command and environment. |
-| `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--dry-run]` | yes | Start a run. |
-| `bernie ps` | no | Runs, with state and health. |
+| `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--wait D] [--dry-run]` | yes | Start a run. |
+| `bernie ps` | no | Runs, with state and health. For an exited run: the known failures in its log. |
 | `bernie stop [NAME]` | yes | Stop a run (the only run if NAME is absent). |
 | `bernie logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
 | `bernie compose <id> [--set K=V]... [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
@@ -193,7 +201,11 @@ other file, script or compose file is required.
 `recipe plan`, `serve` and `compose` share the launch flags: `--set`,
 `--mode`, `--name`, `--venv`, `--engine`, `--profile` (force a TunableOp
 profile), `--no-tunableop` and `--tuning`. `serve` adds `--foreground`,
-`--no-pull` and `--dry-run` (same output as `recipe plan`). `compose` writes
+`--no-pull`, `--wait D` and `--dry-run` (same output as `recipe plan`).
+`serve --wait D` waits up to `D` until `/health` answers, like `up`; a run
+that exits first is reported like in `up`. Without `--wait`, `serve` returns
+once the run is started. `serve --foreground` reports the log findings of a
+server that exits with an error. `compose` writes
 container plans only. `setup plan` and `setup apply` also take `--venv`,
 `--image` and `--model`. `status` takes `--venv`.
 
@@ -345,9 +357,15 @@ and its line number. Lines are matched up to 1 MiB; a log can be any size.
 ```
 
 `matches` is `[]` when nothing matched. Exit code 3 when at least one rule
-matches. `serve` and `up` do not scan the log of a run that exits during
-startup. `up` reports the exit and `bernie logs NAME`. The operator then
-runs `doctor --run NAME`.
+matches.
+
+`up`, `serve --wait`, `serve --foreground`, `ps` and `status` use the same
+scan on a run that exited, so the operator and agents do not need a second
+command. One call scans for at most 2 seconds, whatever the log size (a
+container log is read with the `execx` timeout). A scan that runs out of time
+reports the rules it matched so far. A log that cannot be read gives no
+findings. The log of an exited run does not change, so a long-lived process
+(`bernie dash`) scans it once.
 
 ## 6. Setup
 
@@ -571,6 +589,11 @@ state is not stored in `run.json`:
 | `running` | The process or container is alive. `/health` answers 200. |
 | `exited` | The process or container is gone, whether `stop` ended it or it failed. |
 
+An exited run has a `findings` array in `ps --json` and `status --json` when
+the scan of its log ([§5.3](#53-log-doctor)) matched at least one rule. Each
+entry is the `Match` object of §5.3. The field is absent for a run that is
+`starting` or `running`, and for an exited run without a match.
+
 `doctor --run NAME` explains a failed start ([§5.3](#53-log-doctor)). One
 name has one run. `serve` refuses a name that is not `exited`.
 
@@ -687,7 +710,7 @@ Rules for responses and tokens:
 | GET | `/api/doctor` | `doctor` JSON |
 | GET | `/api/recipes` | `recipe list --all` JSON |
 | GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`) |
-| GET | `/api/runs` | `ps` JSON |
+| GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Runs tab shows them next to its log. |
 | POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record |
 | DELETE | `/api/runs/{name}` | stop |
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |

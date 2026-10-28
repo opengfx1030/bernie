@@ -153,6 +153,8 @@ func Start(ctx context.Context, p *recipe.Plan, o StartOptions) (*Record, error)
 func List(ctx context.Context) ([]Status, error)
 func Stop(ctx context.Context, name string) error
 func Logs(ctx context.Context, name string, follow bool, tail int, w io.Writer) error
+func Get(name string) (*Record, error)             // one record; the error wraps os.ErrNotExist
+func OpenLog(ctx context.Context, r Record, timeout time.Duration) (io.ReadCloser, error) // whole log: file, or `<engine> logs` under the execx timeout
 func HostCommand(p *recipe.Plan, venv string) (argv []string, env []string, err error)
 func ContainerCommand(p *recipe.Plan, eng host.Engine, rowsDir, hfCache string) []string
 func Compose(p *recipe.Plan, rowsDir, hfCache string) ([]byte, error)
@@ -176,12 +178,17 @@ func Save(r *Result) (string, error); func List() ([]Result, error); func Get(id
 
 ```go
 type Summary struct { Host host.Info; GPUs []gpu.GPU; Doctor map[doctor.Status]int;
-    Problems []doctor.Check; Best string; Fits []string; Runs []runner.Status; Next []string }
+    Problems []doctor.Check; Best string; Fits []string; Runs []Run; Next []string }
 func Snapshot(ctx context.Context, venv string) (*Summary, error)           // `status`
 type UpOptions struct { Recipe string; Sets []string; Mode, Venv, Engine, Name string;
     Yes bool; Confirm func(prompt string) bool; Wait time.Duration }
 type Blocked struct { Reason string; Commands []string }                      // exit code 3
 func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error)
+func WaitHealthy(ctx context.Context, name string, limit time.Duration) error // *StartupExit when the run exits first
+type Run struct { runner.Status; Findings []logdoc.Match }                    // Findings only for an exited run
+type StartupExit struct { Name string; Findings []logdoc.Match }               // error of a run that exited before /health
+func Runs(ctx context.Context) ([]Run, error)                                  // `ps`: runner.List plus findings
+func Findings(ctx context.Context, r runner.Record) []logdoc.Match            // scan of an exited run's log, 2 s budget
 ```
 
 `flow` never starts the dashboard. The front end does that after `Up` returns.
