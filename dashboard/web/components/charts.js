@@ -2,6 +2,10 @@
 // the meter. Every drawing is an inline SVG built with createElementNS; there
 // is no chart library, no canvas and no image.
 //
+// The measured geometry of the drawings (the 120 x 34 sparkline, the 84 px
+// ring, the axis of the area chart) follows the reference UI.
+// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+//
 // Accessibility: every chart says its numbers in words (the aria-label and the
 // text beside it), the two charts with a readout can be reached with the
 // keyboard and the arrow keys move that readout, and a number that was not
