@@ -1,6 +1,6 @@
 BIN      := bin
 DIST     := dist
-PKG      := github.com/opengfx1030/bernie
+PKG      := $(shell go list -m)
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS  := -s -w -X $(PKG)/internal/cli.Version=$(VERSION)
 GOFLAGS  := -trimpath

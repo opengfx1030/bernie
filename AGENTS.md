@@ -30,7 +30,7 @@ make lint         # gofmt check + go vet
 make check        # lint + test (run before every commit)
 ```
 
-Requirements: Go 1.23 or later. No other toolchain. No CGO.
+Requirements: Go 1.26 or later. No other toolchain. No CGO.
 
 ## 3. Hard rules
 

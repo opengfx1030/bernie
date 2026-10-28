@@ -155,7 +155,7 @@ podman-compose 1.3 or later).
 
 ## 5. Build from source
 
-You need Go 1.23 or later.
+You need Go 1.26 or later.
 
 ```bash
 git clone https://github.com/opengfx1030/bernie && cd bernie
