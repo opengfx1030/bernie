@@ -30,11 +30,11 @@ func TestNextCommand(t *testing.T) {
 		{"failed check goes first", Summary{GPUs: one, Best: "r1", Problems: []doctor.Check{warn, fail}},
 			[]string{"bernie doctor   # /dev/kfd is readable and writable", "bernie up   # serves r1"}},
 		{"warnings alone do not add doctor", Summary{GPUs: one, Best: "r1", Problems: []doctor.Check{warn}}, []string{"bernie up   # serves r1"}},
-		{"running: dash and bench instead of up", Summary{GPUs: one, Best: "r1", Runs: []runner.Status{{State: "running"}}},
+		{"running: dash and bench instead of up", Summary{GPUs: one, Best: "r1", Runs: []Run{{Status: runner.Status{State: "running"}}}},
 			[]string{"bernie dash", "bernie bench"}},
-		{"starting counts as running", Summary{GPUs: one, Best: "r1", Runs: []runner.Status{{State: "starting"}}},
+		{"starting counts as running", Summary{GPUs: one, Best: "r1", Runs: []Run{{Status: runner.Status{State: "starting"}}}},
 			[]string{"bernie dash", "bernie bench"}},
-		{"exited run is not running", Summary{GPUs: one, Best: "r1", Runs: []runner.Status{{State: "exited"}}},
+		{"exited run is not running", Summary{GPUs: one, Best: "r1", Runs: []Run{{Status: runner.Status{State: "exited"}}}},
 			[]string{"bernie up   # serves r1"}},
 	}
 	for _, c := range cases {

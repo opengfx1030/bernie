@@ -54,9 +54,12 @@ func init() {
 			}
 			return &cli.ExitError{Code: cli.ExitChecks, Err: errors.New("")}
 		}
+		var se *flow.StartupExit
+		if errors.As(err, &se) && len(se.Findings) > 0 {
+			return c.ReportExit(se.Name, se.Findings)
+		}
 		if err != nil {
 			return err
-
 		}
 		if c.JSON || *noDash {
 			return c.Emit(res, func(w io.Writer) { printUp(w, res) })

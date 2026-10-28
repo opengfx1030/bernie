@@ -1,6 +1,7 @@
 package serving
 
 import (
+	"errors"
 	"fmt"
 	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/support/config"
@@ -16,7 +18,7 @@ import (
 
 func init() {
 	serve := &cli.Command{Name: "serve", Summary: "Start a run of a recipe",
-		Usage: "<id> [--set KEY=VALUE]... [--mode host|container] [--name N] [--venv DIR] [--engine E] [--foreground] [--no-pull] [--dry-run]"}
+		Usage: "<id> [--set KEY=VALUE]... [--mode host|container] [--name N] [--venv DIR] [--engine E] [--foreground] [--no-pull] [--wait D] [--dry-run]"}
 	serve.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(serve)
 		var o runner.PrepareOptions
@@ -24,6 +26,7 @@ func init() {
 		prepareFlags(fs, &o, &sets)
 		fg := fs.Bool("foreground", false, "stay attached; Ctrl-C stops the server")
 		noPull := fs.Bool("no-pull", false, "container mode: start the local image without pulling")
+		wait := fs.Duration("wait", 0, "wait up to D for /health, or for the run to exit (0 = start and return)")
 		dry := fs.Bool("dry-run", false, "print the plan and start nothing (same as recipe plan)")
 		pos, err := cli.Parse(fs, args)
 		if err != nil {
@@ -49,7 +52,22 @@ func init() {
 		}
 		rec, err := runner.Start(c.Ctx, p, so)
 		if err != nil {
+			if rec != nil && *fg { // the server exited in the foreground
+				if ms := flow.Findings(c.Ctx, *rec); len(ms) > 0 {
+					return c.ReportExit(rec.Name, ms)
+				}
+			}
 			return err
+		}
+		if *wait > 0 && !*fg {
+			c.Logf("waiting for %s to answer /health (logs: bernie logs %s -f)", rec.Name, rec.Name)
+			if err := flow.WaitHealthy(c.Ctx, rec.Name, *wait); err != nil {
+				var se *flow.StartupExit
+				if errors.As(err, &se) && len(se.Findings) > 0 {
+					return c.ReportExit(se.Name, se.Findings)
+				}
+				return err
+			}
 		}
 		return c.Emit(rec, func(w io.Writer) {
 			if *fg {
@@ -73,7 +91,7 @@ func init() {
 		if _, err := cli.Parse(c.Flags(ps), args); err != nil {
 			return err
 		}
-		runs, err := runner.List(c.Ctx)
+		runs, err := flow.Runs(c.Ctx)
 		if err != nil {
 			return err
 		}
@@ -182,7 +200,7 @@ func short(digest string) string {
 	return digest
 }
 
-func printRuns(w io.Writer, runs []runner.Status) {
+func printRuns(w io.Writer, runs []flow.Run) {
 	if len(runs) == 0 {
 		fmt.Fprintln(w, "no runs")
 		return
@@ -198,4 +216,10 @@ func printRuns(w io.Writer, runs []runner.Status) {
 			r.StartedAt.Local().Format(time.DateTime))
 	}
 	tw.Flush()
+	for _, r := range runs {
+		if len(r.Findings) > 0 {
+			fmt.Fprintf(w, "\n%s exited; known failures in its log:", r.Name)
+			cli.WriteMatches(w, r.Findings)
+		}
+	}
 }

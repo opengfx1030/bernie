@@ -10,7 +10,6 @@ import (
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
-	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
@@ -22,7 +21,7 @@ type Summary struct {
 	Problems []doctor.Check        `json:"problems"` // fail and warn checks
 	Best     string                `json:"best_recipe"`
 	Fits     []string              `json:"fitting_recipes"`
-	Runs     []runner.Status       `json:"runs"`
+	Runs     []Run                 `json:"runs"`
 	Next     []string              `json:"next"`
 }
 
@@ -40,7 +39,7 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 	if gpus != nil {
 		listing = recipe.List(recipe.Load(), gpus, h.RAMBytes, false)
 	}
-	runs, _ := runner.List(ctx)
+	runs, _ := Runs(ctx)
 
 	s := &Summary{Host: h, GPUs: gpus, Doctor: rep.Summary, Runs: runs,
 		Problems: []doctor.Check{}, Fits: []string{}}
@@ -48,7 +47,7 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 		s.GPUs = []gpu.GPU{}
 	}
 	if s.Runs == nil {
-		s.Runs = []runner.Status{}
+		s.Runs = []Run{}
 	}
 	for _, ch := range rep.Checks {
 		if ch.Status == doctor.Fail || ch.Status == doctor.Warn {
