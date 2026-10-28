@@ -28,8 +28,11 @@
 .chart-sub { display: block; margin-top: 2px; }
 .spark-wrap { position: relative; min-width: 0; }
 .spark-svg { display: block; width: 100%; height: 34px; overflow: visible; }
-.ring-wrap { flex: none; text-align: center; min-width: 84px; }
-.ring-caption { font-size: 11px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.ring-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 84px; text-align: center; }
+.ring-n { font: 900 18px/1 var(--font-display); color: var(--text); font-variant-numeric: tabular-nums; }
+.ring-track { position: relative; height: 6px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.ring-fill { display: block; height: 100%; background: var(--series-1); width: 0%; transition: width 200ms ease; }
+.ring-caption { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
 .meter-track-wrap { position: relative; }
 .meter-tick { position: absolute; top: -2px; height: 12px; width: 2px; background: var(--border-strong); display: none; }
 .meter-note { font-size: 11px; color: var(--muted); margin-top: 3px; }
