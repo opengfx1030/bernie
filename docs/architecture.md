@@ -189,7 +189,22 @@ tuning data.
 | `bench/suites/` | the bench suites, as YAML | data |
 | `deploy/`, `scripts/`, `docs/` | the packaging, the installer and the checks, the documentation | - |
 
-### 2.3 Where a feature lives
+### 2.3 The crowded directories
+
+The audit looked at every directory with more than ten entries. Only one
+had two roles, and it was split. The others keep one role each, so they
+stay one package:
+
+| Directory | Role | Why it stays |
+|---|---|---|
+| `internal/app/` | the operations the front ends share | one file per operation (`doctor.go`, `power.go`, `setup.go`, ...) |
+| `internal/mcp/` | the MCP front end | the catalog is already split by file (`tools_read.go`, `tools_write.go`) |
+| `internal/serving/recipe/` | a recipe and the plan it produces | one concept: the schema, the merge and the plan |
+| `internal/serving/runner/` | the run | the records, the logs and the backends of one run |
+| `internal/doctor/` | the host checks | one file per category of checks |
+| `internal/serving/bench/` | the benchmark | the run, the metrics and the result store of one benchmark |
+
+### 2.4 Where a feature lives
 
 | Feature | Package |
 |---|---|
@@ -210,7 +225,7 @@ tuning data.
 | the MCP tools | `internal/mcp` |
 | the log knowledge (the failure and phase catalogues) | `internal/logdoc` |
 
-### 2.4 The tree
+### 2.5 The tree
 
 ```text
 bernie/
