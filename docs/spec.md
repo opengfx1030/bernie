@@ -137,11 +137,18 @@ other file, script or compose file is required.
   4. It plans the setup steps. A pending root step stops `up` and prints the
      commands.
   5. It asks for confirmation once, unless `--yes` is given.
-  6. It applies the non-root steps, starts the run and waits until `/health`
-     answers (`--wait`, default 30 minutes).
+  6. It applies the non-root steps and starts the run. The run is not waited
+     for yet.
   7. It starts the dashboard on `--listen` (default `127.0.0.1:7860`), unless
-     `--no-dash` is given.
+     `--no-dash` is given, and prints the URL to open (with `?token=` in token
+     mode). The dashboard is reachable while the server loads the model: the
+     Runs tab shows the run as `starting`, its phase sentence and its log.
+  8. It waits until `/health` answers (`--wait`, default 30 minutes) and
+     prints the progress.
 
+  A dashboard that cannot bind its address (the port is in use) is reported
+  on stderr; `up` keeps waiting for the server. Ctrl-C stops the dashboard;
+  the run keeps running.
   A stop before step 6 ("blocked") prints what the operator must do and
   exits with code 3. A run that exits before `/health` answers ends `up`
   with a failure: `up` scans the run's log ([§5.3](#53-log-doctor)). When a
@@ -180,7 +187,7 @@ other file, script or compose file is required.
 | Command | Changes host | Purpose |
 |---|---|---|
 | `bernie` / `bernie status` | no | Overview and the next command to type. |
-| `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D]` | yes | Doctor → setup → best recipe → serve → dashboard. |
+| `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D]` | yes | Doctor → setup → best recipe → serve → dashboard → wait for health. |
 | `bernie hw` | no | Hardware and OS inventory. |
 | `bernie topo [--bandwidth] [--venv DIR]` | no | PCIe tree, P2P matrix, link classes. Optional bandwidth test. |
 | `bernie topo --check [--recipe ID]` | no | P2P readiness checklist ([§4.5](#45-p2p-readiness-checklist)). Exit 3 if an item fails. |
@@ -192,7 +199,7 @@ other file, script or compose file is required.
 | `bernie recipe show <id>` | no | The merged recipe (after `extends`). |
 | `bernie recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
 | `bernie recipe plan <id> [--set K=V]... [--mode M] [--name N]` | no | The plan, as an exact command and environment. |
-| `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--wait D] [--dry-run]` | yes | Start a run. |
+| `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--wait D] [--dash[=ADDR]] [--dry-run]` | yes | Start a run. |
 | `bernie ps` | no | Runs, with state and health. For an exited run: the known failures in its log. |
 | `bernie stop [NAME]` | yes | Stop a run (the only run if NAME is absent). |
 | `bernie logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
@@ -200,8 +207,13 @@ other file, script or compose file is required.
 | `bernie tune tunableop list` | no | Registered TunableOp profiles. |
 | `bernie tune tunableop status [--venv DIR]` | no | Loaded rocBLAS build, matching profile. |
 | `bernie tune tunableop env [--venv DIR] [--profile P] [--tuning]` | no* | `export` lines for TunableOp (*materializes rows). |
-| `bernie tune power status` | no | Power cap per GPU. |
-| `bernie tune power set <WATTS> [--gpu IDX]...` | yes | Set the power cap. Without root, print the command. |
+| `bernie tune power status` | no | Actual power cap per GPU. |
+| `bernie tune power set <WATTS> [--gpu IDX]...` | yes (config file) | Write the desired power cap. Without `--gpu`, the value applies to all GPUs. |
+| `bernie tune power apply [--file FILE]` | yes | Apply the desired caps to hwmon. Needs root. |
+| `bernie tune power service print` | no* | Print the generated systemd unit pair. |
+| `bernie tune power service install-plan` | no* | Print the root commands that install the unit pair. |
+| `bernie tune power service status` | no | Service state, desired caps, actual caps and drift. |
+| `bernie tune power service remove-plan` | no* | Print the root commands that remove the unit pair. |
 | `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
 | `bernie bench list` / `bench show <ID>` | no | Saved results. |
 | `bernie bench compare <ID-A> <ID-B>` | no | Two results side by side. Refuses two different workloads. |
@@ -210,17 +222,24 @@ other file, script or compose file is required.
 | `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
 | `bernie version` | no | Version. |
 
+A `no*` command writes only its generated files under the state directory.
+
 `recipe plan`, `serve` and `compose` share the launch flags: `--set`,
 `--mode`, `--name`, `--venv`, `--engine`, `--profile` (force a TunableOp
 profile), `--no-tunableop` and `--tuning`. `serve` adds `--foreground`,
-`--no-pull`, `--wait D` and `--dry-run` (same output as `recipe plan`).
-`serve --wait D` waits up to `D` until `/health` answers, like `up`; a run
-that exits first is reported like in `up`. While it waits, `serve` prints
-the phase sentence of the run ([§5.4](#54-log-phase)). Without `--wait`,
-`serve` returns once the run is started. `serve --foreground` reports the
-log findings of a server that exits with an error. `compose` writes
-container plans only. `setup plan` and `setup apply` also take `--venv`,
-`--image` and `--model`. `status` takes `--venv`.
+`--no-pull`, `--wait D`, `--dash[=ADDR]` and `--dry-run` (same output as
+`recipe plan`). `serve --wait D` waits up to `D` until `/health` answers,
+like `up`; a run that exits first is reported like in `up`. While it waits,
+`serve` prints the phase sentence of the run ([§5.4](#54-log-phase)).
+Without `--wait`, `serve` returns once the run is started. `serve --dash`
+starts the dashboard next to the run (default address `127.0.0.1:7860`,
+`--dash=ADDR` picks another one) and prints its URL: the dashboard is
+reachable while the model loads. `serve` then waits for Ctrl-C; the run
+keeps running. Without `--dash`, `serve` stays a pure launcher.
+`serve --foreground` reports the log findings of a server that exits with
+an error. `compose` writes container plans only. `setup plan` and `setup
+apply` also take `--venv`, `--image` and `--model`. `status` takes
+`--venv`.
 
 ## 4. Host inspection (`hw`, `topo`)
 
@@ -805,12 +824,77 @@ name has one run. `serve` refuses a name that is not `exited`.
 
 ### 9.2 Power
 
-`tune power status` reads `power1_cap`, `power1_cap_min`, `power1_cap_max`.
-`tune power set` writes `power1_cap` (microwatts) when it runs as root. Else
-it prints the exact command. The advice comes from the device tables
-([§4.4](#44-device-tables)): a row with `power_cap_advice_w` gives the
-recommended cap of that device (V620: 180 W). `doctor` compares each GPU's
-cap with it. A device without that field has no advice.
+`tune power status` reads `power1_cap`, `power1_cap_min` and
+`power1_cap_max` of every GPU with a hwmon power cap.
+
+#### Desired state
+
+The desired state is `<config>/power.yaml`. It is YAML with a version and a
+map of GPU selectors to watts:
+
+```yaml
+version: 1
+gpus:
+  all: 180
+  "0": 160
+  "0000:47:00.0": 150
+```
+
+A selector is `all`, a HIP index, a PCI address, or the KFD unique id of one
+GPU. A GPU-specific selector overrides `all`. A selector that matches no GPU
+is ignored. A value must be a positive, finite number of watts.
+
+`tune power set` writes this file. It does not need root and it never writes
+hwmon. Without `--gpu`, it writes the `all` selector. With repeatable
+`--gpu`, it writes one selector per HIP index. A later write to the same
+selector replaces its value.
+
+`tune power apply [--file FILE]` reads the desired state. `FILE` defaults to
+`<config>/power.yaml`. The command needs root because it writes hwmon. As a
+normal user it writes nothing, prints the exact one-line root command and
+exits with code 3 and the words `needs root`. It never runs `sudo`.
+
+For every GPU with a desired value, `apply` clamps the value to that GPU's
+observed `power1_cap_min` and `power1_cap_max`. It writes only
+`power1_cap`, in microwatts. It skips a GPU whose cap already has the
+clamped value. It prints or logs each changed, unchanged and clamped GPU, so
+the result is idempotent and auditable.
+
+#### Service
+
+`tune power service` manages a systemd unit pair:
+
+- `bernie-power.service` is a oneshot service. It runs
+  `<absolute bernie path> tune power apply --file <config>/power.yaml` at
+  boot.
+- `bernie-power.path` watches `<config>/power.yaml`. A change starts the
+  service again.
+
+The unit pair uses these hardening rules:
+
+- no network access;
+- a read-only system and home;
+- write access only to `/sys/class/drm` and `/sys/class/hwmon`;
+- `NoNewPrivileges`, `PrivateTmp`, `ProtectKernelTunables`,
+  `ProtectKernelLogs`, `ProtectControlGroups`, `LockPersonality`,
+  `MemoryDenyWriteExecute` and `SystemCallArchitectures=native`.
+
+The generated files live under `<state>/power/`. `service print` writes them
+and prints their contents. `service install-plan` writes them and prints
+root commands that copy them to `/etc/systemd/system`, reload systemd and
+enable the pair. `service remove-plan` prints the inverse root commands.
+bernie never runs those commands.
+
+`service status` reports whether the pair is installed, enabled and active.
+It also reports the desired and effective value, the actual cap and drift
+for every GPU. A missing `systemctl` makes the service state `skip`; the
+GPU report still works. A specific desired value outside the observed range
+is shown with its effective clamped value.
+
+The advice comes from the device tables ([§4.4](#44-device-tables)): a row
+with `power_cap_advice_w` gives the recommended cap of that device (V620:
+180 W). `doctor` compares each GPU's cap with it. A device without that
+field has no advice.
 
 ## 10. Benchmark
 
@@ -876,9 +960,14 @@ numbers of two different workloads cannot be compared.
 `127.0.0.1:7860` by default. On a non-loopback address the dashboard runs in
 token mode: every request needs the token (`Authorization: Bearer <t>` or the
 cookie). The token is `--token`, else `$BERNIE_DASH_TOKEN`, else a random
-token printed at start. POST and DELETE requests also need the header
+token printed at start. POST, PUT and DELETE requests also need the header
 `X-Bernie: 1`. On a loopback address the `Host` header must be a loopback
 name (this blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
+
+`up` starts the dashboard before the server is healthy
+([§3.1](#31-the-default-run-the-binary)). The Runs tab then shows the run
+as `starting`, with the phase sentence of its log and the log itself. The
+page asks for nothing that a run without a health answer does not have.
 
 Rules for responses and tokens:
 
@@ -907,6 +996,8 @@ Rules for responses and tokens:
 | DELETE | `/api/runs/{name}` | stop |
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
 | GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}` |
+| GET | `/api/power` | `tune power service status` JSON |
+| PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
@@ -940,6 +1031,10 @@ engine: podman                          # docker | podman (auto when empty)
 hf_home: /data/hf                       # Hugging Face cache root
 set: ["env.GPU_MAX_HW_QUEUES=2"]        # default overrides, applied before --set
 ```
+
+The desired power state is `<config>/power.yaml` ([§9.2](#92-power)). The
+generated systemd units are `<state>/power/bernie-power.service` and
+`<state>/power/bernie-power.path`.
 
 ## 13. Model Context Protocol
 
@@ -1000,7 +1095,7 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `bench_list` | `bench list` | none |
 | `bench_show` | `bench show` | `id` |
 | `tunableop_status` | `tune tunableop status` | `venv` |
-| `power_status` | `tune power status` | none |
+| `power_status` | `tune power service status` | none |
 
 Mutating tools ([§13.5](#135-write-gate)):
 
@@ -1010,7 +1105,7 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `stop` | `stop NAME` (the name is required) | `{"name", "stopped"}` |
 | `bench_run` | `bench` (loopback `url` only, `recall` optional) | the saved `bench.Result` |
 | `setup_apply` | `setup apply` | the setup steps after the run |
-| `tune_power_set` | `tune power set` | `{"applied", "commands", "watts"}` |
+| `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes"}` |
 
 `up` and `config set` are not tools. An agent runs them through the CLI.
 
@@ -1045,7 +1140,7 @@ The `plan` is the document the operator confirms: the resolved plan for
 `serve`, `{name, recipe, state, mode, pid, container, url}` for `stop`, the
 normalized options for `bench_run`, `{run, manual}` for `setup_apply` (the
 non-root steps bernie runs, and the root steps it never runs) and
-`{watts, gpu_indexes, commands, applies_directly}` for `tune_power_set`.
+`{file, watts, gpu_indexes, desired}` for `tune_power_set`.
 `setup_apply` with nothing to run returns `executed: false`, a `note` and no
 token.
 
@@ -1067,9 +1162,9 @@ finds the slot taken fails with a busy error.
 ### 13.6 Host safety
 
 MCP never runs `sudo` and never escalates. A step that needs root comes back
-as a command in the result (`setup_apply`, `tune_power_set`).
-`tune_power_set` writes the cap only when the server itself runs as root,
-like the CLI.
+as a command in the result (`setup_apply`). `tune_power_set` writes the
+desired power file. It never writes hwmon. The power service applies that
+file as root.
 
 A plan call changes nothing on the host, except the TunableOp rows that
 `recipe plan` writes to the data directory.
