@@ -107,3 +107,24 @@ func installTrees(installs []Install) []Install {
 func pathUnder(p, prefix string) bool {
 	return p != prefix && strings.HasPrefix(p, strings.TrimSuffix(prefix, "/")+"/")
 }
+
+// ResolvePath resolves symlinks in an installed tool path.
+func ResolvePath(p string) string {
+	if real, err := filepath.EvalSymlinks(p); err == nil {
+		return real
+	}
+	return filepath.Clean(p)
+}
+
+// InstallForPath returns the most specific install that contains p.
+func InstallForPath(installs []Install, p string) (Install, bool) {
+	p = ResolvePath(p)
+	best := ""
+	var found Install
+	for _, in := range installTrees(installs) {
+		if pathUnder(p, in.Root) && len(in.Root) > len(best) {
+			best, found = in.Root, in
+		}
+	}
+	return found, best != ""
+}

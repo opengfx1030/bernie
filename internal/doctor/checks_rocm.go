@@ -29,12 +29,12 @@ func rocmChecks(in inputs) []Check {
 		} else {
 			out = append(out, check(cat, "installs", Warn, "ROCm is installed",
 				fmt.Sprintf("1 install with nested layout: %s; tools and libraries may mix versions", installList(r.Installs))).
-				with("Keep one ROCm userspace on PATH/LD_LIBRARY_PATH (host mode uses the venv wheels first).", docInstall))
+				with(pathWinnerFix(r), docInstall))
 		}
 	default:
 		out = append(out, check(cat, "installs", Warn, "ROCm is installed",
 			fmt.Sprintf("%d installs: %s; tools and libraries may mix versions", len(r.Installs), installList(r.Installs))).
-			with("Keep one ROCm userspace on PATH/LD_LIBRARY_PATH (host mode uses the venv wheels first).", docInstall))
+			with(pathWinnerFix(r), docInstall))
 	}
 	if len(in.gpus) > 1 {
 		var bad []string
@@ -95,6 +95,22 @@ func rocmChecks(in inputs) []Check {
 			with(install(pm, host.PkgROCBLAS, "Install rocBLAS."), docTunable))
 	}
 	return out
+}
+
+// pathWinnerFix names the ROCm install whose tools win on PATH and how to
+// check it.
+func pathWinnerFix(r rocm.Report) string {
+	p := r.Tools["hipcc"]
+	if !r.OnPath["hipcc"] {
+		if p == "" {
+			return "no hipcc on PATH; install the HIP SDK or check with: which hipcc"
+		}
+		return "hipcc is not on PATH (bernie found " + p + "); check with: which hipcc"
+	}
+	if in, ok := rocm.InstallForPath(r.Installs, p); ok {
+		return fmt.Sprintf("PATH uses ROCm %s from %s; check with: which hipcc", in.Version, in.Root)
+	}
+	return fmt.Sprintf("PATH uses hipcc from %s; check with: which hipcc", p)
 }
 
 func installList(in []rocm.Install) string {
