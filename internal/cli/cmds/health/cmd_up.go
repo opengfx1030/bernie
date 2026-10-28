@@ -66,7 +66,7 @@ func init() {
 		}
 		printUp(c.Out, res)
 		fmt.Fprintln(c.Err, "up: starting the dashboard (Ctrl-C stops it; the server keeps running)")
-		return dashboard.Serve(c.Ctx, dashboard.Options{Listen: *listen, Log: c.Err,
+		return dashboard.Serve(c.Ctx, dashboard.Options{Listen: *listen, Log: c.Err, Version: cli.Version,
 			Ready: func(url string) { fmt.Fprintf(c.Out, "dashboard: %s\n", url) }})
 	}
 	cli.Register(cmd)

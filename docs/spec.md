@@ -722,6 +722,7 @@ Rules for responses and tokens:
 | GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}` |
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
+| POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
 
 ## 12. Files and paths
 
@@ -908,6 +909,8 @@ Otherwise `/mcp` answers 404.
 
 The guard of `/mcp` differs from the guard of `/api` ([§11](#11-dashboard)):
 
+- `/mcp` does not use the dashboard cookie, the `X-Bernie` rule for every
+  `POST`, or the `/` token bootstrap.
 - The `Host` header must name a loopback host.
 - A request with an `Origin` header needs a loopback origin.
 - When the dashboard has a token, the request needs
@@ -915,8 +918,12 @@ The guard of `/mcp` differs from the guard of `/api` ([§11](#11-dashboard)):
   A `token` query parameter is refused with 400.
 - The request body is a JSON-RPC message. A `tools/call` of a mutating tool
   also needs the header `X-Bernie: 1`. A read-only call does not.
-- Only `POST` is served. Responses carry `Cache-Control: no-store`. The
-  endpoint sets no CORS header.
+- The mutating tools are listed only when the dashboard has a token and
+  `BERNIE_MCP_WRITE=1` is set at start. Without a token the gate stays closed
+  and the dashboard logs it.
+- Only `POST` is served. A response is not cacheable: `Cache-Control:
+  no-store` on a refusal, the SDK's `no-cache, no-transform` on a protocol
+  response. The endpoint sets no CORS header.
 
 ## 14. Out of scope (draft 1)
 

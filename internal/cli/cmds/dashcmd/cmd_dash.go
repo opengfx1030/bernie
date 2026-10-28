@@ -33,9 +33,10 @@ func init() {
 			*token = dashboard.NewToken()
 		}
 		return dashboard.Serve(c.Ctx, dashboard.Options{
-			Listen: *listen,
-			Token:  *token,
-			Log:    c.Err,
+			Listen:  *listen,
+			Token:   *token,
+			Log:     c.Err,
+			Version: cli.Version,
 			Ready: func(url string) {
 				_ = c.Emit(map[string]any{"url": url, "listen": *listen, "token_required": *token != ""}, func(w io.Writer) {
 					fmt.Fprintf(w, "bernie dashboard: %s\n", url)

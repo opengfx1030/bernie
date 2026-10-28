@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/opengfx1030/bernie/internal/mcp"
 )
 
 //go:embed web
@@ -29,6 +31,11 @@ type Options struct {
 	Token string
 	// Log receives the start line and request errors. Nil discards.
 	Log io.Writer
+	// MCPWrite exposes the mutating MCP tools on /mcp (spec §13.5). It takes
+	// effect only with a token. Serve also sets it when BERNIE_MCP_WRITE=1.
+	MCPWrite bool
+	// Version is the bernie version reported to MCP clients.
+	Version string
 	// Ready, when set, is called once the socket listens, with the URL to
 	// open (including ?token= in token mode).
 	Ready func(url string)
@@ -47,6 +54,10 @@ func Serve(ctx context.Context, o Options) error {
 	}
 	if o.Token == "" && !IsLoopback(o.Listen) {
 		o.Token = NewToken()
+	}
+	o.MCPWrite = o.MCPWrite || os.Getenv("BERNIE_MCP_WRITE") == "1"
+	if o.MCPWrite && o.Token == "" {
+		fmt.Fprintln(o.Log, "bernie dash: /mcp stays read-only: the write tools need a dashboard token")
 	}
 	ln, err := net.Listen("tcp", o.Listen)
 	if err != nil {
@@ -112,15 +123,19 @@ type server struct {
 	o       Options
 	tele    *hub
 	sampler sampler
+	mcp     http.Handler // nil unless the dashboard listens on loopback
 }
 
 func newServer(o Options) *server {
 	s := &server{o: o}
+	if o.Listen == "" || IsLoopback(o.Listen) {
+		s.mcp = mcp.New(mcp.Options{Write: o.MCPWrite && o.Token != "", Transport: "http", Version: o.Version, Log: o.Log}).Handler(o.Token)
+	}
 	s.tele = newHub(time.Second, s.sampleTelemetry)
 	return s
 }
 
-// handler returns the full handler chain: guard (auth, CSRF) → routes.
+// handler returns the full handler chain: guard (auth, CSRF) → routes, and /mcp.
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
 	web, _ := fs.Sub(webFS, "web")
@@ -144,7 +159,18 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
 	})
-	return newGuard(s.o.Token, mux)
+	g := newGuard(s.o.Token, mux)
+	// /mcp has its own guard (spec §13.10): the dashboard cookie and the
+	// X-Bernie rule do not apply to it.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/mcp" {
+			g.ServeHTTP(w, r)
+		} else if s.mcp == nil {
+			httpError(w, http.StatusNotFound, "/mcp is served on loopback addresses only")
+		} else {
+			s.mcp.ServeHTTP(w, r)
+		}
+	})
 }
 
 // withCSP adds the CSP to the embedded UI (the guard sets Cache-Control).
