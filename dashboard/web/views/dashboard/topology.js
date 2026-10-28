@@ -1,84 +1,137 @@
 "use strict";
-// ---------- Topology ----------
+// ---------- The topology ----------
+// The PCIe tree of the cards, the matrix of the link classes and the
+// readiness checklist of `bernie topo --check`.
+//
+// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 
-async function viewTopology(root) {
-  put(root, loading());
-  const head = stateHead("Topology", h("button.primary", { type: "button", onclick: () => viewTopology(root) }, "Re-check the links"));
-  try {
-    const [topo, check] = await Promise.all([
-      api("/api/topo"),
-      api("/api/topo/check").catch(() => null),
-      loadHW().catch(() => null),
-    ]);
-    const nodes = topo.nodes || [];
-    const pairs = topo.pairs || [];
-    if (!nodes.length) {
-      setHead(head, "No PCIe topology yet", "The tree shows how the cards are wired to each other. It appears once the host has GPUs.");
-      put(root, head, h("div", p2pCard(check), h("div.gap"),
-        h("div.card", cardHead("Topology", "/api/topo"), emptyState("There is no PCIe tree to show.", "The tree is the way the cards are wired to each other. It needs at least one GPU."))));
-      return;
-    }
-    const switches = new Set(nodes.map((n) => n.switch || "")).size;
-    setHead(head, nodes.length + (nodes.length === 1 ? " GPU" : " GPUs") + " behind " + switches + (switches === 1 ? " switch" : " switches"),
-      "Two cards on the same switch can copy between each other over the PCIe bus. The checklist above says whether this host may do that.");
-    const groups = new Map();
-    for (const n of nodes) {
-      const k = n.switch || "";
-      if (!groups.has(k)) groups.set(k, []);
-      groups.get(k).push(n);
-    }
-    const tree = [...groups.entries()].map(([sw, ns]) => h("div.switch",
-      h("h3", sw ? "PCIe switch " + sw : "No PCIe switch (direct to root port)"),
-      h("table", h("thead", h("tr", h("th", "HIP"), h("th", "GPU"), h("th", "PCI"), h("th", "Root port"), h("th", "Root"))),
-        h("tbody", ns.map((n) => h("tr", h("td", n.hip_index), h("td", gpuName(n.hip_index)), h("td.mono", n.pci), h("td.mono", n.root_port || "–"), h("td.mono", n.root || "–")))))));
+// DASH_CLASS_COLOR is the colour of one link class. The class is written in
+// every cell, so the colour only helps.
+const DASH_CLASS_COLOR = {
+  PIX: "var(--series-2)",
+  PXB: "var(--series-1)",
+  PHB: "var(--series-3)",
+  SYS: "var(--series-4)",
+};
 
-    const idx = nodes.map((n) => n.hip_index).sort((a, b) => a - b);
-    const pairOf = (a, b) => pairs.find((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a));
-    const matrix = h("table.matrix",
-      h("thead", h("tr", h("th", ""), idx.map((i) => h("th", i)))),
-      h("tbody", idx.map((a) => h("tr", h("th", a), idx.map((b) => {
-        if (a === b) return h("td.self", "X");
-        const p = pairOf(a, b);
-        if (!p) return h("td", "?");
-        return h("td", { class: "c-" + p.class, title: `${a}↔${b}: ${p.class}, ${p.hops ?? "?"} hops, P2P ${p.p2p ? "yes" : "no"}` },
-          p.class + (p.p2p ? " •" : ""), p.gbps ? h("span.gb", num(p.gbps) + " GB/s") : null);
-      })))));
-    put(root, head, h("div", p2pCard(check), h("div.gap"),
-      h("div.cols",
-        h("div.card", cardHead("PCIe tree", "/api/topo"), tree),
-        h("div.card", cardHead("Link classes", "/api/topo", topo.bandwidth ? h("span.small.muted", "bandwidth: " + topo.bandwidth) : null),
-          h("div.scroll", matrix),
-          h("div.legend", ["PIX same switch", "PXB several switches", "PHB host bridge", "SYS across CPUs"].map((s) => h("span", { class: "c-" + s.slice(0, 3) }, s)),
-            h("span", "• = KFD P2P link")),
-          topo.bandwidth ? null : h("div.small.muted", "Run `bernie topo --bandwidth` to measure GB/s per pair.")))));
-  } catch (e) {
-    put(root, failed(e));
-  }
+// dashTopology is the section with the tree, the matrix and the checklist.
+function dashTopology(section) {
+  const el = h("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px" });
+  section.append(el);
+  const tree = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px;min-width:0" });
+  const matrix = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px;min-width:0" });
+  const check = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px;min-width:0" });
+  el.append(tree, matrix, check);
+  const api = {
+    update: () => {
+      const topo = dash.topo;
+      put(tree, cardHead("PCIe tree", "/api/topo"), dashTree(topo));
+      put(matrix, cardHead("Link classes", "/api/topo"), dashMatrix(topo));
+      put(check, cardHead("P2P readiness", "/api/topo/check"), dashChecklist(dash.check));
+    },
+  };
+  api.update();
+  return api;
 }
 
-// p2pCard shows the readiness checklist of `bernie topo --check`.
-function p2pCard(data) {
+// dashTree is the tree of the cards: the switch of every card, its PCI
+// address, its root port and its root complex.
+function dashTree(topo) {
+  const nodes = (topo && topo.nodes) || [];
+  if (!nodes.length) {
+    return emptyState("There is no PCIe tree to show.",
+      "The tree is the way the cards are wired to each other. It needs at least one GPU.");
+  }
+  const groups = new Map();
+  for (const n of nodes) {
+    const key = n.switch || "";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(n);
+  }
+  const box = h("div");
+  for (const [sw, ns] of groups) {
+    const block = h("div", { style: "margin-bottom:12px" });
+    block.append(h("h3", { style: "font:700 13px/1.3 var(--font-mono);margin:0 0 6px" }, sw ? "PCIe switch " + sw : "No PCIe switch (direct to the root port)"));
+    block.append(h("div.scroll", { style: "overflow-x:auto" }, h("table", { style: "width:100%;border-collapse:collapse" },
+      h("thead", h("tr", ["Card", "Name", "PCI", "Root port", "Root"].map((c) => h("th", { style: "text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600" }, c)))),
+      h("tbody", ns.map((n) => h("tr", null,
+        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border)" }, "GPU " + n.hip_index),
+        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border)" }, dashCardName(n.hip_index)),
+        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px" }, n.pci || "–"),
+        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px" }, n.root_port || "–"),
+        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px" }, n.root || "–")))))));
+    box.append(block);
+  }
+  return box;
+}
+
+// dashMatrix is the heat map of the link classes: one cell per pair of cards,
+// the class in the cell and a dot where a KFD peer link exists.
+function dashMatrix(topo) {
+  const nodes = (topo && topo.nodes) || [];
+  const pairs = (topo && topo.pairs) || [];
+  if (!nodes.length) {
+    return h("div", { style: "color:var(--muted);font-size:13px" }, "The matrix needs at least one card.");
+  }
+  const idx = nodes.map((n) => n.hip_index).sort((a, b) => a - b);
+  const pairOf = (a, b) => pairs.find((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a));
+  const head = (text) => h("th", { style: "text-align:left;padding:5px 6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600" }, text);
+  const rows = idx.map((a) => h("tr", null,
+    head(h("span", { style: "font-weight:600;color:var(--text)" }, "GPU " + a), h("div", { style: "font-weight:400;font-size:11px" }, dashCardName(a))),
+    idx.map((b) => {
+      if (a === b) return h("td", { style: "text-align:center;padding:4px;border:2px solid var(--bg);border-radius:6px;background:var(--surface-2);color:var(--muted);font-size:12px" }, "—");
+      const p = pairOf(a, b);
+      const cellStyle = "text-align:center;padding:4px;border:2px solid var(--bg);border-radius:6px;font-size:12px;font-weight:600";
+      if (!p) return h("td", { style: cellStyle + ";color:var(--muted)", title: a + " and " + b + ": no link class" }, "?");
+      const color = DASH_CLASS_COLOR[p.class] || "var(--series-1)";
+      return h("td", {
+        style: cellStyle + ";background:color-mix(in srgb, " + color + " 28%, transparent)",
+        title: a + " and " + b + ": " + p.class + ", " + (p.hops != null ? p.hops + " hops" : "unknown hops") + ", peer to peer " + (p.p2p ? "yes" : "no"),
+      }, p.class, p.p2p ? h("span", { style: "color:var(--text);margin-left:3px" }, "•") : null,
+        p.gbps ? h("span", { style: "display:block;font-size:10.5px;color:var(--muted);font-weight:400" }, num(p.gbps) + " GB/s") : null);
+    })));
+  const legend = h("div", { style: "display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-top:10px;color:var(--text-2)" },
+    ["PIX same switch", "PXB several switches", "PHB host bridge", "SYS across CPUs"].map((text) => {
+      const cls = text.slice(0, 3);
+      return h("span", { style: "padding:1px 6px;border-radius:4px;background:color-mix(in srgb, " + (DASH_CLASS_COLOR[cls] || "var(--series-1)") + " 28%, transparent)" }, text);
+    }),
+    h("span", "• = a KFD peer link"));
+  return h("div", h("div.scroll", { style: "overflow-x:auto" }, h("table", { style: "width:100%;border-collapse:separate;border-spacing:2px" },
+    h("thead", h("tr", head(""), idx.map((i) => head(h("div", { style: "font-weight:600;color:var(--text);max-width:96px;overflow-wrap:anywhere" }, dashCardName(i)), h("div", { style: "font-weight:400;font-size:11px" }, "GPU " + i))))),
+    h("tbody", rows))), legend,
+    topo && topo.bandwidth ? null : h("div", { style: "font-size:12px;color:var(--muted);margin-top:8px" }, "Run bernie topo --bandwidth to measure the GB/s of every pair."));
+}
+
+// dashChecklist is the readiness checklist of `bernie topo --check`.
+function dashChecklist(data) {
   if (!data) {
-    return h("div.card", cardHead("P2P readiness", "/api/topo/check"), h("div.empty", "The P2P readiness checklist is not available."));
+    const err = (dash.errors || {})["/api/topo/check"];
+    return h("div", null,
+      h("div", { style: "color:var(--muted);font-size:13px" }, "The checklist is not available."),
+      err ? h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px" }, err) : null,
+      h("button.ghost", { type: "button", onclick: () => dashLoad(), style: "margin-top:10px;background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text-2)" }, "Try again"));
   }
   const items = data.checklist || [];
   const sum = data.summary || {};
-  const counts = ["ok", "warn", "fail", "skip"].map((s) => `${sum[s] || 0} ${s}`).join(" · ");
-  const empty = emptyState("Nothing to check.", "The checklist says whether two cards on this host may copy between each other over the PCIe bus. It needs at least one GPU.");
-  let label = "ready", cls = "b-ok";
-  if (sum.fail) { label = "not ready"; cls = "b-fail"; }
-  else if (!sum.ok && !sum.warn) { label = "nothing to check"; cls = "b-skip"; }
-  return h("div.card",
-    cardHead("P2P readiness", "/api/topo/check"),
-    h("div.row", h("span.small.muted", counts), h("span.badge", { class: cls }, label)),
-    items.length ? items.map(p2pRow) : empty);
-}
-
-// p2pRow shows one checklist item: its state, the cause and the fix.
-function p2pRow(it) {
-  return h("div.check",
-    h("div.t", badge(it.status), h("b", it.title)),
-    it.detail ? h("div.muted.small", it.detail) : null,
-    it.fix ? h("div.row", h("code", it.fix), copyBtn(it.fix)) : null,
-    it.doc ? h("a.small", { href: it.doc, target: "_blank", rel: "noopener noreferrer" }, "docs") : null);
+  const failed = sum.fail || 0;
+  const box = h("div");
+  const verdict = failed
+    ? "Multi-GPU copies will not work: " + failed + (failed === 1 ? " check failed." : " checks failed.")
+    : "Multi-GPU copies will work on this host.";
+  box.append(h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px" },
+    dashPill(failed ? "fail" : "ok", failed ? "not ready" : "ready"),
+    h("span", { style: "font-size:13px;color:var(--text-2)" }, verdict)));
+  if (!items.length) {
+    box.append(h("div", { style: "color:var(--muted);font-size:13px" }, "Nothing to check on this host."));
+    return box;
+  }
+  for (const it of items) {
+    const kind = it.status === "ok" ? "ok" : it.status === "warn" ? "warn" : it.status === "fail" ? "fail" : "skip";
+    box.append(h("div", { style: "display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--border)" },
+      h("div", { style: "display:flex;gap:8px;align-items:baseline" }, dashPill(kind, it.status === "skip" ? "skip" : it.status), h("b", { style: "font-size:13px" }, it.title || it.id)),
+      it.detail ? h("div", { style: "grid-column:2;color:var(--text-2);font-size:13px" }, it.detail) : null,
+      it.fix ? h("div", { style: "grid-column:2;margin-top:6px" }, cmdBlock(it.fix, "Copy the fix")) : null,
+      it.doc ? h("a", { href: it.doc, target: "_blank", rel: "noopener noreferrer", style: "grid-column:2;font-size:12px;margin-top:4px" }, "the rule in the documentation") : null));
+  }
+  return box;
 }
