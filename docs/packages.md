@@ -204,15 +204,15 @@ its JSON body, the MCP server checks its input schema. `app` never prints.
 type Options struct { Write bool; Transport, Version string; Log io.Writer }
 func New(o Options) *Server               // registers the fixed tool catalog
 func (s *Server) Run(ctx context.Context) error   // stdio
-func (s *Server) Handler() http.Handler           // Streamable HTTP, stateless
+func (s *Server) Handler(token string) http.Handler // Streamable HTTP, stateless, guarded
 func IsMutating(tool string) bool                 // serve, stop, bench_run, setup_apply, tune_power_set
 ```
 
 A tool is a function `(ctx, in) -> canonical document` registered with its
 input type and its output type; the SDK derives and enforces both schemas.
-`confirm.go` holds the token store, `audit.go` the audit log. The
-authentication and Origin rules of `/mcp` live in `dashboard/mcp.go`
-(spec §13.10).
+`confirm.go` holds the token store, `audit.go` the audit log, `http.go` the
+guard of `/mcp` (Host, Origin, bearer token, POST only, `X-Bernie` for a
+mutating tool; spec §13.10). `dashboard` mounts the handler on loopback only.
 
 ## flow
 

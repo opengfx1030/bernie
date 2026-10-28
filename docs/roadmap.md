@@ -29,6 +29,13 @@ Each item has a spec section and one test that proves it.
 | 9 | **Smoke chat.** `bernie chat --run NAME "prompt"` sends one prompt, prints the reply, time to first token and tok/s. It proves the server works. | §3 | Prints reply, TTFT and tok/s for a fixture server; exits non-zero when the run is not ready. |
 | 10 | **`connect <app>`.** Prints the ready-to-paste config for opencode, Open WebUI or a generic OpenAI client, using the run's port and model name. It prints only; it writes nothing. | §3 | `connect opencode` output contains the run's base URL and served model name. |
 
+## Shipped
+
+- **MCP server.** `bernie mcp` on stdio and `POST /mcp` on the dashboard,
+  read-only by default, write tools behind `--allow-write` and a confirm
+  token. It reuses the `--json` code paths. Spec [§13](spec.md#13-model-context-protocol),
+  how-to [mcp.md](mcp.md).
+
 ## Not planned
 
 These add surface without helping first-run success. Reopen only with a
@@ -41,8 +48,6 @@ concrete user request.
 - A separate privacy page. The spec's "files and paths" section covers it.
 - Download byte counts in plans. Progress words cover the wait.
 - Per-recipe `sources` field.
-- MCP server: decided after the research in `mcp.md`. It must reuse the
-  existing `--json` commands, with no second implementation.
 
 ## What bernie keeps as its own
 

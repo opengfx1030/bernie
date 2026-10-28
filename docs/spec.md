@@ -843,6 +843,14 @@ A mutating tool runs in two calls:
    verifies the token, runs the action and returns
    `{"executed": true, "result": {...}}`, with the CLI document in `result`.
 
+The `plan` is the document the operator confirms: the resolved plan for
+`serve`, `{name, recipe, state, mode, pid, container, url}` for `stop`, the
+normalized options for `bench_run`, `{run, manual}` for `setup_apply` (the
+non-root steps bernie runs, and the root steps it never runs) and
+`{watts, gpu_indexes, commands, applies_directly}` for `tune_power_set`.
+`setup_apply` with nothing to run returns `executed: false`, a `note` and no
+token.
+
 A token:
 
 - has 256 random bits;

@@ -21,7 +21,7 @@ view of the CLI. It adds no logic.
    text.
 5. **Writes are guarded.** Every POST and DELETE keeps the `X-Bernie` header
    check and the token rules in `auth.go`. Never loosen them.
-6. **Redact.** Anything sent to the browser goes through `redact.go`.
+6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
 7. **One question per tab.** Do not add a seventh tab for a feature that fits
    an existing one. Do not put two questions in one tab.
 8. **Files stay small.** `web/app.js` is at 639 lines. At 400 lines for a

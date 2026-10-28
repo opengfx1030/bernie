@@ -80,7 +80,7 @@ Add `--json` to any command for machine-readable output.
 - [docs/spec.md](docs/spec.md) — the behavior contract: commands, JSON shapes, recipe schema, files.
 - [docs/architecture.md](docs/architecture.md) — layers, dependency graph, flow of `up`, recipe resolution, run states, data per GPU arch.
 - [docs/packages.md](docs/packages.md) — the API of each package.
-- [docs/mcp.md](docs/mcp.md) — connect an AI agent: tools, write gate, client setup.
+- [docs/mcp.md](docs/mcp.md) — connect an AI agent (MCP): tools, write gate, client setup.
 - [docs/extending.md](docs/extending.md) — where to change what; add a GPU generation.
 - [docs/roadmap.md](docs/roadmap.md) — what we build next, and what we decided not to build.
 - [dashboard/README.md](dashboard/README.md) — the web UI: tabs, UX rules, files. Also [dashboard/AGENTS.md](dashboard/AGENTS.md) and [dashboard/CONTRIBUTING.md](dashboard/CONTRIBUTING.md).
