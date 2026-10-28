@@ -78,6 +78,22 @@ func TestVisibleRejectsAMissingGPU(t *testing.T) {
 	}
 }
 
+// The restriction of the environment is known even when the host has no GPU
+// list: the note is still worth showing.
+func TestVisibleKeepsTheRestrictionWithoutGPUs(t *testing.T) {
+	t.Setenv("HIP_VISIBLE_DEVICES", "8")
+	vis, err := Visible(t.TempDir())
+	if err == nil {
+		t.Fatal("want the error of the missing KFD topology")
+	}
+	if vis.Restriction == nil {
+		t.Fatal("no restriction")
+	}
+	if got := vis.Restriction.Note(); got != "GPUs limited to 8 by HIP_VISIBLE_DEVICES" {
+		t.Errorf("note = %q", got)
+	}
+}
+
 // A value that is not a list of indices (a GPU UUID) is ignored with a
 // warning: bernie uses every GPU.
 func TestVisibleIgnoresAUuid(t *testing.T) {
