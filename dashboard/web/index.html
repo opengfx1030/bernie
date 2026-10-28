@@ -3,33 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark light">
 <title>bernie</title>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/layout.css">
 <link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/views.css">
 <link rel="stylesheet" href="css/bench.css">
 <link rel="stylesheet" href="views/logs/logs.css">
+<link rel="stylesheet" href="css/classic.css">
 <link rel="icon" href="data:,">
 </head>
 <body class="shell">
   <aside class="rail">
     <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
       <a class="logo" href="#setup">bernie</a>
       <span id="hostname" class="host muted"></span>
       <span id="gpunote" class="host muted"></span>
     </div>
     <nav id="tabs" class="tabs" role="tablist" aria-label="The tabs of the dashboard">
-      <a id="tab-setup" role="tab" href="#setup" data-tab="setup" aria-controls="panel-setup" aria-selected="true" tabindex="0">Setup</a>
-      <a id="tab-dashboard" role="tab" href="#dashboard" data-tab="dashboard" aria-controls="panel-dashboard" aria-selected="false" tabindex="-1">Dashboard</a>
-      <a id="tab-benchmark" role="tab" href="#benchmark" data-tab="benchmark" aria-controls="panel-benchmark" aria-selected="false" tabindex="-1">Benchmark</a>
-      <a id="tab-logs" role="tab" href="#logs" data-tab="logs" aria-controls="panel-logs" aria-selected="false" tabindex="-1">Logs</a>
+      <a id="tab-setup" role="tab" href="#setup" data-tab="setup" aria-controls="panel-setup" aria-selected="true" tabindex="0"><span class="ico" aria-hidden="true">◆</span>Setup<span class="tab-count" data-count="setup" hidden></span></a>
+      <a id="tab-dashboard" role="tab" href="#dashboard" data-tab="dashboard" aria-controls="panel-dashboard" aria-selected="false" tabindex="-1"><span class="ico" aria-hidden="true">▲</span>Dashboard<span class="tab-count" data-count="dashboard" hidden></span></a>
+      <a id="tab-benchmark" role="tab" href="#benchmark" data-tab="benchmark" aria-controls="panel-benchmark" aria-selected="false" tabindex="-1"><span class="ico" aria-hidden="true">■</span>Benchmark</a>
+      <a id="tab-logs" role="tab" href="#logs" data-tab="logs" aria-controls="panel-logs" aria-selected="false" tabindex="-1"><span class="ico" aria-hidden="true">≡</span>Logs</a>
+      <a id="tab-classic" role="tab" href="#classic" data-tab="classic" aria-controls="panel-classic" aria-selected="false" tabindex="-1"><span class="ico" aria-hidden="true">★</span>Classic</a>
     </nav>
     <div class="rail-foot">
       <span id="runpill" class="pill skip" role="status" title="No run is serving on this host." aria-label="idle — No run is serving on this host."><span class="pill-icon">–</span><span class="pill-word">idle</span></span>
       <div class="rail-buttons">
-        <button id="themeBtn" class="ghost" type="button" aria-pressed="false" aria-label="Switch to the dark palette">Dark</button>
-        <button id="advancedBtn" class="ghost" type="button" aria-pressed="false" aria-label="Show the advanced panels">Advanced</button>
+        <button id="themeBtn" class="ghost small" type="button" aria-pressed="false" aria-label="Switch to the light palette">Light</button>
+        <button id="advancedBtn" class="ghost small" type="button" aria-pressed="false" aria-label="Show the advanced panels">Advanced</button>
+        <button id="helpBtn" class="ghost small" type="button" aria-label="The keyboard shortcuts">?</button>
       </div>
     </div>
   </aside>
@@ -38,6 +43,7 @@
     <section id="panel-dashboard" class="panel" role="tabpanel" aria-labelledby="tab-dashboard" data-tab-panel="dashboard" hidden></section>
     <section id="panel-benchmark" class="panel" role="tabpanel" aria-labelledby="tab-benchmark" data-tab-panel="benchmark" hidden></section>
     <section id="panel-logs" class="panel" role="tabpanel" aria-labelledby="tab-logs" data-tab-panel="logs" hidden></section>
+    <section id="panel-classic" class="panel classic" role="tabpanel" aria-labelledby="tab-classic" data-tab-panel="classic" hidden></section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script src="js/core.js"></script>
@@ -66,6 +72,7 @@
 <script src="views/logs/tail.js"></script>
 <script src="views/logs/advanced.js"></script>
 <script src="views/logs/logs.js"></script>
+<script src="views/classic/classic.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>
