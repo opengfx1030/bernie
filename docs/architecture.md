@@ -134,7 +134,83 @@ Rules:
    `flow`, `app` and the front ends read the same document, so the page and
    the command cannot disagree.
 
-## 2. Repository layout
+## 2. Layout and layers
+
+### 2.1 The layers
+
+Packages sit in five layers. A package may import a package of its own
+layer or of a lower one, never of a higher one. `make check` fails on a
+violation (`scripts/check-layers.sh`).
+
+| Layer | Packages | What they hold |
+|---|---|---|
+| 0 support | `internal/support/*` | the small helpers every layer may use |
+| 1 machine | `internal/machine/*` | what the host is |
+| 2 serving | `internal/serving/*`, `internal/doctor`, `internal/setup`, `internal/logdoc` | what bernie runs, and what the host must have for it |
+| 3 chains | `internal/app`, `internal/flow`, `internal/onboarding` | the operations the front ends share, and the chains that use them |
+| 4 front ends | `internal/cli/*`, `internal/mcp`, `dashboard` | the input and the output of the product |
+
+The data packages (`recipes`, `tunableop`, `tuned-moe`, `bench`) have no
+layer: they hold data and import nothing of bernie.
+
+`logdoc` sits in layer 2 with the serving packages: it reads the log of the
+server bernie runs, so the runner (layer 2) uses it. `doctor` and `setup`
+sit there too: they describe what the host needs to serve, and they use the
+tuning data.
+
+### 2.2 The directories
+
+| Directory | Role | Layer |
+|---|---|---|
+| `cmd/bernie/` | the entry point: blank-imports the command families, calls `cli.Main` | 4 |
+| `internal/cli/` | the command framework: `--json`, the exit-code contract, the version | 4 |
+| `internal/cli/cmds/<family>/` | one family per area, one `cmd_<name>.go` per command | 4 |
+| `internal/app/` | the operations more than one front end runs, one `--json` document each | 3 |
+| `internal/flow/` | the `status` snapshot and the `up` chain | 3 |
+| `internal/onboarding/` | the onboarding checklist: the facts, the steps, the jobs | 3 |
+| `internal/doctor/` | the check registry; one file per category of checks | 2 |
+| `internal/setup/` | the install plan and the non-root apply | 2 |
+| `internal/logdoc/` | the known-failure catalogue, the phase catalogue, the log scanner | 2 |
+| `internal/machine/gpu/` | the live GPUs: KFD/DRM/PCI enumeration, the telemetry, the ECC state | 1 |
+| `internal/machine/gpu/devices/` | the device tables: one YAML per generation | 1 |
+| `internal/machine/host/` | the OS, the package manager, the CPU, the RAM, the groups, the engines | 1 |
+| `internal/machine/rocm/` | the ROCm installs, the tools, the libraries, the venv probe | 1 |
+| `internal/machine/topo/` | the PCIe tree, the link classes, the P2P matrix, the bandwidth | 1 |
+| `internal/serving/recipe/` | the schema, the load, the merge, the validation, the fit, the plan | 2 |
+| `internal/serving/runner/` | the host and container backends, the run records, the logs | 2 |
+| `internal/serving/tuning/` | the TunableOp profiles, the tuned-MoE folders, the power cap | 2 |
+| `internal/serving/vllm/` | the client: `/health`, `/v1/models`, `/tokenize`, `/metrics` | 2 |
+| `internal/serving/bench/` | the streaming benchmark and the result store | 2 |
+| `internal/serving/bench/suite/` | the bench suites: the cells, the comparison, the verdict | 2 |
+| `internal/support/*` | the shared helpers: paths, execx, config, redact, pyenv, factcache, fixture | 0 |
+| `dashboard/` | the HTTP API, the SSE, the embedded web assets | 4 |
+| `recipes/` | the built-in recipes by family, the fragments by concern | data |
+| `tunableop/`, `tuned-moe/` | the tuning rows and the fused-MoE configs, by architecture | data |
+| `bench/suites/` | the bench suites, as YAML | data |
+| `deploy/`, `scripts/`, `docs/` | the packaging, the installer and the checks, the documentation | - |
+
+### 2.3 Where a feature lives
+
+| Feature | Package |
+|---|---|
+| `hw`, the GPU inventory | `internal/machine/gpu`, `internal/app` |
+| `topo`, the PCIe tree and the P2P matrix | `internal/machine/topo` |
+| `doctor`, the host checks | `internal/doctor` |
+| `setup`, the install plan | `internal/setup` |
+| `recipe`, the recipes and their plan | `internal/serving/recipe` |
+| `serve`, `ps`, `stop`, `logs` | `internal/serving/runner` |
+| `tune`, the tuning rows and the power cap | `internal/serving/tuning` |
+| `bench` | `internal/serving/bench` |
+| `bench --suite`, the bench suites | `internal/serving/bench/suite`, `bench/suites` |
+| the onboarding checklist | `internal/onboarding` |
+| `up`, the whole path | `internal/flow` |
+| the operations the front ends share | `internal/app` |
+| the CLI | `internal/cli`, `internal/cli/cmds/<family>` |
+| the dashboard | `dashboard` |
+| the MCP tools | `internal/mcp` |
+| the log knowledge (the failure and phase catalogues) | `internal/logdoc` |
+
+### 2.4 The tree
 
 ```text
 bernie/
@@ -157,7 +233,8 @@ bernie/
 │   ├── setup/            install plan and non-root apply
 │   ├── logdoc/           known-failure catalog, phase catalogue (embedded YAML) and log scanner
 │   ├── machine/          what the host is
-│   │   ├── gpu/              KFD/DRM/PCI enumeration, telemetry, devices/*.yaml tables
+│   │   ├── gpu/              KFD/DRM/PCI enumeration, telemetry, ECC
+│   │   │   └── devices/     the device tables: one YAML per GPU generation
 │   │   ├── host/             OS, package manager, CPU, RAM, groups, container engines
 │   │   ├── rocm/             ROCm installs, tools, libraries, venv probe
 │   │   └── topo/             PCIe tree, link classes, P2P matrix, bandwidth
@@ -176,11 +253,12 @@ bernie/
 │       ├── factcache/        slow, stable host facts under <state>/facts
 │       └── fixture/          test host snapshots (testdata/*.tar.gz)
 ├── dashboard/            HTTP API, SSE, embedded web/ (no build step)
+├── bench/suites/         the bench suites, as YAML
 ├── recipes/              built-in recipes by family, fragments by concern, embed.go
 ├── tunableop/            <arch>/<profile>/ rows and profile.json, embed.go
 ├── tuned-moe/            <arch>/ fused-MoE configs, embed.go
 ├── deploy/               packaging (nfpm), docker, compose
-├── scripts/              install.sh, capture-fixture.sh
+├── scripts/              install.sh, capture-fixture.sh, check-layers.sh
 └── docs/                 spec, architecture, packages, extending, recipes, install, overview.html
 ```
 
@@ -338,8 +416,8 @@ Rules:
 - `gpu` tests check that every device table loads, ids are unique and each
   override points to an arch of the same file.
 - `tuning` tests check the layout of `tunableop/` and `tuned-moe/` (top
-  folders are gfx names, at most 12 entries per folder) and that every
-  `profile.json` name equals its folder name.
+  folders are gfx names, a profile folder holds a manifest, rows and a
+  README) and that every `profile.json` name equals its folder name.
 - `recipe` tests check merge rules, interpolation, rendering and GPU
   selection. Every built-in recipe must load, resolve, validate and plan
   (`go test ./recipes/...`).

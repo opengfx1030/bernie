@@ -7,6 +7,48 @@ The layers and the import rules are in [architecture.md](architecture.md).
 Packages are grouped by role: `internal/machine` (what the host is),
 `internal/serving` (what bernie runs) and `internal/support` (small helpers).
 
+## The packages
+
+| Package | Role | Public surface | Layer |
+|---|---|---|---|
+| `cmd/bernie` | the entry point | `main` | 4 |
+| `internal/cli` | the command framework | `Register`, `Main`, `Command`, `Context`, `ExitError`, `WriteMatches` | 4 |
+| `internal/cli/cmds/health` | `doctor`, `setup`, `status`, `up` | `cli.Register` per command | 4 |
+| `internal/cli/cmds/inventory` | `hw`, `topo` | `cli.Register` per command | 4 |
+| `internal/cli/cmds/serving` | `recipe`, `serve`, `ps`, `stop`, `logs`, `compose`, `config` | `cli.Register` per command | 4 |
+| `internal/cli/cmds/tunecmd` | `tune` | `cli.Register` per command | 4 |
+| `internal/cli/cmds/benchcmd` | `bench` | `cli.Register` per command | 4 |
+| `internal/cli/cmds/dashcmd` | `dash` | `cli.Register` per command | 4 |
+| `internal/cli/cmds/mcpcmd` | `mcp` | `cli.Register` per command | 4 |
+| `internal/mcp` | the MCP front end | `New`, `Run`, `Handler`, `IsMutating`, `Options` | 4 |
+| `dashboard` | the web front end | `New`, `Handler`, `Options` | 4 |
+| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Bench`, `BenchSuite`, `PowerStatus`, `Onboarding`, `Stop`, `Smoke` | 3 |
+| `internal/flow` | the `status` snapshot and the `up` chain | `Summary`, `Up`, `Findings`, `WaitHealthy`, `Blocked` | 3 |
+| `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
+| `internal/doctor` | the host checks | `Run`, `Report`, `Check`, `Status`, `Options` | 2 |
+| `internal/setup` | the install plan | `Plan`, `Apply`, `Step`, `Options` | 2 |
+| `internal/logdoc` | the log knowledge | `Load`, `Scan`, `ScanFile`, `PhaseOf`, `Rule`, `Match` | 2 |
+| `internal/serving/recipe` | the recipe and its launch plan | `Load`, `Resolve`, `Validate`, `CheckFit`, `List`, `Best`, `BuildPlan`, `Plan` | 2 |
+| `internal/serving/runner` | the run | `Prepare`, `Start`, `List`, `Stop`, `Logs`, `Get`, `OpenLog`, `Phase` | 2 |
+| `internal/serving/tuning` | the tuning rows and the power cap | `Profiles`, `Select`, `Materialize`, `Env`, `PowerStatus`, `LoadPowerDesired`, `SavePowerDesired`, `GeneratePowerUnits`, `ApplyPowerDesired` | 2 |
+| `internal/serving/vllm` | the vLLM client | `New`, `Health`, `Models`, `Tokenize`, `Metrics` | 2 |
+| `internal/serving/bench` | the benchmark | `Run`, `Save`, `List`, `Get`, `Options`, `Result` | 2 |
+| `internal/serving/bench/suite` | the bench suites | `Load`, `List`, `Get`, `Run`, `Compare`, `Judge`, `AB` | 2 |
+| `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `GFXName`, `Archs`, `ECC` | 1 |
+| `internal/machine/host` | the OS facts | `Probe`, `Preferred`, `InstallCommand`, `GPUGroups`, `Info` | 1 |
+| `internal/machine/rocm` | the ROCm facts | `Probe`, `ProbeVenv`, `VenvLibPaths`, `FindROCBLAS`, `CompareVersions` | 1 |
+| `internal/machine/topo` | the PCIe facts | `Discover`, `MeasureBandwidth`, `BestGroup`, `P2PChecklist` | 1 |
+| `internal/support/paths` | the XDG paths | `State`, `Config`, `Data`, `Cache`, `Ensure` | 0 |
+| `internal/support/execx` | the bounded exec | `Result`, `Which`, `FirstLine` | 0 |
+| `internal/support/config` | the config file | `Config`, `Path`, `Save`, `Keys` | 0 |
+| `internal/support/redact` | the secret redaction | `JSON`, `Text` | 0 |
+| `internal/support/pyenv` | the venv layout | `HasModule`, `SearchPaths`, `SitePackages` | 0 |
+| `internal/support/factcache` | the cached host facts | `Get`, `Load`, `Save` | 0 |
+| `internal/support/fixture` | the test fixtures | `Root`, `Write` | 0 |
+| `recipes`, `tunableop`, `tuned-moe`, `bench` | the embedded data | `FS` | data |
+
+The layer of every package is in [architecture.md](architecture.md) §2.
+
 ## machine/gpu
 
 ```go
