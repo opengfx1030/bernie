@@ -6,6 +6,7 @@ async function viewGPUs(root) {
   try { await loadHW(); } catch { /* names and PCI info are optional; telemetry still renders */ }
   root.replaceChildren();
   renderGPUs();
+  loadPower().then(() => renderPower(root)).catch(() => { /* power status is optional */ });
 }
 
 function renderGPUs() {
@@ -15,6 +16,7 @@ function renderGPUs() {
   if (!gpus.length && !(t && t.gpus && t.gpus.length)) {
     put(root, h("div.card", h("h2", "GPUs"), h("div.empty", "No AMD GPUs found on this host (KFD topology is empty).")));
     renderServers(root);
+    renderPower(root);
     return;
   }
   let grid = root.querySelector(".grid.gpus");
@@ -30,6 +32,7 @@ function renderGPUs() {
     if (!card) grid.append(card = gpuCard(i));
     updateGPUCard(card, i, samples.get(i));
   }
+  renderPower(root);
 }
 
 function gpuCard(i) {

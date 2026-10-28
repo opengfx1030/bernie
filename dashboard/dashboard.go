@@ -157,6 +157,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("DELETE /api/runs/{name}", s.deleteRun)
 	mux.HandleFunc("GET /api/runs/{name}/logs", s.getLogs)
 	mux.HandleFunc("GET /api/telemetry", s.getTelemetry)
+	mux.HandleFunc("GET /api/power", s.getPower)
+	mux.HandleFunc("PUT /api/power", s.putPower)
 	mux.HandleFunc("GET /api/bench", s.getBench)
 	mux.HandleFunc("POST /api/bench", s.postBench)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
