@@ -73,12 +73,26 @@ Stop and inspect runs with `bernie ps`, `bernie logs -f`, `bernie stop`.
 
 Add `--json` to any command for machine-readable output.
 
+## Repository layout
+
+```text
+cmd/bernie/        the entry point
+internal/          the domain packages, by role: machine, serving, support
+dashboard/         the web front end, with its own UI rules
+recipes/           the built-in recipes, as YAML
+docs/              the spec, the architecture, the package contracts
+```
+
+The layers, the table of the directories and the map from a feature to its
+package are in [docs/architecture.md](docs/architecture.md) §2. The API of
+each package is in [docs/packages.md](docs/packages.md).
+
 ## Documentation
 
 - [docs/overview.html](docs/overview.html) — one-page visual tour (open in a browser).
 - [docs/install.md](docs/install.md) — install: script, rpm/deb, container image, compose, source.
 - [docs/spec.md](docs/spec.md) — the behavior contract: commands, JSON shapes, recipe schema, files.
-- [docs/architecture.md](docs/architecture.md) — layers, dependency graph, flow of `up`, recipe resolution, run states, data per GPU arch.
+- [docs/architecture.md](docs/architecture.md) — layers, the layout of the repository, dependency graph, flow of `up`, recipe resolution, run states, data per GPU arch.
 - [docs/packages.md](docs/packages.md) — the API of each package.
 - [docs/mcp.md](docs/mcp.md) — connect an AI agent (MCP): tools, write gate, client setup.
 - [docs/extending.md](docs/extending.md) — where to change what; add a GPU generation.
