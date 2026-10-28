@@ -71,6 +71,8 @@ Add `--json` to any command for machine-readable output.
 - [docs/install.md](docs/install.md) — install: script, rpm/deb, container image, compose, source.
 - [docs/spec.md](docs/spec.md) — the behavior contract: commands, JSON shapes, recipe schema, files.
 - [docs/architecture.md](docs/architecture.md) — packages, dependencies, launch flow.
+- [docs/roadmap.md](docs/roadmap.md) — what we build next, and what we decided not to build.
+- [dashboard/README.md](dashboard/README.md) — the web UI: tabs, UX rules, files. Also [dashboard/AGENTS.md](dashboard/AGENTS.md) and [dashboard/CONTRIBUTING.md](dashboard/CONTRIBUTING.md).
 - [docs/recipes.md](docs/recipes.md) — how to write and share a recipe.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — build, test, pull requests.
 - [AGENTS.md](AGENTS.md) — rules for AI coding agents working in this repo.

@@ -16,6 +16,7 @@ import (
 	"github.com/opengfx1030/rdnactl/internal/execx"
 	"github.com/opengfx1030/rdnactl/internal/logdoc"
 	"github.com/opengfx1030/rdnactl/internal/paths"
+	"github.com/opengfx1030/rdnactl/internal/recipe"
 )
 
 func init() {
@@ -48,7 +49,7 @@ func init() {
 		if err != nil {
 			return err
 		}
-		r := doctor.Run(c.Ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(*venvFlag), Categories: cats, HFHome: cfg.ResolveHFHome()})
+		r := doctor.Run(c.Ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(*venvFlag), Categories: cats, HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(recipe.Load())})
 		if err := c.Emit(r, func(w io.Writer) { printDoctor(w, r) }); err != nil {
 			return err
 		}

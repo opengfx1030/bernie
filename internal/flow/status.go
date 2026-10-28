@@ -35,7 +35,7 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 	}
 	h, _ := host.Probe(ctx, "/")
 	gpus, _ := gpu.List("/")
-	rep := doctor.Run(ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(venv), HFHome: cfg.ResolveHFHome()})
+	rep := doctor.Run(ctx, doctor.Options{Root: "/", Venv: cfg.ResolveVenv(venv), HFHome: cfg.ResolveHFHome(), ValidatedArchs: recipe.ValidatedArchs(recipe.Load())})
 	var listing recipe.Listing
 	if gpus != nil {
 		listing = recipe.List(recipe.Load(), gpus, h.RAMBytes, false)

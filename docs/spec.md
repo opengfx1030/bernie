@@ -46,6 +46,41 @@ rdnactl does these tasks:
   `up` selects host mode.
 - **Never break other platforms.** A recipe declares its GPU architectures.
   rdnactl refuses to launch a recipe on GPUs that do not match.
+- **Many devices.** Support covers AMD RDNA GPUs from the Radeon PRO V620 and
+  RX 6800 XT (RDNA2, gfx103x) to the RX 7900 XTX (RDNA3, gfx110x) and later.
+  Device facts live in data tables, one file per GPU generation
+  (`internal/gpu/devices/rdna2.yaml`, `rdna3.yaml`, ...). Tuning data and
+  recipes are keyed by architecture. No Go code names a device.
+- **Lean, readable, segmented.** See [§2.1](#21-structure-rules).
+
+### 2.1 Structure rules
+
+These rules apply to code, data and docs. A pull request that breaks one
+needs a reason in its description.
+
+1. **Lean.** Add nothing that no command, test or recipe uses. Delete dead
+   code in the same change that makes it dead.
+2. **Readable.** A Go file has at most 400 lines. A function has at most
+   about 60 lines. When a file grows past the limit, split it by
+   responsibility, not by size alone. A spec or doc page has one topic.
+3. **Segmented.** A directory has at most 12 entries (not counting
+   `testdata/`, `embed.go` and `README.md`). When a directory would grow
+   past 12, split it by a real axis:
+   - recipes by model family (`recipes/flashnext/`, `recipes/qwen-dense/`),
+     shared fragments by concern (`recipes/_fragments/<concern>/`);
+   - tuning data by architecture, then by build
+     (`tunableop/gfx1030/<profile>/`, `tuned-moe/gfx1030/`);
+   - device tables by GPU generation;
+   - CLI commands stay one file per command; a command with sub-commands
+     gets its own sub-package folder only when its files exceed the limit.
+4. **Keyed by device.** Data that depends on the GPU is stored under the
+   architecture it applies to. A new architecture adds a folder. It never
+   edits another architecture's files.
+5. **Discovered, not listed.** Embedded trees are found by walking the
+   embedded file system. No hand-edited index lists more than a screen of
+   entries. Each tuning profile carries its own `profile.json` manifest.
+6. **One owner per package.** A package has one responsibility that fits
+   in one sentence at the top of its `doc.go` or main file.
 
 ## Terms
 
@@ -433,19 +468,34 @@ alone does not identify the image.
 
 ### 9.1 TunableOp
 
-- Rows are build-specific. A profile is valid only for the rocBLAS build
-  (sha256 of `librocblas.so.5`) that produced it.
-- The registry is `tunableop/profiles.json`, embedded in the binary.
+- Rows are build-specific and architecture-specific. A profile is valid only
+  for the rocBLAS build (sha256 of `librocblas.so.5`) that produced it and for
+  the GPU architectures in its manifest.
+- Profiles live in `tunableop/<arch>/<profile>/`, embedded in the binary. Each
+  profile has a `profile.json` manifest (`name`, `arch`, `rocblas`, `rocm`,
+  `torch`, `lib_sha256`, `rows_per_rank`, `status`, `covers`) and its
+  `tunableop_results<rank>.csv` files. There is no central registry: rdnactl
+  discovers profiles by walking the embedded tree. `name` equals the folder
+  name and is unique across architectures. `arch` lists gfx names or prefixes
+  (`gfx1030`, `gfx103`, `gfx11`).
 - `env` and `serve` materialize the rows into `<data>/tunableop/<profile>/`.
 - Host mode: rdnactl hashes the loaded `librocblas.so.5` (venv wheel first,
   then `/opt/rocm/lib`) and selects the profile with the same sha256 prefix
-  (12 hex). An explicit profile that does not match is an error.
+  (12 hex) whose `arch` names the architecture of every selected GPU. An
+  explicit profile must match both the hash and the architecture, else it is
+  an error.
 - No match: per-user rows at `$HOME/.cache/tunableop/tunableop_results.csv`.
-- Container mode: the recipe names the profile for its pinned image.
+- Container mode: the recipe names the profile for its pinned image. The
+  profile must still fit the selected GPUs.
 - Lookup only by default (`PYTORCH_TUNABLEOP_TUNING=0`). `--tuning` enables
   tuning into the per-user file.
 - Environment set: `PYTORCH_TUNABLEOP_ENABLED=1`, `PYTORCH_TUNABLEOP_TUNING`,
   `PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED=0`, `PYTORCH_TUNABLEOP_FILENAME`.
+- Tuned fused-MoE configs follow the same keying: `tuned-moe/<arch>/` holds a
+  flat folder of vLLM's `E=...json` files. Host mode sets
+  `VLLM_TUNED_CONFIG_FOLDER` to the materialized folder of the selected GPUs'
+  architecture (`<data>/tuned-moe/<arch>`). An architecture without a folder
+  gets no variable.
 
 ### 9.2 Power
 
