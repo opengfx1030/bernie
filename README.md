@@ -1,7 +1,6 @@
 # rdnactl
 
-Run vLLM on AMD ROCm GPUs without the guesswork. RDNA first: Radeon PRO V620,
-W6800, RX 6800/6900 (gfx1030), then gfx11 and gfx12.
+Run vLLM on AMD ROCm GPUs without the guesswork.
 
 rdnactl is one static binary. It checks your machine, tells you what is
 missing, installs the stack, starts vLLM from a recipe, applies tuning,
@@ -68,8 +67,8 @@ Add `--json` to any command for machine-readable output.
 
 ## Documentation
 
-- [docs/install.md](docs/install.md) — install: script, rpm/deb, container image, compose, source.
 - [docs/overview.html](docs/overview.html) — one-page visual tour (open in a browser).
+- [docs/install.md](docs/install.md) — install: script, rpm/deb, container image, compose, source.
 - [docs/spec.md](docs/spec.md) — the behavior contract: commands, JSON shapes, recipe schema, files.
 - [docs/architecture.md](docs/architecture.md) — packages, dependencies, launch flow.
 - [docs/recipes.md](docs/recipes.md) — how to write and share a recipe.

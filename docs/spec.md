@@ -9,8 +9,8 @@ sentence, active voice, defined terms only (see [Terms](#terms)).
 
 ## 1. Purpose
 
-rdnactl helps an operator run vLLM on AMD ROCm GPUs, RDNA first
-(gfx1030, then gfx11/gfx12). It replaces the serve scripts and `.env`
+rdnactl helps an operator run vLLM on AMD ROCm GPUs. It replaces the
+serve scripts and `.env`
 recipes of the `opengfx1030/vllm-rdna` fork with one tool.
 
 rdnactl does these tasks:
@@ -147,9 +147,12 @@ minor and step in hex.
 |---|---|
 | `PIX` | Both GPUs are below the same PCIe switch. |
 | `PXB` | The path crosses more than one switch, but not the root complex. |
-| `PHB` | The path crosses one root complex (host bridge). |
-| `SYS` | The path crosses root complexes (CPU interconnect). |
+| `PHB` | The path crosses one root complex (host bridge), or root complexes on the same NUMA node. |
+| `SYS` | The path crosses NUMA nodes (CPU interconnect). |
 
+Two rules keep the classes meaningful. A switch inside a GPU card (the AMD
+bridge pair on Navi cards) does not count as a switch. The two internal
+levels of a Broadcom PEX88096 count as one switch.
 `topo` also reports `p2p: true|false` from the KFD links.
 `topo --bandwidth` runs `rocm-bandwidth-test` when it is installed. Without
 it, and with `--venv`, it runs a PyTorch peer-copy probe. It reports GB/s per
@@ -198,6 +201,15 @@ stability; `skip` means the check cannot run here.
 | `resources` | RAM. Free disk in the Hugging Face cache. `/dev/shm` size. |
 | `tuning` | TunableOp profile matches the loaded rocBLAS. Power cap per GPU (V620: 180 W advice). |
 
+### 5.3 Log doctor
+
+`doctor --log FILE|-` and `doctor --run NAME` match a vLLM log against a
+catalog of known failures. Each rule has an id, a regular expression, a
+cause, a fix and a `doc` link. The report lists the matched rules with the
+first matching line. The catalog is data (embedded YAML), not code. `serve`
+and `up` run it on the log of a run that exits during startup and print the
+matches. Exit code 3 when at least one rule matches.
+
 ## 6. Setup
 
 `setup plan` returns ordered steps. Each step has this record:
@@ -221,7 +233,9 @@ Steps (filtered by mode and host):
 | `rocm.runtime` | yes | host | Install the ROCm runtime with the package manager. |
 | `container.engine` | yes | container | Install Docker or Podman and compose. |
 | `venv.create` | no | host | Create the venv (`uv` if present, else `python3 -m venv`). |
-| `venv.torch` | no | host | Install `rocm-sdk` and `torch` from the AMD ROCm wheel index. |
+| `venv.torch` | no | host | Install `rocm-sdk`, `torch` and one `rocm-sdk-device-<gfx>` + `amd-torch-device-<gfx>` wheel per GPU type from the AMD multi-arch index `https://repo.amd.com/rocm/whl-multi-arch/`. gfx1031 to gfx1036 use the gfx1030 wheels. |
+| `causal-conv1d.build` | no | host | Build causal-conv1d from source for the host GPU targets. |
+| `flash-attn.build` | no | host | Only when a GPU on FlashAttention's arch list is present. gfx1030 is not on it. |
 | `vllm.build` | no | host | Clone the fork and build it in the venv. |
 | `image.pull` | no | container | Pull the recipe image. |
 | `model.download` | no | both | `hf download <repo>` into the Hugging Face cache. |
@@ -350,7 +364,8 @@ When the plan has no `HIP_VISIBLE_DEVICES`, rdnactl selects GPUs:
   It is not "the container without Docker".
 - Venv: `--venv`, then `$RDNACTL_VENV`, then config `venv`, then `$VIRTUAL_ENV`.
 - `LD_LIBRARY_PATH` starts with the venv's ROCm wheel libraries when present:
-  `_rocm_sdk_libraries/lib`, `_rocm_sdk_core/lib/{host-math,rocm_sysdeps,core}/lib`,
+  `_rocm_sdk_libraries/lib`, `_rocm_sdk_core/lib`,
+  `_rocm_sdk_core/lib/{host-math,rocm_sysdeps,core}/lib`,
   `torch/lib`. Reason: the system rocBLAS must not load before the wheel one.
 - Caches: `VLLM_CACHE_ROOT`, `TRITON_CACHE_DIR`, `TORCHINDUCTOR_CACHE_DIR`
   under `<cache>/runs/<name>/`.
@@ -468,7 +483,9 @@ A cell where every request fails makes `bench` exit 1 and saves nothing.
 `127.0.0.1:7860` by default. On a non-loopback address, every request needs
 the token (`Authorization: Bearer <t>` or the cookie set by `/?token=<t>`).
 The token is `--token`, else `$RDNACTL_DASH_TOKEN`, else a random token
-printed at start. POST requests also need the header `X-Rdnactl: 1`.
+printed at start. POST and DELETE requests also need the header
+`X-Rdnactl: 1`. On a loopback address the `Host` header must be a loopback
+name (this blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
 
 | Method | Path | Body / output |
 |---|---|---|
@@ -480,10 +497,10 @@ printed at start. POST requests also need the header `X-Rdnactl: 1`.
 | GET | `/api/runs` | `ps` JSON |
 | POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record |
 | DELETE | `/api/runs/{name}` | stop |
-| GET | `/api/runs/{name}/logs` | Server-sent events, one line per event |
-| GET | `/api/telemetry` | Server-sent events, 1 Hz: GPU telemetry + vLLM metrics of running runs |
+| GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
+| GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}` |
 | GET | `/api/bench` | `bench list` JSON |
-| POST | `/api/bench` | bench flags as JSON → result |
+| POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
 
 ## 12. Files and paths
 

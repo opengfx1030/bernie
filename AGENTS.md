@@ -7,7 +7,7 @@ before you write code.
 ## 1. What this repo is
 
 rdnactl is a Go CLI with an embedded dashboard. It checks, sets up, tunes,
-serves and benchmarks vLLM on AMD ROCm GPUs (RDNA first). The spec is the
+serves and benchmarks vLLM on AMD ROCm GPUs. The spec is the
 contract. The code follows the spec.
 
 The product surface is one binary. `rdnactl` with no arguments shows the
