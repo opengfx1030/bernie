@@ -1389,6 +1389,13 @@ Rules for responses and tokens:
 - The server writes no per-request log, so a query string never reaches the
   log. The start line prints the bootstrap URL once.
 
+The page has five tabs: Setup, Dashboard, Benchmark, Logs and Classic. The
+Classic tab is the reference-parity port of the dashboard view of the
+reference web UI (vllm-rdna-dash by CrispyGinger, used with permission): it
+reads `/api/telemetry`, `/api/gpus/history`, `/api/hw` and `/api/runs`, it
+adds no endpoint, and it is the last tab of the rail. A number this host
+does not measure is shown as a dash with the words "n/a on this host".
+
 | Method | Path | Body / output |
 |---|---|---|
 | GET | `/api/hw` | `hw` JSON |

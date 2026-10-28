@@ -26,7 +26,7 @@ On a non-loopback address the server prints a token. Open the page with
 ```mermaid
 flowchart LR
   subgraph Browser
-    UI["web/js + web/components<br/>+ web/views/<tab>/<br/>4 tabs"]
+    UI["web/js + web/components<br/>+ web/views/<tab>/<br/>5 tabs"]
   end
   subgraph "package dashboard"
     API["internal/api<br/>JSON + SSE"]
@@ -69,10 +69,11 @@ flowchart LR
 | `web/js/data.js` | The only place that fetches: `api()`, the shared state, the SSE streams |
 | `web/js/boot.js` | The router and the old-hash aliases. Loaded last. |
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, run table, step timeline |
-| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs` |
+| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs`, `viewClassic` |
 | `web/css/tokens.css` | The two palettes (light and dark), the type, the spacing and the radii |
 | `web/css/layout.css` | The shell, the grids, the cards and the state headline |
 | `web/css/components.css` | The badges, the buttons, the tables, the meters, the tiles and the ring |
+| `web/css/classic.css` | The Classic tab only: the reference-parity port, scoped under `.classic` |
 | `dashboard_test.go` | API, auth and stream tests |
 
 ## The layout
@@ -93,7 +94,7 @@ dashboard/
     ├── css/             tokens, layout, components
     ├── js/              core, shell, data, boot
     ├── components/      the shared widgets
-    └── views/           setup/, dashboard/, benchmark/, logs/
+    └── views/           setup/, dashboard/, benchmark/, logs/, classic/
 ```
 
 The rule is the role, not the count: one package owns one thing, one file
@@ -125,7 +126,7 @@ number.
 5. Show the unit and the range of every number. Show `–` when a number is
    missing.
 
-## The four tabs
+## The five tabs
 
 Each tab answers one question. Keep it that way.
 
@@ -135,6 +136,14 @@ Each tab answers one question. Keep it that way.
 | Dashboard | How busy is the host, how is it wired, and what is serving? | `/api/telemetry`, `/api/hw`, `/api/power`, `/api/topo`, `/api/topo/check`, `/api/runs` | copy the card list, set a power cap |
 | Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
 | Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
+| Classic | What does the original reference design look like on this host? | `/api/telemetry`, `/api/gpus/history`, `/api/hw`, `/api/runs` | read only: stop the run, copy the URL, copy the snippet |
+
+The Classic tab is the exception to "one question per tab": it is the
+reference-parity port of the dashboard view of the reference web UI
+(vllm-rdna-dash by CrispyGinger, used with permission), so the owner and the
+author of the reference can put the two next to each other. It lives in
+`web/views/classic/` with its own stylesheet `web/css/classic.css`, scoped
+under `.classic`, and it adds no endpoint. It is the last tab of the rail.
 
 The Setup tab is the first tab. It opens with the state of the machine in one
 sentence, the facts of the host with the reason under every value, the
@@ -272,4 +281,4 @@ What changed on purpose when the palette was rebuilt:
 | No log-error help in the Logs tab | Show the matched rule (id, cause, fix) from the log doctor |
 | No demo mode | Serve a fixture host so people can try the UI without GPUs |
 | Mobile layout is basic | Check each tab at 390 px wide |
-| No screenshot tests | Add a headless-browser smoke test for the four tabs |
+| No screenshot tests | Add a headless-browser smoke test for the five tabs |
