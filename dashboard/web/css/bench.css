@@ -1,13 +1,6 @@
 /* ---------- Benchmark tab: the suites, the progress, the cells, the bars,
-   the length curve and the A/B run. The colours are tokens only. ---------- */
-
-.bench-section { border-top: 1px solid var(--border); padding: var(--space-6) 0 0; margin-top: var(--space-6); }
-.bench-section:first-of-type { border-top: 0; margin-top: 0; }
-.bench-label { font: 800 var(--section-label)/1 var(--font-body); letter-spacing: .08em;
-  text-transform: uppercase; color: var(--muted); margin: 0 0 var(--space-3); }
-.bench-card { display: block; }
-.bench-card + .bench-card { margin-top: var(--space-3); }
-.bench-card > * + * { margin-top: var(--space-3); }
+   the length curve and the A/B run. The colours are tokens only; the shell
+   of the dashboard owns the buttons, the cards, the tables and the pills. ---------- */
 
 /* ---------- the suite cards ---------- */
 
@@ -21,9 +14,9 @@
 .bench-suite-body > * { margin: 0 0 var(--space-1); }
 .bench-suite-name { font-weight: 800; }
 .bench-suite-desc { color: var(--text-2); font-size: 13px; line-height: 1.45; }
-.bench-suite-meta { color: var(--muted); font-size: 12px; }
-.bench-suite-digest { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: 12px; }
-.bench-suite-digest code { font: var(--mono); color: var(--text-2); word-break: break-all; }
+.bench-suite-meta { color: var(--muted); font-size: var(--small); }
+.bench-suite-digest { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: var(--small); }
+.bench-suite-digest code { font: var(--mono); color: var(--text-2); overflow-wrap: anywhere; }
 
 /* ---------- the live progress ---------- */
 
@@ -35,40 +28,32 @@
 
 /* ---------- the table of the cells ---------- */
 
-.bench-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.bench-table th { font: 800 12px/1.3 var(--font-body); letter-spacing: .06em; text-transform: uppercase;
-  color: var(--muted); text-align: right; padding: var(--space-2) var(--space-2); vertical-align: bottom; white-space: nowrap; }
+.bench-table th { padding: var(--space-2) var(--space-2); white-space: nowrap; vertical-align: bottom; }
 .bench-table th small { display: block; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
-.bench-table th.l { text-align: left; }
-.bench-table td { padding: var(--space-2); border-top: 1px solid var(--border); text-align: right;
-  font-variant-numeric: tabular-nums; vertical-align: top; }
-.bench-table td.l, .bench-table th.l { text-align: left; }
-.bench-table tr.click:hover { background: var(--surface-2); cursor: pointer; }
+.bench-table td { padding: var(--space-2); }
 .bench-cell { display: block; font-weight: 700; }
 .bench-lens { display: block; color: var(--muted); font-size: 11px; }
-.bench-flag { display: block; font-size: 12px; line-height: 1.4; margin: 0 0 2px; }
+.bench-flag { display: block; font-size: var(--small); line-height: 1.4; margin: 0 0 2px; }
 .bench-flag.ok { color: var(--ok); }
 .bench-flag.skip { color: var(--skip); }
 .bench-flag.warn { color: var(--warn); }
 .bench-flag.serious { color: var(--serious); }
 .bench-flag.fail { color: var(--fail); }
 
-/* ---------- the verdict chips ---------- */
+/* ---------- the verdict chips: the shared pill with a tint ---------- */
 
-.chip { display: inline-block; padding: 1px 8px; border-radius: var(--radius-pill); font-size: 12px;
-  font-weight: 600; line-height: 1.7; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
-.chip.ok { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
-.chip.skip { color: var(--skip); border-color: var(--border-strong); }
-.chip.warn { color: var(--warn); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
-.chip.fail { color: var(--fail); border-color: var(--fail); background: color-mix(in srgb, var(--fail) 14%, transparent); }
+.pill.verdict.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.pill.verdict.skip { background: transparent; }
+.pill.verdict.warn { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.pill.verdict.fail { background: color-mix(in srgb, var(--fail) 14%, transparent); }
 
 /* ---------- the bar comparison ---------- */
 
 .bench-pickers { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.bench-pickers label { font: 800 12px/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.bench-pickers label { font: 800 var(--small)/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .bench-pickers select { max-width: 220px; }
 .bench-compare { margin-top: var(--space-3); }
-.bench-legend { display: flex; gap: var(--space-4); color: var(--muted); font-size: 12px; margin-bottom: var(--space-2); }
+.bench-legend { display: flex; gap: var(--space-4); color: var(--muted); font-size: var(--small); margin-bottom: var(--space-2); }
 .bench-legend span { display: inline-flex; align-items: center; gap: var(--space-1); }
 .bench-legend .key { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .key.s1 { background: var(--series-1); }
@@ -109,7 +94,7 @@
 /* ---------- the A/B run and the Advanced panel ---------- */
 
 .bench-ab { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.bench-ab label { font: 800 12px/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.bench-ab label { font: 800 var(--small)/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .bench-ab input { min-width: 180px; }
 .bench-ab-out { margin-top: var(--space-3); }
 .bench-advanced-body { margin-top: var(--space-3); }
@@ -117,9 +102,8 @@
 .bench-advanced-head { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-1); }
 .bench-advanced-head code { font: var(--mono); color: var(--text-2); }
 .bench-json { font: var(--mono); background: var(--surface-2); border-radius: var(--radius-sm);
-  padding: var(--space-3); max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+  padding: var(--space-3); max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
 .bench-advanced-cmds { margin-top: var(--space-4); }
-.bench-advanced-cmds .cmd { margin-bottom: var(--space-2); }
 .bench-result-title { margin: 0; font-weight: 700; }
 
 /* ---------- 390 px: nothing overflows the page ---------- */

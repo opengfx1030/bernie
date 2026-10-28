@@ -141,9 +141,9 @@ function benchHistory(list, verdicts, onPick) {
   }
   return h("div.scroll", h("table.bench-table",
     h("thead", h("tr",
-      h("th.l", "WHEN"), h("th.l", "SUITE"), h("th.l", "MODEL"),
-      h("th.n", "OUT TOK/S"), h("th.n", "PREFILL"), h("th.n", "DECODE"),
-      h("th.n", "CELLS"), h("th.l", "VERDICT"))),
+      h("th", "WHEN"), h("th", "SUITE"), h("th", "MODEL"),
+      h("th.num", "OUT TOK/S"), h("th.num", "PREFILL"), h("th.num", "DECODE"),
+      h("th.num", "CELLS"), h("th", "VERDICT"))),
     h("tbody", list.map((r) => benchHistoryRow(r, verdicts && verdicts[r.id], onPick)))));
 }
 
