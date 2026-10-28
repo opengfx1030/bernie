@@ -22,14 +22,17 @@ view of the CLI. It adds no logic.
 5. **Writes are guarded.** Every POST and DELETE keeps the `X-Bernie` header
    check and the token rules in `internal/auth`. Never loosen them.
 6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
-7. **One question per tab.** Do not add a fifth tab for a feature that fits
-   an existing one. Do not put two questions in one tab.
+7. **One question per tab.** Do not add a sixth tab for a feature that fits
+   an existing one. Do not put two questions in one tab. The Classic tab is
+   the one exception: it is the reference-parity port, and it is there to be
+   compared with the Dashboard tab.
 8. **The visual design follows [../docs/design-dashboard.md](../docs/design-dashboard.md).**
    That page is the design contract. The colours live in `web/css/tokens.css`
    and nowhere else: a component file never writes a colour by hand.
    Exception: the Classic tab (`web/css/classic.css`) is a reference-parity
-   port; it carries the reference palette scoped under `.classic` and touches
-   no other tab.
+   port. It reads the same tokens (they carry the palette of the reference)
+   and writes no colour of its own, and every rule of it is scoped under
+   `.classic`, so it touches no other tab.
 9. **Same names as the CLI.** A field on the page has the JSON name of the
    CLI output.
 

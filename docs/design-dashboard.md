@@ -249,35 +249,46 @@ redesigning anything.
 | Frame | 220 px sticky rail, content `padding: 34px clamp(16px, 4vw, 56px) 80px`, view at most 1240 px | the same, in §2.1 | same (done) |
 | Rail | brand with 26 px of space under it, links with an 8 px radius and a 2 px gap, a footer with a status pill and a theme button | the same, plus the counts on the tabs, the Classic tab and the shortcuts (§2.8) | ported (done) |
 | Tab bar | plain links, no `aria-controls` | the rail of the reference over a real tablist: arrow keys, `aria-selected` and a roving tabindex | adapted (accessibility, done) |
-| Display headline | 38–74 px, italic 900, uppercase, a hard two-layer offset shadow | the same, with the self-hosted Montserrat instead of the CDN font | ported (done) |
+| Display headline | 38–74 px, italic 900, uppercase, a hard two-layer offset shadow | the same, with the self-hosted Montserrat instead of the CDN font | ported (done) · ported 1:1 (Classic tab) |
 | Lede | 18 px, the second text colour, 70 characters | the same | same (done) |
-| Eyebrow | 12 px 800, uppercase, `.14em` | the same | same (done) |
+| Eyebrow | 12 px 800, uppercase, `.14em` | the same | same (done) · ported 1:1 (Classic tab) |
 | Section | a 1 px top rule and 24 px of padding, a 13 px uppercase label | the same | same (done) |
 | Facts strip | an uppercase 12 px label over a 17 px 700 value, hairline separated | the same, plus the reason under the value | adapted (bernie feature, done) |
 | Step timeline | 36 px counter circles, a 2 px connector, one colour per state | the same; the six states are the ones of spec §3.3 | same (done) |
-| Command block | mono on the second surface, an 8 px radius, the copy button pinned to the top right | the same, with the copy button beside the command so a long command wraps instead of scrolling | ported (done) |
-| Primary button | italic 900 uppercase, the key colour, a 4 px hard shadow that moves on `:active` | the same: the key colour in the dark palette, the accent in the light one, the hard shadow of the reference | ported (done) |
-| Ghost button | transparent with a 1 px border and an 8 px radius | the same | same (done) |
-| Segmented control | a 9 px radius track, 3 px of padding, a raised active segment | the same; it holds the host/container mode and the history window | same |
-| Status pill | an icon, a word and a colour | the same, and it carries the phase sentence | ported (done) |
-| KPI tile | a 30 px 900 number with its unit, a sub-line, a 34 px sparkline | the same; the eight tiles of the fleet, in `web/views/dashboard/gpus.js` | same (done) |
-| Hero number | a 64 px 900 number in the key colour with a 44 px sparkline | the same; it carries the output speed of the live run | same (done) |
-| Meter | a 6–8 px track, a 4 px radius, a coloured fill, 400 ms | the same; the memory and the power of every card, with the tick of the cap | same (done) |
-| Donut ring | an 84 px SVG ring with the number in the middle and a caption under it | the same; the load of every card | same (done) |
-| Area chart | an inline SVG, grid lines, axis labels, a five-minute window | the same, with a window the reader picks (5 min, 15 min, 1 h) | adapted (bernie feature, done) |
+| Command block | mono on the second surface, an 8 px radius, the copy button pinned to the top right | the same, with the copy button beside the command so a long command wraps instead of scrolling | ported (done) · ported 1:1 (Classic tab) |
+| Primary button | italic 900 uppercase, the key colour, a 4 px hard shadow that moves on `:active` | the same: the key colour in the dark palette, the accent in the light one, the hard shadow of the reference | ported (done) · ported 1:1 (Classic tab) |
+| Ghost button | transparent with a 1 px border and an 8 px radius | the same | same (done) · ported 1:1 (Classic tab) |
+| Segmented control | a 9 px radius track, 3 px of padding, a raised active segment | the same; it holds the host/container mode and the history window | same · ported 1:1 (Classic tab) |
+| Status pill | an icon, a word and a colour | the same, and it carries the phase sentence | ported (done) · ported 1:1 (Classic tab) |
+| KPI tile | a 30 px 900 number with its unit, a sub-line, a 34 px sparkline | the same; the eight tiles of the fleet, in `web/views/dashboard/gpus.js` | same (done) · ported 1:1 (Classic tab) |
+| Hero number | a 64 px 900 number in the key colour with a 44 px sparkline | the same; it carries the output speed of the live run | same (done) · ported 1:1 (Classic tab) |
+| Meter | a 6–8 px track, a 4 px radius, a coloured fill, 400 ms | the same; the memory and the power of every card, with the tick of the cap | same (done) · ported 1:1 (Classic tab) |
+| Donut ring | an 84 px SVG ring with the number in the middle and a caption under it | the same; the load of every card | same (done) · ported 1:1 (Classic tab) |
+| Area chart | an inline SVG, grid lines, axis labels, a five-minute window | the same, with a window the reader picks (5 min, 15 min, 1 h) | adapted (bernie feature, done) · ported 1:1 (Classic tab) |
 | Matrix | 2 px gaps, 6 px radius cells, one colour per class | the same; the classes of the PCIe links use `--series-1..4` | same (done) |
 | Bar chart | SVG bars for the comparison of two runs | the same; the five metric groups of spec §10.1 are the groups | same (done) |
 | Log viewer | 12.5 px mono on near-black, 340 px tall, `pre-wrap` | the same | same |
 | Progress bar | a 10 px track, a 6 px radius, the key colour, and one plain sentence under it | the same | same (done) |
 | Radio card | a big radio, a title, one line of detail | the same; it picks the benchmark suite | same (done) |
 | Toast | fixed at the bottom centre, 2.6 s, `role="status"`, `aria-live="polite"` | the same | same (done) |
-| Tooltip | a small mark that opens a fixed panel with `role="tooltip"` | the same, and it opens on focus as well | adapted (accessibility, done) |
+| Tooltip | a small mark that opens a fixed panel with `role="tooltip"` | the same, and it opens on focus as well | adapted (accessibility, done) · ported 1:1 (Classic tab) |
 | Banner | the third surface with a 3 px bar on the left, dismissible | the same; it carries the stale and the offline notice | same (done) |
-| Copy on every command | one copy button per command, per endpoint and per snippet | the same | same (done) |
-| One primary action per view | one filled button, everything else a ghost | the same; the Try it box of the run card is the filled button | same (done) |
-| Empty states that teach | what the thing is, then what to do | the same; the run card and the power caps teach | same (done) |
+| Copy on every command | one copy button per command, per endpoint and per snippet | the same | same (done) · ported 1:1 (Classic tab) |
+| One primary action per view | one filled button, everything else a ghost | the same; the Try it box of the run card is the filled button | same (done) · ported 1:1 (Classic tab) |
+| Empty states that teach | what the thing is, then what to do | the same; the run card and the power caps teach | same (done) · ported 1:1 (Classic tab) |
 | Chat view | a transcript with a meta line per message | deferred, see §10 | deferred |
 | Fleet view | a list of other boxes | out of scope: bernie is one host | out of scope |
+
+
+The **Classic tab** (`web/views/classic/`, `web/css/classic.css`) is the
+dashboard view of the reference, ported as it is: the same hero, the same six
+tiles, the same two area charts, the same GPU cards with their rings and
+meters, the same host panel and the same connect panel. It reads the data of
+this host (the telemetry stream, `/api/gpus/history`, `/api/hw`, `/api/runs`)
+and shows a dash, with the words "n/a on this host", for the numbers this
+host does not measure. The components it carries are the ones the table marks
+"ported 1:1 (Classic tab)". It is the last tab of the rail, it adds no
+endpoint, and every rule of its stylesheet is scoped under `.classic`.
 
 ## 6. The four tabs
 
