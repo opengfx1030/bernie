@@ -146,3 +146,25 @@ func Best(l Listing) string {
 	}
 	return c[0].ID
 }
+
+// ValidatedArchs returns the distinct requires.arch entries (gfx names or
+// prefixes) of the recipes with status validated, sorted. doctor reads it
+// through its options to tell validated targets from merely known ones.
+func ValidatedArchs(s Set) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, id := range s.IDs(false) {
+		r, err := s.Resolve(id)
+		if err != nil || r.Status != "validated" {
+			continue
+		}
+		for _, a := range r.Requires.Arch {
+			if !seen[a] {
+				seen[a] = true
+				out = append(out, a)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}

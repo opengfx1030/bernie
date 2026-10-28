@@ -2,7 +2,6 @@ package doctor
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/opengfx1030/rdnactl/internal/gpu"
@@ -115,7 +114,7 @@ func supportChecks(in inputs) []Check {
 		switch {
 		case !known:
 			out = append(out, check(cat, id, Warn, title, gfx+" is not in the device tables: its ROCm and vLLM support is unchecked").with("", docHardware))
-		case slices.Contains(in.validated, gfx):
+		case gpu.ArchMatch(in.validated, gfx):
 			out = append(out, check(cat, id, OK, title, a.Label()+" target; recipes are validated on it"))
 		default:
 			out = append(out, check(cat, id, Warn, title,
