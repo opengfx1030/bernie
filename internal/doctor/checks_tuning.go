@@ -13,6 +13,9 @@ func tuningChecks(in inputs) []Check {
 	const cat = "tuning"
 	var out []Check
 	switch {
+	case in.venv == "":
+		out = append(out, check(cat, "tunableop", Skip, "TunableOp profile matches the loaded rocBLAS",
+			"pass --venv to check the rocBLAS your server loads").with("", docTunable))
 	case in.profErr != nil:
 		out = append(out, check(cat, "tunableop", Fail, "TunableOp profile matches the loaded rocBLAS", "profile registry: "+in.profErr.Error()))
 	case in.rocblas == "":

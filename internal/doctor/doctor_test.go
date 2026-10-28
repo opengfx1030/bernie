@@ -128,8 +128,9 @@ func TestEvaluateStatuses(t *testing.T) {
 		}, "container.compose", Warn, "podman-compose"},
 		{"small shm", func(in *inputs) { in.host.ShmBytes = 2 * gib }, "resources.shm", Warn, "2.0 GiB"},
 		{"tiny disk", func(in *inputs) { in.hfFree = 5 * gib }, "resources.disk", Fail, "5 GiB"},
-		{"tunableop match", func(*inputs) {}, "tuning.tunableop", OK, "rocm7.14-rocblas5.5"},
-		{"tunableop no match", func(in *inputs) { in.match = nil }, "tuning.tunableop", Warn, "no registered profile"},
+		{"tunableop skipped without venv", func(*inputs) {}, "tuning.tunableop", Skip, "pass --venv to check the rocBLAS your server loads"},
+		{"tunableop match", func(in *inputs) { in.venv = "/v" }, "tuning.tunableop", OK, "rocm7.14-rocblas5.5"},
+		{"tunableop no match", func(in *inputs) { in.venv = "/v"; in.match = nil }, "tuning.tunableop", Warn, "no registered profile"},
 		{"V620 cap above advice", func(in *inputs) { in.gpus[2].PowerCapW = 250 }, "tuning.power", Warn, "tune power set 180 --gpu 2"},
 		{"no venv skips python", func(*inputs) {}, "python.venv", Skip, "--venv"},
 		{"venv without vllm", func(in *inputs) {
