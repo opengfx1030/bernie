@@ -22,6 +22,10 @@ const (
 	historyStep     = 2 * time.Second  // the spacing of the points
 	historyLongStep = 10 * time.Second // the spacing of the 1 h window
 	historyCache    = 2 * time.Second  // how long an answer is reused
+	// maxSeriesPoints is the number of points a series of the history
+	// holds. A longer window is downsampled further, so the answer stays
+	// small enough to paint and to download.
+	maxSeriesPoints = 240
 )
 
 // History is the ring buffer of the samples of the last minutes. The hub
@@ -108,6 +112,11 @@ func (h *History) Window(name string) (HistoryDocument, error) {
 	dur, step, err := windowSpec(name)
 	if err != nil {
 		return HistoryDocument{}, err
+	}
+	// No series holds more than maxSeriesPoints points: a long window is
+	// downsampled further.
+	if least := dur / maxSeriesPoints; step < least {
+		step = (least + time.Second - 1) / time.Second * time.Second
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
