@@ -33,9 +33,13 @@ The files in `web/` are embedded at build time. After you edit them, run
 ## Add a tab
 
 1. Add the question it answers to the table in [README.md](README.md).
-2. Add a link in `web/index.html` and a `<section id="tab-<name>">`.
-3. Add `view<Name>(root)` in `web/views/<name>.js`, add its script tag in `web/index.html`, and register it in the `views` map in `web/boot.js`.
-4. Add the endpoint it needs (spec §11, `api.go`, a test).
+2. Add a link with `data-tab="<name>"` and a
+   `<section id="tab-<name>" data-tab-panel="<name>">` in `web/index.html`.
+3. Add `view<Name>(root)` in `web/views/<name>/`, add its script tag in
+   `web/index.html`, and register it in the `views` map in `web/js/boot.js`.
+4. Add the endpoint it needs (spec §11, a handler in
+   `dashboard/internal/api/`, the route in `dashboard/internal/api/api.go`,
+   a test).
 
 ## Add a card or a column
 

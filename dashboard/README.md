@@ -26,12 +26,12 @@ On a non-loopback address the server prints a token. Open the page with
 ```mermaid
 flowchart LR
   subgraph Browser
-    UI["web/app.js + views/*.js<br/>6 tabs"]
+    UI["web/js + web/components<br/>+ web/views/<tab>/<br/>4 tabs"]
   end
   subgraph "package dashboard"
-    API["api.go<br/>JSON + SSE"]
-    HUB["hub.go<br/>one sampler, many viewers"]
-    AUTH["auth.go<br/>token, Host, CSRF"]
+    API["internal/api<br/>JSON + SSE"]
+    HUB["internal/telemetry<br/>one sampler, many viewers"]
+    AUTH["internal/auth<br/>token, Host, CSRF"]
   end
   subgraph "domain packages"
     D["host, gpu, topo, doctor,<br/>recipe, runner, bench"]
@@ -54,51 +54,109 @@ flowchart LR
 
 | Path | Job |
 |---|---|
-| `dashboard.go` | `Serve`: listener, routes, graceful stop. `/mcp` is MCP over HTTP (`internal/mcp`, spec §13.10) with its own guard |
-| `api.go` | One handler per endpoint in spec §11 |
-| `onboarding.go` | The onboarding endpoints: the checklist, the jobs and their event stream (spec §3.3) |
-| `auth.go` | Token, loopback Host check, `X-Bernie` header on writes |
-| `hub.go`, `telemetry.go`, `sse.go` | 1 Hz samples and event streams |
+| `server.go` | `Serve`: listener, routes, graceful stop. `/mcp` is MCP over HTTP (`internal/mcp`, spec §13.10) with its own guard |
+| `doc.go` | The package contract: what the dashboard is and what it is not |
+| `internal/api/` | One file per domain, one handler per endpoint in spec §11. `api.go` holds the routes |
+| `internal/api/onboarding.go` | The onboarding endpoints: the checklist, the jobs and their event stream (spec §3.3) |
+| `internal/auth/` | Token, loopback Host check, `X-Bernie` header on writes |
+| `internal/telemetry/` | The 1 Hz sampler and the hub that shares it with every viewer |
+| `internal/sse/` | The server-sent event writer and its line framing |
+| `internal/httpjson/` | The JSON response shapes (the `--json` error shape, redaction) |
 | `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: header, tab bar, one section per tab |
-| `web/js/app.js` | Core: helpers (`h()`, `api()`, `copyBtn()`, `cmdBlock()`), shared state, telemetry stream |
-| `web/views/<tab>/<tab>.js` | One file per tab: `viewHome`, `viewGPUs`, ... |
-| `web/views/home/home_steps.js` | The step timeline of the Home tab: the Run button, the root commands and the progress |
-| `web/views/home/home_advanced.js` | The Advanced disclosure of the Home tab: the raw document and the commands |
-| `web/js/boot.js` | Router and start-up. Loaded last. |
+| `web/js/core.js` | The DOM and formatting primitives: `h()`, `put()`, `bytes()`, `num()` |
+| `web/js/shell.js` | The page-wide controls: the toast and the copy handler |
+| `web/js/data.js` | The only place that fetches: `api()`, the shared state, the SSE streams |
+| `web/js/boot.js` | The router and the old-hash aliases. Loaded last. |
+| `web/components/` | The shared widgets: cards, command block, charts, metrics, run table, step timeline |
+| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs` |
 | `web/css/tokens.css` | The two palettes (light and dark), the type, the spacing and the radii |
 | `web/css/layout.css` | The shell, the grids, the cards and the state headline |
 | `web/css/components.css` | The badges, the buttons, the tables, the meters, the tiles and the ring |
 | `dashboard_test.go` | API, auth and stream tests |
 
-## The six tabs
+## The layout
+
+```text
+dashboard/
+├── server.go            the server and the small public surface
+├── doc.go               the package contract
+├── internal/
+│   ├── api/             one file per domain: hardware, topology, doctor,
+│   │                    recipes, runs, onboarding, bench, power, telemetry
+│   ├── auth/            the token, the Host check, the CSRF guard
+│   ├── telemetry/       the sampler and the hub
+│   ├── sse/             the event writer
+│   └── httpjson/        the JSON response shapes
+└── web/
+    ├── index.html       the shell markup and the script order
+    ├── css/             tokens, layout, components
+    ├── js/              core, shell, data, boot
+    ├── components/      the shared widgets
+    └── views/           setup/, dashboard/, benchmark/, logs/
+```
+
+The rule is the role, not the count: one package owns one thing, one file
+owns one concern, and a directory holds the files of one role. Split a
+directory when it holds two roles you can tell apart, not when it reaches a
+number.
+
+## Add a tab
+
+1. Add the question the tab answers to the table below.
+2. Add a `<section id="tab-<name>" data-tab-panel="<name>">` to
+   `web/index.html` and a link with `data-tab="<name>"`.
+3. Put the view in `web/views/<name>/`: one file per concern. The entry
+   point is `view<Name>(root)`.
+4. Register the view in the `views` map of `web/js/boot.js`. Keep the old
+   hash names as aliases in the same map.
+5. Add the endpoint it needs: spec §11, a handler in
+   `dashboard/internal/api/<domain>.go`, the route in
+   `dashboard/internal/api/api.go` and a test.
+
+## Add a widget
+
+1. Write the widget in `web/components/` when two tabs use it. Keep it in
+   the view folder when only that tab uses it.
+2. Build the DOM with `h()` from `web/js/core.js`. Never use `innerHTML`.
+3. Read the data through `api()` from `web/js/data.js`. A view never calls
+   `fetch` or opens an `EventSource` itself.
+4. Take the colours from the `--` variables of `web/css/tokens.css`.
+5. Show the unit and the range of every number. Show `–` when a number is
+   missing.
+
+## The four tabs
 
 Each tab answers one question. Keep it that way.
 
 | Tab | Question it answers | Data | Actions |
 |---|---|---|---|
-| Home | Is this host ready, and what do I do next? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/runs` | run a step |
-| GPUs | How busy, how hot and at which clock is each GPU? | `/api/telemetry`, `/api/hw` | copy the card list |
-| Topology | Which GPUs talk fast to which, and will P2P work? | `/api/topo`, `/api/topo/check` | none |
-| Recipes | What can I serve, and what will it run? | `/api/recipes`, `.../plan` | start a run |
-| Runs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs |
-| Bench | How fast is it, and does it read the whole prompt? | `/api/bench` | start a bench |
+| Setup | Is this host ready, what do I do next, and what can it serve? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/recipes`, `.../plan` | run a step, start a run |
+| Dashboard | How busy is the host, how is it wired, and what is serving? | `/api/telemetry`, `/api/hw`, `/api/power`, `/api/topo`, `/api/topo/check`, `/api/runs` | copy the card list, set a power cap |
+| Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
+| Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
 
-The Home tab is the first tab. It was the Overview tab; the old link
-(`#overview`) still opens it. It opens with the state of the machine in one
-sentence, the facts of the host with the reason under every value, and the
+The Setup tab is the first tab. It opens with the state of the machine in one
+sentence, the facts of the host with the reason under every value, the
 checklist of [spec §3.3](../docs/spec.md#33-the-onboarding-checklist): every
-step of the path from a bare machine to a serving model, in order.
+step of the path from a bare machine to a serving model, in order, and the
+recipe chooser below it.
+
+The old links still open their new home: `#overview` and `#home` open Setup,
+`#recipes` opens Setup, `#gpus` and `#topology` open Dashboard, `#runs`
+opens Logs and `#bench` opens Benchmark.
 
 The checklist takes a moment to arrive: until it does, the headline says
 what bernie is checking and the card names the phase. A checklist that is
 older than its time to live is shown with the note that bernie is checking
 the host again.
 
-The GPUs tab opens with five tiles: the load, the power, the memory, the
+The Dashboard tab opens with five tiles: the load, the power, the memory, the
 hottest card and the highest clock, each with the last minute of it as a
 sparkline. Every card shows its load as a ring and its power as a meter
 against the cap the card may draw. A number that was not measured shows `–`.
+The PCIe topology and the power service follow as sections, and the run
+overview closes the tab.
 
 A step that bernie can do has a Run button. The step runs in the background
 and its output goes under the step. A step that needs root has the command
@@ -106,12 +164,12 @@ and a copy button, and no Run button: bernie never runs a command as root.
 The Advanced disclosure holds the raw document of the checklist and the
 commands that produce it (`bernie status --steps`, `bernie status --json`).
 
-`up` starts the dashboard before the server is healthy. The Runs tab then
+`up` starts the dashboard before the server is healthy. The Logs tab then
 shows the run as `starting`, says in words that the server is loading the
-model, and follows the log of that run. The Home tab shows the same
+model, and follows the log of that run. The Setup tab shows the same
 state in words.
 
-The Bench tab shows one table per cell: the prefill and the decode speed
+The Benchmark tab shows one table per cell: the prefill and the decode speed
 (the rate of the whole cell and the distribution of the rates of its
 requests), the time to first token in seconds, the inter-token latency in
 milliseconds and the output rate. A number that was not measured shows `–`.
@@ -206,7 +264,7 @@ What changed on purpose when the palette was rebuilt:
 | Gap | Idea |
 |---|---|
 | No settings view | Show `config.yaml` values and where they come from |
-| No log-error help in the Runs tab | Show the matched rule (id, cause, fix) from the log doctor |
+| No log-error help in the Logs tab | Show the matched rule (id, cause, fix) from the log doctor |
 | No demo mode | Serve a fixture host so people can try the UI without GPUs |
 | Mobile layout is basic | Check each tab at 390 px wide |
-| No screenshot tests | Add a headless-browser smoke test for the six tabs |
+| No screenshot tests | Add a headless-browser smoke test for the four tabs |
