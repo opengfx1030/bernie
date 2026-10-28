@@ -27,6 +27,9 @@ view of the CLI. It adds no logic.
 8. **The visual design follows [../docs/design-dashboard.md](../docs/design-dashboard.md).**
    That page is the design contract. The colours live in `web/css/tokens.css`
    and nowhere else: a component file never writes a colour by hand.
+   Exception: the Classic tab (`web/css/classic.css`) is a reference-parity
+   port; it carries the reference palette scoped under `.classic` and touches
+   no other tab.
 9. **Same names as the CLI.** A field on the page has the JSON name of the
    CLI output.
 

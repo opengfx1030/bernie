@@ -71,14 +71,18 @@ column on the right.
 |---|---|
 | Frame | `display: grid; grid-template-columns: 220px 1fr;` the rail is `position: sticky; top: 0; height: 100vh` |
 | Padding | `22px 14px` |
-| Brand | the word `bernie` in 15 px 800, `margin-bottom: 26px`; the host name under it in 12 px `--muted` |
-| Links | one per tab, `border-radius: 8px`, `padding: 8px 10px`, `gap: 2px` between them, 13 px 600; the open one has a `--surface-3` background and a 2 px `--accent` bar on the left |
-| Footer | the run status pill, then the theme button, then the Advanced button; `margin-top: auto` |
-| Width | fixed at 220 px, not collapsible; at 390 px it becomes a horizontal bar (§8.1) |
+| Brand | the mark of the reference (a 22 px bar in the accent and the key) and the word `bernie` in italic 900 20 px; the host name under it in 13 px `--muted` |
+| Links | one per tab, a glyph and the word, `border-radius: 8px`, `padding: 9px 10px`, `gap: 2px` between them, 13 px 600; the open one has a `--surface-2` background, a 2 px `--accent` bar on the left, the key-coloured glyph and a heavier word: the marker is a shape, not only a colour |
+| Counts | a tab that has something to look at shows the number: the failed or blocked steps on Setup, the failing checks of the doctor on the Dashboard |
+| Footer | the run status pill with the phase sentence, then the theme button, the Advanced button and the `?` mark with the shortcuts; `margin-top: auto` |
+| Keyboard | `g` and then `s`, `d`, `b`, `l` or `c` opens a tab; the `?` mark lists the shortcuts |
+| Width | fixed at 220 px, not collapsible; under 720 px it becomes a tab bar at the bottom of the page (§8.1) |
 
 ### 2.2 The tab bar
 
-Four tabs, in this order: **Setup**, **Dashboard**, **Benchmark**, **Logs**.
+Five tabs, in this order: **Setup**, **Dashboard**, **Benchmark**, **Logs**,
+**Classic**. The first four are the questions of §6. The fifth is the
+reference-parity port: the old pages, the whole of them, under one tab.
 
 The rail links are a real tablist: `role="tablist"` on the container,
 `role="tab"` on each link, `aria-controls` pointing at the panel,
@@ -122,9 +126,9 @@ sentence is always written out in the state headline of the tab.
 ### 2.4 Theme and Advanced
 
 - **Theme.** The button reads `Dark` in the light palette and `Light` in the
-  dark one. The palette follows the system by default; the button sets
-  `data-theme` on `<html>` and stores the choice in `localStorage`
-  (`bernie.theme`). The button has `aria-pressed`.
+  dark one. The dark palette is the default, like the reference; the button
+  sets `data-theme="light"` on `<html>` and stores the choice in
+  `localStorage` (`bernie.theme`). The button has `aria-pressed`.
 - **Advanced.** The button opens or closes every Advanced panel of every tab
   at once and stores the state (`bernie.advanced`). It has `aria-pressed`.
   Each tab also has its own Advanced panel with its own toggle, so a tab can
@@ -170,6 +174,24 @@ Every tab ends with one Advanced panel. It holds two things:
 | Empty | two sentences: what the thing is, then the command that makes one. The command is in a command block with a copy button. |
 | Error | the message in words, the endpoint that failed, a `Try again` ghost button and the raw answer in a disclosure. |
 | Stale | the onboarding document is older than its time to live: a banner `bernie is checking the host again. The values below are the last known state.` with a 3 px `--warn` bar on the left. |
+
+### 2.8 What we changed from the reference, and why
+
+The reference is the source of the palette, the type and the rail. These are
+the places where we did not copy it, and the reason of each.
+
+| Change | Why |
+|---|---|
+| The palette is the reference's, with the values AA needs | the reference's light palette fails 4.5:1 for the status colours and 3:1 for the edge of a control. Every value that failed was moved by the smallest step that passes; the original and the adjusted value are written down in [design/tokens.md](design/tokens.md) |
+| The fonts are self-hosted | the reference loads Montserrat, Inter and JetBrains Mono from a CDN, which this repository forbids. The Latin subsets are 128 KB, carry the OFL and are embedded in the binary |
+| The dark palette is the default | the reference is dark first. The button switches to the light palette and the choice is remembered |
+| The four questions come first, the reference pages sit in the Classic tab | a reader arrives with one question at a time. The Classic tab keeps the whole reference reachable, and the old hash routes still land on the tab that answers them (§2.2) |
+| Every link carries a glyph and the word | the word says what the tab is; the glyph is a landmark for the eye, never the meaning |
+| The open tab has a bar, a background, a heavier word and the key-coloured glyph | the marker cannot be a colour alone: the page has to be readable without the colours and in the dark palette |
+| A tab shows the number of things that wait | a failed step and a failing check are the reason to come back. The count says it before the reader opens the tab |
+| The shortcuts are `g` and then a letter | one key arms the shortcut, so a letter typed in a field never moves the page. The `?` mark in the footer lists them |
+| Under 720 px the rail becomes a bar at the bottom | the thumb reaches the bottom of a phone, and the bar of the reference keeps its place |
+| The status pill carries the phase sentence | a word alone says that something runs; the sentence says what it is doing |
 
 ## 3. Tokens
 
@@ -224,20 +246,20 @@ redesigning anything.
 
 | Component | Reference behaviour and measurement | Our implementation | Status |
 |---|---|---|---|
-| Frame | 220 px sticky rail, content `padding: 34px clamp(16px, 4vw, 56px) 80px`, view at most 1240 px | the same, in §2.1 | same |
-| Rail | brand with 26 px of space under it, links with an 8 px radius and a 2 px gap, a footer with a status pill and a theme button | the same; our links carry our own text labels | same |
-| Tab bar | plain links, no `aria-controls` | a real tablist with arrow keys, `aria-selected` and a roving tabindex | adapted (accessibility) |
-| Display headline | 38–74 px, italic 900, uppercase, a hard two-layer offset shadow | 900 uppercase with one hard shadow in the accent; the system stack, because bernie bans web fonts and CDNs | adapted (no web font) |
-| Lede | 18 px, the second text colour, 70 characters | the same | same |
-| Eyebrow | 12 px 800, uppercase, `.14em` | the same | same |
-| Section | a 1 px top rule and 24 px of padding, a 13 px uppercase label | the same | same |
+| Frame | 220 px sticky rail, content `padding: 34px clamp(16px, 4vw, 56px) 80px`, view at most 1240 px | the same, in §2.1 | same (done) |
+| Rail | brand with 26 px of space under it, links with an 8 px radius and a 2 px gap, a footer with a status pill and a theme button | the same, plus the counts on the tabs, the Classic tab and the shortcuts (§2.8) | ported (done) |
+| Tab bar | plain links, no `aria-controls` | the rail of the reference over a real tablist: arrow keys, `aria-selected` and a roving tabindex | adapted (accessibility, done) |
+| Display headline | 38–74 px, italic 900, uppercase, a hard two-layer offset shadow | the same, with the self-hosted Montserrat instead of the CDN font | ported (done) |
+| Lede | 18 px, the second text colour, 70 characters | the same | same (done) |
+| Eyebrow | 12 px 800, uppercase, `.14em` | the same | same (done) |
+| Section | a 1 px top rule and 24 px of padding, a 13 px uppercase label | the same | same (done) |
 | Facts strip | an uppercase 12 px label over a 17 px 700 value, hairline separated | the same, plus the reason under the value | adapted (bernie feature, done) |
 | Step timeline | 36 px counter circles, a 2 px connector, one colour per state | the same; the six states are the ones of spec §3.3 | same (done) |
-| Command block | mono on the second surface, an 8 px radius, the copy button pinned to the top right | the same | same |
-| Primary button | italic 900 uppercase, the key colour, a 4 px hard shadow that moves on `:active` | 900 uppercase, the accent background, a 3 px hard shadow; the accent is bernie's identity | adapted (identity) |
-| Ghost button | transparent with a 1 px border and an 8 px radius | the same | same |
+| Command block | mono on the second surface, an 8 px radius, the copy button pinned to the top right | the same, with the copy button beside the command so a long command wraps instead of scrolling | ported (done) |
+| Primary button | italic 900 uppercase, the key colour, a 4 px hard shadow that moves on `:active` | the same: the key colour in the dark palette, the accent in the light one, the hard shadow of the reference | ported (done) |
+| Ghost button | transparent with a 1 px border and an 8 px radius | the same | same (done) |
 | Segmented control | a 9 px radius track, 3 px of padding, a raised active segment | the same; it holds the host/container mode and the history window | same |
-| Status pill | an icon, a word and a colour | the same; the word always carries the meaning | same |
+| Status pill | an icon, a word and a colour | the same, and it carries the phase sentence | ported (done) |
 | KPI tile | a 30 px 900 number with its unit, a sub-line, a 34 px sparkline | the same; the eight tiles of the fleet, in `web/views/dashboard/gpus.js` | same (done) |
 | Hero number | a 64 px 900 number in the key colour with a 44 px sparkline | the same; it carries the output speed of the live run | same (done) |
 | Meter | a 6–8 px track, a 4 px radius, a coloured fill, 400 ms | the same; the memory and the power of every card, with the tick of the cap | same (done) |
@@ -248,10 +270,10 @@ redesigning anything.
 | Log viewer | 12.5 px mono on near-black, 340 px tall, `pre-wrap` | the same | same |
 | Progress bar | a 10 px track, a 6 px radius, the key colour, and one plain sentence under it | the same | same (done) |
 | Radio card | a big radio, a title, one line of detail | the same; it picks the benchmark suite | same (done) |
-| Toast | fixed at the bottom centre, 2.6 s, `role="status"`, `aria-live="polite"` | the same | same |
-| Tooltip | a small mark that opens a fixed panel with `role="tooltip"` | the same, and it opens on focus as well | adapted (accessibility) |
-| Banner | the third surface with a 3 px bar on the left, dismissible | the same; it carries the stale and the offline notice | same |
-| Copy on every command | one copy button per command, per endpoint and per snippet | the same | same |
+| Toast | fixed at the bottom centre, 2.6 s, `role="status"`, `aria-live="polite"` | the same | same (done) |
+| Tooltip | a small mark that opens a fixed panel with `role="tooltip"` | the same, and it opens on focus as well | adapted (accessibility, done) |
+| Banner | the third surface with a 3 px bar on the left, dismissible | the same; it carries the stale and the offline notice | same (done) |
+| Copy on every command | one copy button per command, per endpoint and per snippet | the same | same (done) |
 | One primary action per view | one filled button, everything else a ghost | the same; the Try it box of the run card is the filled button | same (done) |
 | Empty states that teach | what the thing is, then what to do | the same; the run card and the power caps teach | same (done) |
 | Chat view | a transcript with a meta line per message | deferred, see §10 | deferred |

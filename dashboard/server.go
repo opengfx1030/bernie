@@ -154,6 +154,7 @@ func (s *server) handler() http.Handler {
 	mux.Handle("GET /css/{file}", withCSP(static))
 	mux.Handle("GET /js/{file}", withCSP(static))
 	mux.Handle("GET /components/{file}", withCSP(static))
+	mux.Handle("GET /fonts/{file}", withCSP(static))
 	mux.Handle("GET /views/{tab}/{file}", withCSP(static))
 
 	api.Register(mux, api.Options{Log: s.o.Log, Telemetry: s.tele})

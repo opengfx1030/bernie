@@ -81,21 +81,25 @@ function copySource(btn) {
 
 let tipPanel = null;
 
+/** openTip opens a panel with an explanation next to a mark. */
+function openTip(anchor, text) {
+  closeTip();
+  const panel = h("div.tip-panel", { role: "tooltip", id: "tip-panel" }, text);
+  document.body.append(panel);
+  tipPanel = panel;
+  const box = anchor.getBoundingClientRect();
+  const left = Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, box.left));
+  panel.style.left = left + "px";
+  panel.style.top = (box.bottom + 6) + "px";
+  anchor.setAttribute("aria-describedby", "tip-panel");
+}
+
 /** tooltip is the small mark that opens a panel with an explanation. It opens
  *  on hover and on focus, and closes on Escape and on blur. */
 function tooltip(text, label) {
   const mark = h("button", { type: "button", "aria-label": label || "What this means" }, "i");
   const wrap = h("span.tip", mark);
-  const open = () => {
-    closeTip();
-    const panel = h("div.tip-panel", { role: "tooltip", id: "tip-" + (tipPanel ? tipPanel.length : 0) }, text);
-    document.body.append(panel);
-    tipPanel = panel;
-    const box = mark.getBoundingClientRect();
-    panel.style.left = Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, box.left)) + "px";
-    panel.style.top = (box.bottom + 6) + "px";
-    mark.setAttribute("aria-describedby", panel.id);
-  };
+  const open = () => openTip(mark, text);
   const close = () => closeTip();
   mark.addEventListener("mouseenter", open);
   mark.addEventListener("focus", open);
@@ -111,25 +115,54 @@ function closeTip() {
   tipPanel = null;
 }
 
+/* ---------- the counts on the tabs ---------- */
+
+/** setTabCount shows the number of findings or of failed steps on a tab. The
+ *  number is a shape and a word: the colour only helps. */
+function setTabCount(tab, n) {
+  const el = document.querySelector('[data-count="' + tab + '"]');
+  if (!el) return;
+  const count = Number(n) || 0;
+  el.textContent = count ? String(count) : "";
+  el.hidden = !count;
+  el.setAttribute("title", count ? count + " to look at" : "");
+  el.setAttribute("aria-label", count ? count + " to look at" : "");
+}
+
+/* ---------- the keyboard shortcuts ---------- */
+
+const SHORTCUTS = [
+  ["g then s", "the Setup tab"],
+  ["g then d", "the Dashboard tab"],
+  ["g then b", "the Benchmark tab"],
+  ["g then l", "the Logs tab"],
+  ["g then c", "the Classic tab"],
+  ["Left and Right", "move between the tabs"],
+];
+
+function shortcutsText() {
+  return h("div",
+    h("b", "The keyboard"),
+    h("dl", SHORTCUTS.flatMap(([k, v]) => [h("dt", h("kbd", k)), h("dd", v)])));
+}
+
 /* ---------- the theme ---------- */
 
 function themeChoice() {
   try { return localStorage.getItem(THEME_KEY) || ""; } catch (e) { return ""; }
 }
 
-/** darkNow says which palette the page shows right now. */
+/** darkNow says which palette the page shows right now. The dark palette is
+ *  the default, like the reference; the reader picks the light one. */
 function darkNow() {
-  const choice = themeChoice();
-  if (choice === "dark") return true;
-  if (choice === "light") return false;
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return themeChoice() !== "light";
 }
 
-/** applyTheme shows the palette the reader picked. An empty choice follows the
- *  system. */
+/** applyTheme shows the palette the reader picked. An empty choice is the
+ *  dark palette. */
 function applyTheme(choice) {
   const root = document.documentElement;
-  if (choice === "dark" || choice === "light") root.dataset.theme = choice;
+  if (choice === "light") root.dataset.theme = "light";
   else delete root.dataset.theme;
   const btn = $("#themeBtn");
   if (btn) {
