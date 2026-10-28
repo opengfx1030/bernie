@@ -49,6 +49,55 @@ You need Go 1.26 or later. You do not need a GPU to run the tests.
 - Write what you tested and on which hardware.
 - CI must pass: `gofmt`, `go vet`, `go test`, linux build.
 
+## Validate a change with the bench suite
+
+A change that touches the serving path (a recipe, a vLLM build, a tuning
+row, a kernel) is only measured on real hardware. bernie has one command
+for it: the `pr` suite.
+
+```bash
+bernie bench --suite pr --url http://127.0.0.1:8000
+```
+
+The suite runs the fixed cells of a pull request: 1024 prompt tokens and
+512 output tokens at the levels 1, 4 and 8, and 16384 prompt tokens and
+1024 output tokens at the same levels. Every cell runs several times, and
+the cell keeps the medians, the repetitions and the spread of its
+metrics. Every prompt hides a short random fact: a cell that does not
+repeat it has broken attention, and its speed numbers mean nothing.
+
+The server must run with prefix caching off. Otherwise a long prompt comes
+from the cache and the cell measures nothing.
+
+To compare a baseline with a candidate, run the suite twice and compare
+the two results:
+
+```bash
+bernie bench --suite pr --url http://127.0.0.1:8000 --tag baseline
+bernie bench --suite pr --url http://127.0.0.1:8000 --tag candidate
+bernie bench compare <baseline-id> <candidate-id> --markdown
+```
+
+The `--markdown` output is the receipt of the comparison: the scope of the
+two runs, their correctness, the numbers of every cell with the verdict of
+every metric, and the command that reproduces it. Paste it into the
+pull request.
+
+When the change is a new vLLM build or a new recipe, let bernie run both
+arms back to back:
+
+```bash
+bernie bench ab --base <baseline-recipe> --cand <candidate-recipe> --suite pr
+```
+
+The visits run in the order base, cand, cand, base, so a drift of the
+machine hits both arms the same way. One server runs at a time, and every
+visit saves its own result. The verdict uses the same rules as
+`bench compare`.
+
+A pull request without a receipt is fine when the change does not touch
+the serving path. Say so in the description.
+
 ## Fixtures from your host
 
 Tests read sysfs snapshots. To add your hardware:

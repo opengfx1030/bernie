@@ -230,7 +230,7 @@ other file, script or compose file is required.
 | `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
 | `bernie bench suites` | no | The built-in suites with their digest and their groups. |
 | `bernie bench list` / `bench show <ID>` | no | Saved results. |
-| `bernie bench compare <ID-A> <ID-B>` | no | Two results side by side with a verdict. Refuses two different workloads. |
+| `bernie bench compare <ID-A> <ID-B> [--band P] [--markdown]` | no | Two results side by side with a verdict. Refuses two different workloads. `--markdown` prints the receipt of the comparison as markdown. |
 | `bernie bench ab --base ARM --cand ARM` | no* | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
@@ -1283,6 +1283,15 @@ The exit codes:
 | 1 | The comparison could not decide: the results are not comparable, a cell is incomplete, the recall failed or a metric was too noisy. |
 
 `--band P` replaces the band of the suite.
+
+`--markdown` prints the comparison as a markdown receipt instead of the
+text table. The receipt has the scope of the two runs (the ids, the model,
+the server, the suite and its digest, the host, the cards and their
+scope), the correctness of the two runs (the recall gate, the declared
+answer check, the failed requests, the failed warm-ups and the incomplete
+cells), the numbers of every cell with the verdict of every metric, the
+verdict of the run and the command that reproduces it. It is the text that
+goes into a pull request.
 
 ### 10.4 The A/B run
 
