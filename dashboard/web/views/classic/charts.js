@@ -6,6 +6,12 @@
 //
 // Every shape is a DOM node: the SVG parts are made with createElementNS.
 // There is no markup string in this tab.
+//
+// No shape carries an inline style. The page's CSP (style-src 'self') refuses
+// style attributes, so a colour is a class (c-stroke-s1, c-fill-key, ...) and
+// the class carries the colour; see css/classic.css. Only a value that
+// cannot be a class (the width of a meter) is written with the CSSOM, which
+// the CSP allows.
 
 const CLASSIC_SVG = "http://www.w3.org/2000/svg";
 
@@ -35,7 +41,9 @@ function cago(t) {
 /* ---------- the line chart: thin lines, a recessive grid, a crosshair ----- */
 
 /** classicChart draws the chart of the reference.
- *  opts: {label, height, series: [{name, color, pts: [[seconds, value]]}], yFmt}
+ *  opts: {label, height, series: [{name, cls, pts: [[seconds, value]]}], yFmt}
+ *  The class of a series is the key of the colour ("s1", "s3", "key"); the
+ *  colour itself lives in css/classic.css.
  *  It returns the element of the chart and keeps its geometry in
  *  classic.charts, so the crosshair can find the point under the pointer. */
 function classicChart(opts) {
@@ -82,24 +90,26 @@ function classicChart(opts) {
     const d = pts.map((p, i) => `${i ? "L" : "M"}${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join("");
     if (pts.length > 1) {
       svg.append(csvg("path", {
+        class: "c-fill-" + s.cls,
         d: `${d}L${sx(pts[pts.length - 1][0]).toFixed(1)},${sy(0)}L${sx(pts[0][0]).toFixed(1)},${sy(0)}Z`,
-        fill: s.color, opacity: ".12",
+        opacity: ".12",
       }));
     }
     svg.append(csvg("path", {
-      d, fill: "none", stroke: s.color, "stroke-width": "2",
+      class: "c-stroke-" + s.cls,
+      d, fill: "none", "stroke-width": "2",
       "stroke-linejoin": "round", "stroke-linecap": "round",
     }));
     if (pts.length < 3) {
       for (const p of pts) {
         svg.append(csvg("circle", {
-          cx: sx(p[0]), cy: sy(p[1]), r: 4, fill: s.color,
-          stroke: "var(--bg)", "stroke-width": "2",
+          class: "c-fill-" + s.cls + " c-point",
+          cx: sx(p[0]), cy: sy(p[1]), r: 4,
         }));
       }
     }
   }
-  const xh = csvg("line", { class: "xh", x1: 0, x2: 0, y1: Tp, y2: H - B, stroke: "var(--border-strong)", visibility: "hidden" });
+  const xh = csvg("line", { class: "c-cross", x1: 0, x2: 0, y1: Tp, y2: H - B, visibility: "hidden" });
   svg.append(xh);
   svg.append(csvg("rect", { x: L, y: 0, width: W - L - R, height: H, fill: "transparent", class: "hit" }));
 
@@ -110,8 +120,9 @@ function classicChart(opts) {
 
 /* ---------- the sparkline and the ring ---------- */
 
-/** classicSpark draws the little line under a number. */
-function classicSpark(vals, color, h = 34) {
+/** classicSpark draws the little line under a number. The class of the
+ *  colour is the key ("s1", "key"). */
+function classicSpark(vals, cls, h = 34) {
   const svg = csvg("svg", { class: "spark", viewBox: `0 0 120 ${h}`, preserveAspectRatio: "none", "aria-hidden": "true" });
   const v = vals.filter((x) => x != null && !isNaN(x));
   if (v.length < 2) return svg;
@@ -119,24 +130,25 @@ function classicSpark(vals, color, h = 34) {
   const n = vals.length;
   const pts = vals.map((x, i) => [(i / (n - 1)) * 120, h - 2 - ((x == null ? 0 : x) / max) * (h - 6)]);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");
-  svg.append(csvg("path", { d: `${d}L120,${h}L0,${h}Z`, fill: color, opacity: ".14" }));
+  svg.append(csvg("path", { class: "c-fill-" + cls, d: `${d}L120,${h}L0,${h}Z`, opacity: ".14" }));
   svg.append(csvg("path", {
-    d, fill: "none", stroke: color, "stroke-width": "1.6",
+    class: "c-stroke-" + cls,
+    d, fill: "none", "stroke-width": "1.6",
     "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round",
   }));
   return svg;
 }
 
 /** classicRing draws the ring of the reference around a percentage. */
-function classicRing(pct, color) {
+function classicRing(pct, cls) {
   const r = 30;
   const c = 2 * Math.PI * r;
   const p = Math.max(0, Math.min(100, pct || 0));
   const svg = csvg("svg", { class: "ring", viewBox: "0 0 76 76", "aria-hidden": "true" });
-  svg.append(csvg("circle", { cx: 38, cy: 38, r, style: "stroke:var(--surface-2)", "stroke-width": 7, fill: "none" }));
+  svg.append(csvg("circle", { class: "ring-track", cx: 38, cy: 38, r, "stroke-width": 7, fill: "none" }));
   svg.append(csvg("circle", {
-    cx: 38, cy: 38, r, style: `stroke:${color};transition:stroke-dashoffset .5s`,
-    "stroke-width": 7, fill: "none", "stroke-linecap": "round",
+    class: "ring-live c-stroke-" + cls,
+    cx: 38, cy: 38, r, "stroke-width": 7, fill: "none", "stroke-linecap": "round",
     "stroke-dasharray": c.toFixed(1), "stroke-dashoffset": (c * (1 - p / 100)).toFixed(1),
     transform: "rotate(-90 38 38)",
   }));
