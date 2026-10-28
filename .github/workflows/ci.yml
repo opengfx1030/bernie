@@ -27,6 +27,16 @@ jobs:
           ./bin/bernie-linux-amd64 version
           ./bin/bernie-linux-amd64 --json recipe validate
           ./bin/bernie-linux-amd64 --json hw > /dev/null
+
+  # Separate job: govulncheck needs a newer Go than go.mod pins, so it runs on
+  # the latest stable toolchain.
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
