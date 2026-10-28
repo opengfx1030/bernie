@@ -251,8 +251,8 @@ recipes/
   deepseek/                      DeepSeek family
 ```
 
-- A directory has at most 12 entries. A family that grows past that splits by
-  a real axis (for example `flashnext/pp/`).
+- A family folder holds the recipes of that family. A family that grows past
+  about 15 recipes splits by a real axis (for example `flashnext/pp/`).
 - A fragment lives in `_fragments/<concern>/`, or next to its family when only
   that family uses it (`flashnext/_flashnext-common.yaml`).
 - `extends` names ids, never paths. Moving a file does not change any

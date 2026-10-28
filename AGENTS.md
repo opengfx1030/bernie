@@ -59,11 +59,15 @@ Requirements: Go 1.26 or later. No other toolchain. No CGO.
    own modules (`docs/third-party.md` lists them). Ask a maintainer before you
    add another.
 10. **No external calls in probes without a timeout.** Use `internal/support/execx`.
-11. **Structure.** Follow spec §2.1: files ≤ 400 lines, directories ≤ 12
-    entries, data keyed by GPU architecture (`<kind>/<arch>/...`), embedded
-    trees discovered by walking, no code that names a device. Split by a real
-    axis (device generation, model family, concern) before a folder gets flat
-    and long.
+11. **Structure.** Follow spec §2.1: one responsibility per package, files
+    of about 400 lines at most and split by concept, data keyed by GPU
+    architecture (`<kind>/<arch>/...`), embedded trees discovered by walking,
+    no code that names a device. A package with two clearly separable roles
+    becomes two packages once it passes about 15 files. Split by a real axis
+    (device generation, model family, concern), never to satisfy a count.
+12. **Layers are checked.** No package imports a package of a higher layer
+    (`docs/architecture.md` §2). `make check` fails on a violation; the layer
+    of every package is in `docs/packages.md`.
 
 ## 4. Tests
 

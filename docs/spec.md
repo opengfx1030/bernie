@@ -63,17 +63,19 @@ needs a reason in its description.
 
 1. **Lean.** Add nothing that no command, test or recipe uses. Delete dead
    code in the same change that makes it dead.
-2. **Readable.** A Go file has at most 400 lines. A function has at most
-   about 60 lines. When a file grows past the limit, split it by
-   responsibility, not by size alone. A spec or doc page has one topic.
-3. **Segmented.** A directory has at most 12 entries (not counting
-   `testdata/`, `embed.go` and `README.md`). When a directory would grow
-   past 12, split it by a real axis:
+2. **Readable.** A Go file has at most about 400 lines. A function has at
+   most about 60 lines. When a file grows past the limit, split it by
+   concept, not by line count. A spec or doc page has one topic.
+3. **Segmented.** A directory is grouped by role, and every package has one
+   responsibility (rule 6):
    - `internal/` by role: `machine/` (host, gpu, rocm, topo), `serving/`
      (recipe, runner, tuning, vllm, bench) and `support/` (execx, paths,
-     config, fixture). Packages that sit on top (`cli`, `app`, `flow`, `doctor`,
-     `setup`, `logdoc`) stay at the top. Group by role when `internal/`
-     passes 12 entries;
+     config, redact, pyenv, factcache, fixture). Packages that sit on top
+     (`cli`, `app`, `flow`, `doctor`, `setup`, `logdoc`, `onboarding`) stay
+     at the top;
+   - a package with two clearly separable roles becomes two packages, or
+     two sub-packages, once it passes about 15 files. Split by a real axis
+     (device generation, model family, concern), never to satisfy a count;
    - recipes by model family (`recipes/flashnext/`, `recipes/qwen-dense/`),
      shared fragments by concern (`recipes/_fragments/<concern>/`);
    - tuning data by architecture, then by build
@@ -94,6 +96,9 @@ needs a reason in its description.
    is named `<name>-synthetic.tar.gz` and has a `SYNTHETIC` file at its root.
    `internal/support/fixture/testdata/README.md` says which values are
    captured and which are written by hand.
+8. **Layered.** A package never imports a package of a higher layer. The
+   layers and the import rules are in
+   [architecture.md](architecture.md) §2; `make check` fails on a violation.
 
 ## Terms
 
