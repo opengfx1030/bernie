@@ -24,7 +24,7 @@ func testRoot() *Command {
 		if err != nil {
 			return err
 		}
-		return c.Emit(map[string]any{"name": *name, "pos": pos}, func(w io.Writer) { fmt.Fprintf(w, "name=%q pos=%v\n", *name, pos) })
+		return c.Emit(map[string]any{"name": *name, "pos": pos, "venv": c.Venv}, func(w io.Writer) { fmt.Fprintf(w, "name=%q pos=%v\n", *name, pos) })
 	}}
 	return &Command{Name: "bernie", Subs: []*Command{
 		{Name: "ok", Summary: "Succeeds", Run: func(c *Context, args []string) error {
@@ -148,6 +148,32 @@ func TestBadFlagPrintsOnce(t *testing.T) {
 	}
 	if strings.Contains(errs, "usage:") {
 		t.Errorf("bad flag must not dump usage:\n%s", errs)
+	}
+}
+
+func TestGlobalVenvBeforeOrAfterCommand(t *testing.T) {
+	for _, args := range [][]string{
+		{"--json", "--venv", "/v", "leaf"},
+		{"--json", "leaf", "--venv", "/v"},
+		{"--json", "grp", "--venv", "/v", "sub"},
+	} {
+		code, out, errs := exec(t, args...)
+		if code != ExitOK || errs != "" {
+			t.Fatalf("%v: exit %d stderr %q", args, code, errs)
+		}
+		if args[len(args)-1] == "sub" {
+			continue
+		}
+		var got struct {
+			Venv string `json:"venv"`
+		}
+		if err := json.Unmarshal([]byte(out), &got); err != nil || got.Venv != "/v" {
+			t.Errorf("%v: venv = %+v, err %v", args, got, err)
+		}
+	}
+	code, _, errs := exec(t, "--venv")
+	if code != ExitUsage || !strings.Contains(errs, "--venv needs a directory") {
+		t.Errorf("missing value: exit %d stderr %q", code, errs)
 	}
 }
 

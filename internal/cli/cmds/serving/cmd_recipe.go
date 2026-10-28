@@ -99,6 +99,7 @@ func init() {
 		if err != nil {
 			return err
 		}
+		o.Venv = c.Venv
 		if len(pos) != 1 {
 			return cli.Usagef("recipe plan needs exactly one recipe id")
 		}
@@ -119,7 +120,6 @@ func prepareFlags(fs *flag.FlagSet, o *runner.PrepareOptions, sets *cli.MultiFla
 	fs.Var(sets, "set", "override: INPUT=VALUE or section.key=VALUE (YAML value), repeatable")
 	fs.StringVar(&o.Mode, "mode", "", "host or container (default: config, else container when the recipe has an image and an engine is usable)")
 	fs.StringVar(&o.Name, "name", "", "run name (default: recipe id)")
-	fs.StringVar(&o.Venv, "venv", "", "host-mode venv (default: $BERNIE_VENV, config venv, $VIRTUAL_ENV)")
 	fs.StringVar(&o.Engine, "engine", "", "docker or podman (default: config, else the first usable)")
 	fs.StringVar(&o.Profile, "profile", "", "force a TunableOp profile (validated against the loaded rocBLAS in host mode)")
 	fs.BoolVar(&o.NoTunableOp, "no-tunableop", false, "do not set TunableOp")

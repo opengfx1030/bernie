@@ -53,6 +53,9 @@ type Context struct {
 	Out  io.Writer
 	Err  io.Writer
 	JSON bool
+	// Venv is the global --venv value. It may be set before or after the
+	// command.
+	Venv string
 	// Path is the command path, e.g. "bernie recipe show".
 	Path string
 	// root is the Context Main created; a --json parsed by a command's own
@@ -166,8 +169,36 @@ func topLevel() []*Command {
 	return out
 }
 
+// takeVenv removes a leading global --venv flag from a group command.
+func takeVenv(args []string) (rest []string, venv string, err error) {
+	if len(args) == 0 {
+		return args, "", nil
+	}
+	if args[0] == "--venv" {
+		if len(args) < 2 || args[1] == "" {
+			return nil, "", Usagef("--venv needs a directory")
+		}
+		return args[2:], args[1], nil
+	}
+	if v, ok := strings.CutPrefix(args[0], "--venv="); ok {
+		if v == "" {
+			return nil, "", Usagef("--venv needs a directory")
+		}
+		return args[1:], v, nil
+	}
+	return args, "", nil
+}
+
 func dispatch(c *Context, cmd *Command, args []string) error {
 	if len(cmd.Subs) > 0 {
+		rest, venv, err := takeVenv(args)
+		if err != nil {
+			return err
+		}
+		if venv != "" {
+			c.Venv = venv
+			args = rest
+		}
 		if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
 			if cmd.Run != nil && (len(args) == 0 || args[0] != "help") {
 				return cmd.Run(c, args)
@@ -216,6 +247,7 @@ func (c *Context) Flags(cmd *Command) *flag.FlagSet {
 	fs := flag.NewFlagSet(c.Path, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.Var(jsonFlag{c}, "json", "print one JSON document on stdout")
+	fs.Var(venvFlag{c}, "venv", "host-mode venv directory")
 	fs.Usage = func() {
 		w := fs.Output()
 		if cmd.Summary != "" {
@@ -241,6 +273,19 @@ func (j jsonFlag) Set(v string) error {
 	if j.c.root != nil {
 		j.c.root.JSON = b
 	}
+	return nil
+}
+
+// venvFlag is the global --venv flag.
+type venvFlag struct{ c *Context }
+
+func (venvFlag) String() string   { return "" }
+func (venvFlag) IsBoolFlag() bool { return false }
+func (v venvFlag) Set(s string) error {
+	if s == "" {
+		return errors.New("venv path must not be empty")
+	}
+	v.c.Venv = s
 	return nil
 }
 

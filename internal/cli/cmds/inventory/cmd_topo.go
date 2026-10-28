@@ -16,7 +16,6 @@ func init() {
 	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
 		bw := fs.Bool("bandwidth", false, "measure GPU-to-GPU copy bandwidth (runs GPU copies)")
-		venvFlag := fs.String("venv", "", "venv for the torch peer-copy probe (when rocm-bandwidth-test is missing)")
 		check := fs.Bool("check", false, "print the P2P readiness checklist")
 		recipeFlag := fs.String("recipe", "", "recipe whose NCCL/RCCL environment the checklist shows (default: the best fit)")
 		if _, err := cli.Parse(fs, args); err != nil {
@@ -28,7 +27,7 @@ func init() {
 		if *check {
 			return printChecklist(c, *recipeFlag)
 		}
-		t, err := app.Topo(c.Ctx, app.TopoOptions{Bandwidth: *bw, Venv: *venvFlag, Progress: c.Err})
+		t, err := app.Topo(c.Ctx, app.TopoOptions{Bandwidth: *bw, Venv: c.Venv, Progress: c.Err})
 		if err != nil {
 			return err
 		}

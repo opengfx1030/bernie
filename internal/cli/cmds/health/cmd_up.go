@@ -20,7 +20,6 @@ func init() {
 		var sets cli.MultiFlag
 		fs.Var(&sets, "set", "override: INPUT=VALUE or section.key=VALUE, repeatable")
 		mode := fs.String("mode", "", "host or container (default: config; else container when the recipe and an engine allow it)")
-		venv := fs.String("venv", "", "host-mode venv")
 		engine := fs.String("engine", "", "docker or podman")
 		name := fs.String("name", "", "run name (default: recipe id)")
 		yes := fs.Bool("yes", false, "do not ask for confirmation")
@@ -34,7 +33,7 @@ func init() {
 		if len(pos) > 1 {
 			return cli.Usagef("up takes at most one recipe id")
 		}
-		o := flow.UpOptions{Sets: sets, Mode: *mode, Venv: *venv, Engine: *engine, Name: *name, Yes: *yes, Wait: *wait}
+		o := flow.UpOptions{Sets: sets, Mode: *mode, Venv: c.Venv, Engine: *engine, Name: *name, Yes: *yes, Wait: *wait}
 		if len(pos) == 1 {
 			o.Recipe = pos[0]
 		}
