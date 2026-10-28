@@ -24,8 +24,8 @@ view of the CLI. It adds no logic.
 6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
 7. **One question per tab.** Do not add a seventh tab for a feature that fits
    an existing one. Do not put two questions in one tab.
-8. **Files stay small.** `web/app.js` is at 639 lines. At 400 lines for a
-   file, split by tab into `web/views/<tab>.js` and load them in order from
+8. **Files stay small.** One file per tab in `web/views/`. A view file that
+   reaches 400 lines is split by card (`views/<tab>_<card>.js`) and loaded from
    `index.html`. Go files follow the repo limit.
 9. **Same names as the CLI.** A field on the page has the JSON name of the
    CLI output.
@@ -35,8 +35,8 @@ view of the CLI. It adds no logic.
 | Task | Files |
 |---|---|
 | New endpoint | spec §11, `api.go`, `dashboard_test.go` |
-| New view or card | `web/app.js` (one `view*` function), `web/app.css` |
-| New tab | `web/index.html` tab link and section, `route()` in `web/app.js`, this README table |
+| New view or card | `web/views/<tab>.js` (one `view*` function), `web/app.css` |
+| New tab | `web/index.html` tab link, section and script tag, `views` map in `web/boot.js`, a `GET /views/...` route is already generic, this README table |
 | New live value | `telemetry.go`, `hub.go`, the sample type in `gpu`/`runner`, spec §11 |
 | Change colors or layout | `web/app.css`: use the existing `--` variables |
 | Auth change | `auth.go`, spec §11, a test that shows the old attack still fails |
