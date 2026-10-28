@@ -60,6 +60,7 @@ const TIMELINE_ACTION = {
  * options.onRun      starts a runnable step: function(step, options)
  * options.onRefresh  reads the checklist again
  * options.onWait     says what a later step waits for: function(step)
+ * options.noteFor    one more line under a step: function(step)
  * options.linkFor    the link of an optional step: function(step)
  * options.progress   the live progress of a step, by step id
  * options.logs       the output of a step, by step id
@@ -88,9 +89,12 @@ function stepTimeline(steps, options = {}) {
     extra.length ? h("ol.step-timeline", extra.map((s, i) => row(s, i, true))) : null);
 }
 
-/** stepCurrentID is the step the reader does next: the one the checklist
- *  names, or the first step of the path that is not done yet. */
+/** stepCurrentID is the step the reader does next: the step that runs, the
+ *  one the checklist names, or the first step of the path that is not done
+ *  yet. */
 function stepCurrentID(path, nextID) {
+  const running = path.find((s) => s.state === "running");
+  if (running) return running.id;
   if (nextID && path.some((s) => s.id === nextID)) return nextID;
   const first = path.find((s) => s.state !== "done" && s.state !== "skipped");
   return first ? first.id : "";
@@ -107,6 +111,8 @@ function stepRow(step, index, options, progress, logs, optional, current, queued
     title,
     h("p.step-summary", stepSummary(step, state)),
     step.detail ? h("p.step-detail", step.detail) : null);
+  const note = options.noteFor ? options.noteFor(step) : null;
+  if (note) body.append(h("p.step-detail", note));
   if (roots.length) {
     body.append(h("div.step-root",
       h("p", "This step needs root. Run it in a terminal, then re-check."),

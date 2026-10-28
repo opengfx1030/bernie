@@ -21,7 +21,9 @@ async function loadSetupRecipes() {
     put(box, emptyState("There is no recipe to serve.",
       "A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository."));
   } else {
-    put(box, h("div.recipe-chooser", recipes.map(setupRecipeCard)));
+    // The recipe that fits this host comes first: it is the recommended
+    // choice, and the reader sees it before the others.
+    put(box, h("div.recipe-chooser", setupRecipeOrder(recipes).map(setupRecipeCard)));
   }
   if (setupState.recipeErrors) {
     put(setupState.recipeErrors, errors.length
@@ -29,11 +31,51 @@ async function loadSetupRecipes() {
       : null);
   }
   if (!setupState.recipeID || !recipes.some((r) => r.id === setupState.recipeID)) {
-    const best = recipes.find((r) => r.fit && r.fit.status === "fits");
+    const best = setupRecommendedRecipe(recipes);
     setupState.recipeID = best ? best.id : (recipes[0] ? recipes[0].id : "");
   }
   setupPaintRecipeSelection();
   await loadSetupPlan();
+}
+
+/** setupRecipeOrder sorts the recipes: the one that fits this host first,
+ *  then the ones this host cannot tell, then the ones that do not fit. */
+function setupRecipeOrder(recipes) {
+  const rank = (r) => {
+    const fit = setupFitStatus(r);
+    if (fit === "fits") return 0;
+    if (fit === "unknown") return 1;
+    return 2;
+  };
+  return recipes.slice().sort((a, b) => {
+    const d = rank(a) - rank(b);
+    if (d) return d;
+    return (b.priority || 0) - (a.priority || 0);
+  });
+}
+
+/** setupRecommendedRecipe is the recipe bernie recommends: the one that
+ *  fits this host. */
+function setupRecommendedRecipe(recipes) {
+  const list = recipes || (setupState.recipes && setupState.recipes.recipes) || [];
+  return list.find((r) => setupFitStatus(r) === "fits") || null;
+}
+
+/** setupRecommendedWhy says why a recipe is the recommended one. */
+function setupRecommendedWhy(recipe) {
+  if (!recipe) return "";
+  const reasons = (recipe.fit && recipe.fit.reasons) || [];
+  const need = (recipe.arch || []).join(", ") || "any architecture";
+  const gpus = recipe.gpus ? recipe.gpus + " GPUs" : "any number of GPUs";
+  return "it fits this host: " + need + ", " + gpus + (reasons.length ? " - " + reasons.join("; ") : "");
+}
+
+/** setupRecipeNote is the line under the recipe step of the checklist: the
+ *  recommended choice and why it is recommended. */
+function setupRecipeNote() {
+  const recipe = setupRecommendedRecipe();
+  if (!recipe) return null;
+  return "Recommended: " + (recipe.name || recipe.id) + " - " + setupRecommendedWhy(recipe) + ".";
 }
 
 /** setupRecipeCard is one radio card of the chooser: the name, the status,
@@ -46,14 +88,16 @@ function setupRecipeCard(recipe) {
     checked: recipe.id === setupState.recipeID,
     onchange: () => setupSelectRecipe(recipe.id),
   });
+  const recommended = setupRecommendedRecipe() && setupRecommendedRecipe().id === recipe.id;
   return h("label.recipe-card", { class: "recipe-card" + (recipe.id === setupState.recipeID ? " picked" : "") },
     input,
-    h("h3", recipe.name || recipe.id),
+    h("h3", recipe.name || recipe.id, recommended ? h("span.pill", "recommended") : null),
     h("div.recipe-meta",
       h("span.recipe-status", recipe.status || ""),
       h("span.recipe-need", recipe.gpus ? recipe.gpus + " GPUs" : "any number of GPUs"),
       h("span.recipe-arch", (recipe.arch || []).join(", ") || "any architecture")),
-    h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, setupFitLine(recipe)));
+    h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, setupFitLine(recipe)),
+    recommended ? h("p.small.muted", "recommended: " + setupRecommendedWhy(recipe) + ".") : null);
 }
 
 /** setupRecipeError is one recipe file that did not load. */
@@ -157,13 +201,32 @@ function setupPlanView(plan, recipe) {
       plan.gpu_select_reason ? h("span.recipe-gpus-why", plan.gpu_select_reason) : null),
     setupPlanSettings(plan),
     setupPlanAdjustments(plan),
-    h("div.recipe-plan-actions",
-      h("button", {
-        type: "button",
-        class: setupState.primaryOwner === "plan" ? "primary" : "",
-        onclick: startSetupRecipe,
-      }, "Start the server")));
+    setupPlanActions(recipe, plan));
   return card;
+}
+
+/** setupPlanActions is the start of the plan. The button waits until the
+ *  plan is ready: a recipe that does not fit this host cannot be served
+ *  from here. */
+function setupPlanActions(recipe, plan) {
+  const ready = setupPlanReady(recipe);
+  const attrs = {
+    type: "button",
+    class: setupState.primaryOwner === "plan" ? "primary" : "",
+    onclick: startSetupRecipe,
+  };
+  if (!ready) {
+    attrs.disabled = true;
+    attrs["aria-disabled"] = "true";
+  }
+  return h("div.recipe-plan-actions",
+    h("button", attrs, "Start the server"),
+    ready ? null : h("span.small.muted", "The plan is not ready: " + setupFitLine(recipe) + "."));
+}
+
+/** setupPlanReady says whether the plan can be started here. */
+function setupPlanReady(recipe) {
+  return setupFitStatus(recipe) === "fits";
 }
 
 /** setupPlanCommand is the exact command of the plan. */
