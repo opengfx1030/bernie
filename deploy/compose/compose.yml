@@ -13,7 +13,7 @@
 name: bernie
 services:
   bernie:
-    image: ghcr.io/opengfx1030/bernie:latest
+    image: ghcr.io/opengfx1030/bernie:${BERNIE_TAG:?set BERNIE_TAG to a release tag, see .env.example}
     container_name: bernie-dash
     # Default command: dash --listen 0.0.0.0:7860. A non-loopback address
     # requires a token. Empty BERNIE_DASH_TOKEN = random token in `logs`.
