@@ -16,7 +16,7 @@ function dashRunState(run) {
 
 // dashRunCard is the card of the run. It repaints itself with the stream.
 function dashRunCard(section) {
-  const el = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px" });
+  const el = h("div.card");
   section.append(el);
   const box = h("div", { style: "display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,420px);gap:28px;align-items:start" });
   const left = h("div", { style: "min-width:0" });
@@ -30,8 +30,8 @@ function dashRunCard(section) {
   const phase = h("p", { style: "color:var(--text-2);font-size:14px;margin:8px 0 10px" }, "");
   const endpoint = h("div");
   const age = h("span", { style: "font-size:13px;color:var(--muted)" }, "");
-  const stop = h("button.ghost", { type: "button", style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text-2)" }, "Stop");
-  const restart = h("button.ghost", { type: "button", style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text-2)" }, "Restart");
+  const stop = h("button", { type: "button" }, "Stop");
+  const restart = h("button", { type: "button" }, "Restart");
   const actions = h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px" }, age, stop, restart);
   const findings = h("div", { style: "margin-top:12px" });
   left.append(title, phase, endpoint, actions, findings);
@@ -39,7 +39,7 @@ function dashRunCard(section) {
   const ask = h("div", { style: "font-size:13px;color:var(--text-2);margin-bottom:6px" }, "Ask the server something.");
   const prompt = h("input", { type: "text", value: "Hello", "aria-label": "The prompt to send to the server",
     style: "width:100%;padding:9px 11px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:8px" });
-  const send = h("button", { type: "button", style: "background:var(--accent);border:1px solid var(--accent);color:var(--on-accent);font-weight:800;text-transform:uppercase;border-radius:8px;padding:9px 16px;cursor:pointer;box-shadow:3px 3px 0 color-mix(in srgb, var(--accent) 45%, #000)" }, "Try it");
+  const send = h("button.primary", { type: "button" }, "Try it");
   const answer = h("div", { style: "margin-top:10px;font-size:13px;color:var(--text-2)" });
   right.append(ask, prompt, h("div", { style: "margin-top:8px" }, send), answer);
 
@@ -80,6 +80,9 @@ function dashRunCard(section) {
       if (live && !live.stats && run.state !== "exited") {
         answer.replaceChildren(h("div", { style: "color:var(--fail)" }, "The server did not answer."),
           h("div", { style: "color:var(--muted);margin-top:2px" }, live.error || "The process is alive but /health stays silent."));
+      } else if (answer.dataset.answer !== "1") {
+        answer.replaceChildren(h("div", { style: "color:var(--muted)" },
+          "One prompt, one answer, the time to the first token and the tokens per second."));
       }
       findings.replaceChildren(dashFindings(run));
     },
@@ -114,7 +117,7 @@ function dashProblems(section) {
   const rerun = h("button", { type: "button", onclick: async () => {
       try { dash.doctor = await api("/api/doctor"); } catch (e) { dash.doctor = null; }
       api.update();
-    }, style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--text-2);font-size:13px" }, "Re-run");
+    }, style: "font-size:13px" }, "Re-run");
   const api = {
     update: () => {
       const doc = dash.doctor;
@@ -189,6 +192,7 @@ async function dashAsk(text, box, button) {
   box.replaceChildren(h("div", { style: "color:var(--muted)" }, "The server is answering…"));
   try {
     const res = await api("/api/smoke", { method: "POST", body: { prompt: text || "Hello", run: run.name } });
+    box.dataset.answer = "1";
     box.replaceChildren(
       h("div", { style: "color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere" }, res.reply || "(no answer)"),
       h("div", { style: "color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums" },

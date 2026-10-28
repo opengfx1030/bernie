@@ -7,7 +7,7 @@
 
 // dashPower is the section with the caps of the cards.
 function dashPower(section) {
-  const el = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px" });
+  const el = h("div.card");
   section.append(el);
   const api = {
     update: () => {
@@ -18,7 +18,7 @@ function dashPower(section) {
         const err = (dash.errors || {})["/api/power"];
         kids.push(h("div.err", "The power caps could not be read."));
         kids.push(h("div", { style: "color:var(--muted);font-size:13px;margin-bottom:8px" }, err || "The endpoint did not answer."));
-        kids.push(h("button.ghost", { type: "button", onclick: () => dashLoad(), style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text-2)" }, "Try again"));
+        kids.push(h("button", { type: "button", onclick: () => dashLoad() }, "Try again"));
         put(el, ...kids);
         return;
       }
@@ -34,8 +34,8 @@ function dashPower(section) {
       }
       const rows = (p.gpus || []).map((g) => dashPowerRow(g, p.installed));
       if (rows.length) {
-        kids.push(h("div.scroll", { style: "overflow-x:auto" }, h("table", { style: "width:100%;border-collapse:collapse" },
-          h("thead", h("tr", ["Card", "Cap", "Allowed", "Wanted", "In effect", "Set", "State"].map((c) => h("th", { style: "text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600" }, c)))),
+        kids.push(h("div.scroll", h("table",
+          h("thead", h("tr", ["Card", "Cap", "Allowed", "Wanted", "In effect", "Set", "State"].map((c) => h("th", { class: c === "Card" || c === "Set" || c === "State" ? "" : "num" }, c)))),
           h("tbody", rows))));
         kids.push(dashPowerAll(p));
       } else {
@@ -57,20 +57,19 @@ function dashPowerRow(g, installed) {
   const value = Math.max(min, Math.min(max, wanted || min));
   const input = h("input", { type: "number", min: String(min), max: String(max), step: "1", value: String(Math.round(value)),
     disabled: !installed, "aria-label": "the wanted watts of GPU " + g.hip_index,
-    style: "width:88px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text)" });
-  const set = h("button", { type: "button", disabled: !installed,
-    style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:5px 12px;cursor:pointer;color:var(--text-2)" }, "Set");
+    style: "width:88px" });
+  const set = h("button", { type: "button", disabled: !installed }, "Set");
   set.addEventListener("click", () => dashSavePower(g.hip_index, Number(input.value), min, max, input));
   const drift = g.drift ? dashPill("warn", "drift") : dashPill("ok", "in sync");
-  const cell = (text) => h("td", { style: "padding:6px 8px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums" }, text);
+  const cell = (text) => h("td.num", text);
   return h("tr", null,
-    h("td", { style: "padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600" }, "GPU " + g.hip_index),
+    h("td", { style: "font-weight:600" }, "GPU " + g.hip_index),
     cell(g.cap_w != null ? Math.round(g.cap_w) + " W" : "–"),
     cell(Math.round(min) + "–" + Math.round(max) + " W"),
     cell(g.desired_w != null ? Math.round(g.desired_w) + " W" : "–"),
     cell(g.effective_w != null ? Math.round(g.effective_w) + " W" : "–"),
-    h("td", { style: "padding:6px 8px;border-bottom:1px solid var(--border)" }, h("div", { style: "display:flex;gap:6px;align-items:center" }, input, set)),
-    h("td", { style: "padding:6px 8px;border-bottom:1px solid var(--border)" }, drift));
+    h("td", h("div.row", input, set)),
+    h("td", drift));
 }
 
 // dashPowerAll writes one cap for every card of the host.
@@ -79,9 +78,8 @@ function dashPowerAll(p) {
   const max = Math.max(...(p.gpus || []).map((g) => g.max_w || 1));
   const input = h("input", { type: "number", min: String(min), max: String(max), step: "1", value: String(Math.round((min + max) / 2)),
     disabled: !p.installed, "aria-label": "the wanted watts of every card",
-    style: "width:88px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text)" });
-  const set = h("button", { type: "button", disabled: !p.installed,
-    style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:5px 12px;cursor:pointer;color:var(--text-2)" }, "Set every card");
+    style: "width:88px" });
+  const set = h("button", { type: "button", disabled: !p.installed }, "Set every card");
   set.addEventListener("click", () => dashSavePower("all", Number(input.value), min, max, input));
   return h("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--text-2)" },
     h("span", "One cap for every card:"), input, set);
