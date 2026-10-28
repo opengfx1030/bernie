@@ -11,7 +11,19 @@ async function viewRuns(root) {
   try {
     const runs = runsOf(await api("/api/runs"));
     list.lastChild.replaceWith(runsTable(runs, false, logs, root));
+    // A run that is still loading shows its log right away: the model load
+    // takes minutes and the log says what the server is doing.
+    const loading = runs.find((r) => r.state === "starting");
+    if (loading) followLogs(logs, loading.name, loading.findings);
   } catch (e) { list.lastChild.replaceWith(failed(e)); }
+}
+
+// stateNote says in one plain line what the state of a run means. A run
+// that is still starting says that the server is loading the model.
+function stateNote(r) {
+  if (r.state === "starting") return "the server is loading the model";
+  if (r.state === "exited") return "the server is gone";
+  return "";
 }
 
 function runsTable(runs, compact, logCard, root) {
@@ -21,10 +33,12 @@ function runsTable(runs, compact, logCard, root) {
     h("thead", h("tr", h("th", "Name"), h("th", "Recipe"), h("th", "State"), compact ? null : h("th", "Mode"), h("th", "Address"), compact ? null : h("th", "Started"), compact ? null : h("th", ""))),
     h("tbody", runs.map((r) => {
       const t = r.state !== "exited" ? tele.get(r.name) : null;
+      const note = stateNote(r);
       return h("tr",
         h("td", h("b", r.name)),
         h("td", r.recipe),
-        h("td", badge(r.state), r.phase && r.phase.sentence ? h("div.small", r.phase.sentence) : null,
+        h("td", badge(r.state), note ? h("div.small", note) : null,
+          r.phase && r.phase.sentence ? h("div.small", r.phase.sentence) : null,
           t && t.stats ? h("div.small.muted", `${num(t.stats.requests_running, 0)} running · ${num(t.gen_tok_s)} tok/s`) : null,
           r.findings && r.findings.length ? h("div.small.muted", "Known failure: " + r.findings.map((f) => f.id).join(", ")) : null),
         compact ? null : h("td", r.mode + (r.engine ? " (" + r.engine + ")" : "")),

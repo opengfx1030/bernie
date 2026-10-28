@@ -41,6 +41,14 @@ func init() {
 		if !*yes && !c.JSON && isTerminal(os.Stdin) {
 			o.Confirm = flow.ConfirmFrom(os.Stdin, c.Err)
 		}
+		// The dashboard starts while the server loads the model, so the
+		// operator can watch the log in the browser (spec §3.1).
+		var dash *dashboard.Starter
+		if !c.JSON && !*noDash {
+			dash = dashboard.NewStarter(dashboard.Options{Listen: *listen, Log: c.Err, Version: cli.Version,
+				Ready: func(url string) { fmt.Fprintf(c.Out, "dashboard: %s\n", url) }})
+			o.Dashboard = dash
+		}
 		res, err := flow.Up(c.Ctx, o, c.Err)
 		var b *flow.Blocked
 		if errors.As(err, &b) {
@@ -61,13 +69,14 @@ func init() {
 		if err != nil {
 			return err
 		}
-		if c.JSON || *noDash {
+		if c.JSON {
 			return c.Emit(res, func(w io.Writer) { printUp(w, res) })
 		}
 		printUp(c.Out, res)
-		fmt.Fprintln(c.Err, "up: starting the dashboard (Ctrl-C stops it; the server keeps running)")
-		return dashboard.Serve(c.Ctx, dashboard.Options{Listen: *listen, Log: c.Err, Version: cli.Version,
-			Ready: func(url string) { fmt.Fprintf(c.Out, "dashboard: %s\n", url) }})
+		if dash != nil {
+			return dash.Wait() // Ctrl-C stops the dashboard; the run keeps running
+		}
+		return nil
 	}
 	cli.Register(cmd)
 }

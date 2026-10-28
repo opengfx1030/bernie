@@ -45,6 +45,11 @@ type UpOptions struct {
 	Confirm func(prompt string) bool
 	// Wait bounds how long Up waits for /health. 0 = 30 minutes.
 	Wait time.Duration
+	// Dashboard is the dashboard Up starts while the server loads the
+	// model (spec §3.1). Nil means no dashboard.
+	Dashboard Dashboard
+	// Runner starts the run and lists the runs. Nil means the real one.
+	Runner Runner
 }
 
 // UpResult is the outcome of a completed Up.
@@ -162,24 +167,15 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		}
 	}
 
-	// 6. Serve and wait for health.
+	// 6. Serve, start the dashboard, wait for health.
 	p, err := runner.Prepare(ctx, runner.PrepareOptions{Recipe: id, Mode: mode, Name: o.Name, Venv: o.Venv, Engine: o.Engine, Sets: o.Sets})
 	if err != nil {
 		return nil, err
 	}
-	for _, w := range p.Warnings {
-		fmt.Fprintf(log, "up: warning: %s\n", w)
-	}
-	rec, err := runner.Start(ctx, p, runner.StartOptions{Venv: o.Venv, Engine: o.Engine, Progress: log})
-	if err != nil {
-		return nil, err
-	}
-	res := &UpResult{Recipe: id, Mode: mode, Applied: apply, Run: rec, URL: rec.URL()}
-	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: bernie logs %s -f)\n", rec.Name, rec.Name)
-	if err := WaitHealthy(ctx, rec.Name, o.Wait, log); err != nil {
+	res := &UpResult{Recipe: id, Mode: mode, Applied: apply}
+	if err := serveAndWait(ctx, o, log, p, res); err != nil {
 		return res, err
 	}
-	res.Healthy = true
 	return res, nil
 }
 
@@ -188,47 +184,7 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 // log. When progress is not nil, it gets one line per phase change: what the
 // server is doing now, in words (spec §3.1).
 func WaitHealthy(ctx context.Context, name string, limit time.Duration, progress io.Writer) error {
-	if limit == 0 {
-		limit = 30 * time.Minute
-	}
-	deadline := time.Now().Add(limit)
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
-	var printer phasePrinter
-	var rec runner.Record
-	next := time.Time{}
-	for {
-		if time.Now().After(next) {
-			next = time.Now().Add(3 * time.Second)
-			runs, err := runner.List(ctx)
-			if err != nil {
-				return err
-			}
-			for _, s := range runs {
-				if s.Name != name {
-					continue
-				}
-				rec = s.Record
-				switch s.State {
-				case runner.StateRunning:
-					return nil
-				case runner.StateExited:
-					return &StartupExit{Name: name, Findings: Findings(ctx, s.Record)}
-				}
-			}
-			if time.Now().After(deadline) {
-				return fmt.Errorf("%s is not healthy after %s; see: bernie logs %s", name, limit, name)
-			}
-		}
-		if ph, ok := Phase(ctx, rec); ok {
-			printer.print(name, ph)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-tick.C:
-		}
-	}
+	return waitHealthy(ctx, name, limit, progress, runner.List)
 }
 
 // pick returns the best fitting recipe whose required inputs are all
