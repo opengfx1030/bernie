@@ -2,14 +2,13 @@ package tunecmd
 
 import (
 	"fmt"
-	"github.com/opengfx1030/bernie/internal/cli"
 	"io"
 	"sort"
-	"strconv"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/opengfx1030/bernie/internal/app"
+	"github.com/opengfx1030/bernie/internal/cli"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
 )
 
@@ -105,69 +104,7 @@ func init() {
 	}
 	top.Subs = []*cli.Command{list, status, env}
 
-	power := &cli.Command{Name: "power", Summary: "GPU power cap"}
-	pstatus := &cli.Command{Name: "status", Summary: "Power cap per GPU"}
-	pstatus.Run = func(c *cli.Context, args []string) error {
-		if _, err := cli.Parse(c.Flags(pstatus), args); err != nil {
-			return err
-		}
-		ps, err := app.PowerStatus()
-		if err != nil {
-			return err
-		}
-		return c.Emit(ps, func(w io.Writer) {
-			tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(tw, "GPU\tNAME\tCAP W\tMIN W\tMAX W")
-			for _, p := range ps {
-				fmt.Fprintf(tw, "%d\t%s\t%.0f\t%.0f\t%.0f\n", p.HIPIndex, p.Name, p.CapW, p.MinW, p.MaxW)
-			}
-			tw.Flush()
-		})
-	}
-	pset := &cli.Command{Name: "set", Summary: "Set the power cap (prints the command without root)", Usage: "<WATTS> [--gpu IDX]..."}
-	pset.Run = func(c *cli.Context, args []string) error {
-		fs := c.Flags(pset)
-		var idxFlags cli.MultiFlag
-		fs.Var(&idxFlags, "gpu", "HIP index, repeatable (default: all GPUs)")
-		pos, err := cli.Parse(fs, args)
-		if err != nil {
-			return err
-		}
-		if len(pos) != 1 {
-			return cli.Usagef("tune power set needs WATTS")
-		}
-		watts, err := strconv.ParseFloat(pos[0], 64)
-		if err != nil || watts <= 0 {
-			return cli.Usagef("WATTS: %q is not a positive number", pos[0])
-		}
-		var idx []int
-		for _, s := range idxFlags {
-			for _, f := range strings.Split(s, ",") {
-				n, err := strconv.Atoi(strings.TrimSpace(f))
-				if err != nil || n < 0 {
-					return cli.Usagef("--gpu: %q is not a HIP index", f)
-				}
-				idx = append(idx, n)
-			}
-		}
-		res, err := app.PowerSet(idx, watts)
-		if err != nil {
-			return err
-		}
-		return c.Emit(res, func(w io.Writer) {
-			if res.Applied {
-				fmt.Fprintf(w, "power cap set to %.0f W\n", watts)
-				return
-			}
-			fmt.Fprintln(w, "# not root: run these commands")
-			for _, l := range res.Commands {
-				fmt.Fprintln(w, l)
-			}
-		})
-	}
-	power.Subs = []*cli.Command{pstatus, pset}
-
-	tune.Subs = []*cli.Command{top, power}
+	tune.Subs = []*cli.Command{top, powerCommand()}
 	cli.Register(tune)
 }
 

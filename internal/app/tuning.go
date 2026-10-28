@@ -1,10 +1,6 @@
 package app
 
 import (
-	"os"
-	"strconv"
-	"strings"
-
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
@@ -49,70 +45,17 @@ func TunableOpStatus(venv string) (TunableOpState, error) {
 	return st, nil
 }
 
-// hostArchs returns the gfx targets of the host's GPUs, limited to the
-// HIP_VISIBLE_DEVICES indices when that variable lists indices. It returns
-// nil when the GPUs cannot be listed.
+// hostArchs returns the gfx targets of the GPUs bernie may use (the
+// environment can limit them, spec §7.7). It returns nil when the GPUs
+// cannot be listed.
 func hostArchs() []string {
-	gpus, err := gpu.List(root)
+	vis, err := gpu.Visible(root)
 	if err != nil {
 		return nil
 	}
 	var idx []int
-	if v := os.Getenv("HIP_VISIBLE_DEVICES"); v != "" {
-		for _, f := range strings.Split(v, ",") {
-			n, err := strconv.Atoi(strings.TrimSpace(f))
-			if err != nil {
-				idx = nil // not an index list (UUIDs): do not restrict
-				break
-			}
-			idx = append(idx, n)
-		}
+	for _, g := range vis.GPUs {
+		idx = append(idx, g.HIPIndex)
 	}
-	if idx == nil {
-		for _, g := range gpus {
-			idx = append(idx, g.HIPIndex)
-		}
-	}
-	return gpu.Archs(gpus, idx)
-}
-
-// PowerStatus is the `tune power status --json` document.
-func PowerStatus() ([]tuning.Power, error) {
-	gpus, err := gpu.List(root)
-	if err != nil {
-		return nil, err
-	}
-	return tuning.PowerStatus(gpus), nil
-}
-
-// PowerResult is the `tune power set --json` document. Commands is empty
-// when the caps were written; else they are the commands for the operator.
-type PowerResult struct {
-	Applied  bool     `json:"applied"`
-	Commands []string `json:"commands"`
-	Watts    float64  `json:"watts"`
-}
-
-// PowerPlan validates a power cap and returns the commands that set it. It
-// writes nothing, as root too.
-func PowerPlan(idx []int, watts float64) ([]string, error) {
-	gpus, err := gpu.List(root)
-	if err != nil {
-		return nil, err
-	}
-	return tuning.PowerCommands(gpus, idx, watts)
-}
-
-// PowerSet sets the power cap of the GPUs idx (all when empty). Without root
-// it writes nothing and returns the exact commands.
-func PowerSet(idx []int, watts float64) (PowerResult, error) {
-	gpus, err := gpu.List(root)
-	if err != nil {
-		return PowerResult{}, err
-	}
-	cmds, err := tuning.SetPower(gpus, idx, watts)
-	if err != nil {
-		return PowerResult{}, err
-	}
-	return PowerResult{Applied: cmds == nil, Commands: cmds, Watts: watts}, nil
+	return gpu.Archs(vis.GPUs, idx)
 }

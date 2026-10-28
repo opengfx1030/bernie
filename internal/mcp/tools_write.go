@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 
 	"github.com/google/jsonschema-go/jsonschema"
 
@@ -84,12 +83,12 @@ type setupPlanDoc struct {
 	Manual []setup.Step `json:"manual"` // root steps: commands for the operator, never run
 }
 
-// powerPlan is what tune_power_set would do.
+// powerPlan is what tune_power_set would write.
 type powerPlan struct {
-	Watts           float64  `json:"watts"`
-	GPUIndexes      []int    `json:"gpu_indexes"`
-	Commands        []string `json:"commands"`
-	AppliesDirectly bool     `json:"applies_directly"` // the server runs as root and writes the caps
+	File       string             `json:"file"`
+	Watts      float64            `json:"watts"`
+	GPUIndexes []int              `json:"gpu_indexes"`
+	Desired    map[string]float64 `json:"desired"`
 }
 
 func registerWrite(s *Server) {
@@ -112,7 +111,7 @@ func registerWrite(s *Server) {
 		}, s.benchRun)
 	addTool[setupIn, Outcome[[]setup.Step]](s, w("setup_apply", "Run the install steps that need no root (bernie setup apply). Steps that need root are returned as commands for the operator.", true, false, true),
 		func(sc *jsonschema.Schema) { prop(sc, "mode").Enum = enum("host", "container"); tokenSchema(sc) }, s.setupApply)
-	addTool[powerIn, Outcome[app.PowerResult]](s, w("tune_power_set", "Set the GPU power cap (bernie tune power set). Without root it changes nothing and returns the commands for the operator.", true, true, false),
+	addTool[powerIn, Outcome[app.PowerDesiredResult]](s, w("tune_power_set", "Write the desired GPU power cap (bernie tune power set). It changes the desired-state file; it never writes hwmon.", false, true, false),
 		func(sc *jsonschema.Schema) {
 			prop(sc, "watts").ExclusiveMinimum = jsonschema.Ptr(0.0)
 			g := prop(sc, "gpu_indexes")
@@ -240,16 +239,19 @@ func (s *Server) setupApply(ctx context.Context, c *call, in setupIn) (any, erro
 }
 
 func (s *Server) powerSet(_ context.Context, c *call, in powerIn) (any, error) {
-	cmds, err := app.PowerPlan(in.GPUIndexes, in.Watts)
+	desired, err := app.PlanPowerDesired(in.GPUIndexes, in.Watts)
 	if err != nil {
 		return nil, err
 	}
-	plan := powerPlan{Watts: in.Watts, GPUIndexes: append([]int{}, in.GPUIndexes...), Commands: cmds, AppliesDirectly: os.Geteuid() == 0}
+	plan := powerPlan{
+		File: desired.File, Watts: desired.Watts,
+		GPUIndexes: append([]int{}, desired.GPUIndexes...), Desired: desired.Desired,
+	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[app.PowerResult]{tool: "tune_power_set", token: token, args: in, plan: plan, lock: &s.mutate,
-		run: func(context.Context) (*app.PowerResult, error) {
-			r, err := app.PowerSet(in.GPUIndexes, in.Watts)
+	return execute(s, c, mutation[app.PowerDesiredResult]{tool: "tune_power_set", token: token, args: in, plan: plan, lock: &s.mutate,
+		run: func(context.Context) (*app.PowerDesiredResult, error) {
+			r, err := app.PowerDesiredSet(in.GPUIndexes, in.Watts)
 			return &r, err
 		}})
 }

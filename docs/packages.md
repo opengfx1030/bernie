@@ -154,7 +154,12 @@ func Env(p *Profile, rowsDir string, tuning bool) map[string]string
 func MaterializeTunedMoE(gfx string) (dir string, err error) // <data>/tuned-moe/<arch>, "" if none
 type Power struct { HIPIndex int; CapW, MinW, MaxW float64; Path string }
 func PowerStatus(gpus []gpu.GPU) []Power
-func SetPower(gpus []gpu.GPU, idx []int, watts float64) (cmds []string, err error) // cmds when not root
+type PowerDesired struct { Version int; GPUs map[string]float64 }
+func LoadPowerDesired(path string) (PowerDesired, error)
+func SavePowerDesired(path string, d PowerDesired) error
+type PowerUnits struct { ServiceFile, PathFile, Service, Path string }
+func GeneratePowerUnits(binary, desired, stateDir string) (PowerUnits, error)
+func ApplyPowerDesired(root string, gpus []gpu.GPU, file, binary string, isRoot bool) (PowerApplyResult, error)
 ```
 
 ## serving/runner
@@ -205,7 +210,11 @@ func NewLogReport(matches []logdoc.Match) LogReport                     // never
 func RecipeList(all bool) recipe.Listing
 func TunableOpStatus(venv string) (TunableOpState, error)
 func PowerStatus() ([]tuning.Power, error)
-func PowerSet(idx []int, watts float64) (PowerResult, error)            // root: writes; else commands
+func PlanPowerDesired(idx []int, watts float64) (PowerDesiredPlan, error)
+func PowerDesiredSet(idx []int, watts float64) (PowerDesiredResult, error)
+func PowerApply(file string) (tuning.PowerApplyResult, error)          // ErrNeedsRoot without root
+func GeneratePowerServicePlan() (PowerServicePlan, error)
+func ReadPowerServiceStatus(ctx context.Context) (PowerServiceStatus, error)
 func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error)
 func SetupPending(steps []setup.Step, only []string) []setup.Step
 func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) ([]setup.Step, error)

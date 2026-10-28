@@ -57,6 +57,33 @@ func TestBenchRunRefusesRemoteURL(t *testing.T) {
 	}
 }
 
+func TestTunePowerSetPlanThenConfirm(t *testing.T) {
+	isolate(t)
+	cs := connect(t, Options{Write: true})
+	args := func(tok string) map[string]any {
+		m := map[string]any{"watts": 180, "gpu_indexes": []int{0}}
+		if tok != "" {
+			m["confirm_token"] = tok
+		}
+		return m
+	}
+	res := callTool(t, cs, "tune_power_set", args(""))
+	plan, _ := res.StructuredContent.(map[string]any)
+	tok, _ := plan["confirm_token"].(string)
+	if res.IsError || plan["executed"] != false || len(tok) < 32 {
+		t.Fatalf("plan call: %+v", res.StructuredContent)
+	}
+	res = callTool(t, cs, "tune_power_set", args(tok))
+	out, _ := res.StructuredContent.(map[string]any)
+	if res.IsError || out["executed"] != true {
+		t.Fatalf("confirm call: %+v", res.StructuredContent)
+	}
+	result, _ := out["result"].(map[string]any)
+	if result["changed"] != true || result["watts"] != float64(180) {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
 func TestConfirmToken(t *testing.T) {
 	now := time.Now()
 	ts := tokenStore{dir: t.TempDir(), now: func() time.Time { return now }}
