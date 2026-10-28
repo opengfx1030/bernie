@@ -222,6 +222,36 @@ function spark(canvas, values, max) {
   c.globalAlpha = 1;
 }
 
+/** sparkSvg builds a sparkline of the last values as plain SVG: a line and
+ *  the area under it. No chart library, no image. */
+function sparkSvg(values, max, label) {
+  const ns = "http://www.w3.org/2000/svg";
+  const w = 120, hgt = 34, pad = 1;
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "spark-svg");
+  svg.setAttribute("viewBox", "0 0 " + w + " " + hgt);
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("role", "img");
+  if (label) svg.setAttribute("aria-label", label);
+  const area = document.createElementNS(ns, "path");
+  area.setAttribute("class", "spark-area");
+  const line = document.createElementNS(ns, "path");
+  line.setAttribute("class", "spark-line");
+  svg.append(area, line);
+  if (!values || values.length < 2) return svg;
+  const top = max || Math.max(1, ...values);
+  const step = w / (values.length - 1);
+  let d = "";
+  values.forEach((v, i) => {
+    const x = (i * step).toFixed(1);
+    const y = (hgt - pad - (Math.min(v, top) / top) * (hgt - 2 * pad)).toFixed(1);
+    d += (i ? "L" : "M") + x + " " + y;
+  });
+  line.setAttribute("d", d);
+  area.setAttribute("d", d + " L " + w + " " + hgt + " L 0 " + hgt + " Z");
+  return svg;
+}
+
 // ---------- shared state ----------
 
 const HISTORY = 60; // seconds of sparkline history
@@ -265,9 +295,23 @@ function startTelemetry() {
   es.onmessage = (ev) => {
     const t = JSON.parse(ev.data);
     state.tele = t;
-    for (const s of t.gpus || []) {
+    const gs = t.gpus || [];
+    let pw = 0, busy = 0, vram = 0, hot = 0, sclk = 0;
+    for (const s of gs) {
       pushHist("busy" + s.hip_index, s.busy_pct);
       pushHist("pow" + s.hip_index, s.power_w);
+      pw += s.power_w || 0;
+      busy += s.busy_pct || 0;
+      vram += s.vram_used || 0;
+      if ((s.temp_c || 0) > hot) hot = s.temp_c || 0;
+      if ((s.sclk_mhz || 0) > sclk) sclk = s.sclk_mhz || 0;
+    }
+    if (gs.length) {
+      pushHist("busy_avg", busy / gs.length);
+      pushHist("power_total", pw);
+      pushHist("vram_used", vram / GiB);
+      pushHist("temp_max", hot);
+      pushHist("sclk_max", sclk);
     }
     for (const r of t.runs || []) pushHist("gen:" + r.name, r.gen_tok_s);
     if (state.tab === "gpus") renderGPUs();
