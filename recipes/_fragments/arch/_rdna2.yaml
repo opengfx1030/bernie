@@ -14,3 +14,7 @@ description: Turns the fork's RDNA2 causal-conv1d forward and update kernels off
 env:
   VLLM_CAUSAL_CONV1D_RDNA2_FWD: "0"
   VLLM_CAUSAL_CONV1D_RDNA2_UPDATE: "0"
+
+why:
+  env.VLLM_CAUSAL_CONV1D_RDNA2_FWD: "Keeps the fork's optional RDNA2 causal-convolution forward kernel out of this path."
+  env.VLLM_CAUSAL_CONV1D_RDNA2_UPDATE: "Keeps the fork's optional RDNA2 causal-convolution update kernel out of this path."

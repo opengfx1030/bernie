@@ -13,3 +13,6 @@ name: Tuned MoE configs
 description: Points VLLM_TUNED_CONFIG_FOLDER at the fork's tuned fused-MoE configs.
 env:
   VLLM_TUNED_CONFIG_FOLDER: /src/vllm/tuned-moe
+
+why:
+  env.VLLM_TUNED_CONFIG_FOLDER: "Points the fused-MoE kernels at the tuned configs for the selected architecture."

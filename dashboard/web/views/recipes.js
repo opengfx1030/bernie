@@ -92,10 +92,16 @@ function planView(plan) {
   const kv = [["Mode", plan.mode], ["Model", plan.model], ["Served name", plan.served_name], ["Address", plan.host && plan.port ? plan.host + ":" + plan.port : plan.port],
     ["GPUs", plan.hip_devices], ["Selection", plan.gpu_select_reason], ["Image", plan.image], ["shm", plan.shm_size], ["TunableOp", plan.tunableop_profile],
     ["Path inputs", (plan.path_inputs || []).join(", ")], ["Directory", ex.dir], ["Unset", (ex.unset || []).join(", ")]].filter(([, v]) => v != null && v !== "");
+  const settings = (plan.settings || []).map((s) => h("tr",
+    h("td.mono", s.setting),
+    h("td", h("div.mono", s.value == null || s.value === "" ? "–" : String(s.value)),
+      s.why ? h("div.small.muted", s.why) : null)));
   return h("div",
     (plan.warnings || []).map((w) => h("div.err.small", "⚠ " + w)),
     h("h3", "Command"),
     h("pre", argv.map(sh).join(" ")),
     h("dl.kv", kv.map(([k, v]) => [h("dt", k), h("dd", String(v))])),
+    settings.length ? [h("h3", "Settings and reasons"), h("div.scroll", h("table",
+      h("thead", h("tr", h("th", "Setting"), h("th", "Value"))), h("tbody", settings)))] : null,
     rows.length ? [h("h3", ex.env && ex.env.length ? "Environment (added)" : "Environment"), h("div.scroll", h("table", h("tbody", rows)))] : null);
 }

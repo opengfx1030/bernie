@@ -17,3 +17,8 @@ env:
   VLLM_PLE_QUANT_DIR: null
   VLLM_PLE_CPU_OFFLOAD: "1"
   VLLM_PLE_OFFLOAD_READY_TIMEOUT: "3600"
+
+why:
+  env.VLLM_PLE_QUANT_DIR: null
+  env.VLLM_PLE_CPU_OFFLOAD: "Serves the EXL3 checkpoint's PLE table through the CPU sidecar."
+  env.VLLM_PLE_OFFLOAD_READY_TIMEOUT: "Allows the sidecar enough time to map and decode the large table."

@@ -43,3 +43,11 @@ env:
   VLLM_RDNA_FUSED_SE: "0"
   # TUNED_CONFIG=0
   VLLM_TUNED_CONFIG_FOLDER: null
+
+why:
+  env.VLLM_USE_AOT_COMPILE: "Disables the shared AOT cache because its rank-zero copy can replay on other ranks."
+  env.VLLM_DISABLE_COMPILE_CACHE: "Prevents the same compiled artifact from being shared across EXL3 ranks."
+  env.VLLM_ROCM_MOE_PREFILL: "Keeps EXL3 experts on their own path instead of the W4A16 MoE prefill."
+  env.VLLM_GDN_HIP_PREFILL: "Avoids the W4A16 HIP GDN prefill used by the AWQ checkpoint."
+  env.VLLM_RDNA_FUSED_SE: "EXL3 experts do not use the fused W4A16 shared-expert kernel."
+  env.VLLM_TUNED_CONFIG_FOLDER: null

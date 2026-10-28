@@ -71,3 +71,17 @@ args:
   language-model-only: true
   skip-mm-profiling: true
   trust-remote-code: true
+
+why:
+  env.VLLM_USE_RDNA2_FA: "Pins the fork's FA-RDNA2 backend for the full HIP path."
+  env.VLLM_USE_BREAKABLE_CUDAGRAPH: "Allows eager breaks inside full graphs where the HIP kernels need them."
+  env.VLLM_FA_RDNA2_GQA_MODE: "Uses the subgroup GQA prefill path measured faster than the alternatives."
+  env.NCCL_P2P_LEVEL: "Restricts peer access to cards under one PCIe switch for TP2."
+  env.VLLM_FORCE_CUSTOM_ALL_REDUCE: "Leaves the stock custom all-reduce off; the fork's one-shot path handles small messages."
+  env.PYTORCH_CUDA_ALLOC_CONF: "Enables expandable segments for the full HIP allocation pattern."
+  args.max-model-len: "Keeps the fork's 200K context for this validated full-HIP profile."
+  args.max-num-seqs: "Six request slots match the validated TP2 profile."
+  args.max-num-batched-tokens: "Matches the fork launcher's 2048-token scheduling budget."
+  args.kv-cache-memory-bytes: "Reserves 7 GB per card for the validated full-HIP profile."
+  args.compilation-config: "Uses breakable full decode graphs with piecewise graphs for the other batches."
+  args.enable-prefix-caching: "Reuses the recurrent conversation state across requests."

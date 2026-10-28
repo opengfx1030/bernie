@@ -51,3 +51,10 @@ args:
   mm-processor-kwargs: null
   # EXTRA_ARGS=--monokernel
   monokernel: true
+
+why:
+  env.RDNA_DFLASH2_DRAFT_BF16: "Tells the fork that the DFlash2 drafter keeps BF16 draft weights."
+  env.VLLM_RDNA_QSA_HIP: "Uses the fork's native HIP sparse-attention decode path."
+  args.speculative-config: "Drafts three tokens with DFlash2 and uses RDNA2 attention for its sliding window."
+  args.compilation-config: "Captures the four DFlash2 verification widths of 4, 8, 16 and 32."
+  args.monokernel: "Uses the fork's MonoKernel decode path for this Flash-Next checkpoint."

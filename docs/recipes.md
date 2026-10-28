@@ -89,6 +89,11 @@ args:                           # vllm serve flags, without the leading --
   max-model-len: 262144
   enable-prefix-caching: true
   compilation-config: {mode: 3, cudagraph_mode: FULL_AND_PIECEWISE}
+
+why:                            # optional; one short reason per setting
+  env.VLLM_ROCM_USE_AITER: AITER has no RDNA2 kernels.
+  args.max-num-seqs: Eight slots match the validated serving profile.
+  tuning.tunableop_profile: The solver rows match this rocBLAS build.
 ```
 
 ### 3.1 Required fields
@@ -131,6 +136,30 @@ x `data-parallel-size` when the recipe sets one of them.
   embedded tuned-MoE folder of the selected GPUs' architecture. An architecture
   without a folder gets no variable.
 
+### 3.4 Why a setting
+
+Use `why` to explain a setting that an operator may want to change. The key
+is the setting path:
+
+```yaml
+why:
+  env.VLLM_ROCM_USE_AITER: AITER has no RDNA2 kernels.
+  args.max-num-seqs: Eight slots match the validated serving profile.
+  tuning.tunableop_profile: The solver rows match this rocBLAS build.
+```
+
+- `env.NAME` names an environment variable.
+- `args.FLAG` names a `vllm serve` flag without `--`.
+- `tuning.tunableop_profile` names the TunableOp profile choice.
+- Write one short, non-empty line. State the reason, not the value.
+- An `env` or `args` reason must name a setting in the merged recipe.
+- An override changes the value. The reason stays until a later layer
+  replaces it or removes it with `null`.
+
+`recipe plan` prints each reason under its setting. Its JSON adds a
+`settings` array with `setting`, `value` and `why`. The existing `env` and
+`args` fields do not change. A recipe without `why` keeps the same plan JSON.
+
 ## 4. Arguments
 
 bernie renders `args` in key order:
@@ -153,6 +182,8 @@ left to right, then the file itself. A cycle or a missing parent is an error.
 Merge rules:
 
 - Maps merge key by key. A nested map such as `compilation-config` merges too.
+- The `why` map merges key by key. A later layer replaces the reason for the
+  same setting path. Use `null` to remove an inherited reason.
 - Lists replace. `tags: [a]` in the child replaces the parent's tags.
 - Scalars replace.
 - `null` deletes the key. Under `env`, `null` also removes the variable from

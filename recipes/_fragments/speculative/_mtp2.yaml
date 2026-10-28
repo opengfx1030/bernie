@@ -17,3 +17,7 @@ args:
     use_local_argmax_reduction: true
   compilation-config:
     cudagraph_capture_sizes: [3, 6, 12, 24]
+
+why:
+  args.speculative-config: "Uses two MTP draft tokens with local argmax reduction to avoid a TP vocabulary all-gather."
+  args.compilation-config: "Captures graph widths 3, 6, 12 and 24 to match the MTP verification width."

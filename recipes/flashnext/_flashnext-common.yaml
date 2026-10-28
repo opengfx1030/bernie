@@ -73,3 +73,18 @@ args:
   mamba-cache-mode: align
   limit-mm-per-prompt: {image: 1}
   mm-processor-kwargs: {max_pixels: 1605632}
+
+why:
+  env.VLLM_USE_V2_MODEL_RUNNER: "The V2 runner is the production path for hybrid models on gfx1030."
+  env.VLLM_GDN_HIP_PREFILL: "Runs the recurrent GDN prefill in the fork's HIP path."
+  env.VLLM_RDNA_FUSED_SE: "Fuses the shared expert on the validated W4A16 MoE path."
+  env.GPU_MAX_HW_QUEUES: "Four queues avoid the per-rank skew seen with the persistent fork kernels at two."
+  args.max-model-len: "Keeps the model's full 262K context for long conversations."
+  args.block-size: "Aligns cache blocks to the 1024-token recurrent-state grid."
+  args.max-num-seqs: "Eight request slots match the validated Flash-Next serving profile."
+  args.max-num-batched-tokens: "Two 1024-token blocks keep each prefill chunk on the recurrent-state boundary."
+  args.kv-cache-memory-bytes: "Reserves 3.75 GiB per card for the KV cache in this validated profile."
+  args.compilation-config: "Uses full decode graphs with piecewise graphs and the 1, 2, 4, 8 capture ladder."
+  args.enable-expert-parallel: "Keeps each expert whole on one rank; TP4 cannot split the expert axis."
+  args.enable-prefix-caching: "Reuses the recurrent conversation state and its aligned KV blocks."
+  args.mamba-cache-mode: "Aligns the recurrent cache to the model's state-block grid."

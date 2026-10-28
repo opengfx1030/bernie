@@ -77,3 +77,16 @@ args:
   trust-remote-code: true
   # EXTRA_ARGS="--kv-cache-dtype fp8"
   kv-cache-dtype: fp8
+
+why:
+  env.VLLM_USE_V2_MODEL_RUNNER: "The V2 runner is the production path for hybrid models on gfx1030."
+  env.VLLM_USE_AOT_COMPILE: "Uses per-rank JIT because a shared AOT graph can carry rank-zero buffers."
+  env.VLLM_DISABLE_COMPILE_CACHE: "Keeps compiled artifacts from being shared between TP ranks."
+  env.VLLM_USE_BREAKABLE_CUDAGRAPH: "Lets full graphs break around the sparse indexer and MLA attention."
+  args.max-model-len: "Uses the validated 32K context for this checkpoint."
+  args.max-num-seqs: "Eight streams fit inside the measured KV budget without queueing."
+  args.max-num-batched-tokens: "Matches the fork launcher's 2048-token scheduling budget."
+  args.kv-cache-memory-bytes: "Reserves 6 GB per card; the compressed cache holds about 108K tokens."
+  args.gpu-memory-utilization: "Leaves 90% of VRAM for weights, the KV cache and graph memory."
+  args.compilation-config: "Uses the model's required full-plus-piecewise mode with no extra compile ranges."
+  args.kv-cache-dtype: "Uses the FP8 KV cache that fits this model's context and concurrency budget."

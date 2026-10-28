@@ -1,6 +1,7 @@
 package recipe
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -178,6 +179,162 @@ func TestValidateRequiresArch(t *testing.T) {
 		errs := Validate(r)
 		if len(errs) == 0 || !strings.Contains(strings.Join(errs, ";"), "requires.arch") {
 			t.Errorf("arch %s: errors = %v", arch, errs)
+		}
+	}
+}
+
+func TestWhyMergeAndPlan(t *testing.T) {
+	s := set(t, map[string]string{
+		"_a": `schema: 1
+env: {A: "1", B: "2"}
+args: {max-num-seqs: 4}
+why:
+  env.A: "parent A"
+  env.B: "parent B"
+`,
+		"_b": `schema: 1
+why:
+  env.B: "later B"
+  args.max-num-seqs: "later sequence cap"
+`,
+		"leaf": leaf + `extends: [_a, _b]
+env: {A: "1", B: "2"}
+args: {max-num-seqs: 4}
+why:
+  env.A: "leaf A"
+`,
+	})
+	r, err := s.Resolve("leaf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Why["env.A"] != "leaf A" || r.Why["env.B"] != "later B" || r.Why["args.max-num-seqs"] != "later sequence cap" {
+		t.Fatalf("merged why = %#v", r.Why)
+	}
+	p, err := BuildPlan(r, PlanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Setting{
+		{Setting: "args.max-num-seqs", Value: "4", Why: "later sequence cap"},
+		{Setting: "env.A", Value: "1", Why: "leaf A"},
+		{Setting: "env.B", Value: "2", Why: "later B"},
+	}
+	if !reflect.DeepEqual(p.Settings, want) {
+		t.Fatalf("settings:\n got %#v\nwant %#v", p.Settings, want)
+	}
+	if p.Env["A"] != "1" || p.Env["B"] != "2" {
+		t.Fatalf("env = %v", p.Env)
+	}
+	wantArgs := []string{"org/model", "--max-num-seqs", "4"}
+	if !reflect.DeepEqual(p.Args, wantArgs) {
+		t.Fatalf("args = %v", p.Args)
+	}
+}
+
+func TestWhyNullRemovesInheritedReason(t *testing.T) {
+	s := set(t, map[string]string{
+		"_a":   "schema: 1\nenv: {A: \"1\"}\nwhy: {env.A: \"parent A\"}\n",
+		"_off": "schema: 1\nwhy: {env.A: null}\n",
+		"leaf": leaf + "extends: [_a, _off]\nenv: {A: \"1\"}\n",
+	})
+	r, err := s.Resolve("leaf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := r.Why["env.A"]; ok {
+		t.Fatalf("inherited reason was not removed: %#v", r.Why)
+	}
+}
+
+func TestPlanJSONSettingsShape(t *testing.T) {
+	r, err := Parse("t/why.yaml", []byte(`schema: 1
+name: Why
+status: experimental
+model: {source: org/model}
+requires: {arch: [gfx1030], gpus: 1}
+env: {MODE: "fast"}
+args: {max-num-seqs: 4}
+why:
+  env.MODE: "Selects the fast path."
+  args.max-num-seqs: "Caps the batch."
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := BuildPlan(r, PlanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Env      map[string]string `json:"env"`
+		Args     []string          `json:"args"`
+		Settings []Setting         `json:"settings"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Env["MODE"] != "fast" || !reflect.DeepEqual(doc.Args, []string{"org/model", "--max-num-seqs", "4"}) {
+		t.Fatalf("legacy fields changed: env=%v args=%v", doc.Env, doc.Args)
+	}
+	want := []Setting{
+		{Setting: "args.max-num-seqs", Value: "4", Why: "Caps the batch."},
+		{Setting: "env.MODE", Value: "fast", Why: "Selects the fast path."},
+	}
+	if !reflect.DeepEqual(doc.Settings, want) {
+		t.Fatalf("settings:\n got %#v\nwant %#v", doc.Settings, want)
+	}
+}
+
+func TestPlanWithoutWhyKeepsLegacyJSON(t *testing.T) {
+	r, err := Parse("t/legacy.yaml", []byte(`schema: 1
+name: Legacy
+status: experimental
+model: {source: org/model}
+requires: {arch: [gfx1030], gpus: 1}
+args: {tensor-parallel-size: 1}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := BuildPlan(r, PlanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"recipe":"legacy","name":"legacy","mode":"host","entrypoint":"cli","model":"org/model","host":"","port":8000,"env":{"HF_HUB_OFFLINE":"0","TRANSFORMERS_OFFLINE":"0"},"args":["org/model","--tensor-parallel-size","1"],"gpus":[],"hip_devices":"","gpu_select_reason":"no GPU data: HIP_VISIBLE_DEVICES not set","pull":false,"path_inputs":[],"warnings":["no GPU data: vLLM uses every visible GPU; set env.HIP_VISIBLE_DEVICES"]}`
+	if string(b) != want {
+		t.Fatalf("legacy plan JSON changed:\n got %s\nwant %s", b, want)
+	}
+}
+
+func TestValidateWhy(t *testing.T) {
+	r, err := Parse("t/why.yaml", []byte(`schema: 1
+name: Why
+status: experimental
+model: {source: org/model}
+requires: {arch: [gfx1030], gpus: 1}
+env: {MODE: "fast"}
+why:
+  env.MISSING: "Names no setting."
+  args.missing: "Names no flag."
+  bad.path: "Uses an unknown namespace."
+  env.MODE: ""
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	errs := strings.Join(Validate(r), "\n")
+	for _, want := range []string{"recipe has no env.MISSING setting", "recipe has no args.missing setting", "want env.NAME, args.FLAG or tuning.tunableop_profile", "reason must not be empty"} {
+		if !strings.Contains(errs, want) {
+			t.Errorf("missing %q in:\n%s", want, errs)
 		}
 	}
 }

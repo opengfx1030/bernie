@@ -53,3 +53,15 @@ args:
   max-num-seqs: 8
   # Launcher default for an FP16 KV cache (block 1024: two blocks per step).
   max-num-batched-tokens: 2048
+
+why:
+  env.VLLM_WORKER_MULTIPROC_METHOD: "Spawns fresh workers so each rank starts without inherited HIP state."
+  env.GPU_MAX_HW_QUEUES: "Caps HIP work queues at two; a later profile may raise this for its kernels."
+  env.ROCPROFILER_REGISTER_ENABLED: "Keeps rocprofiler out of a serving process that does not use it."
+  env.VLLM_ROCM_USE_AITER: "AITER has no RDNA2 kernels, so this launch must not select it."
+  env.VLLM_ROCM_USE_AITER_MOE: "AITER MoE is for CDNA; RDNA uses the fork's own MoE path."
+  env.TORCH_BLAS_PREFER_HIPBLASLT: "Keeps rocBLAS as the primary GEMM path on RDNA2."
+  args.dtype: "RDNA2 has no native BF16 matrix instructions, so the weights stay FP16."
+  args.max-num-seqs: "Eight request slots match the validated launcher profile."
+  args.max-num-batched-tokens: "Matches the fork launcher's 2048-token scheduling budget."
+  tuning.tunableop_profile: "The solver rows are tied to this rocBLAS build and gfx1030."

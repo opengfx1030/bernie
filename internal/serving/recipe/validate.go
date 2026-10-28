@@ -108,6 +108,7 @@ func Validate(r *Recipe) []string {
 			add("%s: unknown input ${%s} (declare it under inputs)", ref.where, name)
 		}
 	}
+	errs = append(errs, validateWhy(r)...)
 	return errs
 }
 

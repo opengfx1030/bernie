@@ -95,6 +95,10 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 		}
 	} else {
 		containerMounts(p)
+		p.GroupAdd = host.GPUGroups(ctx, "/")
+		if len(p.GroupAdd) == 0 {
+			p.Warnings = append(p.Warnings, "no GPU group id found on this host: the container may not open /dev/kfd")
+		}
 	}
 	if !o.NoTunableOp {
 		if err := applyTunableOp(p, gpu.Archs(gpus, p.GPUs), venv, o.Profile, o.Tuning); err != nil {
@@ -114,6 +118,7 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 			p.Exec = &recipe.Exec{Argv: hostArgv(p, filepath.Join(venv, "bin", "python")), Env: hostEnv(p, venv), Unset: p.Unset, Dir: RunDir(p.Name)}
 		}
 	}
+	p.RefreshSettingValues()
 	return p, nil
 }
 

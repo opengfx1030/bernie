@@ -12,3 +12,8 @@ env:
   VLLM_RDNA_AR: "1"
   VLLM_RDNA_AR_MAX_KB: "64"
   VLLM_RDNA_AR_ONESHOT_KB: "64"
+
+why:
+  env.VLLM_RDNA_AR: "Uses the fork's one-shot all-reduce for the small messages common in decode."
+  env.VLLM_RDNA_AR_MAX_KB: "Caps the custom all-reduce at 64 KiB; larger messages use RCCL."
+  env.VLLM_RDNA_AR_ONESHOT_KB: "Keeps the one-shot kernel at its boot-safe 64 KiB limit."

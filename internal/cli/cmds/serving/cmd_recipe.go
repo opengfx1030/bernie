@@ -228,10 +228,18 @@ func printPlan(w io.Writer, p *recipe.Plan) {
 	if p.Image != "" {
 		fmt.Fprintf(w, "# image:     %s (pull: %v)\n", p.Image, p.Pull)
 	}
+	if len(p.GroupAdd) > 0 {
+		gs := make([]string, 0, len(p.GroupAdd))
+		for _, g := range p.GroupAdd {
+			gs = append(gs, fmt.Sprintf("%d (%s, from %s)", g.GID, g.Role, g.Source))
+		}
+		fmt.Fprintf(w, "# groups:    %s\n", strings.Join(gs, ", "))
+	}
 	fmt.Fprintf(w, "# url:       %s\n", runner.Record{Host: p.Host, Port: p.Port}.URL())
 	for _, warn := range p.Warnings {
 		fmt.Fprintf(w, "# WARNING:   %s\n", warn)
 	}
+	printPlanSettings(w, p)
 	ex := p.Exec
 	if ex == nil {
 		return
@@ -258,6 +266,18 @@ func printPlan(w io.Writer, p *recipe.Plan) {
 		}
 	}
 	fmt.Fprintln(w, strings.Join(q, " "))
+}
+
+// printPlanSettings prints every annotated setting and its reason.
+func printPlanSettings(w io.Writer, p *recipe.Plan) {
+	if len(p.Settings) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "\n# --- settings ---")
+	for _, s := range p.Settings {
+		fmt.Fprintf(w, "# %s=%s\n", s.Setting, s.Value)
+		fmt.Fprintf(w, "#   why: %s\n", s.Why)
+	}
 }
 
 // toYAML renders v (JSON-tagged) as block-style YAML in field order.

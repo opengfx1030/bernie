@@ -140,7 +140,7 @@ func registerRead(s *Server) {
 	addTool[idIn, *recipe.Recipe](s, ro("recipe_show", "The merged recipe after extends (bernie recipe show)."), patternOf("id"),
 		func(_ context.Context, _ *call, in idIn) (any, error) { return recipe.Load().Resolve(in.ID) })
 
-	addTool[launchIn, *recipe.Plan](s, ro("recipe_plan", "The plan of a recipe on this host: exact environment, command, GPUs and TunableOp rows (bernie recipe plan). It starts nothing; it may write TunableOp rows to the data directory."),
+	addTool[launchIn, *recipe.Plan](s, ro("recipe_plan", "The plan of a recipe on this host: exact environment, command, GPUs, TunableOp rows and the reason for each annotated setting (bernie recipe plan). It starts nothing; it may write TunableOp rows to the data directory."),
 		launchSchema,
 		func(ctx context.Context, _ *call, in launchIn) (any, error) { return runner.Prepare(ctx, in.prepare()) })
 

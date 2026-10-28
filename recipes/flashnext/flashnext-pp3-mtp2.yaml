@@ -51,3 +51,11 @@ args:
   gpu-memory-utilization: 0.975
   compilation-config:
     cudagraph_capture_sizes: [3, 6, 12]
+
+why:
+  env.VLLM_PP_LAYER_PARTITION: "Leaves room for the MTP drafter on the last pipeline stage."
+  env.VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "Stops the graph estimate from reducing the context that fits on a 30 GB card."
+  args.max-num-seqs: "Limits the experimental drafter to four streams."
+  args.max-num-batched-tokens: "Covers the 2048-token state block and the draft-token budget for four streams."
+  args.gpu-memory-utilization: "Uses 97.5% of VRAM so one full 262K request fits."
+  args.compilation-config: "Captures only the three MTP verification widths that fit this stage layout."

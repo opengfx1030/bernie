@@ -71,6 +71,8 @@ type Spec struct {
 	Env map[string]any `json:"env,omitempty"`
 	// Args are vllm flags without "--": scalars, booleans, maps and lists.
 	Args map[string]any `json:"args,omitempty"`
+	// Why maps a setting path to one short reason.
+	Why map[string]string `json:"why,omitempty"`
 }
 
 // Recipe is one loaded (or resolved) recipe.
@@ -291,11 +293,16 @@ func (s Set) Resolve(id string) (*Recipe, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown recipe %q", id)
 	}
-	doc, err := s.resolveDoc(id, nil)
+	var layers []*Recipe
+	doc, err := s.resolveDoc(id, nil, &layers)
 	if err != nil {
 		return nil, err
 	}
 	delete(doc, "extends")
+	delete(doc, "why")
+	if why := mergeWhy(layers); len(why) > 0 {
+		doc["why"] = why
+	}
 	out, err := decode(doc)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", id, err)
@@ -306,7 +313,7 @@ func (s Set) Resolve(id string) (*Recipe, error) {
 	return out, nil
 }
 
-func (s Set) resolveDoc(id string, stack []string) (map[string]any, error) {
+func (s Set) resolveDoc(id string, stack []string, layers *[]*Recipe) (map[string]any, error) {
 	for _, x := range stack {
 		if x == id {
 			return nil, fmt.Errorf("extends cycle: %s -> %s", strings.Join(stack, " -> "), id)
@@ -322,14 +329,35 @@ func (s Set) resolveDoc(id string, stack []string) (map[string]any, error) {
 	stack = append(stack, id)
 	acc := map[string]any{}
 	for _, parent := range r.Extends {
-		pd, err := s.resolveDoc(parent, stack)
+		pd, err := s.resolveDoc(parent, stack, layers)
 		if err != nil {
 			return nil, err
 		}
 		merge(acc, pd, "")
 	}
+	*layers = append(*layers, r)
 	own := deepCopy(r.doc).(map[string]any)
 	delete(own, "extends")
 	merge(acc, own, "")
 	return acc, nil
+}
+
+// mergeWhy merges reason maps in layer order. A later reason replaces an
+// earlier reason for the same key. A null reason removes it.
+func mergeWhy(layers []*Recipe) map[string]any {
+	out := map[string]any{}
+	for _, r := range layers {
+		why, ok := r.doc["why"].(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, reason := range why {
+			if reason == nil {
+				delete(out, key)
+				continue
+			}
+			out[key] = deepCopy(reason)
+		}
+	}
+	return out
 }
