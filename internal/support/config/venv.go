@@ -1,15 +1,13 @@
 package config
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"sort"
 	"sync"
-	"time"
 
-	"github.com/opengfx1030/bernie/internal/support/execx"
 	"github.com/opengfx1030/bernie/internal/support/paths"
+	"github.com/opengfx1030/bernie/internal/support/pyenv"
 )
 
 // Venv resolution sources (spec §6.2).
@@ -58,10 +56,9 @@ func (c Config) ResolveVenvInfo(flag string) VenvResolution {
 }
 
 // conventionalVenvs returns the valid vLLM venvs in the short list of
-// conventional locations. A candidate needs bin/python and a Python that can
-// find the vllm module. The probes run in parallel: a Python with a large
-// site-packages directory takes seconds to start. The result is cached: one
-// process probes the candidates once.
+// conventional locations. A candidate needs bin/python and a site-packages
+// that holds the vllm module. The result is cached: one process reads the
+// candidates once.
 func conventionalVenvs() []string {
 	venvMu.Lock()
 	defer venvMu.Unlock()
@@ -111,22 +108,9 @@ func probeConventionalVenvs() []string {
 			cands = append(cands, dir)
 		}
 	}
-	ok := make([]bool, len(cands))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 4)
-	for i, dir := range cands {
-		wg.Add(1)
-		go func(i int, dir string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			ok[i] = venvCanImportVLLM(dir)
-		}(i, dir)
-	}
-	wg.Wait()
 	var out []string
-	for i, dir := range cands {
-		if ok[i] {
+	for _, dir := range cands {
+		if venvCanImportVLLM(dir) {
 			out = append(out, dir)
 		}
 	}
@@ -139,11 +123,7 @@ func venvHasPython(venv string) bool {
 	return err == nil && st.Mode().IsRegular()
 }
 
-// venvCanImportVLLM is replaced by tests. The real probe asks the venv's
-// isolated Python whether it can find vllm; it does not import the module.
-var venvCanImportVLLM = func(venv string) bool {
-	py := filepath.Join(venv, "bin", "python")
-	const script = `import importlib.util; raise SystemExit(0 if importlib.util.find_spec("vllm") else 1)`
-	res, err := execx.Run(context.Background(), 10*time.Second, py, "-I", "-c", script)
-	return err == nil && res.OK()
-}
+// venvCanImportVLLM is replaced by tests. The real probe reads the venv's
+// site-packages: it does not start the venv's Python, which takes seconds
+// when the venv imports vLLM at startup.
+var venvCanImportVLLM = func(venv string) bool { return pyenv.HasModule(venv, "vllm") }

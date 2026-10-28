@@ -4,9 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
 	"testing"
-	"time"
 )
 
 func makeVenv(t *testing.T, dir string) {
@@ -70,43 +68,27 @@ func TestConventionalVenvDetection(t *testing.T) {
 	}
 }
 
-func TestConventionalVenvProbesRunInParallel(t *testing.T) {
+func TestConventionalVenvProbeDoesNotStartPython(t *testing.T) {
 	resetVenvCache()
 	home := t.TempDir()
-	data := filepath.Join(home, "data")
 	t.Setenv("HOME", home)
-	t.Setenv("BERNIE_DATA_DIR", data)
+	t.Setenv("BERNIE_DATA_DIR", filepath.Join(home, "data"))
 	t.Setenv("BERNIE_VENV", "")
 	t.Setenv("VIRTUAL_ENV", "")
 
-	old := venvCanImportVLLM
-	defer func() { venvCanImportVLLM = old }()
-	var mu sync.Mutex
-	running, peak := 0, 0
-	venvCanImportVLLM = func(string) bool {
-		mu.Lock()
-		running++
-		if running > peak {
-			peak = running
-		}
-		mu.Unlock()
-		time.Sleep(50 * time.Millisecond)
-		mu.Lock()
-		running--
-		mu.Unlock()
-		return true
-	}
-	for _, dir := range []string{
-		filepath.Join(home, ".venvs", "vllm-a"),
-		filepath.Join(home, ".venvs", "vllm-b"),
-		filepath.Join(home, ".venvs", "vllm-c"),
-		filepath.Join(home, ".venvs", "vllm-d"),
-	} {
-		makeVenv(t, dir)
+	// A candidate whose Python would write a marker when it starts. The
+	// probe must not start it: a venv that imports vLLM at startup takes
+	// seconds to start.
+	dir := filepath.Join(home, ".venvs", "vllm-a")
+	makeVenv(t, dir)
+	marker := filepath.Join(home, "started")
+	py := filepath.Join(dir, "bin", "python")
+	if err := os.WriteFile(py, []byte("#!/bin/sh\ntouch "+marker+"\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
 	}
 	_ = (Config{}).ResolveVenvInfo("")
-	if peak < 2 {
-		t.Errorf("probes ran %d at a time, want more than one", peak)
+	if _, err := os.Stat(marker); err == nil {
+		t.Error("the candidate probe started the venv's Python")
 	}
 }
 
@@ -133,17 +115,17 @@ func TestConventionalVenvProbeIsCached(t *testing.T) {
 	}
 }
 
-func TestVenvPythonProbe(t *testing.T) {
+func TestVenvModuleProbe(t *testing.T) {
 	venv := t.TempDir()
 	makeVenv(t, venv)
-	if !venvCanImportVLLM(venv) {
-		t.Error("python that can find vllm was rejected")
+	if venvCanImportVLLM(venv) {
+		t.Error("a venv without vllm was accepted")
 	}
-	py := filepath.Join(venv, "bin", "python")
-	if err := os.WriteFile(py, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+	site := filepath.Join(venv, "lib", "python3.12", "site-packages")
+	if err := os.MkdirAll(filepath.Join(site, "vllm"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if venvCanImportVLLM(venv) {
-		t.Error("python that cannot find vllm was accepted")
+	if !venvCanImportVLLM(venv) {
+		t.Error("a venv with the vllm package was rejected")
 	}
 }

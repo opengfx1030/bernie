@@ -3,7 +3,8 @@ package rocm
 import (
 	"os"
 	"path/filepath"
-	"sort"
+
+	"github.com/opengfx1030/bernie/internal/support/pyenv"
 )
 
 // venvLibDirs are the venv-relative (site-packages) library directories of
@@ -22,14 +23,7 @@ var venvLibDirs = []string{
 
 // SitePackages returns the venv's lib/python3.*/site-packages directories,
 // newest Python first.
-func SitePackages(venv string) []string {
-	if venv == "" {
-		return nil
-	}
-	m, _ := filepath.Glob(filepath.Join(venv, "lib", "python3.*", "site-packages"))
-	sort.Sort(sort.Reverse(sort.StringSlice(m)))
-	return m
-}
+func SitePackages(venv string) []string { return pyenv.SitePackages(venv) }
 
 // VenvLibPaths returns the existing ROCm wheel and torch library dirs of a
 // venv, in LD_LIBRARY_PATH order.

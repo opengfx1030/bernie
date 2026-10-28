@@ -627,10 +627,14 @@ Host mode needs a Python venv with vLLM. bernie picks it in this order:
    - `~/.venvs/vllm*`
    - `~/Apps/vllm/venv*`
 
-A conventional candidate must have `bin/python`, and that Python must be
-able to find the `vllm` module. When several candidates exist, bernie picks
-none: `doctor` and `status` list the candidates and ask the operator to
-choose one with `bernie config set venv DIR`.
+A conventional candidate must have `bin/python` and a `site-packages` that
+holds the `vllm` module: the `vllm` package, a `vllm.py` module or an
+editable install of it. bernie reads the directory instead of starting the
+venv's Python: a venv that imports vLLM at startup takes seconds to start,
+and the answer does not change between two reads of the same tree. When
+several candidates exist, bernie picks none: `doctor` and `status` list the
+candidates and ask the operator to choose one with `bernie config set venv
+DIR`.
 
 `doctor` and `status` say which venv they used and where it came from:
 `flag`, `$BERNIE_VENV`, `config`, `$VIRTUAL_ENV` or `conventional`. An
