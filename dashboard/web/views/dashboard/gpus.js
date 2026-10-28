@@ -9,15 +9,15 @@
 // unit, one line of context and the last minute of it. A number that was not
 // measured is a dash and a greyed unit, never a zero.
 function dashTile(spec) {
-  const el = h("div.tile", { style: "background:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:16px 18px 12px;display:flex;flex-direction:column;min-width:0" });
-  const label = h("div.tile-l", { style: "font-size:13px;color:var(--text-2);font-weight:500;display:flex;align-items:center;gap:6px" }, spec.label);
+  const el = h("div.tile", { style: "display:flex;flex-direction:column" });
+  const label = h("div.tile-l", spec.label);
   if (spec.tip) label.append(dashInfo(spec.tip));
-  const value = h("div.tile-n", { style: "font:900 30px/1.05 var(--font-display);letter-spacing:-.02em;margin:8px 0 2px;font-variant-numeric:tabular-nums;white-space:nowrap" });
+  const value = h("div.tile-n");
   const amount = h("span", spec.value);
-  const unit = h("small", { style: "font:700 13px var(--font-display);color:var(--muted);margin-left:5px" }, spec.unit || "");
+  const unit = h("small", spec.unit || "");
   value.append(amount, unit);
-  const sub = h("div.tile-s", { style: "font-size:12.5px;color:var(--muted)" }, spec.sub || "");
-  const sparkBox = h("div.tile-sp", { style: "margin-top:auto;padding-top:10px" });
+  const sub = h("div.tile-s", spec.sub || "");
+  const sparkBox = h("div", { style: "margin-top:auto;padding-top:10px" });
   const chart = spark(spec.series || [], spec.max, spec.label, { unit: spec.unit, format: spec.format });
   sparkBox.append(chart);
   el.append(label, value, sub, sparkBox);
@@ -33,7 +33,7 @@ function dashTile(spec) {
 
 // dashTiles is the eight tiles of the fleet, in the order of the design.
 function dashTiles() {
-  const box = h("div.tiles", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,132px),1fr));gap:16px" });
+  const box = h("div.tiles", { style: "grid-template-columns:repeat(auto-fit,minmax(min(100%,132px),1fr))" });
   const defs = [
     { key: "busy", label: "Load", unit: "%", tip: "The mean load of the cards, in percent. The load is the share of the time the card was busy." },
     { key: "pow", label: "Power", unit: "W", tip: "The sum of the power of the cards. The card cannot draw more than its cap." },
@@ -50,7 +50,8 @@ function dashTiles() {
     box.append(t);
     return t;
   });
-  box.update = () => dashTilesPaint(tiles);
+  box.items = tiles;
+  box.update = () => dashTilesPaint(box);
   box.update();
   return box;
 }
@@ -58,20 +59,21 @@ function dashTiles() {
 // dashHero is the block at the top of the tab: the output speed of the live
 // run on the left, the tiles of the fleet on the right.
 function dashHero() {
-  const el = h("div.hero-panel", { style: "display:grid;grid-template-columns:minmax(190px,320px) 1fr;gap:28px;padding:24px 28px;background:var(--surface-2);border:1px solid var(--border);border-radius:18px;align-items:start" });
+  const el = h("div.dashboard-hero", { style: "align-items:start" });
   const left = h("div", { style: "min-width:0" });
-  const eyebrow = h("div.eyebrow", { style: "font:800 12px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)" }, "Output speed");
-  const value = h("div.hero-num", { style: "font:900 64px/1 var(--font-display);letter-spacing:-.03em;color:var(--key);font-variant-numeric:tabular-nums;white-space:nowrap" });
+  const eyebrow = h("div.eyebrow", "Output speed");
+  const value = h("div", { style: "font:900 var(--hero-number)/1 var(--font-display);letter-spacing:-.03em;color:var(--key);font-variant-numeric:tabular-nums;white-space:nowrap" });
   const amount = h("span", "–");
   const unit = h("small", { style: "font:700 15px var(--font-display);color:var(--muted);margin-left:8px" }, "tok/s");
   value.append(amount, unit);
-  const note = h("div.hero-note", { style: "font-size:13px;color:var(--muted);margin-top:6px;min-height:18px" }, "No run is serving.");
+  const note = h("div", { style: "font-size:13px;color:var(--muted);margin-top:6px;min-height:18px" }, "No run is serving.");
   const chartBox = h("div", { style: "margin-top:10px;height:44px" });
   const chart = spark([], null, "the output speed of the live run", { unit: "tok/s" });
   chartBox.append(chart);
   left.append(eyebrow, value, note, chartBox);
   const tiles = dashTiles();
   el.append(left, tiles);
+  dashGrid(el, "minmax(190px,320px) minmax(0,1fr)", "minmax(0,1fr)");
   const paint = () => {
     const last = dash.samples[dash.samples.length - 1];
     const agg = last ? last.agg : null;
@@ -84,15 +86,16 @@ function dashHero() {
     chart.update(dashSeries("gen"));
   };
   paint();
-  tiles.update = (samples) => {
-    dashTilesPaint(tiles, samples);
+  tiles.update = () => {
+    dashTilesPaint(tiles);
     paint();
   };
   return { el: el, tiles: tiles, paint: paint };
 }
 
 // dashTilesPaint repaints the tiles with the samples of the buffer.
-function dashTilesPaint(tiles, samples) {
+function dashTilesPaint(box) {
+  const tiles = box.items || [];
   const last = dash.samples[dash.samples.length - 1];
   const agg = last ? last.agg : null;
   const count = last ? last.cards.length : 0;
@@ -122,10 +125,10 @@ function dashTilesPaint(tiles, samples) {
 // ECC state and the last minute of its load.
 function dashCard(hip) {
   const hw = ((dash.hw && dash.hw.gpus) || []).find((g) => g.hip_index === hip) || null;
-  const el = h("div.gpu-card", { style: "background:var(--surface-2);border:1px solid var(--border);border-radius:18px;padding:18px 18px 12px;min-width:0" });
+  const el = h("div.card", { style: "padding:18px 18px 12px" });
   const top = h("div.gpu-top", { style: "display:flex;align-items:flex-start;justify-content:space-between;gap:10px" });
   const names = h("div", { style: "min-width:0" });
-  const name = h("div.gpu-name", { style: "font:900 20px/1.1 var(--font-display);text-transform:uppercase;overflow-wrap:anywhere" }, dashCardName(hip));
+  const name = h("h3", { style: "font:900 20px/1.1 var(--font-display);text-transform:uppercase;overflow-wrap:anywhere;margin:0" }, dashCardName(hip));
   const where = h("div.small-t", { style: "font-size:12.5px;color:var(--muted);margin-top:3px" }, (hw ? hw.pci : "") + (hw && hw.gfx ? " · " + hw.gfx : ""));
   names.append(name, where);
   top.append(names);
@@ -192,7 +195,7 @@ function dashEcc(hip) {
 
 // dashCards is the section with one card per card of the host.
 function dashCards(section) {
-  const grid = h("div.gpu-grid", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px" });
+  const grid = h("div", { style: "display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))" });
   const note = h("div", { style: "color:var(--muted);font-size:13px;margin-bottom:14px" });
   section.append(note, grid);
   let built = [];
@@ -220,6 +223,7 @@ function dashCards(section) {
 // renderGPUs repaints the cards of the host. The shell calls it when the
 // window changes.
 function renderGPUs() {
+  for (const f of dash.grids) f();
   if (dash.live.cards) dash.live.cards.update();
 }
 
@@ -227,27 +231,20 @@ function renderGPUs() {
 // control that picks the window.
 function dashCharts(section) {
   const head = h("div", { style: "display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px" });
-  const seg = h("div", { style: "display:inline-flex;background:var(--surface-3);border-radius:9px;padding:3px", role: "group", "aria-label": "The window of the charts" });
+  const seg = h("div.segmented-control", { role: "group", "aria-label": "The window of the charts" });
   const buttons = {};
   for (const w of [{ id: "5m", label: "5 min" }, { id: "15m", label: "15 min" }, { id: "1h", label: "1 h" }]) {
-    const b = h("button", { type: "button", "aria-pressed": String(dash.window === w.id),
-      style: "border:0;background:transparent;padding:5px 12px;border-radius:7px;cursor:pointer;color:var(--text-2);font-size:13px;font-weight:600" }, w.label);
+    const b = h("button", { type: "button", "aria-pressed": String(dash.window === w.id) }, w.label);
     b.addEventListener("click", () => { dash.window = w.id; paintSeg(); dashHistory(); });
     buttons[w.id] = b;
     seg.append(b);
   }
   const paintSeg = () => {
-    for (const [id, b] of Object.entries(buttons)) {
-      const on = id === dash.window;
-      b.setAttribute("aria-pressed", String(on));
-      b.style.background = on ? "var(--surface)" : "transparent";
-      b.style.color = on ? "var(--text)" : "var(--text-2)";
-      b.style.boxShadow = on ? "0 1px 2px rgba(0,0,0,.25)" : "none";
-    }
+    for (const [id, b] of Object.entries(buttons)) b.setAttribute("aria-pressed", String(id === dash.window));
   };
   paintSeg();
   head.append(seg);
-  const grid = h("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px" });
+  const grid = h("div", { style: "display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))" });
   const charts = {
     busy: areaChart([], { title: "Utilisation", unit: "%", windowMinutes: 5 }),
     pow: areaChart([], { title: "Power", unit: "W", windowMinutes: 5 }),

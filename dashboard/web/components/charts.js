@@ -65,6 +65,7 @@ function spark(values, max, label, opts) {
   const svg = chartSvg("svg", {
     class: "spark-svg", viewBox: "0 0 " + W + " " + H, preserveAspectRatio: "none",
     role: "img", tabindex: "0", "aria-label": label || "the last minute",
+    style: "display:block;width:100%;height:34px;overflow:visible",
   });
   const base = chartSvg("line", { x1: 0, x2: W, y1: H - 1, y2: H - 1,
     style: "stroke:var(--border);stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke" });
@@ -245,11 +246,10 @@ function ring(pct, label, opts) {
   const options = opts || {};
   const R = 36, C = 2 * Math.PI * R;
   const box = h("div.ring-wrap", { style: "flex:none;text-align:center;min-width:84px" });
-  const svg = chartSvg("svg", { class: "ring", viewBox: "0 0 84 84", width: 84, height: 84, role: "img", "aria-label": "the load of " + (label || "the card") });
-  const track = chartSvg("circle", { cx: 42, cy: 42, r: R, style: "fill:var(--surface-3)" });
-  const arc = chartSvg("circle", { cx: 42, cy: 42, r: R, "stroke-dasharray": C.toFixed(2),
-    transform: "rotate(-90 42 42)", style: "fill:none;stroke:var(--series-1);stroke-width:8;stroke-linecap:round" });
-  const value = chartSvg("text", { x: 42, y: 47, "text-anchor": "middle", style: "fill:var(--text);font:900 18px var(--font-display)" });
+  const svg = chartSvg("svg", { class: "ring", viewBox: "0 0 84 84", role: "img", "aria-label": "the load of " + (label || "the card") });
+  const track = chartSvg("circle", { class: "ring-bg", cx: 42, cy: 42, r: R });
+  const arc = chartSvg("circle", { class: "ring-fg", cx: 42, cy: 42, r: R, "stroke-dasharray": C.toFixed(2) });
+  const value = chartSvg("text", { class: "ring-n", x: 42, y: 47 });
   svg.append(track, arc, value);
   const cap = h("div", { style: "font-size:11px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere" }, label || "");
   box.append(svg, cap);
@@ -276,17 +276,17 @@ function ring(pct, label, opts) {
  *  an update method. */
 function meter(value, max, opts) {
   const options = opts || {};
-  const box = h("div.metric", { style: "margin-top:8px" });
-  const head = h("div", { style: "display:flex;justify-content:space-between;gap:10px;align-items:baseline" });
-  const label = h("span", { style: "font:800 11px/1.2 var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)" }, options.label || "");
-  const amount = h("span", { style: "font-size:13px;color:var(--text-2);font-variant-numeric:tabular-nums;text-align:right" }, "");
-  head.append(label, amount);
-  const track = h("div", { role: "img", style: "position:relative;height:8px;border-radius:4px;background:var(--surface-3);margin-top:3px;overflow:hidden" });
-  const fill = h("i", { style: "display:block;height:100%;width:0;background:var(--series-1);transition:width .2s" });
-  const tick = h("span", { style: "position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--border-strong);display:none" });
-  track.append(fill, tick);
+  const box = h("div.metric");
+  const label = h("span", options.label || "");
+  const amount = h("b", "");
+  const head = h("div.lbl", label, amount);
+  const track = h("div.bar", { role: "img" });
+  const fill = h("i");
+  track.append(fill);
+  const tick = h("span", { style: "position:absolute;top:-2px;height:12px;width:2px;background:var(--border-strong);display:none" });
+  const wrap = h("div", { style: "position:relative" }, track, tick);
   const note = h("div", { style: "font-size:11px;color:var(--muted);margin-top:3px" }, "");
-  box.append(head, track, note);
+  box.append(head, wrap, note);
 
   const paint = (v, m) => {
     const unit = options.unit ? " " + options.unit : "";
@@ -302,9 +302,10 @@ function meter(value, max, opts) {
     const cap = options.cap != null ? options.cap : scale;
     const over = cap && v > cap;
     const sep = options.sep || " / ";
-    amount.textContent = scale ? fmtV + sep + num(scale) + unit : fmtV + unit;
+    const fmtM = options.format ? options.format(scale) : num(scale);
+    amount.textContent = scale ? fmtV + sep + fmtM + unit : fmtV + unit;
     fill.style.width = scale ? Math.min(100, (v / scale) * 100).toFixed(1) + "%" : "0%";
-    fill.style.background = over ? "var(--serious)" : "var(--series-1)";
+    track.classList.toggle("hot", !!over);
     if (cap && scale) {
       tick.style.display = "block";
       tick.style.left = Math.min(100, (cap / scale) * 100).toFixed(1) + "%";
@@ -312,7 +313,7 @@ function meter(value, max, opts) {
       tick.style.display = "none";
     }
     track.setAttribute("aria-label", (options.label || "the measure") + ": " + fmtV + unit +
-      (scale ? " of " + num(scale) + unit : "") + (over ? ", over the cap" : ""));
+      (scale ? " of " + fmtM + unit : "") + (over ? ", over the cap" : ""));
     note.textContent = over ? (options.overNote || "over the cap") : (options.note || "");
     if (over) note.style.color = "var(--serious)";
     else note.style.color = "var(--muted)";

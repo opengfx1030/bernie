@@ -23,32 +23,33 @@ const dash = {
   tele: null,    // the last telemetry document
   head: null,    // the state headline of the tab
   live: {},      // the parts the stream repaints
+  grids: [],     // the grids that follow the width of the window
 };
+
+// dashGrid keeps the columns of a block: the wide ones until the page is
+// narrow, the narrow ones below. The shell stacks the columns of every tab
+// at 959 px; the hero of this tab keeps its number on the left longer.
+function dashGrid(el, wide, narrow) {
+  const apply = () => {
+    el.style.gridTemplateColumns = window.innerWidth <= 959 ? narrow : wide;
+  };
+  apply();
+  dash.grids.push(apply);
+}
 
 // dashSection is one block of the tab: a rule on top, the name of the block
 // and what it holds. The name is a heading the router can focus.
 function dashSection(label, id, ...kids) {
-  return h("section.dash-sec", { id: id, "data-section": id,
-    style: "border-top:1px solid var(--border);margin-top:32px;padding-top:24px" },
-    h("h2", { tabindex: "-1", style: "font:800 13px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 18px" }, label),
+  return h("section.section", { id: "dashboard-" + id, "data-section": id },
+    h("h2.section-label", { tabindex: "-1" }, label),
     ...kids);
 }
 
 // dashInfo is the small mark that opens the explanation of a number. The
 // explanation is never the only copy of the fact: the tile says it too.
 function dashInfo(text) {
-  const tip = h("span.chart-tip", { role: "tooltip", hidden: true,
-    style: "position:absolute;z-index:20;max-width:280px;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.45;color:var(--text);box-shadow:var(--shadow-2)" }, text);
-  const mark = h("button", { type: "button", "aria-label": "What this number means", "aria-expanded": "false",
-    style: "display:inline-grid;place-items:center;width:16px;height:16px;min-width:16px;padding:0;border-radius:50%;border:1px solid var(--border-strong);background:transparent;color:var(--muted);font:700 10px/1 var(--font-body);cursor:help;position:relative" }, "i");
-  const show = (on) => { tip.hidden = !on; mark.setAttribute("aria-expanded", String(on)); };
-  mark.addEventListener("click", () => show(tip.hidden));
-  mark.addEventListener("pointerenter", () => show(true));
-  mark.addEventListener("pointerleave", () => show(false));
-  mark.addEventListener("focus", () => show(true));
-  mark.addEventListener("blur", () => show(false));
-  mark.addEventListener("keydown", (ev) => { if (ev.key === "Escape") show(false); });
-  return h("span", { style: "position:relative;display:inline-flex" }, mark, tip);
+  if (typeof tooltip === "function") return tooltip(text, "What this number means");
+  return h("span.tip", h("button", { type: "button", title: text, "aria-label": "What this number means" }, "i"));
 }
 
 // dashGroup writes a number with a thin space between the thousands.
@@ -60,7 +61,7 @@ function dashGroup(n) {
 // dashPill is a status: an icon and a word, never the colour alone.
 const DASH_PILL_ICON = { ok: "✓", warn: "!", serious: "▲", fail: "✕", skip: "–", info: "i", running: "◐" };
 function dashPill(kind, word) {
-  return h("span.pill." + kind, h("span", { style: "font-size:11px" }, DASH_PILL_ICON[kind] || "·"),
+  return h("span.pill." + kind, h("span.pill-icon", DASH_PILL_ICON[kind] || "·"),
     h("span", word || kind));
 }
 
@@ -298,10 +299,9 @@ function dashWindowSeries(key, unit) {
 
 async function viewDashboard(root) {
   put(root, loading());
-  const stop = h("button.ghost", { type: "button", onclick: () => dashStopRun(),
-    style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text-2)" }, "Stop");
-  const restart = h("button.ghost", { type: "button", onclick: () => dashRestartRun(),
-    style: "background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text-2)" }, "Restart");
+  dash.grids = [];
+  const stop = h("button", { type: "button", onclick: () => dashStopRun() }, "Stop");
+  const restart = h("button", { type: "button", onclick: () => dashRestartRun() }, "Restart");
   const head = stateHead("Dashboard", h("div", { style: "display:flex;gap:8px;flex-wrap:wrap" }, stop, restart));
   dash.head = head;
   dash.live.headStop = stop;
@@ -312,9 +312,9 @@ async function viewDashboard(root) {
   head.append(modprobe);
 
   const hero = dashHero();
-  const cards = dashSection("The cards", "cards");
+  const cards = dashSection("The cards", "gpus");
   const minutes = dashSection("The last minutes", "minutes");
-  const run = dashSection("The run", "run");
+  const run = dashSection("The run", "runs");
   const power = dashSection("The power caps", "power");
   const topo = dashSection("The topology", "topology");
   const problems = dashSection("Known problems", "problems");

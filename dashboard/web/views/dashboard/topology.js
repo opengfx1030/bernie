@@ -16,11 +16,11 @@ const DASH_CLASS_COLOR = {
 
 // dashTopology is the section with the tree, the matrix and the checklist.
 function dashTopology(section) {
-  const el = h("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px" });
+  const el = h("div.cols");
   section.append(el);
-  const tree = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px;min-width:0" });
-  const matrix = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px;min-width:0" });
-  const check = h("div.card", { style: "background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 22px;min-width:0" });
+  const tree = h("div.card");
+  const matrix = h("div.card");
+  const check = h("div.card");
   el.append(tree, matrix, check);
   const api = {
     update: () => {
@@ -52,14 +52,14 @@ function dashTree(topo) {
   for (const [sw, ns] of groups) {
     const block = h("div", { style: "margin-bottom:12px" });
     block.append(h("h3", { style: "font:700 13px/1.3 var(--font-mono);margin:0 0 6px" }, sw ? "PCIe switch " + sw : "No PCIe switch (direct to the root port)"));
-    block.append(h("div.scroll", { style: "overflow-x:auto" }, h("table", { style: "width:100%;border-collapse:collapse" },
-      h("thead", h("tr", ["Card", "Name", "PCI", "Root port", "Root"].map((c) => h("th", { style: "text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600" }, c)))),
+    block.append(h("div.scroll", h("table",
+      h("thead", h("tr", ["Card", "Name", "PCI", "Root port", "Root"].map((c) => h("th", c)))),
       h("tbody", ns.map((n) => h("tr", null,
-        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border)" }, "GPU " + n.hip_index),
-        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border)" }, dashCardName(n.hip_index)),
-        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px" }, n.pci || "–"),
-        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px" }, n.root_port || "–"),
-        h("td", { style: "padding:5px 8px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px" }, n.root || "–")))))));
+        h("td", "GPU " + n.hip_index),
+        h("td", dashCardName(n.hip_index)),
+        h("td", { style: "font-family:var(--font-mono);font-size:12px" }, n.pci || "–"),
+        h("td", { style: "font-family:var(--font-mono);font-size:12px" }, n.root_port || "–"),
+        h("td", { style: "font-family:var(--font-mono);font-size:12px" }, n.root || "–")))))));
     box.append(block);
   }
   return box;
@@ -75,17 +75,16 @@ function dashMatrix(topo) {
   }
   const idx = nodes.map((n) => n.hip_index).sort((a, b) => a - b);
   const pairOf = (a, b) => pairs.find((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a));
-  const head = (text) => h("th", { style: "text-align:left;padding:5px 6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600" }, text);
+  const head = (text) => h("th", text);
   const rows = idx.map((a) => h("tr", null,
     head(h("span", { style: "font-weight:600;color:var(--text)" }, "GPU " + a), h("div", { style: "font-weight:400;font-size:11px" }, dashCardName(a))),
     idx.map((b) => {
-      if (a === b) return h("td", { style: "text-align:center;padding:4px;border:2px solid var(--bg);border-radius:6px;background:var(--surface-2);color:var(--muted);font-size:12px" }, "—");
+      if (a === b) return h("td.self", "—");
       const p = pairOf(a, b);
-      const cellStyle = "text-align:center;padding:4px;border:2px solid var(--bg);border-radius:6px;font-size:12px;font-weight:600";
+      const cellStyle = "border:2px solid var(--bg);border-radius:6px;font-weight:600";
       if (!p) return h("td", { style: cellStyle + ";color:var(--muted)", title: a + " and " + b + ": no link class" }, "?");
-      const color = DASH_CLASS_COLOR[p.class] || "var(--series-1)";
       return h("td", {
-        style: cellStyle + ";background:color-mix(in srgb, " + color + " 28%, transparent)",
+        class: "c-" + p.class, style: cellStyle,
         title: a + " and " + b + ": " + p.class + ", " + (p.hops != null ? p.hops + " hops" : "unknown hops") + ", peer to peer " + (p.p2p ? "yes" : "no"),
       }, p.class, p.p2p ? h("span", { style: "color:var(--text);margin-left:3px" }, "•") : null,
         p.gbps ? h("span", { style: "display:block;font-size:10.5px;color:var(--muted);font-weight:400" }, num(p.gbps) + " GB/s") : null);
@@ -93,10 +92,10 @@ function dashMatrix(topo) {
   const legend = h("div", { style: "display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-top:10px;color:var(--text-2)" },
     ["PIX same switch", "PXB several switches", "PHB host bridge", "SYS across CPUs"].map((text) => {
       const cls = text.slice(0, 3);
-      return h("span", { style: "padding:1px 6px;border-radius:4px;background:color-mix(in srgb, " + (DASH_CLASS_COLOR[cls] || "var(--series-1)") + " 28%, transparent)" }, text);
+      return h("span", { class: "c-" + cls }, text);
     }),
     h("span", "• = a KFD peer link"));
-  return h("div", h("div.scroll", { style: "overflow-x:auto" }, h("table", { style: "width:100%;border-collapse:separate;border-spacing:2px" },
+  return h("div", h("div.scroll", h("table.matrix", { style: "border-collapse:separate;border-spacing:2px" },
     h("thead", h("tr", head(""), idx.map((i) => head(h("div", { style: "font-weight:600;color:var(--text);max-width:96px;overflow-wrap:anywhere" }, dashCardName(i)), h("div", { style: "font-weight:400;font-size:11px" }, "GPU " + i))))),
     h("tbody", rows))), legend,
     topo && topo.bandwidth ? null : h("div", { style: "font-size:12px;color:var(--muted);margin-top:8px" }, "Run bernie topo --bandwidth to measure the GB/s of every pair."));
@@ -109,7 +108,7 @@ function dashChecklist(data) {
     return h("div", null,
       h("div", { style: "color:var(--muted);font-size:13px" }, "The checklist is not available."),
       err ? h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px" }, err) : null,
-      h("button.ghost", { type: "button", onclick: () => dashLoad(), style: "margin-top:10px;background:transparent;border:1px solid var(--border-strong);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text-2)" }, "Try again"));
+      h("button", { type: "button", onclick: () => dashLoad() }, "Try again"));
   }
   const items = data.checklist || [];
   const sum = data.summary || {};
