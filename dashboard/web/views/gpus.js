@@ -163,7 +163,7 @@ function setRing(ring, pct) {
 }
 
 function gpuCard(i) {
-  const g = (state.hw.gpus || []).find((x) => x.hip_index === i) || {};
+  const g = ((state.hw && state.hw.gpus) || []).find((x) => x.hip_index === i) || {};
   const metric = (name, bar = true, title = "", hint = "") =>
     h("div.metric", { "data-m": name }, h("div.lbl", { title: title }, h("span", name), h("b")), bar ? h("div.bar", h("i")) : null, hint ? h("div.small.muted", hint) : null);
   return h("div.card.gpu", { "data-gpu": String(i) },
@@ -204,7 +204,7 @@ function updateGPUCard(card, i, s) {
     el.querySelector(".bar").classList.toggle("hot", !!hot);
   };
   if (!s) return;
-  const g = (state.hw.gpus || []).find((x) => x.hip_index === i) || {};
+  const g = ((state.hw && state.hw.gpus) || []).find((x) => x.hip_index === i) || {};
   const limits = g.temp_limits_c || {};
   setRing(card.querySelector(".ring"), s.busy_pct);
   const vfrac = s.vram_total ? s.vram_used / s.vram_total : 0;
