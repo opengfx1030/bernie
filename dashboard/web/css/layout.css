@@ -32,9 +32,15 @@ body.shell {
 
 .brand {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 8px 26px;
+}
+
+.brand-line {
+  display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 8px 26px;
   text-transform: uppercase;
   letter-spacing: -.02em;
 }
@@ -55,7 +61,7 @@ body.shell {
 
 .brand .host {
   display: block;
-  margin: 6px 0 0 32px;
+  margin: 0;
   font-size: var(--small);
   color: var(--muted);
   text-transform: none;

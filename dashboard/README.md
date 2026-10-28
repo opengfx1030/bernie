@@ -63,16 +63,19 @@ flowchart LR
 | `internal/sse/` | The server-sent event writer and its line framing |
 | `internal/httpjson/` | The JSON response shapes (the `--json` error shape, redaction) |
 | `internal/support/redact` | Removes secrets from anything the API returns |
-| `web/index.html` | Page shell: header, tab bar, one section per tab |
+| `web/index.html` | Page shell: the rail, the tab bar, one section per tab |
 | `web/js/core.js` | The DOM and formatting primitives: `h()`, `put()`, `bytes()`, `num()` |
-| `web/js/shell.js` | The page-wide controls: the toast and the copy handler |
-| `web/js/data.js` | The only place that fetches: `api()`, the shared state, the SSE streams |
-| `web/js/boot.js` | The router and the old-hash aliases. Loaded last. |
+| `web/js/shell.js` | The page-wide controls: the toast, the copy handler, the theme, the Advanced panels, the run status pill and the tab counts |
+| `web/js/data.js` | The only place that fetches: `api()`, `apiText()`, the shared state, the SSE streams and the one poller |
+| `web/js/boot.js` | The router, the old-hash aliases and the keyboard shortcuts. Loaded last. |
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, run table, step timeline |
 | `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs`, `viewClassic` |
-| `web/css/tokens.css` | The two palettes (light and dark), the type, the spacing and the radii |
-| `web/css/layout.css` | The shell, the grids, the cards and the state headline |
-| `web/css/components.css` | The badges, the buttons, the tables, the meters, the tiles and the ring |
+| `web/fonts/` | The self-hosted fonts (Latin subsets, OFL): Montserrat, Inter, JetBrains Mono. No CDN. |
+| `web/css/tokens.css` | The two palettes (dark and light), the type, the fonts, the spacing and the radii |
+| `web/css/layout.css` | The shell, the rail, the grids and the state headline |
+| `web/css/components.css` | The buttons, the pills, the cards, the tables, the states and the toast |
+| `web/css/views.css` | The parts that belong to one tab: the step timeline, the recipes, the doctor, the topology, the logs, the tiles and the rings |
+| `web/css/bench.css` | The Benchmark tab only |
 | `web/css/classic.css` | The Classic tab only: the reference-parity port, scoped under `.classic` |
 | `dashboard_test.go` | API, auth and stream tests |
 
@@ -91,7 +94,8 @@ dashboard/
 │   └── httpjson/        the JSON response shapes
 └── web/
     ├── index.html       the shell markup and the script order
-    ├── css/             tokens, layout, components
+    ├── css/             tokens, layout, components, views, bench, classic
+    ├── fonts/           the self-hosted fonts and their licences
     ├── js/              core, shell, data, boot
     ├── components/      the shared widgets
     └── views/           setup/, dashboard/, benchmark/, logs/, classic/
