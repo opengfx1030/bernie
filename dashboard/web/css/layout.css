@@ -1,44 +1,285 @@
 /* bernie dashboard: the layout.
-   The shell (the top bar and the tab bar), the grids, the cards and the
-   state headline every tab opens with. */
+   Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+   The shell is a rail on the left and a content column on the right. The rail
+   holds the brand, the four tabs and the footer with the run status, the theme
+   button and the Advanced button. The content column holds one tab panel.
 
-/* the top bar */
-.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px;
-  padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.brand { display: flex; gap: 10px; align-items: baseline; padding: 10px 0; }
-.logo { font-weight: 700; letter-spacing: .02em; color: var(--accent); }
-nav { display: flex; gap: 2px; overflow-x: auto; flex: 1; }
-nav a { padding: 12px 10px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
-nav a:hover { color: var(--text); }
-nav a[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
-.live { color: var(--skip); font-size: 12px; }
-.live.on { color: var(--ok); }
+   The rules of the design: 220 px rail, a content column of at most 1240 px,
+   34 px of padding above and 80 px below, a section with a 1 px rule above it
+   and a column grid of at least 320 px. At 390 px the rail becomes a bar and
+   the page never scrolls sideways. */
 
-/* the page */
-main { max-width: 1400px; margin: 0 auto; padding: 16px; }
-.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-.cols { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
-@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+body.shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100vh;
+}
 
-/* the cards */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
-.card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 10px; font-weight: 600;
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.card h2 .grow, .grow { flex: 1; }
-.card h3 { font-size: 15px; margin: 0 0 6px; }
-.gap { height: 12px; }
+/* ---------- the rail ---------- */
 
-/* the state headline: the tab says in one sentence what the situation is */
-.state-head { margin: 0 0 var(--space-4); }
-.state-head .eyebrow { margin: 0 0 6px; }
-.state-head .display { font: 800 clamp(24px, 3.2vw, 38px)/1.1 var(--font-display); letter-spacing: -.02em; margin: 0 0 6px; }
+.rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 14px;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  min-width: 0;
+}
+
+.brand {
+  margin-bottom: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.brand .logo {
+  font: 800 15px/1.2 var(--font-display);
+  letter-spacing: .01em;
+  color: var(--text);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.brand .host {
+  font-size: var(--small);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* the tab bar: a real tablist with a roving tabindex */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tabs a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-decoration: none;
+  transition: background var(--motion-hover) ease, color var(--motion-hover) ease;
+}
+
+.tabs a:hover { background: var(--surface-2); color: var(--text); }
+
+.tabs a[aria-selected="true"] {
+  background: var(--surface-3);
+  border-left-color: var(--accent);
+  color: var(--text);
+}
+
+.rail-foot {
+  margin-top: auto;
+  padding-top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.rail-buttons {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ---------- the content column ---------- */
+
+.content {
+  min-width: 0;
+  padding: var(--space-8) clamp(16px, 4vw, 56px) var(--space-11);
+}
+
+.panel {
+  max-width: 1240px;
+  min-width: 0;
+}
+
+.panel:focus { outline: none; }
+
+/* ---------- the state headline ---------- */
+
+.state-head {
+  margin: 0 0 var(--space-6);
+  max-width: 1240px;
+}
+
+.state-head .eyebrow {
+  margin: 0 0 var(--space-2);
+  font: 800 var(--eyebrow)/1 var(--font-body);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.state-head .display {
+  font: 900 var(--display)/1.02 var(--font-display);
+  letter-spacing: -.025em;
+  text-transform: uppercase;
+  margin: 0 0 var(--space-3);
+  text-shadow: 3px 3px 0 color-mix(in srgb, var(--accent) 32%, transparent);
+  overflow-wrap: anywhere;
+}
+
 .state-head .display .key { color: var(--key); }
-.state-head .lede { font-size: 15px; color: var(--text-2); max-width: 68ch; margin: 0; }
-.state-head .head-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: var(--space-3); }
-.eyebrow { font: 700 11px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 
-/* the facts: what the machine is, in short */
-.facts { display: grid; gap: var(--space-3); margin: 0; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
-.facts dt { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.facts dd { margin: 2px 0 0; font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
-.facts dd .why { display: block; font-weight: 400; font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.state-head .lede {
+  font-size: var(--lede);
+  color: var(--text-2);
+  max-width: 70ch;
+  margin: 0;
+}
+
+.state-head .head-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+/* ---------- sections, columns and facts ---------- */
+
+.section {
+  border-top: 1px solid var(--border);
+  padding: var(--space-6) 0 0;
+  margin-top: var(--space-6);
+}
+
+.section-label {
+  font: 800 var(--section-label)/1.2 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 var(--space-4);
+}
+
+.cols {
+  display: grid;
+  gap: var(--space-7);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+}
+
+.cols-2 { display: grid; gap: var(--space-7); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.gap { height: var(--space-3); }
+
+.facts {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.facts dt {
+  font: 800 var(--small)/1.2 var(--font-body);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: var(--space-1) 0 0;
+  font: 700 17px/1.35 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.facts dd .why {
+  display: block;
+  font: 400 var(--small)/1.45 var(--font-body);
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+/* the hero of a tab: the copy on the left, the facts on the right */
+.setup-hero,
+.dashboard-hero {
+  display: grid;
+  gap: var(--space-7);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+/* ---------- the small widths ---------- */
+
+@media (max-width: 1279px) {
+  .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 959px) {
+  body.shell { grid-template-columns: 200px minmax(0, 1fr); }
+  .setup-hero, .dashboard-hero, .cols-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 639px) {
+  /* the rail becomes a bar under the brand */
+  body.shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail {
+    position: static;
+    height: auto;
+    padding: 14px 16px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .brand {
+    margin-bottom: 12px;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .tabs {
+    flex-direction: row;
+    gap: var(--space-1);
+    overflow-x: auto;
+    padding-bottom: 10px;
+    margin: 0 -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .tabs a {
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+
+  .tabs a[aria-selected="true"] {
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+  }
+
+  .rail-foot {
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .content {
+    padding: var(--space-5) 16px var(--space-9);
+  }
+
+  .state-head .display { font-size: 40px; }
+  .cols, .cols-2 { grid-template-columns: minmax(0, 1fr); }
+}

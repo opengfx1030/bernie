@@ -1,76 +1,124 @@
 /* bernie dashboard: the design tokens.
-   Two palettes (light and dark), the type, the spacing and the radii.
-   Every colour pair below is at or above WCAG AA: 4.5:1 for text, 3:1 for
-   large text and for the edges of the controls. The dark palette is the
-   system preference; the light one is the override. */
+   The colours, the type, the spacing, the radii, the elevation and the motion
+   of every part of the page. No other file writes a colour: a component reads
+   a token. The dark palette is the system preference; the light one is the
+   override (the theme button sets data-theme on <html>).
+
+   The pairs below were measured with the WCAG 2.1 relative luminance formula:
+   4.5:1 for text, 3:1 for the edge of a control and for the large text. */
 
 :root {
   color-scheme: light dark;
 
-  /* surfaces */
-  --bg: #f7f8fa;
+  /* the surfaces */
+  --bg: #f4f5f7;
   --surface: #ffffff;
   --surface-2: #eef1f5;
   --surface-3: #e4e8ee;
-  --border: #dfe3e8;
-  --border-strong: #c3cad3;
 
-  /* text */
+  /* the lines: a hairline between rows, a strong edge on a control */
+  --border: #dfe3e8;
+  --border-strong: #828a93;
+
+  /* the text */
   --text: #14181d;
   --text-2: #47505c;
   --muted: #5f6874;
 
-  /* the identity and the status colours */
+  /* the identity and the status scale */
   --accent: #b3122c;
   --on-accent: #ffffff;
   --key: #8a4f00;
-  --ok: #1a7f37;
+  --ok: #1a7a33;
   --warn: #8a6100;
+  --serious: #c2410c;
   --fail: #b42318;
   --skip: #5f6874;
   --info: #2a5fb4;
 
-  /* the series of the charts and of the topology matrix */
+  /* the charts: six categorical colours and one sequential ramp */
   --series-1: #2a78d6;
-  --series-2: #1baf7a;
-  --series-3: #d98c00;
+  --series-2: #12795a;
+  --series-3: #9a6200;
   --series-4: #c0392b;
   --series-5: #7c5cff;
+  --series-6: #0f766e;
+  --seq-1: #dfe9f6;
+  --seq-2: #cfe0f7;
+  --seq-3: #9ec5f4;
+  --seq-4: #5598e7;
+  --seq-5: #256abf;
+  --seq-6: #104281;
 
-  /* type */
+  /* the type: the system stack, no web font and no CDN */
   --font-display: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
-  /* spacing */
+  /* the scale of the type */
+  --display: clamp(34px, 4.4vw, 64px);
+  --hero-number: 64px;
+  --lede: 18px;
+  --eyebrow: 12px;
+  --section-label: 13px;
+  --body: 14px;
+  --small: 12px;
+  --mono: 12.5px;
+  --tile-number: 30px;
+
+  /* the spacing */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 34px;
+  --space-9: 48px;
+  --space-10: 56px;
+  --space-11: 80px;
 
-  /* radii */
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 16px;
+  /* the radii */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 9px;
+  --radius-lg: 10px;
+  --radius-card: 16px;
+  --radius-panel: 18px;
   --radius-pill: 999px;
 
-  /* shadows */
+  /* the elevation: the toast and the tooltip only */
   --shadow-1: 0 1px 2px rgba(16, 22, 28, .08);
   --shadow-2: 0 6px 20px rgba(16, 22, 28, .12);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  /* the log viewer: a near-black surface in both palettes, so the tail of a
+     server reads the same in the light palette and in the dark one */
+  --log-bg: #111418;
+  --log-fg: #e6e8eb;
+  --log-muted: #8b949e;
+  --log-error: #ff6b6b;
+  --log-warn: #e3a83a;
+
+  /* the motion */
+  --motion-hover: 120ms;
+  --motion-meter: 200ms;
+  --motion-progress: 400ms;
+  --motion-enter: 220ms;
+  --motion-spin: 800ms;
 }
 
+/* The dark palette. It applies when the system asks for it and when the
+   reader asks for it with the theme button. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #0f1216;
     --surface: #171b21;
     --surface-2: #10141a;
     --surface-3: #21262e;
     --border: #2a3038;
-    --border-strong: #3b434e;
+    --border-strong: #5a6778;
     --text: #e6e8eb;
     --text-2: #b6bec8;
     --muted: #8b949e;
@@ -79,6 +127,7 @@
     --key: #f5c451;
     --ok: #3fb950;
     --warn: #d29922;
+    --serious: #ec835a;
     --fail: #f85149;
     --skip: #7d8590;
     --info: #58a6ff;
@@ -87,17 +136,117 @@
     --series-3: #c98500;
     --series-4: #d03b3b;
     --series-5: #a78bfa;
+    --series-6: #2dd4bf;
+    --seq-1: #23242a;
+    --seq-2: #184f95;
+    --seq-3: #256abf;
+    --seq-4: #3987e5;
+    --seq-5: #6da7ec;
+    --seq-6: #9ec5f4;
+    --log-bg: #10141a;
+    --log-fg: #e6e8eb;
+    --log-muted: #8b949e;
+    --log-error: #f85149;
+    --log-warn: #d29922;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
     --shadow-2: 0 6px 20px rgba(0, 0, 0, .55);
   }
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1216;
+  --surface: #171b21;
+  --surface-2: #10141a;
+  --surface-3: #21262e;
+  --border: #2a3038;
+  --border-strong: #5a6778;
+  --text: #e6e8eb;
+  --text-2: #b6bec8;
+  --muted: #8b949e;
+  --accent: #ff5c6c;
+  --on-accent: #16181c;
+  --key: #f5c451;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --serious: #ec835a;
+  --fail: #f85149;
+  --skip: #7d8590;
+  --info: #58a6ff;
+  --series-1: #3987e5;
+  --series-2: #199e70;
+  --series-3: #c98500;
+  --series-4: #d03b3b;
+  --series-5: #a78bfa;
+  --series-6: #2dd4bf;
+  --seq-1: #23242a;
+  --seq-2: #184f95;
+  --seq-3: #256abf;
+  --seq-4: #3987e5;
+  --seq-5: #6da7ec;
+  --seq-6: #9ec5f4;
+  --log-bg: #10141a;
+  --log-fg: #e6e8eb;
+  --log-muted: #8b949e;
+  --log-error: #f85149;
+  --log-warn: #d29922;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-2: 0 6px 20px rgba(0, 0, 0, .55);
+}
+
+:root[data-theme="light"] { color-scheme: only light; }
+:root[data-theme="dark"] { color-scheme: only dark; }
+
+/* The page never scrolls sideways: the table scrolls inside its card. */
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); }
-body { font: 14px/1.45 var(--font-body); }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font: var(--body)/1.5 var(--font-body);
+  overflow-x: hidden;
+}
+
 a { color: inherit; }
-code, pre, .mono { font-family: var(--font-mono); font-size: 12.5px; }
-pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px;
-  overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin: 6px 0; }
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+  font-size: var(--mono);
+}
+
+pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: var(--space-2) 10px;
+  margin: var(--space-2) 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
 .muted { color: var(--muted); }
-.small { font-size: 12px; }
+.small { font-size: var(--small); }
+.grow { flex: 1; }
+
+/* The focus ring is on every control: 2 px of accent with a 2 px offset. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* prefers-reduced-motion removes every transition and every animation. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

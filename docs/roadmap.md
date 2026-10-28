@@ -154,6 +154,12 @@ it is the shell, and every commit names the files it touches.
 |---|---|---|---|
 | 10 | **The dashboard v3 shell.** Four tabs in a rail, the measured tokens, one primary action per tab, a toast, a tooltip and an Advanced panel on every tab. | [design-dashboard.md](design-dashboard.md) | the four tabs open from their hash routes, the old routes still work, and the page does not scroll sideways at 390 px |
 
+The design of the dashboard and parts of its markup and CSS come from
+[CrispyGinger's vllm-rdna-dash](https://github.com/crispyging/vllm-rdna-dash),
+used with the author's permission. Pending: the author adds a licence file to
+that repository, so the use is recorded with a licence and not with a
+permission.
+
 ## Not planned
 
 These add surface without helping first-run success. Reopen only with a

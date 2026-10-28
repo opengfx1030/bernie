@@ -9,26 +9,37 @@
 <link rel="stylesheet" href="css/layout.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/bench.css">
+<link rel="stylesheet" href="views/logs/logs.css">
 <link rel="icon" href="data:,">
 </head>
-<body>
-<header class="top">
-  <div class="brand"><span class="logo">bernie</span><span id="hostname" class="muted"></span><span id="gpunote" class="muted"></span></div>
-  <nav id="tabs" role="tablist">
-    <a href="#setup" role="tab" data-tab="setup">Setup</a>
-    <a href="#dashboard" role="tab" data-tab="dashboard">Dashboard</a>
-    <a href="#benchmark" role="tab" data-tab="benchmark">Benchmark</a>
-    <a href="#logs" role="tab" data-tab="logs">Logs</a>
-  </nav>
-  <span id="live" class="live" title="telemetry stream">●</span>
-</header>
-<main>
-  <section id="tab-setup" class="tab" data-tab-panel="setup" hidden></section>
-  <section id="tab-dashboard" class="tab" data-tab-panel="dashboard" hidden></section>
-  <section id="tab-benchmark" class="tab" data-tab-panel="benchmark" hidden></section>
-  <section id="tab-logs" class="tab" data-tab-panel="logs" hidden></section>
-</main>
-<div id="toast" role="status" aria-live="polite" hidden></div>
+<body class="shell">
+  <aside class="rail">
+    <div class="brand">
+      <a class="logo" href="#setup">bernie</a>
+      <span id="hostname" class="host muted"></span>
+      <span id="gpunote" class="host muted"></span>
+    </div>
+    <nav id="tabs" class="tabs" role="tablist" aria-label="The tabs of the dashboard">
+      <a id="tab-setup" role="tab" href="#setup" data-tab="setup" aria-controls="panel-setup" aria-selected="true" tabindex="0">Setup</a>
+      <a id="tab-dashboard" role="tab" href="#dashboard" data-tab="dashboard" aria-controls="panel-dashboard" aria-selected="false" tabindex="-1">Dashboard</a>
+      <a id="tab-benchmark" role="tab" href="#benchmark" data-tab="benchmark" aria-controls="panel-benchmark" aria-selected="false" tabindex="-1">Benchmark</a>
+      <a id="tab-logs" role="tab" href="#logs" data-tab="logs" aria-controls="panel-logs" aria-selected="false" tabindex="-1">Logs</a>
+    </nav>
+    <div class="rail-foot">
+      <span id="runpill" class="pill skip" role="status" title="No run is serving on this host." aria-label="idle — No run is serving on this host."><span class="pill-icon">–</span><span class="pill-word">idle</span></span>
+      <div class="rail-buttons">
+        <button id="themeBtn" class="ghost" type="button" aria-pressed="false" aria-label="Switch to the dark palette">Dark</button>
+        <button id="advancedBtn" class="ghost" type="button" aria-pressed="false" aria-label="Show the advanced panels">Advanced</button>
+      </div>
+    </div>
+  </aside>
+  <main class="content">
+    <section id="panel-setup" class="panel" role="tabpanel" aria-labelledby="tab-setup" data-tab-panel="setup" hidden></section>
+    <section id="panel-dashboard" class="panel" role="tabpanel" aria-labelledby="tab-dashboard" data-tab-panel="dashboard" hidden></section>
+    <section id="panel-benchmark" class="panel" role="tabpanel" aria-labelledby="tab-benchmark" data-tab-panel="benchmark" hidden></section>
+    <section id="panel-logs" class="panel" role="tabpanel" aria-labelledby="tab-logs" data-tab-panel="logs" hidden></section>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script src="js/core.js"></script>
 <script src="components/command.js"></script>
 <script src="components/cards.js"></script>
@@ -49,6 +60,11 @@
 <script src="views/dashboard/overview.js"></script>
 <script src="views/benchmark/benchmark.js"></script>
 <script src="views/benchmark/suites.js"></script>
+<script src="views/logs/levels.js"></script>
+<script src="views/logs/picker.js"></script>
+<script src="views/logs/findings.js"></script>
+<script src="views/logs/tail.js"></script>
+<script src="views/logs/advanced.js"></script>
 <script src="views/logs/logs.js"></script>
 <script src="js/boot.js"></script>
 </body>
