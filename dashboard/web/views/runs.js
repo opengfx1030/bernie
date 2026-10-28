@@ -5,8 +5,8 @@ let logES = null;
 function stopLogs() { if (logES) { logES.close(); logES = null; } }
 
 async function viewRuns(root) {
-  const list = h("div.card", h("h2", "Runs", h("span.grow"), h("button.small", { onclick: () => viewRuns(root) }, "Refresh")), loading());
-  const logs = h("div.card", h("h2", "Logs"), h("div.empty", "Select a run to follow its log."));
+  const list = h("div.card", cardHead("Runs", "/api/runs", h("button.small", { onclick: () => viewRuns(root) }, "Refresh")), loading());
+    const logs = h("div.card", cardHead("Logs"), h("div.empty", "Select a run to follow its log."));
   put(root, list, h("div.gap"), logs);
   try {
     const runs = runsOf(await api("/api/runs"));
@@ -79,7 +79,7 @@ function followLogs(card, name, findings) {
   const status = h("span.small.muted", "connecting…");
   let follow = true;
   box.addEventListener("scroll", () => { follow = box.scrollTop + box.clientHeight >= box.scrollHeight - 4; });
-  put(card, h("h2", "Logs: " + name, h("span.grow"), status, h("button.small", { onclick: () => { stopLogs(); status.textContent = "stopped"; } }, "Close")), findingsBox(findings), box);
+  put(card, cardHead("Logs: " + name, "/api/runs/" + encodeURIComponent(name) + "/logs", status, h("button.small", { onclick: () => { stopLogs(); status.textContent = "stopped"; } }, "Close")), findingsBox(findings), box);
   logES = new EventSource(`/api/runs/${encodeURIComponent(name)}/logs`);
   logES.onopen = () => (status.textContent = "following");
   logES.onerror = () => (status.textContent = "disconnected");

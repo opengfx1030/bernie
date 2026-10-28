@@ -116,8 +116,8 @@ async function viewBench(root) {
     h("label", { for: "b-recall" }, "Recall check"), f("recall", { type: "checkbox" }),
     h("div.hint", "Hide a short random fact in every prompt and check that the reply holds it."),
     h("div.full.row", h("button.primary", { type: "submit" }, "Run benchmark"), h("span.small.muted.status")));
-  const result = h("div.card", h("h2", "Result"), h("div.empty", "Run a benchmark or pick one from the history."));
-  const hist = h("div.card", h("h2", "History"), loading());
+    const result = h("div.card", cardHead("Result", "/api/bench"), h("div.empty", "Run a benchmark or pick one from the history."));
+    const hist = h("div.card", cardHead("History", "/api/bench"), loading());
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = {};
@@ -139,7 +139,7 @@ async function viewBench(root) {
     } catch (err) { st.textContent = ""; put(result, failed(err)); }
     btn.disabled = false;
   });
-  put(root, h("div.cols", h("div.card", h("h2", "Run benchmark"), form), hist), h("div.gap"), result);
+  put(root, h("div.cols", h("div.card", cardHead("Run benchmark", "/api/bench"), form), hist), h("div.gap"), result);
   loadHistory(hist, result);
 }
 
@@ -169,8 +169,8 @@ async function loadHistory(card, result) {
   try {
     const d = await api("/api/bench");
     const list = (Array.isArray(d) ? d : (d && d.results) || []).slice().sort((a, b) => new Date(b.time) - new Date(a.time));
-    if (!list.length) { put(card, h("h2", "History"), h("div.empty", "No saved results.")); return; }
-    put(card, h("h2", "History"), h("div.scroll", h("table",
+    if (!list.length) { put(card, cardHead("History", "/api/bench"), h("div.empty", "No saved results.")); return; }
+    put(card, cardHead("History", "/api/bench"), h("div.scroll", h("table",
       h("thead", h("tr", h("th", "When"), h("th", "Tag"), h("th", "Model"), h("th", "GPUs"), h("th.num", "Conc."),
         h("th.num", "Best output tok/s"), h("th.num", "Best decode tok/s"), h("th.num", "Best prefill tok/s"), h("th.num", "Recall"))),
       h("tbody", list.map((r) => benchRow(r, result))))));

@@ -2,14 +2,14 @@
 // ---------- Overview ----------
 
 async function viewOverview(root) {
-  const hostCard = h("div.card", h("h2", "Host"), loading());
-  const docCard = h("div.card", h("h2", "Doctor"), loading());
-  const runCard = h("div.card", h("h2", "Runs"), loading());
+  const hostCard = h("div.card", cardHead("Host", "/api/hw"), loading());
+  const docCard = h("div.card", cardHead("Doctor", "/api/doctor"), loading());
+  const runCard = h("div.card", cardHead("Runs", "/api/runs"), loading());
   put(root, h("div.cols", h("div", hostCard, h("div.gap"), runCard), docCard));
 
-  loadHW(true).then((hw) => put(hostCard, h("h2", "Host"), hostSummary(hw))).catch((e) => put(hostCard, h("h2", "Host"), failed(e)));
-  api("/api/runs").then((d) => put(runCard, h("h2", "Runs", h("span.grow"), h("a.small", { href: "#runs" }, "manage")), runsTable(runsOf(d), true)))
-    .catch((e) => put(runCard, h("h2", "Runs"), failed(e)));
+  loadHW(true).then((hw) => put(hostCard, cardHead("Host", "/api/hw"), hostSummary(hw))).catch((e) => put(hostCard, cardHead("Host", "/api/hw"), failed(e)));
+  api("/api/runs").then((d) => put(runCard, cardHead("Runs", "/api/runs", h("a.small", { href: "#runs" }, "manage")), runsTable(runsOf(d), true)))
+    .catch((e) => put(runCard, cardHead("Runs", "/api/runs"), failed(e)));
   loadDoctor(docCard);
 }
 
@@ -36,7 +36,7 @@ function hostSummary(hw) {
 }
 
 async function loadDoctor(card) {
-  const title = () => h("h2", "Doctor", h("span.grow"), h("button.small", { onclick: () => { put(card, title(), loading()); loadDoctor(card); } }, "Re-run"));
+  const title = () => cardHead("Doctor", "/api/doctor", h("button.small", { onclick: () => { put(card, title(), loading()); loadDoctor(card); } }, "Re-run"));
   put(card, title(), loading());
   try {
     const rep = await api("/api/doctor");
@@ -57,6 +57,6 @@ function checkRow(c) {
   return h("div.check",
     h("div.t", badge(c.status), h("b", c.title), h("span.id", c.id)),
     c.detail ? h("div.muted.small", c.detail) : null,
-    c.fix ? h("pre", c.fix) : null,
+    c.fix ? cmdBlock(c.fix, "Copy the fix command") : null,
     c.doc ? h("a.small", { href: c.doc, target: "_blank", rel: "noopener noreferrer" }, "docs") : null);
 }

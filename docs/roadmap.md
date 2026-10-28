@@ -84,6 +84,10 @@ Each item has a spec section and one test that proves it.
   boot and on every change. The GPUs tab shows the cap, the allowed range,
   the desired value and the drift, and writes a new desired value. Spec
   [§9.2](spec.md#92-power).
+- **Copy buttons and raw JSON links.** Every command the dashboard shows has
+  a copy button that copies the command as it is written, and every card
+  header carries a `json` link to the raw document behind it. Spec
+  [§11](spec.md#11-dashboard).
 
 ## Not planned
 

@@ -13,7 +13,7 @@ async function viewTopology(root) {
     const pairs = topo.pairs || [];
     if (!nodes.length) {
       put(root, h("div", p2pCard(check), h("div.gap"),
-        h("div.card", h("h2", "Topology"), h("div.empty", "No GPUs found, so there is no PCIe topology to show."))));
+        h("div.card", cardHead("Topology", "/api/topo"), h("div.empty", "No GPUs found, so there is no PCIe topology to show."))));
       return;
     }
     const groups = new Map();
@@ -40,8 +40,8 @@ async function viewTopology(root) {
       })))));
     put(root, h("div", p2pCard(check), h("div.gap"),
       h("div.cols",
-        h("div.card", h("h2", "PCIe tree"), tree),
-        h("div.card", h("h2", "Link classes", h("span.grow"), topo.bandwidth ? h("span.small.muted", "bandwidth: " + topo.bandwidth) : null),
+        h("div.card", cardHead("PCIe tree", "/api/topo"), tree),
+        h("div.card", cardHead("Link classes", "/api/topo", topo.bandwidth ? h("span.small.muted", "bandwidth: " + topo.bandwidth) : null),
           h("div.scroll", matrix),
           h("div.legend", ["PIX same switch", "PXB several switches", "PHB host bridge", "SYS across CPUs"].map((s) => h("span", { class: "c-" + s.slice(0, 3) }, s)),
             h("span", "• = KFD P2P link")),
@@ -54,7 +54,7 @@ async function viewTopology(root) {
 // p2pCard shows the readiness checklist of `bernie topo --check`.
 function p2pCard(data) {
   if (!data) {
-    return h("div.card", h("h2", "P2P readiness"), h("div.empty", "The P2P readiness checklist is not available."));
+    return h("div.card", cardHead("P2P readiness", "/api/topo/check"), h("div.empty", "The P2P readiness checklist is not available."));
   }
   const items = data.checklist || [];
   const sum = data.summary || {};
@@ -63,7 +63,7 @@ function p2pCard(data) {
   if (sum.fail) { label = "not ready"; cls = "b-fail"; }
   else if (!sum.ok && !sum.warn) { label = "nothing to check"; cls = "b-skip"; }
   return h("div.card",
-    h("h2", "P2P readiness"),
+    cardHead("P2P readiness", "/api/topo/check"),
     h("div.row", h("span.small.muted", counts), h("span.badge", { class: cls }, label)),
     items.length ? items.map(p2pRow) : h("div.empty", "No checklist items."));
 }
