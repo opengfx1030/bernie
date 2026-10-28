@@ -63,7 +63,7 @@ The query widths are M=3/6/12/24 and vocab-head/selector widths M=2/4/8/16.
 Across all four V620s, the 144 isolated measurements beat both canonical
 lookup and the heuristic by more than 3% (minimum 2.354x, median 3.417x,
 maximum 5.347x). Each GPU passed numerical checks and 36/36 lookup hits.
-See the [shape inputs, measurements and reproduction commands](../../../bench_results/2026-10-20_dflash2-spec2-tunableop/README.md).
+See the [shape inputs, measurements and reproduction commands](https://github.com/opengfx1030/vllm-rdna/blob/rdna_extras/bench_results/2026-10-20_dflash2-spec2-tunableop/README.md).
 
 The full same-boot old1824/new1860 serving A/B passed all four standard
 cells (80 benchmark requests per arm), greedy/PPL/prefix/normal-EOS/after-load
@@ -143,7 +143,7 @@ collide with none of the Flash-Next K = 2560/320/10240 set (0 collisions, 34
 novel captured). MTP=2 was **not** captured — the EXL3 MTP head is not wired in
 this tree, so the validated EXL3 serving config is MTP=0. Lookup-hit proof:
 **783/783**. Prior set preserved at
-`bench_results/2026-10-01_exl3-tunableop/repo-rows-premerge/`.
+[`bench_results/2026-10-01_exl3-tunableop/repo-rows-premerge/`](https://github.com/opengfx1030/vllm-rdna/tree/rdna_extras/bench_results/2026-10-01_exl3-tunableop/repo-rows-premerge) in the fork.
 
 ## Storage policy (mandatory)
 
@@ -198,12 +198,12 @@ boot on a mismatch (unless `TUNABLEOP_ALLOW_MISMATCH=1`, experiments only).
 
 ## Measured (4× V620, TP=4, Qwen3.8-Flash-Next-AWQ-W4A16)
 
-See [`bench_results/2026-09-29_tunableop-rows/SUMMARY.md`](../../../bench_results/2026-09-29_tunableop-rows/SUMMARY.md)
+See [`bench_results/2026-09-29_tunableop-rows/SUMMARY.md`](https://github.com/opengfx1030/vllm-rdna/blob/rdna_extras/bench_results/2026-09-29_tunableop-rows/SUMMARY.md)
 for the per-shape before/after table. The lookup-vs-heuristic A/B is the shipped
 evidence: the missing M ≤ 8 lm_head shapes go from ~2.77 ms (heuristic) to
 ~0.90 ms (3.0×) at M=1, 2.7–2.8× for M=2..8, which is the c=1 decode recovery.
 End-to-end cells with these frozen rows are recorded under
-`bench_results/2026-09-29_tunableop-rows/e2e/`.
+[`bench_results/2026-09-29_tunableop-rows/e2e/`](https://github.com/opengfx1030/vllm-rdna/tree/rdna_extras/bench_results/2026-09-29_tunableop-rows/e2e) in the fork.
 
 ## Caveats
 
