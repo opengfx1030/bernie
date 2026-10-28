@@ -58,10 +58,6 @@ Requirements: Go 1.26 or later. No other toolchain. No CGO.
     trees discovered by walking, no code that names a device. Split by a real
     axis (device generation, model family, concern) before a folder gets flat
     and long.
-12. **No competitor names.** Code, docs, comments, recipes, test data and
-    commit messages do not name or link other local-LLM engines or tools.
-    Describe the behavior or the idea instead. Research notes stay outside
-    the repo.
 
 ## 4. Tests
 
