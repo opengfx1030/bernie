@@ -114,6 +114,33 @@ type runRecord struct {
 	Plan   json.RawMessage `json:"plan"`
 }
 
+// planGPUFields are the GPU selection fields of a run plan.
+type planGPUFields struct {
+	GPUs       []int             `json:"gpus"`
+	HIPDevices string            `json:"hip_devices"`
+	Env        map[string]string `json:"env"`
+}
+
+// indices returns the host HIP indices used by the plan. Older records may
+// have only HIP_VISIBLE_DEVICES in the environment.
+func (p planGPUFields) indices() []int {
+	if len(p.GPUs) > 0 {
+		return p.GPUs
+	}
+	s := p.Env["HIP_VISIBLE_DEVICES"]
+	if s == "" {
+		s = p.HIPDevices
+	}
+	var out []int
+	for _, part := range strings.Split(s, ",") {
+		n, err := strconv.Atoi(strings.TrimSpace(part))
+		if err == nil && n >= 0 {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
 func runRecords(stateDir string) []runRecord {
 	files, _ := filepath.Glob(filepath.Join(stateDir, "runs", "*", "run.json"))
 	var out []runRecord
@@ -170,38 +197,83 @@ func sameEndpoint(u *url.URL, r runRecord) bool {
 // gpuList is gpu.List; tests replace it.
 var gpuList = gpu.List
 
-// fingerprint records where the result came from: host name, GPUs and, when
-// the URL belongs to a run, the run name, recipe and plan hash.
+// fingerprint records where the result came from: host name, the GPUs used
+// by the run and, when the URL belongs to a run, its name, recipe and plan
+// hash. Without a matching run plan the GPU selection is unknown, so every
+// host GPU is listed and the scope says so.
 func fingerprint(stateDir, rawURL string) map[string]string {
 	fp := map[string]string{}
 	if h, err := os.Hostname(); err == nil {
 		fp["host"] = h
 	}
-	if gpus, err := gpuList("/"); err == nil && len(gpus) > 0 {
-		fp["gpus"] = gpuSummary(gpus)
-	}
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return fp
-	}
-	for _, r := range runRecords(stateDir) {
-		if !sameEndpoint(u, r) {
-			continue
+	var matched *runRecord
+	if u, err := url.Parse(rawURL); err == nil {
+		for _, r := range runRecords(stateDir) {
+			if sameEndpoint(u, r) {
+				r := r
+				matched = &r
+				break
+			}
 		}
-		fp["run"] = r.Name
-		if r.Recipe != "" {
-			fp["recipe"] = r.Recipe
+	}
+	if matched != nil {
+		fp["run"] = matched.Name
+		if matched.Recipe != "" {
+			fp["recipe"] = matched.Recipe
 		}
-		if len(r.Plan) > 0 && string(r.Plan) != "null" {
+		if len(matched.Plan) > 0 && string(matched.Plan) != "null" {
 			var buf bytes.Buffer
-			if json.Compact(&buf, r.Plan) == nil {
+			if json.Compact(&buf, matched.Plan) == nil {
 				sum := sha256.Sum256(buf.Bytes())
 				fp["plan_hash"] = hex.EncodeToString(sum[:])[:12]
 			}
 		}
-		break
+	}
+	summary, scope := gpuFingerprint(matched)
+	if summary != "" {
+		fp["gpus"] = summary
+		fp["gpu_scope"] = scope
 	}
 	return fp
+}
+
+// gpuFingerprint returns the GPUs used by the matched run. It falls back to
+// every host GPU when there is no run plan or the plan has no selection.
+func gpuFingerprint(rec *runRecord) (summary, scope string) {
+	if rec != nil {
+		var p planGPUFields
+		if json.Unmarshal(rec.Plan, &p) == nil {
+			if idx := p.indices(); len(idx) > 0 {
+				all, _ := gpuList("/")
+				byIndex := make(map[int]gpu.GPU, len(all))
+				for _, g := range all {
+					byIndex[g.HIPIndex] = g
+				}
+				var selected []gpu.GPU
+				var missing []int
+				for _, i := range idx {
+					if g, ok := byIndex[i]; ok {
+						selected = append(selected, g)
+					} else {
+						missing = append(missing, i)
+					}
+				}
+				summary = gpuSummary(selected)
+				for _, i := range missing {
+					if summary != "" {
+						summary += ", "
+					}
+					summary += fmt.Sprintf("HIP GPU %d", i)
+				}
+				return summary, "run"
+			}
+		}
+	}
+	all, err := gpuList("/")
+	if err != nil || len(all) == 0 {
+		return "none found", "all (run selection unknown)"
+	}
+	return gpuSummary(all), "all (run selection unknown)"
 }
 
 // gpuSummary groups GPUs by name and gfx target in HIP order, e.g.

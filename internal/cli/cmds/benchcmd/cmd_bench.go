@@ -238,7 +238,17 @@ func cellOf(r *bench.Result, concurrency int) *bench.Cell {
 
 func fingerprintLine(fp map[string]string) string {
 	var parts []string
-	for _, k := range []string{"host", "gpus", "run", "recipe", "plan_hash"} {
+	if v := fp["host"]; v != "" {
+		parts = append(parts, "host "+v)
+	}
+	if v := fp["gpus"]; v != "" {
+		gpus := "gpus " + v
+		if scope := fp["gpu_scope"]; scope != "" {
+			gpus += " (" + scope + ")"
+		}
+		parts = append(parts, gpus)
+	}
+	for _, k := range []string{"run", "recipe", "plan_hash"} {
 		if v := fp[k]; v != "" {
 			parts = append(parts, k+" "+v)
 		}
