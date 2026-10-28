@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/machine/topo"
 )
 
@@ -78,8 +79,11 @@ type Plan struct {
 	TunableOpRows    string   `json:"tunableop_rows,omitempty"`
 	PathInputs       []string `json:"path_inputs"`
 	Mounts           []Mount  `json:"mounts,omitempty"`
-	Warnings         []string `json:"warnings"`
-	Exec             *Exec    `json:"exec,omitempty"`
+	// GroupAdd are the numeric group ids a container run needs to open the
+	// GPU devices of the host (spec §8.2).
+	GroupAdd []host.DeviceGroup `json:"group_add,omitempty"`
+	Warnings []string           `json:"warnings"`
+	Exec     *Exec              `json:"exec,omitempty"`
 }
 
 // PlanOptions are the inputs of BuildPlan. Sets are applied in order (config
