@@ -1,6 +1,7 @@
 // The Setup tab answers one question: what do I do to make this box serve?
 // It reads the onboarding checklist, the doctor report and the recipes, and
 // it never changes the host on its own.
+// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 "use strict";
 
 // SETUP_EXTRA_STEPS are the steps that come after the path of the host.
@@ -131,18 +132,18 @@ function setupHeadline(doc) {
   const hardware = steps.find((s) => s.id === "hardware");
   const serve = steps.find((s) => s.id === "serve");
   const roots = pending.filter((s) => (s.root_commands || []).length);
-  if (running && running.id !== "serve") {
+  if (setupServerServing(serve)) {
+    return {
+      title: "THIS BOX IS SERVING.",
+      lede: "The model answers on " + setupServerEndpoint(serve) + ". Try it, or read the logs.",
+      action: "try",
+    };
+  }
+  if (running) {
     const phase = (running.progress && running.progress.phase) || running.summary || "bernie is working on the next step.";
     return { title: "SETTING UP THIS BOX.", lede: phase, action: "continue" };
   }
   if (!pending.length) {
-    if (serve && serve.state === "running") {
-      return {
-        title: "THIS BOX IS SERVING.",
-        lede: "The model answers on " + setupServerEndpoint(serve) + ". Try it, or read the logs.",
-        action: "try",
-      };
-    }
     return {
       title: "THIS BOX IS READY TO SERVE.",
       lede: "Everything bernie needs is in place. Start the server and it answers on " + setupServerEndpoint(serve) + ".",
@@ -527,7 +528,15 @@ function setupVerifyBox() {
 function setupServerRunning() {
   const doc = setupState.doc;
   const serve = doc && (doc.steps || []).find((s) => s.id === "serve");
-  return !!(serve && serve.state === "running");
+  return setupServerServing(serve);
+}
+
+/** setupServerServing says whether the server of this host is up. A run that
+ *  still loads the model is not serving yet: it is setting up. */
+function setupServerServing(serve) {
+  if (!serve || serve.state !== "running") return false;
+  const text = ((serve.progress && serve.progress.phase) || "") + " " + (serve.summary || "");
+  return !/loading|compiling|capturing|starting/i.test(text);
 }
 
 /** setupAskServer sends one prompt to the server and shows the answer. */

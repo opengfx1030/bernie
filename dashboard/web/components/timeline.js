@@ -1,6 +1,7 @@
 // The onboarding step timeline. The Setup view owns the actions and the
 // live job state; this component owns the order, the state words and the
 // anatomy of one row.
+// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 "use strict";
 
 // The words of the states of spec §3.3. The word carries the meaning; the
