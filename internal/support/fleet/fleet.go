@@ -62,8 +62,12 @@ type GPUDetail struct {
 // already shows.
 type Source struct {
 	Entries []config.FleetEntry
-	Self    func(ctx context.Context) Summary
-	Client  *http.Client // optional; tests inject one
+	// Hosts is the list of the hosts the operator configured. A peer whose
+	// URL names a host that is not in the list is refused before a byte
+	// leaves the process. An empty list means the hosts of the entries.
+	Hosts  []string
+	Self   func(ctx context.Context) Summary
+	Client *http.Client // optional; tests inject one
 }
 
 // Fetch returns one summary per entry, with the self row first. A peer
@@ -75,19 +79,41 @@ func Fetch(ctx context.Context, src Source) []Summary {
 	if client == nil {
 		client = defaultClient()
 	}
+	hosts := src.Hosts
+	if len(hosts) == 0 {
+		hosts = make([]string, 0, len(src.Entries))
+		for _, e := range src.Entries {
+			hosts = append(hosts, hostOf(e.URL))
+		}
+	}
 	out := make([]Summary, 0, len(src.Entries)+1)
 	if src.Self != nil {
 		out = append(out, src.Self(ctx))
 	}
 	for _, e := range src.Entries {
+		if err := Validate(hosts, e.URL); err != nil {
+			// A peer that is not on the configured list is never reached.
+			out = append(out, Summary{Name: e.Name, URL: e.URL, Error: err.Error()})
+			continue
+		}
 		out = append(out, fetchOne(ctx, client, e))
 	}
 	return out
 }
 
+// hostOf reads the host of a peer URL: the name of the box, without the
+// port.
+func hostOf(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
 // fetchOne calls the peer's /api/hw (and /api/runs when needed). All
-// requests go through safeRequest; a non-allowlisted path or a redirect
-// to another host is refused.
+// requests go through get; a host that is not configured, a
+// non-allowlisted path or a redirect to another host is refused.
 func fetchOne(ctx context.Context, client *http.Client, e config.FleetEntry) Summary {
 	row := Summary{Name: e.Name, URL: e.URL}
 	raw, err := get(ctx, client, e, "/api/hw", nil)
@@ -194,7 +220,12 @@ func get(ctx context.Context, client *http.Client, e config.FleetEntry, path str
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return nil, fmt.Errorf("peer url: scheme %q not allowed", u.Scheme)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String()+path, nil)
+	// The request goes to the host of the configured entry and to the fixed
+	// path of the allowlist. The path, the query and the fragment of the
+	// configured URL are dropped: a peer is read through the allowlist, not
+	// through whatever the operator typed after the host.
+	target := url.URL{Scheme: u.Scheme, Host: u.Host, Path: path}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -263,12 +294,13 @@ func defaultClient() *http.Client {
 	return &http.Client{Timeout: Timeout, Transport: transport}
 }
 
-// ErrNotConfigured is the error returned by Validate when the host of the
-// URL is not in the configured fleet list.
+// ErrNotConfigured is the error of a peer that is not in the configured
+// fleet list.
 var ErrNotConfigured = errors.New("host is not in the configured fleet list")
 
-// Validate checks one URL against the configured fleet list. It is the
-// guard used by the API handlers that take a host argument.
+// Validate checks one URL against the configured fleet list: the scheme
+// must be http or https and the host must be one the operator configured.
+// A peer that is not on the list is never reached.
 func Validate(hosts []string, rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
