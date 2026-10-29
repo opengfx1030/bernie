@@ -24,6 +24,94 @@ const OLD_ROUTES = {
   bench: ["benchmark", "suites"],
 };
 
+/* ---------- the files of the tabs ---------- */
+
+// The first paint carries the shell and the Setup tab (see index.html). Every
+// other tab brings its own files the first time it opens: the page then holds
+// the code of the tab the reader is looking at, not the code of the four
+// tabs that are closed. The order inside a bundle is the order of
+// index.html: a file may use the ones above it.
+const TAB_SCRIPTS = {
+  setup: [],       // the Setup tab is the first paint: index.html carries it
+  dashboard: [
+    "components/charts.js",
+    "views/dashboard/dashboard.js",
+    "views/dashboard/gpus.js",
+    "views/dashboard/power.js",
+    "views/dashboard/topology.js",
+    "views/dashboard/overview.js",
+  ],
+  benchmark: [
+    "components/metrics.js",
+    "components/compare.js",
+    "views/benchmark/benchmark.js",
+    "views/benchmark/suites.js",
+  ],
+  logs: [
+    "views/logs/logs.js",
+    "views/logs/levels.js",
+    "views/logs/picker.js",
+    "views/logs/findings.js",
+    "views/logs/tail.js",
+    "views/logs/advanced.js",
+  ],
+  classic: [
+    "views/classic/charts.js",
+    "views/classic/classic.js",
+  ],
+};
+
+// The stylesheets of the tabs that are not open yet.
+const TAB_CSS = {
+  setup: [],
+  dashboard: ["views/dashboard/dashboard.css"],
+  benchmark: ["css/bench.css"],
+  logs: ["views/logs/logs.css"],
+  classic: ["css/classic.css"],
+};
+
+// The tabs whose files are on the page.
+const tabReady = new Set(["setup"]);
+// The tabs whose files are on their way.
+const tabLoading = new Map();
+
+/** loadScript adds one file of the page. The files of a bundle run in the
+ *  order they are named. */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = src;
+    el.async = false; // the files of a bundle run in the order they are named
+    el.addEventListener("load", () => resolve());
+    el.addEventListener("error", () => reject(new Error("cannot load " + src)));
+    document.head.append(el);
+  });
+}
+
+/** loadStyle adds one stylesheet of the page. A sheet that does not arrive
+ *  must not stop the tab: the tab paints without it. */
+function loadStyle(href) {
+  return new Promise((resolve) => {
+    const el = document.createElement("link");
+    el.rel = "stylesheet";
+    el.href = href;
+    el.addEventListener("load", () => resolve());
+    el.addEventListener("error", () => resolve());
+    document.head.append(el);
+  });
+}
+
+/** openTab brings the files of a tab. It runs once per tab. */
+function openTab(tab) {
+  if (tabReady.has(tab)) return Promise.resolve();
+  if (tabLoading.has(tab)) return tabLoading.get(tab);
+  const p = Promise.all((TAB_CSS[tab] || []).map(loadStyle))
+    .then(() => Promise.all((TAB_SCRIPTS[tab] || []).map(loadScript)))
+    .then(() => { tabReady.add(tab); });
+  tabLoading.set(tab, p);
+  return p;
+}
+
 /** parseHash reads the route: the tab and the section inside it. */
 function parseHash() {
   const raw = (location.hash || "").replace(/^#/, "");
@@ -53,14 +141,32 @@ function route() {
   }
 
   const panel = document.querySelector('[data-tab-panel="' + r.tab + '"]');
-  const fn = window[VIEWS[r.tab]];
-  if (panel && typeof fn === "function") {
-    // The view may paint in one go or in many: the panel is prepared when it
-    // is done.
-    Promise.resolve(fn(panel)).then(() => preparePanel(panel)).catch(() => preparePanel(panel));
-  }
+  if (!panel) return;
 
-  if (r.section) focusSection(r.tab, r.section);
+  const paint = () => {
+    // The reader moved on while the files of the tab were on their way.
+    if (state.tab !== r.tab) return;
+    const fn = window[VIEWS[r.tab]];
+    if (typeof fn === "function") {
+      // The view may paint in one go or in many: the panel is prepared when
+      // it is done.
+      Promise.resolve(fn(panel)).then(() => preparePanel(panel)).catch(() => preparePanel(panel));
+    }
+    if (r.section) focusSection(r.tab, r.section);
+  };
+
+  if (tabReady.has(r.tab)) {
+    paint();
+    return;
+  }
+  // The tab opens for the first time: its files come first.
+  put(panel, loading("Loading the tab…"));
+  openTab(r.tab).then(paint).catch(() => {
+    put(panel, failed({
+      message: "The files of the tab did not load.",
+      path: (TAB_SCRIPTS[r.tab] || []).join(", "),
+    }));
+  });
 }
 
 /** preparePanel gives the panel a tab stop when it holds nothing focusable
