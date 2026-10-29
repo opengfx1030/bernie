@@ -256,27 +256,27 @@ function setRunPill(runs) {
   const live = list.filter((r) => r.state === "running");
   const starting = list.filter((r) => r.state === "starting");
   const exited = list.filter((r) => r.state === "exited");
-  let word = "idle", icon = "–", tone = "skip", sentence = "No run is serving on this host.";
+  let word = "idle", tone = "skip", sentence = "No run is serving on this host.";
   if (starting.length) {
-    word = "starting"; icon = "◐"; tone = "info";
+    word = "starting"; tone = "info";
     sentence = phaseSentence(starting[0], "The server is loading the model.");
   } else if (live.length) {
     const answering = live.some((r) => r.answering !== false);
     if (answering) {
-      word = "serving"; icon = "●"; tone = "ok";
+      word = "serving"; tone = "ok";
       sentence = phaseSentence(live[0], "The server answers requests.");
     } else {
-      word = "not answering"; icon = "!"; tone = "warn";
+      word = "not answering"; tone = "warn";
       sentence = phaseSentence(live[0], "The run exists but the server does not answer.");
     }
   } else if (exited.length) {
-    word = "stopped"; icon = "✕"; tone = "fail";
+    word = "stopped"; tone = "fail";
     sentence = phaseSentence(exited[0], "The run has stopped.");
   }
   if (pill.dataset.state !== word) {
     pill.dataset.state = word;
     pill.className = "pill " + tone;
-    pill.querySelector(".pill-icon").textContent = icon;
+    pill.querySelector(".pill-icon").textContent = PILL_ICON[word] || "·";
     pill.querySelector(".pill-word").textContent = word;
     pill.setAttribute("title", word + " — " + sentence);
     pill.setAttribute("aria-label", word + " — " + sentence);

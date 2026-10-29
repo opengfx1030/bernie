@@ -26,7 +26,7 @@ const dash = {
 // and what it holds. The name is a heading the router can focus.
 function dashSection(label, id, ...kids) {
   return h("section.section", { id: "dashboard-" + id, "data-section": id },
-    h("h2.section-label", { tabindex: "-1" }, label),
+    sectionLabel(label),
     ...kids);
 }
 
@@ -41,13 +41,6 @@ function dashInfo(text) {
 function dashGroup(n) {
   const s = String(Math.round(n));
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-}
-
-// dashPill is a status: an icon and a word, never the colour alone.
-const DASH_PILL_ICON = { ok: "✓", warn: "!", serious: "▲", fail: "✕", skip: "–", info: "i", running: "◐" };
-function dashPill(kind, word) {
-  return h("span.pill." + kind, h("span.pill-icon", DASH_PILL_ICON[kind] || "·"),
-    h("span", word || kind));
 }
 
 // The stream lives in js/data.js; the shell calls renderGPUs() on every

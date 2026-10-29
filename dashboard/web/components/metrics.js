@@ -183,7 +183,7 @@ function cellRow(c, withServer, mark) {
  *  headline names, so the reader can find the number of the headline. */
 function cellsTable(cells, mark) {
   const list = cells || [];
-  if (!list.length) return emptyState("No result yet.", "Run a suite above to fill this table.");
+  if (!list.length) return emptyState("No result yet.", "Run a suite above to fill this table.", "bernie bench --suite smoke");
   const withServer = list.some((c) => c.server_side);
   return h("div.scroll", h("table.bench-table", metricHead(withServer),
     h("tbody", list.map((c) => cellRow(c, withServer, mark)))));

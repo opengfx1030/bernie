@@ -286,6 +286,43 @@ while IFS= read -r name; do
 	fail "the global '$name' is published by $paths"
 done < "$tmp/duplicate-other-globals"
 
+# The shared vocabulary of the page: one section label and one empty state.
+# The section label lives in components/cards.js; every empty state names the
+# command that makes one.
+while IFS= read -r file; do
+	[ "$file" = "dashboard/web/components/cards.js" ] && continue
+	if grep -Eq 'h2\.section-label|h2\.lg-section-title' "$file"; then
+		fail "$file writes a section label of its own; use sectionLabel() of components/cards.js"
+	fi
+done < "$tmp/js-files"
+
+while IFS= read -r file; do
+	while IFS= read -r problem; do
+		fail "$problem"
+	done < <(awk -v file="$file" '
+		{ buf = buf $0 "\n" }
+		END {
+			s = buf
+			while ((p = index(s, "emptyState(")) > 0) {
+				s = substr(s, p + 11)
+				depth = 1; commas = 0; inStr = 0; esc = 0
+				while (depth > 0 && length(s) > 0) {
+					c = substr(s, 1, 1); s = substr(s, 2)
+					if (inStr) {
+						if (esc) { esc = 0 } else if (c == "\\") { esc = 1 } else if (c == "\"") { inStr = 0 }
+						continue
+					}
+					if (c == "\"") { inStr = 1; continue }
+					if (c == "(") { depth++; continue }
+					if (c == ")") { depth--; continue }
+					if (c == "," && depth == 1) { commas++ }
+				}
+				if (commas < 2) { print file ": an emptyState call names " commas " arguments; it needs what, next and the command" }
+			}
+		}
+	' "$file")
+done < "$tmp/js-files"
+
 if [ "$failures" -ne 0 ]; then
 	printf 'web check: failed with %s problem(s)\n' "$failures" >&2
 	exit 1

@@ -82,7 +82,7 @@ function topoPairTable(data) {
     h("td", h("span", { class: "topo-pair-class topo-c-" + p.class }, p.class),
       h("span.topo-pair-word", TOPO_CLASS_WORD[p.class] || "the path is not known")),
     h("td.num", p.hops == null ? "–" : String(p.hops)),
-    h("td", p.p2p ? topoPill("ok", "direct copy") : topoPill("skip", "through the host")),
+    h("td", p.p2p ? statePill("ok", "direct copy") : statePill("skip", "through the host")),
     h("td.num", p.gbps ? num(p.gbps) + " GB/s" : "not measured")));
   return h("div.scroll", h("table", cols, h("tbody", rows)));
 }

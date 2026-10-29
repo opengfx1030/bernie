@@ -17,22 +17,11 @@ const topo = {
   live: {},     // the parts a repaint touches
 };
 
-// TOPO_PILL_ICON is the mark of a status. The word carries the meaning; the
-// mark only helps.
-const TOPO_PILL_ICON = { ok: "✓", warn: "!", fail: "✕", skip: "–" };
-
-/** topoPill is a status: a mark and a word, never the colour alone. */
-function topoPill(kind, word) {
-  return h("span.pill." + kind,
-    h("span.pill-icon", TOPO_PILL_ICON[kind] || "·"),
-    h("span", word || kind));
-}
-
 /** topoSection is one block of the tab: a rule on top, the name of the
  *  block and what it holds. The name is a heading the router can focus. */
 function topoSection(label, id, ...kids) {
   return h("section.section", { id: "topology-" + id, "data-section": id },
-    h("h2.section-label", { tabindex: "-1" }, label), ...kids);
+    sectionLabel(label), ...kids);
 }
 
 /** viewTopology opens the tab. The router calls it with the panel. */

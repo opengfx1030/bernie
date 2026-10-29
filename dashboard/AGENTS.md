@@ -125,6 +125,13 @@ minute. An agent can read the same page as text.
 14. **The colours come from the tokens.** A new rule uses the `--` variables
     of `web/css/tokens.css`. No colour is written by hand in a component
     file. → Check: **[lint]** no colour literal outside `web/css/tokens.css`.
+15. **One label, one pill, one empty state.** The section label, the state
+    pill and the empty state live in `components/cards.js`
+    (`sectionLabel()`, `statePill()`, `emptyState()`) and every tab uses
+    them. A section label is uppercase in the DOM, so the words a screen
+    reader reads are the words the reader sees. → Check: **[lint]** no
+    `h2.section-label` outside `components/cards.js`; every `emptyState()`
+    call names what, next and the command.
 
 ## Setup and onboarding rules
 

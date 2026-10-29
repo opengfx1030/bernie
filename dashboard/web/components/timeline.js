@@ -71,7 +71,7 @@ function stepTimeline(steps, options = {}) {
     !optional && currentIndex >= 0 && i > currentIndex && s.state !== "done" && s.state !== "skipped");
   return h("div.setup-timeline",
     h("ol.step-timeline", path.map((s, i) => row(s, i, false))),
-    extra.length ? h("p.section-label", "Optional steps") : null,
+    extra.length ? sectionLabel("Optional steps") : null,
     extra.length ? h("ol.step-timeline", extra.map((s, i) => row(s, i, true))) : null);
 }
 
@@ -124,12 +124,9 @@ function stepRow(step, index, options, progress, logs, optional, current, queued
   return row;
 }
 
-/** stepPill is the state of a row: an icon and a word. */
+/** stepPill is the state of a row: a mark and a word. */
 function stepPill(state) {
-  const icon = TIMELINE_MARK[state] || "•";
-  return h("span.pill", { class: "pill " + (TIMELINE_PILL[state] || "todo") },
-    h("span.pill-icon", { "aria-hidden": "true" }, icon),
-    h("span.pill-word", TIMELINE_STATE_WORD[state]));
+  return statePill(TIMELINE_PILL[state] || "todo", TIMELINE_STATE_WORD[state]);
 }
 
 /** stepMark is the glyph in the circle: the number of a todo row, an icon

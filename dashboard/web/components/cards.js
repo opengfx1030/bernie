@@ -74,6 +74,29 @@ function emptyState(what, next, command) {
     command ? cmdBlock(command, "Copy the command") : null);
 }
 
+/** sectionLabel is the label of a section: one shape on every tab. The text
+ *  is uppercase in the DOM, so the words a screen reader reads are the words
+ *  the reader sees. */
+function sectionLabel(text, ...rest) {
+  return h("h2.section-label", { tabindex: "-1" }, String(text || "").toUpperCase(), ...rest);
+}
+
+/** PILL_ICON is the mark of a state. The word carries the meaning; the mark
+ *  only helps. One map for the whole page. */
+const PILL_ICON = {
+  ok: "✓", done: "✓", warn: "!", serious: "▲", fail: "✕", blocked: "!",
+  skip: "–", skipped: "–", todo: "", running: "◐", info: "i",
+  idle: "–", starting: "◐", serving: "●", stopped: "✕", "not answering": "!",
+};
+
+/** statePill is a state: a mark and a word, never the colour alone. The word
+ *  is the word of the list the state comes from. */
+function statePill(kind, word) {
+  return h("span.pill." + kind,
+    h("span.pill-icon", { "aria-hidden": "true" }, PILL_ICON[kind] || "·"),
+    h("span.pill-word", word || kind));
+}
+
 /** loading says that the answer is on its way: three grey lines and a
  *  sentence. Never a spinner alone. */
 function loading(what) {
