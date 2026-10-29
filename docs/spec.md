@@ -181,7 +181,10 @@ other file, script or compose file is required.
   object of [§5.3](#53-log-doctor)). `status --json` and `ps --json` add
   `findings` to the entry of an exited run ([§8.3](#83-run-record)) and
   `phase` to the entry of a run that is still alive
-  ([§5.4](#54-log-phase)).
+  ([§5.4](#54-log-phase)). `status --json` carries in the `serving` field
+  what the server of every live run measures: the `stats` object of
+  [§11](#11-dashboard), with the reason in `error` when the server does
+  not answer.
 
 ### 3.2 Rules
 
