@@ -1467,12 +1467,16 @@ Rules for responses and tokens:
 - The server writes no per-request log, so a query string never reaches the
   log. The start line prints the bootstrap URL once.
 
-The page has five tabs: Setup, Dashboard, Benchmark, Logs and Classic. The
-Classic tab is the reference-parity port of the dashboard view of the
-reference web UI (vllm-rdna-dash by CrispyGinger, used with permission): it
-reads `/api/telemetry`, `/api/gpus/history`, `/api/hw` and `/api/runs`, it
-adds no endpoint, and it is the last tab of the rail. A number this host
-does not measure is shown as a dash with the words "n/a on this host".
+The page has five tabs: Setup, Dashboard, Benchmark, Logs and Advanced. The
+Advanced tab is the first bernie dashboard, kept as it is for comparison: the
+same sections (the cards, the last minutes, the run, the power caps, the
+topology, the known problems), the same order and the same controls, drawn
+with the current design (the tokens, the fonts and the shared components of
+the shell). It reads `/api/hw`, `/api/runs`, `/api/doctor`, `/api/power`,
+`/api/topo`, `/api/topo/check`, `/api/gpus/history` and the shared telemetry
+stream of `/api/telemetry`, it adds no endpoint, and the old route
+`#classic` still lands on it. A number this host does not measure is shown
+as a dash with the words "n/a on this host".
 
 | Method | Path | Body / output |
 |---|---|---|

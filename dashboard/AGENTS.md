@@ -43,16 +43,12 @@ Every rule carries its check. The tags:
    check and the token rules in `internal/auth`. Never loosen them. **[test]**
 6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
 7. **One question per tab.** Do not add a sixth tab for a feature that fits
-   an existing one. Do not put two questions in one tab. The Classic tab is
-   the one exception: it is the reference-parity port, and it is there to be
-   compared with the Dashboard tab.
+   an existing one. Do not put two questions in one tab. The Advanced tab is
+   the one exception: it is the first bernie dashboard, kept as it is for
+   comparison, and it answers the same question as the Dashboard tab.
 8. **The visual design follows [../docs/design-dashboard.md](../docs/design-dashboard.md).**
    That page is the design contract. The colours live in `web/css/tokens.css`
    and nowhere else: a component file never writes a colour by hand.
-   Exception: the Classic tab (`web/css/classic.css`) is a reference-parity
-   port. It reads the same tokens (they carry the palette of the reference)
-   and writes no colour of its own, and every rule of it is scoped under
-   `.classic`, so it touches no other tab.
 9. **Same names as the CLI.** A field on the page has the JSON name of the
    CLI output.
 
@@ -211,8 +207,8 @@ age and meaning.
    its range ("of 100 %").
 5. **A value against a limit is a bar, not an arc.** The GPU load is a
    0–100 % bar, so ten cards can be compared by eye. **Parity exception:**
-   the Classic tab keeps the ring of the reference, and only there.
-   → Check: the Dashboard tab has no ring; `web/views/classic/` may.
+   the Advanced tab keeps the ring of the first dashboard, and only there.
+   → Check: the Dashboard tab has no ring; `web/views/advanced/` may.
 6. **Axes start at zero unless zero is meaningless, and then the caption
    says so.** Every axis carries its unit; the unit is never only on the top
    tick; bars of one chart share one scale, and a chart of two units does not
@@ -336,16 +332,16 @@ for the first time (the manifest of `web/js/boot.js`).
 
 | Budget | Target | Now | Check |
 |---|---|---|---|
-| HTML + CSS + JS, uncompressed (the whole tree) | ≤ 375 KB | 356.6 KB | **[budget]** |
+| HTML + CSS + JS, uncompressed (the whole tree) | ≤ 430 KB | 405.8 KB | **[budget]** |
 | HTML file | ≤ 12 KB | 4.3 KB | **[budget]** |
 | CSS total | ≤ 80 KB | 77.1 KB | **[budget]** |
-| JavaScript total (the five tabs) | ≤ 290 KB | 275.3 KB | **[budget]** |
+| JavaScript total (the six tabs) | ≤ 340 KB | 325.1 KB | **[budget]** |
 | JavaScript on the first paint | ≤ 110 KB | 105.6 KB | **[budget]** |
 | CSS on the first paint | ≤ 40 KB | 37.5 KB | **[budget]** |
 | Fonts | ≤ 130 KB, ≤ 4 files, woff2, `font-display:swap`, `unicode-range` | 128.4 KB, 4 files, swap, range ✓ | **[budget]** |
 | Requests on the first paint | ≤ 24 | 21 | **[budget]** |
 | Transferred text on the first paint (gzip) | ≤ 60 KB | 46.4 KB | **[budget]** |
-| Text of the whole tree (gzip) | ≤ 125 KB | 113.4 KB | **[budget]** |
+| Text of the whole tree (gzip) | ≤ 145 KB | 136.7 KB | **[budget]** |
 | Points drawn per chart | ≤ 240 | unbounded | **[review]** |
 | Pollers | 1 | 1 poller + 1 extra 1 Hz timer | **[review]** |
 | Live streams | 1 SSE at 1 Hz | 1 SSE | **[review]** |

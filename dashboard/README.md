@@ -69,7 +69,7 @@ flowchart LR
 | `web/js/data.js` | The only place that fetches: `api()`, `apiText()`, the shared state, the SSE streams and the one poller |
 | `web/js/boot.js` | The router, the old-hash aliases, the keyboard shortcuts and the manifest of the files of a tab. Loaded last. |
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, comparison, step timeline |
-| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs`, `viewClassic` |
+| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs`, `viewAdvanced` |
 | `web/fonts/` | The self-hosted fonts (Latin subsets, OFL): Montserrat, Inter, JetBrains Mono. No CDN. |
 | `web/css/tokens.css` | The two palettes (dark and light), the type, the fonts, the spacing and the radii |
 | `web/css/layout.css` | The shell, the rail, the grids and the state headline |
@@ -77,7 +77,7 @@ flowchart LR
 | `web/css/overlays.css` | The toast, the tooltip and the spinner: the parts of the page that come and go |
 | `web/css/views.css` | The parts that belong to one tab: the step timeline, the recipes, the doctor, the topology, the logs, the tiles and the rings |
 | `web/css/bench.css` | The Benchmark tab only |
-| `web/css/classic.css` | The Classic tab only: the reference-parity port, scoped under `.classic` |
+| `web/css/advanced.css` | The Advanced tab only: the layout rules of the first dashboard |
 | `dashboard_test.go` | API, auth and stream tests |
 
 ## Published globals
@@ -102,10 +102,11 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/js/shell.js` | `THEME_KEY`, `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `themeChoice`, `darkNow`, `applyTheme`, `toggleTheme`, `advancedOn`, `applyAdvanced`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
 | `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchCards`, `benchCellName`, `benchBestCell`, `benchHeadline`, `benchResultBody`, `benchCopy`, `benchReceipt`, `benchStartError`, `viewBenchmark` |
 | `dashboard/web/views/benchmark/suites.js` | `benchSuiteCells`, `benchSuiteEstS`, `benchMinutes`, `benchSuiteCard`, `benchSuiteCards`, `benchSentence`, `benchProgress`, `benchBest`, `benchSuiteOf`, `benchHistoryRow`, `benchHistory`, `benchAB`, `benchAdvanced` |
-| `dashboard/web/views/classic/charts.js` | `cfmt`, `cago`, `classicChart`, `classicSpark`, `classicRing`, `classicCount` |
-| `dashboard/web/views/classic/classic.js` | `classic`, `CLASSIC_DOCS`, `CLASSIC_HIST`, `CLASSIC_TAIL`, `viewClassic`, `classicSubscribe`, `classicHistory`, `classicSample`, `classicModel`, `classicLive`, `classicTail` |
-| `dashboard/web/views/classic/paint.js` | `classicUpdate`, `classicCharts`, `classicCrosshair` |
-| `dashboard/web/views/classic/panels.js` | `classicBuild`, `classicMark`, `classicTip`, `classicHeroButtons`, `classicMeterFill`, `classicGpuCard` |
+| `dashboard/web/views/advanced/advanced.js` | `adv`, `advGrid`, `advSection`, `advInfo`, `advGroup`, `ADV_PILL_ICON`, `advPill`, `advPush`, `advSeries`, `advCardSeries`, `advCardName`, `advCardLabel`, `advLiveRun`, `advPhase`, `advSetHead`, `advAdvanced`, `advLoad`, `advHistory`, `advWindowPrompt`, `advWindowSeries`, `viewAdvanced`, `advSample` |
+| `dashboard/web/views/advanced/gpus.js` | `advTile`, `advTiles`, `advHero`, `advTilesPaint`, `advCard`, `advEcc`, `advCards`, `advRenderGPUs`, `advSubscribe`, `advCharts` |
+| `dashboard/web/views/advanced/overview.js` | `advRunState`, `advRunCard`, `advFindings`, `advProblems`, `advStopRun`, `advRestartRun`, `advAsk` |
+| `dashboard/web/views/advanced/power.js` | `advPower`, `advPowerRow`, `advPowerAll`, `advSavePower` |
+| `dashboard/web/views/advanced/topology.js` | `ADV_CLASS_COLOR`, `advTopology`, `advTree`, `advMatrix`, `advChecklist` |
 | `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashGrid`, `dashSection`, `dashInfo`, `dashGroup`, `DASH_PILL_ICON`, `dashPill`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashCardLabel`, `dashLiveRun`, `dashPhase`, `dashSetHead`, `dashAdvanced`, `dashLoad`, `dashHistory`, `dashWindowPrompt`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
 | `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashTiles`, `dashHero`, `dashTilesPaint`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe`, `dashCharts` |
 | `dashboard/web/views/dashboard/overview.js` | `dashRunState`, `dashRunCard`, `dashFindings`, `dashProblems`, `dashStopRun`, `dashRestartRun`, `dashAsk` |
@@ -140,11 +141,11 @@ dashboard/
 │   └── httpjson/        the JSON response shapes
 └── web/
     ├── index.html       the shell markup and the script order
-    ├── css/             tokens, layout, components, overlays, views, bench, classic
+    ├── css/             tokens, layout, components, overlays, views, bench, advanced
     ├── fonts/           the self-hosted fonts and their licences
     ├── js/              core, shell, data, boot
     ├── components/      the shared widgets
-    └── views/           setup/, dashboard/, benchmark/, logs/, classic/
+    └── views/           setup/, dashboard/, benchmark/, logs/, advanced/
 ```
 
 The rule is the role, not the count: one package owns one thing, one file
@@ -186,14 +187,18 @@ Each tab answers one question. Keep it that way.
 | Dashboard | How busy is the host, how is it wired, and what is serving? | `/api/telemetry`, `/api/hw`, `/api/power`, `/api/topo`, `/api/topo/check`, `/api/runs` | copy the card list, set a power cap |
 | Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
 | Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
-| Classic | What does the original reference design look like on this host? | `/api/telemetry`, `/api/gpus/history`, `/api/hw`, `/api/runs` | read only: stop the run, copy the URL, copy the snippet |
+| Advanced | What did the first bernie dashboard show on this host? | `/api/telemetry`, `/api/gpus/history`, `/api/hw`, `/api/runs`, `/api/doctor`, `/api/power`, `/api/topo` | read only: stop the run, restart it, ask it one question |
 
-The Classic tab is the exception to "one question per tab": it is the
-reference-parity port of the dashboard view of the reference web UI
-(vllm-rdna-dash by CrispyGinger, used with permission), so the owner and the
-author of the reference can put the two next to each other. It lives in
-`web/views/classic/` with its own stylesheet `web/css/classic.css`, scoped
-under `.classic`, and it adds no endpoint. It is the last tab of the rail.
+The Advanced tab is the exception to "one question per tab": it is the first
+bernie dashboard, kept as it is for comparison and for the people who liked
+it. It has the same sections, the same order and the same controls as the
+dashboard we shipped before the reference design came in (the cards, the last
+minutes, the run, the power caps, the topology, the known problems), drawn
+with the current design: the tokens, the fonts and the shared components of
+the shell. It lives in `web/views/advanced/` with its layout sheet
+`web/css/advanced.css`, it reads the same `/api/*` answers and the shared
+telemetry stream, and it adds no endpoint. The old route `#classic` still
+lands on it.
 
 The Setup tab is the first tab. It opens with the state of the machine in one
 sentence, the facts of the host with the reason under every value, the
