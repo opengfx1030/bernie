@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,12 +22,14 @@ type powerRequest struct {
 
 // GET /api/power — `bernie tune power service status --json`.
 func (h *handler) getPower(w http.ResponseWriter, r *http.Request) {
-	status, err := app.ReadPowerServiceStatus(r.Context())
+	val, err := h.power.get(r.Context(), "", func(ctx context.Context) (any, error) {
+		return app.ReadPowerServiceStatus(ctx)
+	})
 	if err != nil {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	httpjson.Write(w, http.StatusOK, status)
+	httpjson.Write(w, http.StatusOK, val)
 }
 
 // PUT /api/power — write one desired power cap.
@@ -70,6 +73,8 @@ func (h *handler) putPower(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	// The cap changed: the next reader of the status sees it at once.
+	h.power.drop("")
 	httpjson.Write(w, http.StatusOK, result)
 }
 
