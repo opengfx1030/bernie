@@ -89,28 +89,35 @@ var (
 	errTokenBinding = errors.New("confirm_token does not match this tool, these arguments or the current plan; call the tool again without it to get a new plan")
 )
 
-// consume verifies and burns a token.
-func (t tokenStore) consume(token, tool, args, plan string) error {
+// verify checks a confirm token and burns it. It returns the digest of the
+// plan the token is bound to, so the caller can check the plan it computed
+// against it. A token is dead whatever the verdict: a token with changed
+// arguments or a changed plan needs a new plan call.
+//
+// The plan is not part of the check: the caller verifies the token before it
+// computes the plan, so a call that the gate refuses never has the side
+// effects of a plan.
+func (t tokenStore) verify(token, tool, args string) (string, error) {
 	path := filepath.Join(t.dir, hashToken(token))
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return errTokenUnknown
+		return "", errTokenUnknown
 	}
 	if err := os.Remove(path); err != nil {
-		return errTokenUnknown // another call consumed it first
+		return "", errTokenUnknown // another call consumed it first
 	}
 	var rec tokenRec
 	if err := json.Unmarshal(b, &rec); err != nil {
-		return errTokenUnknown
+		return "", errTokenUnknown
 	}
 	if !t.clock().Before(rec.Expires) {
-		return errTokenExpired
+		return "", errTokenExpired
 	}
 	host, _ := os.Hostname()
-	if rec.Tool != tool || rec.Args != args || rec.Plan != plan || rec.Host != host {
-		return errTokenBinding
+	if rec.Tool != tool || rec.Args != args || rec.Host != host {
+		return "", errTokenBinding
 	}
-	return nil
+	return rec.Plan, nil
 }
 
 // purge removes the files of expired tokens.
