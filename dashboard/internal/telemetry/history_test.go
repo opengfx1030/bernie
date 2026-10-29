@@ -74,13 +74,13 @@ func TestHistoryWindowShape(t *testing.T) {
 	}
 }
 
-// TestHistoryLongWindowIsDownsampled checks that the 1 h window holds one
-// point every 10 s.
+// TestHistoryLongWindowIsDownsampled checks that a window that holds more
+// points than the cap is downsampled into buckets.
 func TestHistoryLongWindowIsDownsampled(t *testing.T) {
 	h := NewHistory()
 	now := time.Now()
-	for i := range 30 { // 30 points every 2 s = 60 s
-		at := now.Add(-time.Duration(30-i) * historyStep)
+	for i := range historyCapacity { // 30 minutes at one point every 2 s
+		at := now.Add(-time.Duration(historyCapacity-i) * historyStep)
 		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, float64(i), float64(i), false)
 	}
 	doc, err := h.Window(Window1h)
@@ -90,12 +90,84 @@ func TestHistoryLongWindowIsDownsampled(t *testing.T) {
 	if doc.IntervalS != 15 {
 		t.Fatalf("the 1 h window has the spacing %d s, want 15", doc.IntervalS)
 	}
-	if doc.Points < 4 || doc.Points > 5 { // 60 s at one point every 15 s
-		t.Fatalf("the 1 h window holds %d points, want 4 or 5", doc.Points)
+	if doc.Points != maxSeriesPoints {
+		t.Fatalf("the 1 h window holds %d points, want %d", doc.Points, maxSeriesPoints)
 	}
-	// The last point of every bucket wins.
-	if got := doc.Series[0].TokensPerS[len(doc.Series[0].TokensPerS)-1]; got != 29 {
-		t.Fatalf("the last token rate is %v, want 29", got)
+	if len(doc.Series[0].TokensPerS) != doc.Points {
+		t.Fatalf("the series holds %d points, want %d", len(doc.Series[0].TokensPerS), doc.Points)
+	}
+	// The highest value of the window survives the downsampling.
+	top := 0.0
+	for _, v := range doc.Series[0].TokensPerS {
+		if v > top {
+			top = v
+		}
+	}
+	if top != float64(historyCapacity-1) {
+		t.Fatalf("the highest token rate is %v, want %d", top, historyCapacity-1)
+	}
+}
+
+// TestHistoryKeepsThePeakOfOneSample checks the downsampling: a peak that
+// lasted one sample is still in the answer. The old rule kept the last
+// point of every bucket and lost it.
+func TestHistoryKeepsThePeakOfOneSample(t *testing.T) {
+	h := NewHistory()
+	now := time.Now()
+	for i := range historyCapacity { // 30 minutes at one point every 2 s
+		at := now.Add(-time.Duration(historyCapacity-i) * historyStep)
+		busy := 10.0
+		if i == historyCapacity/2 {
+			busy = 100 // one sample of a peak
+		}
+		h.Add(at, []gpu.Sample{{HIPIndex: 0, BusyPct: busy}}, 0, 0, false)
+	}
+	doc, err := h.Window(Window1h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Points > maxSeriesPoints {
+		t.Fatalf("the window holds %d points, want at most %d", doc.Points, maxSeriesPoints)
+	}
+	if len(doc.Series) != 1 {
+		t.Fatalf("the window holds %d series, want 1", len(doc.Series))
+	}
+	s := doc.Series[0]
+	if len(s.BusyPct) != doc.Points {
+		t.Fatalf("the series holds %d points, want %d", len(s.BusyPct), doc.Points)
+	}
+	top := 0.0
+	for _, v := range s.BusyPct {
+		if v > top {
+			top = v
+		}
+	}
+	if top != 100 {
+		t.Fatalf("the highest load of the answer is %v, want 100: the peak was lost", top)
+	}
+}
+
+// TestHistoryKeepsTheGapOfTheSlowFields checks that a point without a slow
+// measurement stays a gap after the downsampling.
+func TestHistoryKeepsTheGapOfTheSlowFields(t *testing.T) {
+	h := NewHistory()
+	now := time.Now()
+	for i := range historyCapacity {
+		at := now.Add(-time.Duration(historyCapacity-i) * historyStep)
+		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, 0, 0, false)
+	}
+	doc, err := h.Window(Window1h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := doc.Series[0]
+	if len(s.TempC) != doc.Points {
+		t.Fatalf("the slow series holds %d points, want %d", len(s.TempC), doc.Points)
+	}
+	for i, v := range s.TempC {
+		if v != nil {
+			t.Fatalf("the point %d holds the temperature %v, want a gap", i, *v)
+		}
 	}
 }
 
@@ -108,12 +180,15 @@ func TestHistoryKeepsTheLastThirtyMinutes(t *testing.T) {
 		at := now.Add(-time.Duration(historyCapacity+50-i) * historyStep)
 		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, 0, 0, false)
 	}
+	if h.n != historyCapacity {
+		t.Fatalf("the buffer holds %d points, want %d", h.n, historyCapacity)
+	}
 	doc, err := h.Window(Window1h)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.Points > 181 {
-		t.Fatalf("the 1 h window holds %d points, want at most 181", doc.Points)
+	if doc.Points > maxSeriesPoints {
+		t.Fatalf("the 1 h window holds %d points, want at most %d", doc.Points, maxSeriesPoints)
 	}
 	if doc.Points == 0 {
 		t.Fatal("the window is empty")

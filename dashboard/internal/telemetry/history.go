@@ -18,14 +18,17 @@ const (
 
 // The retention of the ring buffer and the spacing of its points.
 const (
-	historyCapacity = 900              // 30 minutes at one point every 2 s
-	historyStep     = 2 * time.Second  // the spacing of the points
-	historyLongStep = 10 * time.Second // the spacing of the 1 h window
-	historyCache    = 2 * time.Second  // how long an answer is reused
+	historyCapacity = 900             // 30 minutes at one point every 2 s
+	historyStep     = 2 * time.Second // the spacing of the points
+	historyCache    = 2 * time.Second // how long an answer is reused
 	// maxSeriesPoints is the number of points a series of the history
 	// holds. A longer window is downsampled further, so the answer stays
 	// small enough to paint and to download.
 	maxSeriesPoints = 240
+	// maxBuckets is the number of buckets a downsampled window is split
+	// into. Every bucket keeps two points, its lowest and its highest
+	// value, so a series never holds more than maxSeriesPoints points.
+	maxBuckets = maxSeriesPoints / 2
 )
 
 // History is the ring buffer of the samples of the last minutes. The hub
@@ -137,17 +140,13 @@ func (h *History) Add(at time.Time, gpus []gpu.Sample, tokS, promptTokS float64,
 
 // Window returns the document of a window: "5m", "15m" or "1h". The answer
 // is reused for historyCache seconds, so a page that asks often does not
-// rebuild it. The 1 h window holds one point every 10 s; the buffer keeps
-// 30 minutes, so it holds about 180 points.
+// rebuild it. A window that holds more points than the cap is downsampled
+// with MinMax: every bucket of the window keeps its lowest and its highest
+// value, so a peak of one sample is never lost.
 func (h *History) Window(name string) (HistoryDocument, error) {
-	dur, step, err := windowSpec(name)
+	dur, err := windowSpec(name)
 	if err != nil {
 		return HistoryDocument{}, err
-	}
-	// No series holds more than maxSeriesPoints points: a long window is
-	// downsampled further.
-	if least := dur / maxSeriesPoints; step < least {
-		step = (least + time.Second - 1) / time.Second * time.Second
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -155,48 +154,71 @@ func (h *History) Window(name string) (HistoryDocument, error) {
 	if h.cached != nil && h.cached.Window == name && now.Sub(h.cachedAt) < historyCache {
 		return *h.cached, nil
 	}
-	doc := h.build(name, dur, step, now)
+	doc := h.build(name, dur, now)
 	h.cached, h.cachedAt = &doc, now
 	return doc, nil
 }
 
-// windowSpec returns the length and the spacing of a window.
-func windowSpec(name string) (time.Duration, time.Duration, error) {
+// windowSpec returns the length of a window.
+func windowSpec(name string) (time.Duration, error) {
 	switch name {
 	case Window5m:
-		return 5 * time.Minute, historyStep, nil
+		return 5 * time.Minute, nil
 	case Window15m:
-		return 15 * time.Minute, historyStep, nil
+		return 15 * time.Minute, nil
 	case Window1h:
-		return time.Hour, historyLongStep, nil
+		return time.Hour, nil
 	}
-	return 0, 0, fmt.Errorf("window %q is not one of %s, %s or %s", name, Window5m, Window15m, Window1h)
+	return 0, fmt.Errorf("window %q is not one of %s, %s or %s", name, Window5m, Window15m, Window1h)
 }
 
 // build assembles the document of a window. The caller holds the lock.
-func (h *History) build(name string, dur, step time.Duration, now time.Time) HistoryDocument {
-	sel := h.points(now.Add(-dur), step)
+func (h *History) build(name string, dur time.Duration, now time.Time) HistoryDocument {
+	sel := h.points(now.Add(-dur))
 	hips := h.hips(sel)
+	buckets, width := bucketPlan(sel)
+	var bucketOf []int
+	if width > 0 {
+		bucketOf = bucketIndexes(sel, width)
+	}
+	points := len(sel)
+	if bucketOf != nil {
+		points = 2 * buckets
+	}
+	// The interval of the answer is the width of a bucket, or the spacing
+	// of the ring when the window is not downsampled.
+	interval := width
+	if interval == 0 {
+		interval = int(historyStep / time.Second)
+	}
 	doc := HistoryDocument{
 		Window:    name,
-		IntervalS: int(step / time.Second),
-		Points:    len(sel),
+		IntervalS: interval,
+		Points:    points,
 		Series:    make([]HistorySeries, 0, len(hips)),
 	}
 	for _, hip := range hips {
 		s := HistorySeries{
 			HIPIndex:         hip,
-			BusyPct:          make([]float64, 0, len(sel)),
-			PowerW:           make([]float64, 0, len(sel)),
-			VRAMUsed:         make([]uint64, 0, len(sel)),
-			TokensPerS:       make([]float64, 0, len(sel)),
-			PromptTokensPerS: make([]float64, 0, len(sel)),
-			TempC:            make([]*float64, 0, len(sel)),
-			SclkMHz:          make([]*int, 0, len(sel)),
-			MclkMHz:          make([]*int, 0, len(sel)),
+			BusyPct:          make([]float64, 0, points),
+			PowerW:           make([]float64, 0, points),
+			VRAMUsed:         make([]uint64, 0, points),
+			TokensPerS:       make([]float64, 0, points),
+			PromptTokensPerS: make([]float64, 0, points),
+			TempC:            make([]*float64, 0, points),
+			SclkMHz:          make([]*int, 0, points),
+			MclkMHz:          make([]*int, 0, points),
 		}
-		var busy, power float64
-		var vram uint64
+		busy := make([]sampleValue, 0, len(sel))
+		power := make([]sampleValue, 0, len(sel))
+		vram := make([]sampleValue, 0, len(sel))
+		tokens := make([]sampleValue, 0, len(sel))
+		prompt := make([]sampleValue, 0, len(sel))
+		temp := make([]sampleValue, 0, len(sel))
+		sclk := make([]sampleValue, 0, len(sel))
+		mclk := make([]sampleValue, 0, len(sel))
+		var lastBusy, lastPower float64
+		var lastVram uint64
 		for _, p := range sel {
 			var card *cardPoint
 			for i := range p.cards {
@@ -206,36 +228,42 @@ func (h *History) build(name string, dur, step time.Duration, now time.Time) His
 				}
 			}
 			if card != nil {
-				busy, power, vram = card.busy, card.power, card.vram
+				lastBusy, lastPower, lastVram = card.busy, card.power, card.vram
 			}
 			// A card that is gone keeps its last value: the chart shows no
 			// dip that never happened.
-			s.BusyPct = append(s.BusyPct, busy)
-			s.PowerW = append(s.PowerW, power)
-			s.VRAMUsed = append(s.VRAMUsed, vram)
-			s.TokensPerS = append(s.TokensPerS, p.tokS)
-			s.PromptTokensPerS = append(s.PromptTokensPerS, p.promptTokS)
+			busy = append(busy, measured(lastBusy))
+			power = append(power, measured(lastPower))
+			vram = append(vram, measured(float64(lastVram)))
+			tokens = append(tokens, measured(p.tokS))
+			prompt = append(prompt, measured(p.promptTokS))
 			// The slow fields are never carried forward: a point without a
 			// slow measurement is a gap.
 			if card == nil {
-				s.TempC = append(s.TempC, nil)
-				s.SclkMHz = append(s.SclkMHz, nil)
-				s.MclkMHz = append(s.MclkMHz, nil)
+				temp = append(temp, sampleValue{})
+				sclk = append(sclk, sampleValue{})
+				mclk = append(mclk, sampleValue{})
 				continue
 			}
-			s.TempC = append(s.TempC, card.temp)
-			s.SclkMHz = append(s.SclkMHz, card.sclk)
-			s.MclkMHz = append(s.MclkMHz, card.mclk)
+			temp = append(temp, optional(card.temp))
+			sclk = append(sclk, optionalInt(card.sclk))
+			mclk = append(mclk, optionalInt(card.mclk))
 		}
+		s.BusyPct = floats(minMax(busy, bucketOf, buckets))
+		s.PowerW = floats(minMax(power, bucketOf, buckets))
+		s.VRAMUsed = uints(minMax(vram, bucketOf, buckets))
+		s.TokensPerS = floats(minMax(tokens, bucketOf, buckets))
+		s.PromptTokensPerS = floats(minMax(prompt, bucketOf, buckets))
+		s.TempC = temps(minMax(temp, bucketOf, buckets))
+		s.SclkMHz = clocks(minMax(sclk, bucketOf, buckets))
+		s.MclkMHz = clocks(minMax(mclk, bucketOf, buckets))
 		doc.Series = append(doc.Series, s)
 	}
 	return doc
 }
 
-// points returns the points of the window, oldest first. When the step is
-// longer than the spacing of the buffer, one point per bucket is kept: the
-// last of every bucket.
-func (h *History) points(cut time.Time, step time.Duration) []point {
+// points returns the points of the window, oldest first.
+func (h *History) points(cut time.Time) []point {
 	sel := make([]point, 0, h.n)
 	for i := range h.n {
 		p := h.pts[(h.head-h.n+i+historyCapacity)%historyCapacity]
@@ -244,16 +272,149 @@ func (h *History) points(cut time.Time, step time.Duration) []point {
 		}
 		sel = append(sel, p)
 	}
-	if step <= historyStep {
-		return sel
+	return sel
+}
+
+// bucketPlan splits the points of a window into the buckets of the
+// downsampling. It returns the number of the buckets and the width of a
+// bucket in seconds. A window that holds no more points than the cap is
+// kept as it is: the width is 0 and there is no bucket.
+func bucketPlan(sel []point) (int, int) {
+	if len(sel) <= maxSeriesPoints {
+		return len(sel), 0
 	}
-	out := make([]point, 0, len(sel))
-	width := int64(step / time.Second)
-	for i := range sel {
-		if i+1 < len(sel) && sel[i+1].at.Unix()/width == sel[i].at.Unix()/width {
-			continue // a later point of the same bucket wins
+	span := int64(sel[len(sel)-1].at.Sub(sel[0].at) / time.Second)
+	width := span/int64(maxBuckets) + 1
+	for {
+		count := int(span/width) + 1
+		if count <= maxBuckets {
+			return count, int(width)
 		}
-		out = append(out, sel[i])
+		width++
+	}
+}
+
+// bucketIndexes returns the bucket of every point of a window. The buckets
+// are counted from the first point of the window.
+func bucketIndexes(sel []point, width int) []int {
+	base := sel[0].at.Unix()
+	out := make([]int, len(sel))
+	for i, p := range sel {
+		out[i] = int((p.at.Unix() - base) / int64(width))
+	}
+	return out
+}
+
+// sampleValue is one value of a series and whether it was measured.
+type sampleValue struct {
+	v  float64
+	ok bool
+}
+
+// measured is a value that was measured.
+func measured(v float64) sampleValue { return sampleValue{v: v, ok: true} }
+
+// optional is a value that may be missing.
+func optional(v *float64) sampleValue {
+	if v == nil {
+		return sampleValue{}
+	}
+	return measured(*v)
+}
+
+// optionalInt is an integer that may be missing.
+func optionalInt(v *int) sampleValue {
+	if v == nil {
+		return sampleValue{}
+	}
+	return measured(float64(*v))
+}
+
+// minMax keeps the lowest and the highest measured value of every bucket,
+// in the order of the window: the two values of a bucket are written in the
+// order of the samples, so the line never steps back in time. A bucket
+// without a measurement keeps two gaps, so a gap stays a gap. A window that
+// is not downsampled keeps its values as they are.
+func minMax(vals []sampleValue, bucketOf []int, buckets int) []sampleValue {
+	if bucketOf == nil {
+		out := make([]sampleValue, len(vals))
+		copy(out, vals)
+		return out
+	}
+	lo := make([]int, buckets)
+	hi := make([]int, buckets)
+	for i := range lo {
+		lo[i] = -1
+		hi[i] = -1
+	}
+	for i, v := range vals {
+		if !v.ok {
+			continue
+		}
+		b := bucketOf[i]
+		if lo[b] < 0 || v.v < vals[lo[b]].v {
+			lo[b] = i
+		}
+		if hi[b] < 0 || v.v > vals[hi[b]].v {
+			hi[b] = i
+		}
+	}
+	out := make([]sampleValue, 0, 2*buckets)
+	for b := range buckets {
+		switch {
+		case lo[b] < 0:
+			out = append(out, sampleValue{}, sampleValue{})
+		case lo[b] == hi[b]:
+			out = append(out, vals[lo[b]], vals[lo[b]])
+		case lo[b] < hi[b]:
+			out = append(out, vals[lo[b]], vals[hi[b]])
+		default:
+			out = append(out, vals[hi[b]], vals[lo[b]])
+		}
+	}
+	return out
+}
+
+// floats writes the values of a series that are always measured.
+func floats(vals []sampleValue) []float64 {
+	out := make([]float64, len(vals))
+	for i, v := range vals {
+		out[i] = v.v
+	}
+	return out
+}
+
+// uints writes the values of a series that are always measured.
+func uints(vals []sampleValue) []uint64 {
+	out := make([]uint64, len(vals))
+	for i, v := range vals {
+		out[i] = uint64(v.v)
+	}
+	return out
+}
+
+// temps writes the values of a series that may be missing.
+func temps(vals []sampleValue) []*float64 {
+	out := make([]*float64, len(vals))
+	for i, v := range vals {
+		if !v.ok {
+			continue
+		}
+		f := v.v
+		out[i] = &f
+	}
+	return out
+}
+
+// clocks writes the integers of a series that may be missing.
+func clocks(vals []sampleValue) []*int {
+	out := make([]*int, len(vals))
+	for i, v := range vals {
+		if !v.ok {
+			continue
+		}
+		n := int(v.v)
+		out[i] = &n
 	}
 	return out
 }
