@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,8 +55,16 @@ type Server struct {
 	requests int
 	running  int
 	genTotal int
+	prompt   int // the prompt tokens the server read
+	cached   int // the prompt tokens it served from its prefix cache
+	queries  int // the tokens it looked up in the prefix cache
+	hits     int // the tokens it found in the prefix cache
+	finished map[string]int
+	last     string    // the last prompt, for the prefix cache
 	ttft     []float64 // observed time to first token, in seconds
 	itl      []float64 // observed inter-token latency, in seconds
+	e2e      []float64 // observed time of the whole request, in seconds
+	queue    []float64 // observed wait in the queue, in seconds
 }
 
 // New returns a fake server.
@@ -66,7 +75,18 @@ func New(cfg Config) *Server {
 	if cfg.TokensPerChunk <= 0 {
 		cfg.TokensPerChunk = 1
 	}
-	return &Server{cfg: cfg}
+	return &Server{cfg: cfg, finished: map[string]int{}}
+}
+
+// commonPrefixTokens returns the number of words the two prompts share at
+// their start: the fake serves them from its prefix cache.
+func commonPrefixTokens(a, b string) int {
+	aw, bw := strings.Fields(a), strings.Fields(b)
+	n := 0
+	for n < len(aw) && n < len(bw) && aw[n] == bw[n] {
+		n++
+	}
+	return n
 }
 
 // CountTokens is the fake tokenizer: one BOS token, plus one token per
@@ -124,18 +144,51 @@ func (s *Server) tokenize(w http.ResponseWriter, r *http.Request) {
 func (s *Server) metrics(w http.ResponseWriter) {
 	s.mu.Lock()
 	running, gen := s.running, s.genTotal
+	prompt, cached, queries, hits := s.prompt, s.cached, s.queries, s.hits
+	finished := make(map[string]int, len(s.finished))
+	for k, v := range s.finished {
+		finished[k] = v
+	}
 	ttft := append([]float64(nil), s.ttft...)
 	itl := append([]float64(nil), s.itl...)
+	e2e := append([]float64(nil), s.e2e...)
+	queue := append([]float64(nil), s.queue...)
 	s.mu.Unlock()
 	m := s.cfg.Model
 	fmt.Fprintf(w, "# HELP vllm:num_requests_running Number of requests in model execution batches.\n")
 	fmt.Fprintf(w, "# TYPE vllm:num_requests_running gauge\n")
 	fmt.Fprintf(w, "vllm:num_requests_running{engine=\"0\",model_name=\"%s\"} %d\n", m, running)
 	fmt.Fprintf(w, "vllm:num_requests_waiting{engine=\"0\",model_name=\"%s\"} 0\n", m)
+	fmt.Fprintf(w, "vllm:num_requests_waiting_by_reason{engine=\"0\",model_name=\"%s\",reason=\"capacity\"} 0\n", m)
 	fmt.Fprintf(w, "vllm:kv_cache_usage_perc{engine=\"0\",model_name=\"%s\"} 0.25\n", m)
+	fmt.Fprintf(w, "vllm:prompt_tokens_total{engine=\"0\",model_name=\"%s\"} %d\n", m, prompt)
+	fmt.Fprintf(w, "vllm:prompt_tokens_cached_total{engine=\"0\",model_name=\"%s\"} %d\n", m, cached)
+	fmt.Fprintf(w, "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"%s\",source=\"local_compute\"} %d\n", m, prompt-cached)
+	fmt.Fprintf(w, "vllm:prompt_tokens_by_source_total{engine=\"0\",model_name=\"%s\",source=\"local_cache_hit\"} %d\n", m, cached)
+	fmt.Fprintf(w, "vllm:prefix_cache_queries_total{engine=\"0\",model_name=\"%s\"} %d\n", m, queries)
+	fmt.Fprintf(w, "vllm:prefix_cache_hits_total{engine=\"0\",model_name=\"%s\"} %d\n", m, hits)
+	fmt.Fprintf(w, "vllm:external_prefix_cache_queries_total{engine=\"0\",model_name=\"%s\"} 0\n", m)
+	fmt.Fprintf(w, "vllm:external_prefix_cache_hits_total{engine=\"0\",model_name=\"%s\"} 0\n", m)
+	fmt.Fprintf(w, "vllm:num_preemptions_total{engine=\"0\",model_name=\"%s\"} 0\n", m)
 	fmt.Fprintf(w, "vllm:generation_tokens_total{engine=\"0\",model_name=\"%s\"} %d\n", m, gen)
+	for _, reason := range sortedKeys(finished) {
+		fmt.Fprintf(w, "vllm:request_success_total{engine=\"0\",finished_reason=\"%s\",model_name=\"%s\"} %d\n", reason, m, finished[reason])
+	}
 	writeHistogram(w, "vllm:time_to_first_token_seconds", m, ttft)
 	writeHistogram(w, "vllm:inter_token_latency_seconds", m, itl)
+	writeHistogram(w, "vllm:e2e_request_latency_seconds", m, e2e)
+	writeHistogram(w, "vllm:request_queue_time_seconds", m, queue)
+}
+
+// sortedKeys returns the keys of a map in order, so the fake writes the
+// same page every time.
+func sortedKeys(m map[string]int) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // latencyBuckets are the bucket bounds of the vLLM latency histograms.
@@ -179,6 +232,7 @@ type completionRequest struct {
 }
 
 func (s *Server) completions(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	var req completionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, errBody(err.Error()))
@@ -208,6 +262,17 @@ func (s *Server) completions(w http.ResponseWriter, r *http.Request) {
 	usage := req.StreamOptions != nil && req.StreamOptions.IncludeUsage
 	continuous := usage && req.StreamOptions.ContinuousUsageStats && !s.cfg.NoContinuousUsage
 	promptTokens := CountTokens(req.Prompt)
+
+	s.mu.Lock()
+	// The fake has a prefix cache: the tokens a prompt shares with the
+	// previous one come from the cache.
+	cached := commonPrefixTokens(s.last, req.Prompt)
+	s.last = req.Prompt
+	s.prompt += promptTokens
+	s.queries += promptTokens
+	s.cached += cached
+	s.hits += cached
+	s.mu.Unlock()
 
 	s.mu.Lock()
 	s.running++
@@ -305,6 +370,11 @@ func (s *Server) completions(w http.ResponseWriter, r *http.Request) {
 		send(map[string]any{"id": id, "object": "text_completion", "created": 0, "model": s.cfg.Model,
 			"choices": []any{}, "usage": usageBody(promptTokens, done)})
 	}
+	s.mu.Lock()
+	s.finished["length"]++
+	s.e2e = append(s.e2e, time.Since(start).Seconds())
+	s.queue = append(s.queue, 0) // the fake never queues a request
+	s.mu.Unlock()
 	fmt.Fprint(w, "data: [DONE]\n\n")
 	if fl != nil {
 		fl.Flush()

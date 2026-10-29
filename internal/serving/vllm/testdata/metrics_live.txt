@@ -1,0 +1,164 @@
+# HELP vllm:num_requests_running Number of requests in model execution batches.
+# TYPE vllm:num_requests_running gauge
+vllm:num_requests_running{engine="0",model_name="tiny"} 0.0
+# HELP vllm:num_requests_waiting Number of requests waiting to be processed.
+# TYPE vllm:num_requests_waiting gauge
+vllm:num_requests_waiting{engine="0",model_name="tiny"} 0.0
+# HELP vllm:num_requests_waiting_by_reason Number of waiting requests by reason. Reason labels: 'capacity' = waiting for scheduling capacity; 'deferred' = deferred by transient constraints (LoRA budget, KV transfer, blocked status). Sum of all reasons equals vllm:num_requests_waiting.
+# TYPE vllm:num_requests_waiting_by_reason gauge
+vllm:num_requests_waiting_by_reason{engine="0",model_name="tiny",reason="capacity"} 0.0
+vllm:num_requests_waiting_by_reason{engine="0",model_name="tiny",reason="deferred"} 0.0
+# HELP vllm:kv_cache_usage_perc KV-cache usage. 1 means 100 percent usage.
+# TYPE vllm:kv_cache_usage_perc gauge
+vllm:kv_cache_usage_perc{engine="0",model_name="tiny"} 0.0
+# HELP vllm:prefix_cache_queries_total Prefix cache queries, in terms of number of queried tokens.
+# TYPE vllm:prefix_cache_queries_total counter
+vllm:prefix_cache_queries_total{engine="0",model_name="tiny"} 14536.0
+# HELP vllm:prefix_cache_hits_total Prefix cache hits, in terms of number of cached tokens.
+# TYPE vllm:prefix_cache_hits_total counter
+vllm:prefix_cache_hits_total{engine="0",model_name="tiny"} 416.0
+# HELP vllm:external_prefix_cache_queries_total External prefix cache queries from KV connector cross-instance cache sharing, in terms of number of queried tokens.
+# TYPE vllm:external_prefix_cache_queries_total counter
+vllm:external_prefix_cache_queries_total{engine="0",model_name="tiny"} 0.0
+# HELP vllm:external_prefix_cache_hits_total External prefix cache hits from KV connector cross-instance cache sharing, in terms of number of cached tokens.
+# TYPE vllm:external_prefix_cache_hits_total counter
+vllm:external_prefix_cache_hits_total{engine="0",model_name="tiny"} 0.0
+# HELP vllm:num_preemptions_total Cumulative number of preemption from the engine.
+# TYPE vllm:num_preemptions_total counter
+vllm:num_preemptions_total{engine="0",model_name="tiny"} 0.0
+# HELP vllm:prompt_tokens_total Number of prefill tokens processed.
+# TYPE vllm:prompt_tokens_total counter
+vllm:prompt_tokens_total{engine="0",model_name="tiny"} 14536.0
+# HELP vllm:prompt_tokens_by_source_total Number of prompt tokens by source.
+# TYPE vllm:prompt_tokens_by_source_total counter
+vllm:prompt_tokens_by_source_total{engine="0",model_name="tiny",source="local_compute"} 14120.0
+vllm:prompt_tokens_by_source_total{engine="0",model_name="tiny",source="local_cache_hit"} 416.0
+vllm:prompt_tokens_by_source_total{engine="0",model_name="tiny",source="external_kv_transfer"} 0.0
+# HELP vllm:prompt_tokens_cached_total Number of cached prompt tokens (local + external).
+# TYPE vllm:prompt_tokens_cached_total counter
+vllm:prompt_tokens_cached_total{engine="0",model_name="tiny"} 416.0
+# HELP vllm:generation_tokens_total Number of generation tokens processed.
+# TYPE vllm:generation_tokens_total counter
+vllm:generation_tokens_total{engine="0",model_name="tiny"} 3099.0
+# HELP vllm:request_success_total Count of successfully processed requests.
+# TYPE vllm:request_success_total counter
+vllm:request_success_total{engine="0",finished_reason="stop",model_name="tiny"} 1.0
+vllm:request_success_total{engine="0",finished_reason="length",model_name="tiny"} 54.0
+vllm:request_success_total{engine="0",finished_reason="abort",model_name="tiny"} 0.0
+vllm:request_success_total{engine="0",finished_reason="error",model_name="tiny"} 0.0
+vllm:request_success_total{engine="0",finished_reason="repetition",model_name="tiny"} 0.0
+# HELP vllm:time_to_first_token_seconds Histogram of time to first token in seconds.
+# TYPE vllm:time_to_first_token_seconds histogram
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.001",model_name="tiny"} 0.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.005",model_name="tiny"} 0.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.01",model_name="tiny"} 0.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.02",model_name="tiny"} 1.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.04",model_name="tiny"} 22.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.06",model_name="tiny"} 29.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.08",model_name="tiny"} 39.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.1",model_name="tiny"} 40.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.25",model_name="tiny"} 53.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.5",model_name="tiny"} 53.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="0.75",model_name="tiny"} 54.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="1.0",model_name="tiny"} 54.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="2.5",model_name="tiny"} 54.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="5.0",model_name="tiny"} 54.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="7.5",model_name="tiny"} 54.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="10.0",model_name="tiny"} 54.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="20.0",model_name="tiny"} 54.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="40.0",model_name="tiny"} 55.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="80.0",model_name="tiny"} 55.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="160.0",model_name="tiny"} 55.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="640.0",model_name="tiny"} 55.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="2560.0",model_name="tiny"} 55.0
+vllm:time_to_first_token_seconds_bucket{engine="0",le="+Inf",model_name="tiny"} 55.0
+vllm:time_to_first_token_seconds_count{engine="0",model_name="tiny"} 55.0
+vllm:time_to_first_token_seconds_sum{engine="0",model_name="tiny"} 30.421223402023315
+# HELP vllm:time_to_first_token_seconds_created Histogram of time to first token in seconds.
+# TYPE vllm:time_to_first_token_seconds_created gauge
+vllm:time_to_first_token_seconds_created{engine="0",model_name="tiny"} 1.7932185383621447e+09
+# HELP vllm:inter_token_latency_seconds Histogram of inter-token latency in seconds.
+# TYPE vllm:inter_token_latency_seconds histogram
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.01",model_name="tiny"} 49.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.025",model_name="tiny"} 2657.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.05",model_name="tiny"} 2993.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.075",model_name="tiny"} 3010.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.1",model_name="tiny"} 3011.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.15",model_name="tiny"} 3020.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.2",model_name="tiny"} 3024.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.3",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.4",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.5",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="0.75",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="1.0",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="2.5",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="5.0",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="7.5",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="10.0",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="20.0",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="40.0",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="80.0",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_bucket{engine="0",le="+Inf",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_count{engine="0",model_name="tiny"} 3044.0
+vllm:inter_token_latency_seconds_sum{engine="0",model_name="tiny"} 61.89255684897944
+# HELP vllm:inter_token_latency_seconds_created Histogram of inter-token latency in seconds.
+# TYPE vllm:inter_token_latency_seconds_created gauge
+vllm:inter_token_latency_seconds_created{engine="0",model_name="tiny"} 1.7932185383622553e+09
+# HELP vllm:e2e_request_latency_seconds Histogram of e2e request latency in seconds.
+# TYPE vllm:e2e_request_latency_seconds histogram
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.3",model_name="tiny"} 3.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.5",model_name="tiny"} 3.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="0.8",model_name="tiny"} 12.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.0",model_name="tiny"} 26.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1.5",model_name="tiny"} 44.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.0",model_name="tiny"} 50.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="2.5",model_name="tiny"} 50.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="5.0",model_name="tiny"} 54.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="10.0",model_name="tiny"} 54.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="15.0",model_name="tiny"} 54.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="20.0",model_name="tiny"} 54.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="30.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="40.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="50.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="60.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="120.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="240.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="480.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="960.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="1920.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="7680.0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_bucket{engine="0",le="+Inf",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_count{engine="0",model_name="tiny"} 55.0
+vllm:e2e_request_latency_seconds_sum{engine="0",model_name="tiny"} 92.28320288658142
+# HELP vllm:e2e_request_latency_seconds_created Histogram of e2e request latency in seconds.
+# TYPE vllm:e2e_request_latency_seconds_created gauge
+vllm:e2e_request_latency_seconds_created{engine="0",model_name="tiny"} 1.7932185383624387e+09
+# HELP vllm:request_queue_time_seconds Histogram of time spent in WAITING phase for request.
+# TYPE vllm:request_queue_time_seconds histogram
+vllm:request_queue_time_seconds_bucket{engine="0",le="0.3",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="0.5",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="0.8",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="1.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="1.5",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="2.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="2.5",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="5.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="10.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="15.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="20.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="30.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="40.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="50.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="60.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="120.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="240.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="480.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="960.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="1920.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="7680.0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_bucket{engine="0",le="+Inf",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_count{engine="0",model_name="tiny"} 55.0
+vllm:request_queue_time_seconds_sum{engine="0",model_name="tiny"} 0.0017498150700703263
+# HELP vllm:request_queue_time_seconds_created Histogram of time spent in WAITING phase for request.
+# TYPE vllm:request_queue_time_seconds_created gauge
+vllm:request_queue_time_seconds_created{engine="0",model_name="tiny"} 1.7932185383625398e+09
