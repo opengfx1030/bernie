@@ -102,6 +102,7 @@ function dashPush(doc) {
       hot: hot, hotName: hotName,
       clk: clk, clkName: clkName,
       gen: live ? live.gen_tok_s : null,
+      prompt: live ? live.prompt_tok_s : null,
       running: stats ? stats.requests_running : null,
       waiting: stats ? stats.requests_waiting : null,
       kv: stats ? stats.kv_cache_usage : null,
@@ -247,6 +248,19 @@ async function dashHistory() {
     dash.historyOK = false;
   }
   if (dash.live.charts) dash.live.charts.update();
+}
+
+// dashWindowPrompt is the prefill rate of the live run over the window: the
+// prompt tokens per second. The rate is a property of the server, so every
+// card carries the same number; the first series of the history holds it.
+function dashWindowPrompt() {
+  const mins = dash.window === "1h" ? 60 : dash.window === "15m" ? 15 : 5;
+  if (dash.historyOK && dash.history && dash.history.series && dash.history.series.length) {
+    const first = dash.history.series[0];
+    return (first.prompt_tok_s || []).slice();
+  }
+  const want = mins * 60;
+  return dash.samples.slice(-want).map((x) => (x.agg ? x.agg.prompt : null));
 }
 
 // dashWindowSeries is the fleet series of one measure over the window: the
