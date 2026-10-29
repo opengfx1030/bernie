@@ -10,10 +10,12 @@ import (
 	"io"
 
 	"github.com/opengfx1030/bernie/internal/onboarding"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 )
 
-// root is the host filesystem root the probes read.
-const root = "/"
+// root is the host filesystem root the probes read. It is "/" on the real
+// host; BERNIE_ROOT points it at a captured host tree (spec §4).
+var root = hostroot.Root()
 
 // logf writes one progress line to w. A nil w discards it.
 func logf(w io.Writer, line string) {

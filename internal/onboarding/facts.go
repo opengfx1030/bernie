@@ -16,6 +16,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/setup"
 	"github.com/opengfx1030/bernie/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 )
 
 // Options are the inputs of the onboarding: the flags of `up` and of the
@@ -27,6 +28,7 @@ type Options struct {
 	Sets   []string // --set overrides
 	Engine string   // container engine
 	Name   string   // run name
+	Root   string   // root of the host tree to read; "" = the real host
 }
 
 // Facts is the state of the host, gathered once. The steps are derived from
@@ -97,10 +99,16 @@ func Gather(ctx context.Context, o Options) (*Facts, error) {
 		wg.Add(1)
 		go func() { defer wg.Done(); fn() }()
 	}
+	// The root of the host tree: "/" on the real host, another tree when
+	// the caller points at a captured host (spec §4).
+	root := o.Root
+	if root == "" {
+		root = hostroot.Root()
+	}
 	var gpuErr error
-	run(func() { f.Host, _ = host.Probe(ctx, "/") }) // best-effort, never fails
+	run(func() { f.Host, _ = host.Probe(ctx, root) }) // best-effort, never fails
 	run(func() {
-		vis, err := gpu.Visible("/")
+		vis, err := gpu.Visible(root)
 		if gpu.Restricted(err) {
 			gpuErr = err // the restriction names a GPU this host does not have
 			return
@@ -110,7 +118,7 @@ func Gather(ctx context.Context, o Options) (*Facts, error) {
 		}
 		f.Restriction = vis.Restriction.Note()
 	})
-	run(func() { f.roc = rocm.Probe(ctx, "/") })
+	run(func() { f.roc = rocm.Probe(ctx, root) })
 	wg.Wait()
 	if gpuErr != nil {
 		return nil, gpuErr
@@ -132,7 +140,7 @@ func Gather(ctx context.Context, o Options) (*Facts, error) {
 	f.Mode = mode(f.Host, cfg, o, set, f.Recipe)
 	run(func() {
 		f.Doctor = doctor.Run(ctx, doctor.Options{
-			Root: "/", Venv: f.Venv, VenvSource: f.VenvSource, VenvCandidates: f.VenvCandidates,
+			Root: root, Venv: f.Venv, VenvSource: f.VenvSource, VenvCandidates: f.VenvCandidates,
 			HFHome:         f.HFHome,
 			ValidatedArchs: recipe.ValidatedArchs(set), RecipeEnv: recipeEnv(set, f.Recipe),
 			Host: &f.Host, ROCm: &f.roc,

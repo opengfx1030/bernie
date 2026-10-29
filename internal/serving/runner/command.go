@@ -21,6 +21,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
 	"github.com/opengfx1030/bernie/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
@@ -254,7 +255,7 @@ func resolveEngine(ctx context.Context, name string, cfg config.Config) (host.En
 	if name == "" {
 		name = cfg.Engine
 	}
-	info, _ := host.Probe(ctx, "/")
+	info, _ := host.Probe(ctx, hostroot.Root())
 	eng, ok := host.Preferred(info.Engines, name)
 	if !ok {
 		if name != "" {
