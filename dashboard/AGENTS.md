@@ -44,8 +44,9 @@ Every rule carries its check. The tags:
 6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
 7. **One question per tab.** Do not add a tab for a feature that fits
    an existing one. Do not put two questions in one tab. The Advanced tab is
-   the one exception: it is the first bernie dashboard, kept as it is for
-   comparison, and it answers the same question as the Dashboard tab.
+   the one exception: it is the operator's console, the things about the host
+   that belong to no single tab (the full per-GPU table, the power write, the
+   doctor report, the jobs, the raw documents).
 8. **The visual design follows [../docs/design-dashboard.md](../docs/design-dashboard.md).**
    That page is the design contract. The colours live in `web/css/tokens.css`
    and nowhere else: a component file never writes a colour by hand.
@@ -213,9 +214,8 @@ age and meaning.
    flat series draws as a line in the middle of the box, and the tile says
    its range ("of 100 %").
 5. **A value against a limit is a bar, not an arc.** The GPU load is a
-   0–100 % bar, so ten cards can be compared by eye. **Parity exception:**
-   the Advanced tab keeps the ring of the first dashboard, and only there.
-   → Check: the Dashboard tab has no ring; `web/views/advanced/` may.
+   0–100 % bar, so ten cards can be compared by eye. → Check: no card and no
+   chart draws an arc; the load of a card is a bar.
 6. **Axes start at zero unless zero is meaningless, and then the caption
    says so.** Every axis carries its unit; the unit is never only on the top
    tick; bars of one chart share one scale, and a chart of two units does not

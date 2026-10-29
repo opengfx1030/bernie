@@ -79,7 +79,6 @@ flowchart LR
 | `web/css/overlays.css` | The toast, the tooltip and the spinner: the parts of the page that come and go |
 | `web/css/views.css` | The parts that belong to one tab: the step timeline, the recipes, the doctor, the logs, the tiles and the rings |
 | `web/css/bench.css` | The Benchmark tab only |
-| `web/css/advanced.css` | The Advanced tab only: the layout rules of the first dashboard |
 | `dashboard_test.go` | API, auth and stream tests |
 
 ## Published globals
@@ -103,11 +102,13 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/js/core.js` | `h`, `add`, `put`, `$`, `GiB`, `bytes`, `num`, `ago`, `badge`, `sh`, `SVG_NS`, `chartSvg` |
 | `dashboard/web/js/data.js` | `HISTORY`, `RUN_POLL_MS`, `MAX_POLL_MS`, `STALE_MS`, `state`, `request`, `api`, `loadHW`, `runsOf`, `runURL`, `pushHist`, `slowAgeNote`, `openTelemetry`, `openRunLogs`, `openJobEvents`, `openBenchEvents`, `JOB_POLL_MS`, `watchBenchJob`, `apiText`, `frameJobs`, `frameHandle`, `frameFallback`, `FRAME_FALLBACK_MS`, `runFrameJobs`, `onFrame`, `frameSubs`, `onTabFrame`, `telemetryStream`, `pollTimer`, `pollDelay`, `pollCycle`, `startTelemetry`, `pollRuns`, `pollCounts`, `schedulePoll`, `startPolling` |
 | `dashboard/web/js/shell.js` | `THEME_KEY`, `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `themeChoice`, `darkNow`, `applyTheme`, `toggleTheme`, `advancedOn`, `applyAdvanced`, `applyAdvancedToNew`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
+| `dashboard/web/views/advanced/console.js` | `adv`, `viewAdvanced`, `advLoad`, `advReload`, `advPaint`, `advSubscribe`, `advRunsTable`, `advServerMeasures` |
+| `dashboard/web/views/advanced/doctor.js` | `advDoctorReport`, `advDoctorCheck` |
+| `dashboard/web/views/advanced/documents.js` | `advDocuments`, `advLoadDocuments`, `advDocument` |
+| `dashboard/web/views/advanced/jobs.js` | `advJobList`, `advJobState` |
+| `dashboard/web/views/advanced/power.js` | `advPowerCard`, `advPaintPower`, `advPowerRow`, `advSavePower` |
 | `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchCards`, `benchCellName`, `benchBestCell`, `benchHeadline`, `benchResultBody`, `benchCopy`, `benchReceipt`, `benchStartError`, `viewBenchmark` |
 | `dashboard/web/views/benchmark/suites.js` | `benchSuiteCells`, `benchSuiteEstS`, `benchMinutes`, `benchSuiteCard`, `benchSuiteCards`, `benchSentence`, `benchProgress`, `benchBest`, `benchSuiteOf`, `benchHistoryRow`, `benchHistory`, `benchAB`, `benchAdvanced` |
-| `dashboard/web/views/advanced/advanced.js` | `adv`, `viewAdvanced`, `advLoad`, `advSubscribe`, `advRunsOverview`, `advRunsTable`, `advServerMeasures` |
-| `dashboard/web/views/advanced/gpus.js` | `advViewGPUs`, `advGpuHeadline`, `advRenderTiles`, `advGpuCard`, `advUpdateGpuCard`, `advRenderGpuTable`, `advCardListText`, `advCopyCardList`, `advRenderPower`, `advPowerRow`, `advSavePower` |
-| `dashboard/web/views/advanced/topology.js` | `advViewTopology`, `advGpuName`, `advP2pCard`, `advP2pRow` |
 | `dashboard/web/views/chat/chat.js` | `viewChat` |
 | `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashSection`, `dashInfo`, `dashGroup`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashLiveRun`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
 | `dashboard/web/views/dashboard/details.js` | `DASH_DETAIL_WINDOWS`, `dashDetails`, `dashLoadDetails`, `dashDetailsRead`, `dashDetailsWindow`, `dashWindowMinutes`, `dashDetailsPower`, `dashDetailsDocuments` |
@@ -121,13 +122,13 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/logs/picker.js` | `logRunState`, `logRunPicker` |
 | `dashboard/web/views/logs/tail.js` | `LOG_MAX_LINES`, `LOG_FILTER_LEVELS`, `logCount`, `logTail` |
 | `dashboard/web/views/setup/advanced.js` | `setupAdvancedPanel`, `loadSetupAdvanced`, `setupAdvancedDocument` |
+| `dashboard/web/views/setup/chooser.js` | `setupRecipeCard`, `setupPaintRecipeList`, `setupSelectRecipe`, `setupPaintRecipeSelection` |
 | `dashboard/web/views/setup/facts.js` | `paintSetupFacts`, `setupFactList`, `setupFact`, `setupFactsFromHost`, `setupMemoryWhy`, `setupPlanSentence`, `setupLoadHW`, `setupLoadDoctorReport` |
 | `dashboard/web/views/setup/glossary.js` | `paintSetupGlossary` |
 | `dashboard/web/views/setup/headline.js` | `setupHeadline`, `setupServerEndpoint`, `setupHeadActions`, `setupNextRunnable`, `setupCurrentStep`, `setupRunNextStep`, `setupExplainWait`, `setupWaitSentence`, `pathSteps`, `setupRootCommand`, `setupCopyNextCommand`, `setupCopyText`, `startSetupServer`, `focusSetupStep`, `focusSetupDoctor`, `focusSetupVerify`, `setupShowDetails` |
-| `dashboard/web/views/setup/recipes.js` | `loadSetupRecipes`, `setupRecommendedCard`, `setupRecipeOrder`, `setupRecommendedRecipe`, `setupRecommendationWhy`, `setupRecipeNote`, `setupRecipeLabel`, `setupRecipeError`, `setupFitStatus`, `setupFitLine`, `loadSetupPlan`, `setupRecipe`, `setupPlanView`, `setupPlanActions`, `setupPlanReady`, `setupPlanCommand`, `setupQuote`, `setupPlanSettings`, `setupPlanAdjustments`, `setupPlanOverrides`, `setupSetValue`, `setupExtraSets`, `setupApplyOverrides`, `setupSwitchMode`, `startSetupRecipe`, `paintSetupRecipeHint` |
-| `dashboard/web/views/setup/setup.js` | `SETUP_EXTRA_STEPS`, `SETUP_SMOKE_ENABLED`, `setupState`, `viewSetup`, `setupEnsureModule`, `setupStartPath`, `loadSetupDocument`, `paintSetupHead`, `paintSetupStale`, `paintSetupError`, `paintSetupTimeline`, `setupStepLink`, `setupStepNote`, `setupEstimateNote`, `loadSetupDoctor`, `setupDoctorFinding`, `setupVerifyBox`, `setupServerRunning`, `setupServerServing`, `setupAskServer` |
-| `dashboard/web/views/setup/chooser.js` | `setupRecipeCard`, `setupPaintRecipeList`, `setupSelectRecipe`, `setupPaintRecipeSelection` |
 | `dashboard/web/views/setup/path.js` | `setupRunPath`, `setupStopPath`, `setupAttachPath`, `setupPaintPath` |
+| `dashboard/web/views/setup/recipes.js` | `loadSetupRecipes`, `setupRecipeOrder`, `setupRecipeError`, `setupRecommendedCard`, `setupRecommendedRecipe`, `setupFitStatus`, `setupFitLine`, `loadSetupPlan`, `setupRecipe`, `setupPlanView`, `setupPlanActions`, `setupPlanReady`, `setupPlanCommand`, `setupQuote`, `setupPlanSettings`, `setupPlanAdjustments`, `setupPlanOverrides`, `setupSetValue`, `setupExtraSets`, `setupApplyOverrides`, `setupSwitchMode`, `startSetupRecipe`, `paintSetupRecipeHint`, `setupRecommendationWhy`, `setupRecipeNote`, `setupRecipeLabel` |
+| `dashboard/web/views/setup/setup.js` | `SETUP_EXTRA_STEPS`, `SETUP_SMOKE_ENABLED`, `setupState`, `viewSetup`, `setupEnsureModule`, `setupStartPath`, `loadSetupDocument`, `paintSetupHead`, `paintSetupStale`, `paintSetupError`, `paintSetupTimeline`, `setupStepLink`, `setupStepNote`, `setupEstimateNote`, `loadSetupDoctor`, `setupDoctorFinding`, `setupVerifyBox`, `setupServerRunning`, `setupServerServing`, `setupAskServer` |
 | `dashboard/web/views/setup/steps.js` | `setupProgress`, `setupLogs`, `setupStreams`, `setupJobRead`, `runSetupStep`, `followSetupJob`, `loadSetupJobProgress`, `setupJobStart`, `setupApplyJobProgress`, `setupProgressPercent`, `setupProgressSentence`, `setupProgressDetail`, `setupElapsed`, `setupElapsedText`, `setupLiveDetail`, `setupRate`, `setupDuration`, `attachSetupJobs`, `attachSetupJob`, `paintSetupProgress`, `setupStopStreams` |
 | `dashboard/web/views/topology/advanced.js` | `topoBandwidth`, `topoAdvanced` |
 | `dashboard/web/views/topology/checklist.js` | `topoChecklist` |
@@ -150,7 +151,7 @@ dashboard/
 │   └── httpjson/        the JSON response shapes
 └── web/
     ├── index.html       the shell markup and the script order
-    ├── css/             tokens, layout, components, overlays, views, bench, advanced
+    ├── css/             tokens, layout, components, overlays, views, bench
     ├── fonts/           the self-hosted fonts and their licences
     ├── js/              core, shell, data, boot
     ├── components/      the shared widgets
@@ -199,18 +200,19 @@ Each tab answers one question. Keep it that way.
 | Topology | Can the cards copy to each other? | `/api/topo`, `/api/topo/check` | check the readiness again |
 | Fleet | What do the other hosts do? (planned) | none yet | none yet: the tab says it is planned |
 | Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
-| Advanced | What did the first bernie dashboard show on this host? | `/api/telemetry`, `/api/gpus/history`, `/api/hw`, `/api/runs`, `/api/doctor`, `/api/power`, `/api/topo` | read only: stop the run, restart it, ask it one question |
+| Advanced | What can I inspect and change on this host? | `/api/hw`, `/api/doctor`, `/api/power`, `/api/runs`, `/api/jobs`, `/api/telemetry` | write the power cap, re-check the host |
 
-The Advanced tab is the exception to "one question per tab": it is the first
-bernie dashboard, kept as it is for comparison and for the people who liked
-it. It has the same sections, the same order and the same controls as the
-dashboard we shipped before the reference design came in (the cards, the last
-minutes, the run, the power caps, the topology, the known problems), drawn
-with the current design: the tokens, the fonts and the shared components of
-the shell. It lives in `web/views/advanced/` with its layout sheet
-`web/css/advanced.css`, it reads the same `/api/*` answers and the shared
-telemetry stream, and it adds no endpoint. The old route `#classic` still
-lands on it.
+The Advanced tab is the operator's console: the things about the host that
+belong to no single tab. It holds the exact per-GPU table (the same one the
+Dashboard tab shows in its details), the power caps with the only write of
+the page, the doctor report in full (every category, every check), the jobs
+of the host, the run record with the measures of the server, and the raw
+documents of every endpoint it reads. The old first-dashboard layout is gone
+from it: the tiles and the cards are on the Dashboard tab, the PCIe tree and
+the P2P checklist are on the Topology tab, and the known problems are on the
+Logs tab. It lives in `web/views/advanced/`, it reads the same `/api/*`
+answers and the shared telemetry stream, and it adds no endpoint. The old
+route `#classic` still lands on it.
 
 The Setup tab is the first tab. It opens with the state of the machine in one
 sentence, the facts of the host with the reason under every value, the

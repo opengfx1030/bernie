@@ -73,10 +73,12 @@ const TAB_SCRIPTS = {
     "views/logs/advanced.js",
   ],
   advanced: [
-    "components/charts.js",
-    "views/advanced/advanced.js",
-    "views/advanced/gpus.js",
-    "views/advanced/topology.js",
+    "components/gputable.js",
+    "views/advanced/console.js",
+    "views/advanced/power.js",
+    "views/advanced/doctor.js",
+    "views/advanced/jobs.js",
+    "views/advanced/documents.js",
   ],
 };
 
@@ -89,7 +91,7 @@ const TAB_CSS = {
   topology: ["views/topology/topology.css"],
   fleet: [],
   logs: ["views/logs/logs.css"],
-  advanced: ["css/advanced.css"],
+  advanced: [],
 };
 
 // The tabs whose files are on the page.

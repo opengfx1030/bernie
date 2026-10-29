@@ -474,7 +474,7 @@ set it up, watch it, use it, measure it, wire it, read it, go deeper.
 | 5 | **Topology** | Can the cards copy to each other? | check the readiness | the link classes, the tree, the checklist, the last bandwidth | the pair table, the raw documents | — |
 | 6 | **Fleet** | What do the other hosts do? | — | *planned* | — | — |
 | 7 | **Logs** | What is running, and why did it fail? | stop the run | the run picker, the findings, the tail | the raw documents, the log as text | — |
-| 8 | **Advanced** | What does the operator need to see and change? | write the power cap | the operator's console: the full host table, the power write, the doctor report, the jobs | — (the tab is already the deep one) | — |
+| 8 | **Advanced** | What can I inspect and change on this host? | write the power cap | the operator's console: the full per-GPU table, the power write, the doctor report in full, the jobs, the run record | — (the tab is already the deep one) | — |
 
 ### 4.2 The one mechanism for "more information"
 
