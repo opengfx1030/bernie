@@ -138,10 +138,10 @@ while IFS=$'\t' read -r path reason; do
 	fi
 	printf '%s\n' "$path" >> "$tmp/exception-paths"
 done < "$tmp/exceptions"
-sort "$tmp/exception-paths" | uniq -d | while IFS= read -r path; do
+while IFS= read -r path; do
 	[ -n "$path" ] || continue
 	fail "the data-path exception is listed twice: $path"
-done
+done < <(sort "$tmp/exception-paths" | uniq -d)
 
 while IFS= read -r file; do
 	[ "$file" = "$DATA_FILE" ] && continue
@@ -246,14 +246,14 @@ awk -F'`' '
 	}
 ' "$tmp/table-rows" | sort > "$tmp/table-globals"
 
-sort "$tmp/table-files-all" | uniq -d | while IFS= read -r path; do
+while IFS= read -r path; do
 	[ -n "$path" ] || continue
 	fail "the published-globals table lists $path more than once"
-done
-sort "$tmp/table-globals" | uniq -d | while IFS= read -r row; do
+done < <(sort "$tmp/table-files-all" | uniq -d)
+while IFS= read -r row; do
 	[ -n "$row" ] || continue
 	fail "the published-globals table repeats $row"
-done
+done < <(sort "$tmp/table-globals" | uniq -d)
 
 while IFS= read -r path; do
 	[ -n "$path" ] || continue
