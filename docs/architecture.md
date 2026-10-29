@@ -285,6 +285,81 @@ bernie/
 └── docs/                 spec, architecture, packages, extending, recipes, install, overview.html
 ```
 
+### 2.6 Front-end parity
+
+The CLI, the MCP server and the dashboard are the three front ends. The
+matrix below is the contract for the actions they share. The shared-function
+column names the function in `internal/app`. When that package has no
+wrapper, the cell names the function that owns the action.
+
+A row is `built` when every front end exposes the action. A row is `partial`
+when one or more front ends do not expose it. The list after the matrix names
+every gap.
+
+| Action | CLI command | MCP tool | Dashboard endpoint | Shared function | Status |
+|---|---|---|---|---|---|
+| Run the full setup path | `up` | deferred: `up` tool | not built: `up` endpoint; `POST /api/onboarding/{step}/run` runs one step | `flow.Up` | partial |
+| Read the host status | `status` (also the default command) | `status` | not built: one status endpoint; `GET /api/hw`, `GET /api/doctor`, `GET /api/runs`, and `GET /api/onboarding` are separate | `flow.Snapshot` | partial |
+| Read the onboarding checklist | `status --steps` | `onboarding_status` | `GET /api/onboarding` | `app.Onboarding`, `app.OnboardingCached` | built |
+| Run one onboarding step | not built: one-step command | deferred: one-step onboarding tool | `POST /api/onboarding/{step}/run` | `app.RunOnboardingStep` | partial |
+| List the background jobs | not built: jobs command | `jobs` | `GET /api/jobs` | `app.OnboardingJobs` | partial |
+| Read the hardware inventory | `hw` | `hw` | `GET /api/hw` | `app.HW` | built |
+| Read the PCIe topology | `topo` | `topo` | `GET /api/topo` | `app.Topo` | built |
+| Check peer-to-peer readiness | `topo --check` | not built: `topo --check` tool | `GET /api/topo/check` | `app.P2PChecklist` | partial |
+| Run the host checks | `doctor` | `doctor` | `GET /api/doctor` | `app.Doctor` | built |
+| Match a known log failure | `doctor --run NAME`; `doctor --log FILE` | `doctor_log` | `GET /api/runs/{name}/findings` | `app.RunLog`, `logdoc.Scan` | partial |
+| Plan the setup steps | `setup plan` | not built: `setup plan` tool | not built: `setup plan` endpoint | `app.SetupPlan` | partial |
+| Apply the setup steps | `setup apply` | `setup_apply` | `POST /api/onboarding/{step}/run` (one checklist step) | `app.SetupApply`, `app.RunOnboardingStep` | partial |
+| List the recipes | `recipe list` | `recipe_list` | `GET /api/recipes` | `app.RecipeList` | built |
+| Show a recipe | `recipe show ID` | `recipe_show` | not built: `recipe show` endpoint | `recipe.Load`, `Set.Resolve` | partial |
+| Validate the recipes | `recipe validate` | not built: `recipe validate` tool | not built: `recipe validate` endpoint | `recipe.Load`, `Set.Resolve`, `recipe.Validate` | partial |
+| Build a launch plan | `recipe plan ID` | `recipe_plan` | `GET /api/recipes/{id}/plan` | `app.Plan` | built |
+| Start a run | `serve ID` | `serve` | `POST /api/runs` | `app.Serve` | built |
+| List the runs | `ps` | `ps` | `GET /api/runs` | `flow.Runs` | built |
+| Stop a run | `stop [NAME]` | `stop` (requires a name) | `DELETE /api/runs/{name}` | `app.Stop` | built |
+| Read a run log | `logs [NAME]` | `logs` | `GET /api/runs/{name}/logs`; `GET /api/runs/{name}/log` | `runner.Logs` | built |
+| Smoke-test a server | `smoke` | `smoke` | `POST /api/smoke` | `app.Smoke` | built |
+| List the TunableOp profiles | `tune tunableop list` | not built: `tune tunableop list` tool | not built: `tune tunableop list` endpoint | `tuning.Profiles` | partial |
+| Read the TunableOp status | `tune tunableop status` | `tunableop_status` | not built: `tune tunableop status` endpoint | `app.TunableOpStatus` | partial |
+| Build the TunableOp environment | `tune tunableop env` | not built: `tune tunableop env` tool | not built: `tune tunableop env` endpoint | `app.TunableOpStatus`, `tuning.Select`, `tuning.Materialize`, `tuning.Env` | partial |
+| Read the actual power caps | `tune power status` | not built: `tune power status` tool | `GET /api/power` (returns the service status with the actual caps) | `app.PowerStatus` | partial |
+| Read the power service status | `tune power service status` | `power_status` | `GET /api/power` | `app.ReadPowerServiceStatus` | built |
+| Set the desired power caps | `tune power set` | `tune_power_set` | `PUT /api/power` | `app.PlanPowerDesired`, `app.PowerDesiredSet` | built |
+| Apply the desired power caps | `tune power apply` | not built: `tune power apply` tool | not built: `tune power apply` endpoint | `app.PowerApply` | partial |
+| Build the power service plan | `tune power service print`; `tune power service install-plan`; `tune power service remove-plan` | not built: `tune power service` tool | not built: `tune power service` endpoint | `app.GeneratePowerServicePlan` | partial |
+| Run a benchmark | `bench` | `bench_run` | `POST /api/bench`; `POST /api/bench/run` | `app.Bench` | built |
+| Run a benchmark suite | `bench --suite NAME` | `bench_run` (with `suite`) | `POST /api/bench`; `POST /api/bench/run` (with `suite`) | `app.BenchSuite` | built |
+| List the benchmark results | `bench list` | `bench_list` | `GET /api/bench` | `app.BenchList` | built |
+| Show a benchmark result | `bench show ID` | `bench_show` | not built: saved-result endpoint (`GET /api/bench/{id}` is a job) | `bench.Get` | partial |
+| Compare two benchmark results | `bench compare A B` | `bench_compare` | `GET /api/bench/compare` | `app.BenchCompare` | built |
+| Run an A/B benchmark | `bench ab` | `bench_ab` | `POST /api/bench/ab` | `app.BenchAB` | built |
+| Write a compose file | `compose ID` | not built: `compose` tool | not built: `compose` endpoint | `app.Plan`, `runner.Compose` | partial |
+| Show or set the user defaults | `config show`; `config set` | not built: `config show` tool; deferred: `config set` tool | not built: `config show` endpoint; not built: `config set` endpoint | `config.Load`, `Config.SetKey`, `config.Save` | partial |
+
+The deferred and unbuilt items are:
+
+- The MCP `up` tool, the MCP `config set` tool, and the MCP one-step
+  onboarding tool are deferred. Spec §13.4 says that an agent uses the CLI
+  for `up` and `config set`. It also says that the one-step tool is deferred
+  because the CLI has no one-step onboarding command.
+- The MCP has no tools for `topo --check`, `setup plan`, `recipe validate`,
+  `tune tunableop list`, `tune tunableop env`, `tune power status`,
+  `tune power apply`, `tune power service print`,
+  `tune power service install-plan`, `tune power service remove-plan`,
+  `compose`, `config show`, or `doctor --log FILE`.
+- The dashboard has no endpoints for `setup plan`, `recipe show`,
+  `recipe validate`, `tune tunableop status`, `tune tunableop list`,
+  `tune tunableop env`, `tune power apply`, `tune power service print`,
+  `tune power service install-plan`, `tune power service remove-plan`,
+  `compose`, `config show`, `config set`, or a saved-result `bench show`.
+  The dashboard also has no one-step status endpoint.
+- The repo gives no separate reason for the unbuilt MCP tools and dashboard
+  endpoints above.
+- `tune power apply` needs root. bernie never runs sudo, so the CLI prints
+  the root command.
+- `doctor --log FILE` stays in the CLI. The MCP `doctor_log` tool accepts a
+  run name, never a path. The dashboard reads the findings of a run.
+
 ## 3. Flows
 
 ### 3.1 What `up` does
