@@ -39,6 +39,9 @@ type handler struct {
 	power *hostCache
 	runs  *hostCache
 	hist  *hostCache
+	// fleet holds the cross-host summary for a few seconds: the page polls
+	// it again and again, the peers do not change in between.
+	fleet *fleetCache
 }
 
 // routes is every route of the API (spec §11): the pattern of the path and
@@ -87,6 +90,9 @@ var routes = []struct {
 	{"GET /api/jobs/{id}", (*handler).getJob},
 	{"POST /api/jobs/{id}/stop", (*handler).postJobStop},
 	{"GET /api/jobs/{id}/events", (*handler).getJobEvents},
+	{"GET /api/fleet", (*handler).getFleet},
+	{"POST /api/fleet", (*handler).postFleet},
+	{"DELETE /api/fleet/{name}", (*handler).deleteFleet},
 	{"/api/", func(_ *handler, w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
 	}},
@@ -106,6 +112,7 @@ func Register(mux *http.ServeMux, o Options) {
 		power: newHostCache(hostTTL),
 		runs:  newHostCache(runsTTL),
 		hist:  newHostCache(historyTTL),
+		fleet: newFleetCache(),
 	}
 
 	for _, r := range routes {
