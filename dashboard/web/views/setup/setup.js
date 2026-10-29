@@ -106,7 +106,9 @@ async function loadSetupDocument(gen) {
  *  actions that follow from it. */
 function paintSetupHead(doc) {
   const say = setupHeadline(doc);
-  setupState.primaryOwner = say.action === "doctor" ? "plan" : "headline";
+  // The filled primary is the control the reader can use now. On a host
+  // without a GPU the plan cannot be started, so the headline owns it.
+  setupState.primaryOwner = "headline";
   setHead(setupState.head, say.title, say.lede);
   put(setupState.actions, setupHeadActions(doc, say));
 }
@@ -141,7 +143,10 @@ function setupHeadline(doc) {
   if (hardware && hardware.state === "blocked") {
     return {
       title: "THIS BOX HAS NO GPU FOR BERNIE.",
-      lede: "bernie needs an AMD card with /dev/kfd. The doctor report says what is missing.",
+      // The words of the state come from the step (internal/onboarding),
+      // so the page and `bernie status --steps` say the same thing.
+      lede: (hardware.summary || "This machine has no AMD GPU.") +
+        " Read the doctor report below to see what is missing.",
       action: "doctor",
     };
   }
@@ -175,7 +180,8 @@ function setupServerEndpoint(serve) {
 function setupHeadActions(doc, say) {
   const out = [];
   if (say.action === "doctor") {
-    out.push(h("button", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
+    out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
+    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
     return out;
   }
   if (say.action === "continue") {
@@ -204,7 +210,7 @@ function setupHeadActions(doc, say) {
   } else if (rootNext) {
     out.push(h("button.primary", {
       type: "button",
-      onclick: () => { setupCopyText(rootNext.command); focusSetupStep(rootNext.id); },
+      onclick: () => { setupCopyText(setupRootCommand(rootNext)); focusSetupStep(rootNext.id); },
     }, "Copy the root command"));
     out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the next command"));
     out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
@@ -264,10 +270,22 @@ function pathSteps(doc) {
   return (doc && doc.steps || []).filter((s) => !SETUP_EXTRA_STEPS.includes(s.id));
 }
 
+/** setupRootCommand is the command the operator runs as root for a step.
+ *  It is the first root command of the step, never the doctor command:
+ *  the button says "root command", so it has to be one. */
+function setupRootCommand(step) {
+  const roots = (step && step.root_commands) || [];
+  return roots.length ? roots[0] : ((step && step.command) || "");
+}
+
 /** setupCopyNextCommand copies the command of the next step. */
 function setupCopyNextCommand() {
   const doc = setupState.doc;
   const next = doc && (doc.steps || []).find((s) => s.id === doc.next);
+  if (next && (next.root_commands || []).length) {
+    setupCopyText(setupRootCommand(next));
+    return;
+  }
   const text = (next && next.command) || setupPlanCommand(setupState.plan || {});
   setupCopyText(text);
 }
