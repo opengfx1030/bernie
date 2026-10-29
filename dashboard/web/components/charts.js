@@ -83,21 +83,21 @@ function spark(values, max, label, opts) {
   });
   const base = chartSvg("line", { x1: 0, x2: W, y1: H - 1, y2: H - 1,
     class: "chart-base" });
-  const area = chartSvg("path", { class: "chart-area" });
+  // The spark draws the line only: a filled block under a line that never
+  // moves reads as a solid bar, not as a number.
   const line = chartSvg("path", { class: "chart-line" });
   const mark = chartSvg("circle", { r: 2.4, class: "chart-pointer" });
-  svg.append(base, area, line, mark);
+  svg.append(base, line, mark);
   const read = h("span.chart-read", { class: "chart-readout" });
   wrap.append(svg, read);
 
   const paint = (vals) => {
     const n = vals.length;
-    const top = max && max > 0 ? max : Math.max(1, ...vals);
+    const top = max && max > 0 ? max : 100;
     const step = n > 1 ? W / (n - 1) : 0;
     const px = (i) => (n > 1 ? i * step : W / 2);
     const py = (v) => H - PAD - (Math.min(v, top) / top) * (H - 2 * PAD);
     if (!n) {
-      area.setAttribute("d", "");
       line.setAttribute("d", "");
       mark.setAttribute("opacity", "0");
       return;
@@ -105,7 +105,6 @@ function spark(values, max, label, opts) {
     let d = "";
     vals.forEach((v, i) => { d += (i ? "L" : "M") + px(i).toFixed(1) + " " + py(v).toFixed(1); });
     line.setAttribute("d", d);
-    area.setAttribute("d", d + " L " + W + " " + (H - 1) + " L 0 " + (H - 1) + " Z");
     mark.setAttribute("opacity", "0");
   };
   const show = (i) => {
@@ -193,7 +192,6 @@ function areaChart(series, opts) {
       ylab.append(t);
     }
     if (!n) {
-      area.setAttribute("d", "");
       line.setAttribute("d", "");
       empty.hidden = false;
       empty.textContent = "";

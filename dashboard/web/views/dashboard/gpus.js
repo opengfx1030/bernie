@@ -225,12 +225,19 @@ function dashCards(section) {
 // its own. One stream, one frame per sample, for the whole page. A hidden
 // tab paints nothing: data.js pauses the poller and skips the frame.
 function renderGPUs() {
+  for (const f of dash.grids) f();
+  if (dash.live.cards) dash.live.cards.update();
+}
+
+// dashSubscribe registers the repaint of this tab on the shared stream. The
+// stream lives in js/data.js; this view opens no fetch and no timer of its
+// own. One stream, one frame per sample. The subscription happens once: the
+// shell calls renderGPUs() on every sample and on a resize.
+function dashSubscribe() {
+  if (dash.subscribed) return;
+  dash.subscribed = true;
   if (typeof onTabFrame !== "function") return;
-  onTabFrame("dashboard", (doc) => {
-    for (const f of dash.grids) f();
-    if (doc) dashSample(doc);
-    else if (dash.live.cards) dash.live.cards.update();
-  });
+  onTabFrame("dashboard", (doc) => { if (doc) dashSample(doc); });
 }
 
 // dashCharts is the section with the four charts of the last minutes and the
