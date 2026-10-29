@@ -1,6 +1,10 @@
 /* bernie dashboard: the components.
    Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
    The buttons, the pills, the cards, the command blocks, the tables, the
+   meters, the tiles and the states every card can be in. A colour comes from
+   a token: nothing here writes a hex. */
+   Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+   The buttons, the pills, the cards, the command blocks, the tables, the
    meters, the tiles, the toast, the tooltip and the states every card can be
    in. A colour comes from a token: nothing here writes a hex. */
 
@@ -345,75 +349,4 @@ form.f .hint { grid-column: 2; font-size: var(--small); color: var(--muted); mar
   background: var(--surface);
   color: var(--text);
   font-weight: 700;
-}
-
-/* ---------- the toast and the tooltip ---------- */
-
-#toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  max-width: min(560px, 92vw);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 10px 16px;
-  box-shadow: var(--shadow-2);
-  white-space: pre-wrap;
-  z-index: 20;
-  cursor: pointer;
-}
-
-#toast.ok { border-left-color: var(--ok); }
-#toast.bad { border-left-color: var(--fail); }
-
-.tip { position: relative; display: inline-flex; }
-
-.tip > button {
-  width: 24px;
-  height: 24px;
-  min-height: 24px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  background: transparent;
-  color: var(--muted);
-  font: 700 12px/1 var(--font-body);
-  justify-content: center;
-}
-
-.tip > button:hover { background: var(--surface-2); color: var(--text); }
-
-.tip-panel {
-  position: fixed;
-  z-index: 30;
-  max-width: 280px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  box-shadow: var(--shadow-2);
-  font-size: var(--small);
-  color: var(--text-2);
-}
-
-/* ---------- the spinner ---------- */
-
-.spin {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--muted);
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: bernie-spin var(--motion-spin) linear infinite;
-  vertical-align: -2px;
-}
-
-@keyframes bernie-spin { to { transform: rotate(360deg); } }
-
-@media (prefers-reduced-motion: reduce) {
-  .spin { animation: none; }
 }
