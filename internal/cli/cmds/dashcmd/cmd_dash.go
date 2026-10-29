@@ -171,5 +171,10 @@ func runChildMode(c *cli.Context, args []string) error {
 		Token:   token,
 		Log:     c.Err,
 		Version: cli.Version,
+		Ready: func(url string) {
+			// The parent polls for this document to learn the URL the
+			// dashboard bound to.
+			_ = dashsvc.WriteChildStartup(listen, url, cli.Version)
+		},
 	})
 }

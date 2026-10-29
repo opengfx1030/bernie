@@ -31,6 +31,7 @@ func runStart(c *cli.Context, args []string) error {
 	token := fs.String("token", "", "explicit token (else use or generate the persisted one)")
 	rotate := fs.Bool("rotate-token", false, "replace the persisted token before starting")
 	noSystemd := fs.Bool("no-systemd", false, "skip the systemd --user path even when it is available")
+	showToken := fs.Bool("show-token", false, "put the bearer token in the JSON document; the text output always shows it when the token file is readable")
 	_, err := cli.Parse(fs, args)
 	if err != nil {
 		return err
@@ -61,6 +62,20 @@ func runStart(c *cli.Context, args []string) error {
 		}
 		return err
 	}
+	// The dashboard runs in token mode whenever a token exists (the
+	// service always persists one), so the URL the operator opens must
+	// carry it. The token file is 0600: only a process that can read it
+	// sees the value; the JSON document keeps it redacted below.
+	if tok, ok := dashsvc.ReadableToken(); ok {
+		st.Token = tok
+	}
+	// The JSON document is an API: the token is redacted there unless
+	// the caller asks for it. The text output shows the URL the operator
+	// must open, so it carries the token when the file is readable.
+	jsonToken := redactedToken
+	if *showToken {
+		jsonToken = st.Token
+	}
 	// Print the URLs and the manager in use.
 	if dashsvc.SystemdUserAvailable() && !*noSystemd && st.Manager == "systemd" {
 		fmt.Fprintln(c.Err, "bernie dash: managed by systemd --user; the dashboard survives logout only after `loginctl enable-linger $USER` (root).")
@@ -71,7 +86,7 @@ func runStart(c *cli.Context, args []string) error {
 		"listen":       st.Listen,
 		"loopback_url": st.LoopbackURL,
 		"lan_urls":     st.LANURLs,
-		"token":        st.Token,
+		"token":        jsonToken,
 		"manager":      st.Manager,
 		"token_path":   st.TokenPath,
 		"log_path":     st.LogPath,

@@ -28,14 +28,20 @@ func runStatus(c *cli.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	// The token file is 0600: the process that owns it can read it and
+	// nobody else can. The text output shows the URL the operator must
+	// open, so it carries the token when the file is readable. The JSON
+	// document is an API: the token stays redacted there unless the
+	// caller asks for it with --show-token.
 	tok := redactedToken
-	if *showToken {
-		// Reveal only when the operator (or root) owns the token file.
-		if t, _, err := dashsvc.ReadToken(); err == nil {
-			tok = t
-		}
+	if t, ok := dashsvc.ReadableToken(); ok {
+		tok = t
 	}
-	st.Token = tok
+	jsonTok := redactedToken
+	if *showToken {
+		jsonTok = tok
+	}
+	st.Token = jsonTok
 	return c.Emit(map[string]any{
 		"state":        st.State,
 		"pid":          st.PID,
@@ -46,7 +52,7 @@ func runStatus(c *cli.Context, args []string) error {
 		"manager":      st.Manager,
 		"started_at":   st.StartedAt,
 		"version":      st.Version,
-		"token":        tok,
+		"token":        jsonTok,
 		"token_path":   st.TokenPath,
 		"log_path":     st.LogPath,
 	}, func(w io.Writer) {
@@ -97,13 +103,10 @@ func runStatus(c *cli.Context, args []string) error {
 // redactedToken is the placeholder used when the token is not revealed.
 const redactedToken = "<redacted>"
 
-// stripScheme removes the "http://" prefix from a URL.
+// stripScheme removes the "http://" prefix and the trailing slash from a
+// URL. The ssh -L hint needs the bare "host:port".
 func stripScheme(u string) string {
-	if strings.HasPrefix(u, "http://") {
-		return u[len("http://"):]
-	}
-	if strings.HasPrefix(u, "https://") {
-		return u[len("https://"):]
-	}
-	return u
+	s := strings.TrimPrefix(u, "http://")
+	s = strings.TrimPrefix(s, "https://")
+	return strings.TrimSuffix(s, "/")
 }
