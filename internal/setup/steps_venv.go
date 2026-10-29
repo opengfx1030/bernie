@@ -246,15 +246,16 @@ func (p planner) vllmBuild() Step {
 }
 
 // vllmBuilt reports whether the fork of the venv is built and usable: the
-// package is installed, the extension is compiled and the venv passes the
-// checks of the gfx1030 wiki. A half-built fork is not done, so a re-run
-// rebuilds it.
+// package is installed, the extension is compiled and the checks of the
+// gfx1030 wiki do not fail. A half-built fork is not done, so a re-run
+// rebuilds it. A probe that could not run at all leaves the step done:
+// the state of the venv is then unknown, not bad.
 func (p planner) vllmBuilt(dir string) bool {
 	if !p.has("vllm-*rdna*.dist-info") && !p.has("vllm-*.dist-info") {
 		return false
 	}
 	so := isFile(filepath.Join(dir, "vllm", "_rocm_C.abi3.so")) || p.has("vllm/_rocm_C.abi3.so")
-	return so && p.venvOK
+	return so && !p.venvFailed
 }
 
 // venvVerify is the postcondition of the vllm.build step: the fork must

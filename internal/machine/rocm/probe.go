@@ -27,8 +27,10 @@ const (
 	InstallsTTL = 10 * time.Minute
 )
 
-// venvProbeTimeout bounds the probe script of a venv. The tests lower it.
-var venvProbeTimeout = 30 * time.Second
+// venvProbeTimeout bounds the probe script of a venv. The import of a
+// freshly built vLLM reads hundreds of megabytes of libraries and takes
+// seconds. The tests lower it.
+var venvProbeTimeout = 60 * time.Second
 
 // Tools probed on PATH (then in the install bin dirs).
 var Tools = []string{"rocminfo", "hipcc", "amd-smi", "rocm-smi", "rocm-bandwidth-test"}
@@ -292,7 +294,9 @@ func probeVenv(ctx context.Context, venv string) VenvReport {
 	}
 	if !parseVenvOutput(res.Stdout, &rep) {
 		rep.Err = "probe failed: " + lastLine(res.Stderr+res.Stdout)
+		return rep
 	}
+	rep.Probed = true
 	return rep
 }
 

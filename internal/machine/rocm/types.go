@@ -47,7 +47,11 @@ type VenvReport struct {
 	ROCBLASWheel bool   `json:"rocblas_wheel"`
 	// VerifyErrors are the checks of the gfx1030 wiki that failed.
 	VerifyErrors []string `json:"verify_errors"`
-	Err          string   `json:"error,omitempty"`
+	// Probed is true when the probe script ran and reported. It is
+	// false when the probe could not run at all (a timeout, a missing
+	// Python): the state of the venv is then unknown, not bad.
+	Probed bool   `json:"-"`
+	Err    string `json:"error,omitempty"`
 }
 
 // Verified reports whether the venv passes every check of the gfx1030

@@ -64,7 +64,17 @@ func par1Probe() rocm.VenvReport {
 		Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", VLLM: "0.31.0+rdna",
 		DeviceCount: 10, ROCMOps: 83, RDNAOps: 68, AllReduce: true,
 		ROCBLAS: "/v/lib/python3.12/site-packages/rocm_sdk_libraries/lib/librocblas.so.5", ROCBLASWheel: true,
+		Probed: true,
 	}
+}
+
+// brokenProbe is the report of a venv whose fork did not register its ops.
+func brokenProbe() rocm.VenvReport {
+	rep := par1Probe()
+	rep.RDNAOps = 0
+	rep.AllReduce = false
+	rep.VerifyErrors = []string{"_rocm_C::all_reduce is not registered"}
+	return rep
 }
 
 func par1Host() host.Info {
@@ -138,6 +148,33 @@ func TestPlanHostPar1(t *testing.T) {
 	cc := strings.Join(m["causal-conv1d.build"].Commands, "\n")
 	if !strings.Contains(cc, "HIP_ARCHITECTURES=gfx1100,gfx1030") {
 		t.Errorf("causal-conv1d must list the HIP targets with commas:\n%s", cc)
+	}
+}
+
+// TestPlanBrokenFork: a fork whose ops are not registered is not done, so
+// a re-run rebuilds it. A venv that could not be probed at all is left
+// alone: its state is unknown, not bad.
+func TestPlanBrokenFork(t *testing.T) {
+	withWhich(t, "uv")
+	venv := par1Venv(t)
+	opts := Options{Mode: "host", Venv: venv, SrcDir: "/src", GPUArchs: []string{"gfx1030"}}
+	withProbe(t, brokenProbe())
+	m := stepMap(Plan(context.Background(), par1Host(), par1ROCm(), opts))
+	if m["vllm.build"].Done {
+		t.Error("a fork without ops must not be done")
+	}
+	if m["venv.verify"].Done {
+		t.Error("a fork without ops must not pass the check")
+	}
+	unknown := par1Probe()
+	unknown.Probed = false
+	withProbe(t, unknown)
+	m = stepMap(Plan(context.Background(), par1Host(), par1ROCm(), opts))
+	if !m["vllm.build"].Done {
+		t.Error("a venv that could not be probed must not trigger a rebuild")
+	}
+	if m["venv.verify"].Done {
+		t.Error("a venv that could not be probed is not verified")
 	}
 }
 

@@ -90,7 +90,7 @@ func Plan(ctx context.Context, h host.Info, r rocm.Report, o Options) []Step {
 	}
 	o.GPUArchs = uniq(o.GPUArchs)
 	pl := planner{ctx: ctx, h: h, r: r, o: o, site: sitePackages(o.Venv), targets: devices.CodeTargets(o.GPUArchs)}
-	pl.venvOK = pl.probeVenv()
+	pl.venvOK, pl.venvFailed = pl.venvState()
 	all := []Step{
 		pl.groups(), pl.rocmRuntime(), pl.containerEngine(),
 		pl.venvCreate(), pl.venvTorch(), pl.causalConv1D(), pl.flashAttn(), pl.vllmBuild(), pl.venvVerify(),
@@ -119,18 +119,26 @@ type planner struct {
 	targets []string
 	// venvOK says that the venv of the host passes the checks of the
 	// gfx1030 wiki: the fork is installed, its ops are registered, its
-	// libraries resolve and rocBLAS comes from the wheel.
-	venvOK bool
+	// libraries resolve and rocBLAS comes from the wheel. venvFailed
+	// says that the checks ran and failed: the build is then broken.
+	venvOK     bool
+	venvFailed bool
 }
 
-// probeVenv checks the venv of the host. The probe starts the venv's
-// Python, which takes seconds, so it only runs when the fork is installed:
-// without it there is nothing to check.
-func (p planner) probeVenv() bool {
+// venvState is the state of the venv of the host: the checks of the
+// gfx1030 wiki pass, fail, or could not run at all (a timeout, a
+// missing Python). The probe starts the venv's Python, which takes
+// seconds, so it only runs when the fork is installed: without it there
+// is nothing to check.
+func (p planner) venvState() (ok, failed bool) {
 	if !p.has("vllm-*rdna*.dist-info") && !p.has("vllm-*.dist-info") {
-		return false
+		return false, false
 	}
-	return probeVenv(p.ctx, p.o.Venv).Verified()
+	rep := probeVenv(p.ctx, p.o.Venv)
+	if !rep.Probed {
+		return false, false
+	}
+	return rep.Verified(), !rep.Verified()
 }
 
 // probeVenv reads the state of a venv. The tests replace it.
