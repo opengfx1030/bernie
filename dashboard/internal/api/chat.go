@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,7 +73,12 @@ func (h *handler) postChat(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusBadRequest, "the chat only talks to a server of this host")
 		return
 	}
-	stream, err := app.ChatStream(r.Context(), app.ChatOptions{
+	// The answer lives in the context of the request: it ends when the page
+	// goes away. The heartbeat watches the connection and cancels it when the
+	// reader is gone, so the server does not answer into a dead socket.
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	stream, err := app.ChatStream(ctx, app.ChatOptions{
 		URL: target, Prompt: req.Prompt, MaxTokens: chatMaxTokens,
 	})
 	if err != nil {
@@ -82,6 +88,7 @@ func (h *handler) postChat(w http.ResponseWriter, r *http.Request) {
 	defer stream.Close()
 
 	out := sse.New(w)
+	go sse.Heartbeat(ctx, out, cancel)
 	sent := 0
 	res, err := stream.Read(func(d app.ChatDelta) error {
 		sent += len(d.Text)

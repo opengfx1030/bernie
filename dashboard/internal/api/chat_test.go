@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -263,6 +264,92 @@ func TestChatCancelsUpstreamWhenTheClientGoesAway(t *testing.T) {
 		t.Fatal("the request to the server was not cancelled")
 	}
 	<-done
+}
+
+// TestChatStreamEndsCleanly checks the end of the stream of POST /api/chat
+// on the wire: the final event comes first, the chunked terminator follows
+// it, and the reader that reads the body to the end sees no error. A body
+// that ends without the terminator, or an event after it, is what a browser
+// reports as net::ERR_ABORTED.
+func TestChatStreamEndsCleanly(t *testing.T) {
+	fake := vllmtest.New(vllmtest.Config{
+		Model: "fake-model", TTFT: 5 * time.Millisecond,
+	})
+	upstream := httptest.NewServer(fake)
+	defer upstream.Close()
+	upPort := upstream.Listener.Addr().(*net.TCPAddr).Port
+
+	mux := http.NewServeMux()
+	Register(mux, Options{Telemetry: fakeTelemetry{}})
+	chatRun(t, "flashnext", "127.0.0.1", upPort)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	// The request goes over a real socket, so the answer is the bytes on the
+	// wire and not the recorder of a handler.
+	addr := srv.Listener.Addr().String()
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	body := `{"prompt":"Say one word."}`
+	fmt.Fprintf(conn, "POST /api/chat HTTP/1.1\r\n"+
+		"Host: %s\r\n"+
+		"Content-Type: application/json\r\n"+
+		"X-Bernie: 1\r\n"+
+		"Content-Length: %d\r\n"+
+		"Connection: close\r\n"+
+		"\r\n%s", addr, len(body), body)
+	conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+	raw, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatalf("the answer was cut: %v", err)
+	}
+	resp := string(raw)
+
+	if !strings.Contains(resp, "Transfer-Encoding: chunked") {
+		t.Fatalf("the answer is not chunked-encoded:\n%s", resp)
+	}
+	// The final event comes before the terminator: the reader gets it.
+	atDone := strings.Index(resp, "event: done")
+	atEnd := strings.Index(resp, "0\r\n\r\n")
+	if atDone < 0 {
+		t.Fatalf("the stream has no done event:\n%s", resp)
+	}
+	if atEnd < 0 {
+		t.Fatalf("the stream has no chunked terminator:\n%s", resp)
+	}
+	if atDone > atEnd {
+		t.Errorf("the done event comes after the terminator (%d > %d)", atDone, atEnd)
+	}
+	// Nothing comes after the terminator: the body ends there.
+	if tail := resp[atEnd+len("0\r\n\r\n"):]; strings.TrimSpace(tail) != "" {
+		t.Errorf("the body continues after the terminator: %q", tail)
+	}
+	// The reader of the browser sees the whole body and no error.
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", srv.URL+"/api/chat", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Bernie", "1")
+	answer, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("the request failed: %v", err)
+	}
+	defer answer.Body.Close()
+	if answer.StatusCode != http.StatusOK {
+		t.Fatalf("the answer is %d", answer.StatusCode)
+	}
+	read, err := io.ReadAll(answer.Body)
+	if err != nil {
+		t.Fatalf("the body was cut: %v", err)
+	}
+	if !strings.Contains(string(read), "event: done") {
+		t.Errorf("the body has no done event:\n%s", read)
+	}
 }
 
 // TestChatNeedsTheToken checks that the guard of spec §11 holds for the
