@@ -10,8 +10,7 @@ export PATH="$HOME/.local/bin:$PATH"
 bernie doctor
 ```
 
-`bernie doctor` checks the host. Every line names the problem and the
-command that fixes it. Read the `[FAIL]` lines first.
+`bernie doctor` checks the host: every line names the problem and the command that fixes it. Read the `[FAIL]` lines first.
 
 ## 2. Run the whole path
 
@@ -21,8 +20,7 @@ bernie up
 
 `up` checks the host, builds what is missing, picks the recipe that fits,
 starts the server and opens the dashboard. It stops at the first step that
-needs root and prints that command. Run it as root, then run `bernie up`
-again.
+needs root and prints that command: run it as root, then run `bernie up` again.
 
 ```
 up: stopped: No AMD GPU is visible to bernie.
