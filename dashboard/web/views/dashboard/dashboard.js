@@ -23,6 +23,7 @@ const dash = {
   tele: null,    // the last telemetry document
   head: null,    // the state headline of the tab
   live: {},      // the parts the stream repaints
+  subscribed: false, // the repaint of this tab is registered on the stream
   grids: [],     // the grids that follow the width of the window
 };
 
@@ -307,6 +308,7 @@ async function viewDashboard(root) {
 
   await dashLoad();
   await dashHistory();
+  dashSubscribe();
   renderGPUs();
 }
 
