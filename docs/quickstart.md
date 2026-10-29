@@ -21,14 +21,13 @@ bernie up
 
 `up` checks the host, builds what is missing, picks the recipe that fits,
 starts the server and opens the dashboard. It stops at the first step that
-needs root and prints that command:
+needs root and prints that command. Run it as root, then run `bernie up`
+again.
 
 ```
 up: stopped: No AMD GPU is visible to bernie.
   sudo modprobe amdgpu
 ```
-
-Run it as root, then run `bernie up` again.
 
 ## 3. Open the dashboard
 
@@ -39,7 +38,7 @@ a token (`http://host:7860/?token=…`). Keep it to yourself.
 ## 4. What you see
 
 The Setup tab opens with one sentence about the host and one next action.
-The checklist under it is the path to a serving model. Every step says what
+The checklist under it is the path to a serving model: every step says what
 it changes and holds the command that does it.
 
 | The step says | What it means | What you do |
@@ -60,10 +59,7 @@ the number of tokens and the output speed. Then `bernie bench` (how fast is
 this host?), `bernie logs <name>` (what is the server saying?) and
 `bernie stop <name>`.
 
-## 6. When something is wrong
-
-Every error on the page names the command that fixes it. The same is in the
-terminal: `bernie status --steps` (the checklist as text), `bernie status
---json` (the same for a script), `bernie doctor` (every check with its fix).
+When something is wrong, the page and the terminal name the command that
+fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`.
 
 More: [install.md](install.md), [spec.md](spec.md), [mcp.md](mcp.md).
