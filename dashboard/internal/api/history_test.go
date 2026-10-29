@@ -47,7 +47,7 @@ func TestHistoryEndpointShape(t *testing.T) {
 	for i := range 3 {
 		hist.Add(now.Add(-time.Duration(3-i)*2*time.Second), []gpu.Sample{
 			{HIPIndex: 0, BusyPct: 12, PowerW: 18.4, VRAMUsed: 24117248},
-		}, 56.1, 234.5)
+		}, 56.1, 234.5, false)
 	}
 	h := historyHandler(t, hist)
 	w := get(t, h, "/api/gpus/history?window=5m")
@@ -135,14 +135,14 @@ func TestHistoryEndpointWithoutTelemetry(t *testing.T) {
 func TestHistoryEndpointHoldsTheAnswer(t *testing.T) {
 	hist := telemetry.NewHistory()
 	now := time.Now()
-	hist.Add(now, []gpu.Sample{{HIPIndex: 0, BusyPct: 1}}, 0, 0)
+	hist.Add(now, []gpu.Sample{{HIPIndex: 0, BusyPct: 1}}, 0, 0, false)
 	h := historyHandler(t, hist)
 	first := get(t, h, "/api/gpus/history?window=5m")
 	if first.Code != http.StatusOK {
 		t.Fatalf("the history: %d %s", first.Code, first.Body.String())
 	}
 	// A new point moves the buffer, but the answer is still the held one.
-	hist.Add(now.Add(2*time.Second), []gpu.Sample{{HIPIndex: 0, BusyPct: 2}}, 0, 0)
+	hist.Add(now.Add(2*time.Second), []gpu.Sample{{HIPIndex: 0, BusyPct: 2}}, 0, 0, false)
 	second := get(t, h, "/api/gpus/history?window=5m")
 	if second.Body.String() != first.Body.String() {
 		t.Fatalf("the answer changed inside the hold:\n%s\n%s", first.Body.String(), second.Body.String())
