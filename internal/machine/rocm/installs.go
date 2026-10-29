@@ -107,6 +107,37 @@ func findInstalls(root string) []Install {
 	return out
 }
 
+// RuntimeInstall returns the ROCm install a host-mode server should use:
+// the tree whose tools win on PATH, else the newest install that has a
+// hipcc. Nested trees count: a TheRock tree inside a package install is
+// the one the operator runs, and it is newer than the package around it.
+// The zero Install means the host has no ROCm tree.
+func RuntimeInstall(root string) Install {
+	installs := FindInstalls(root)
+	if p := FindTool(root, "hipcc"); p != "" {
+		if in, ok := InstallForPath(installs, p); ok {
+			return in
+		}
+	}
+	return newestWithTool(root, installs, "hipcc")
+}
+
+// newestWithTool returns the install with the highest version that has the
+// tool in its bin dir, nested trees included, else the newest install.
+func newestWithTool(root string, installs []Install, tool string) Install {
+	trees := installTrees(installs)
+	sort.SliceStable(trees, func(i, j int) bool { return CompareVersions(trees[i].Version, trees[j].Version) > 0 })
+	for _, in := range trees {
+		if isFile(filepath.Join(root, in.Root, "bin", tool)) {
+			return in
+		}
+	}
+	if len(trees) > 0 {
+		return trees[0]
+	}
+	return Install{}
+}
+
 func isROCmTree(dir string) bool {
 	for _, marker := range []string{".info/version", "bin/rocminfo", "bin/hipcc", "lib/libamdhip64.so"} {
 		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {

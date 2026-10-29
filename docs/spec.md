@@ -907,7 +907,11 @@ dashboard use this same plan document.
   for `entrypoint: api`. Container mode uses the same choice
   (`--entrypoint python3` with the module for `api`).
 - `ROCM_HOME`, `ROCM_PATH`, `HIP_PATH` come from the detected ROCm install
-  (never a hard-coded path) unless the recipe or `--set` gives them.
+  (never a hard-coded path) unless the recipe or `--set` gives them. The
+  install is the tree whose tools win on `PATH`, else the newest install
+  that has a `hipcc`. A tree nested in another one counts: a TheRock tree
+  inside a package install is the one the operator runs, and it is newer
+  than the package around it.
 - `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE` are `1` when `model.source`
   is a local path, and `0` when it is a Hugging Face repo id.
 - Host mode needs the fork built in the venv for `requires.engine: vllm-rdna`.
