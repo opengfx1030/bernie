@@ -58,6 +58,8 @@ const TAB_SCRIPTS = {
   classic: [
     "views/classic/charts.js",
     "views/classic/classic.js",
+    "views/classic/panels.js",
+    "views/classic/paint.js",
   ],
 };
 
