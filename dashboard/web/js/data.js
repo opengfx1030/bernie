@@ -67,11 +67,6 @@ async function loadHW(force) {
   return state.hw;
 }
 
-function gpuName(i) {
-  const g = state.hw && (state.hw.gpus || []).find((g) => g.hip_index === i);
-  return g ? g.name || g.gfx : "";
-}
-
 function runsOf(data) { return Array.isArray(data) ? data : (data && data.runs) || []; }
 function runURL(r) { return "http://" + (r.host || "127.0.0.1") + ":" + r.port; }
 
@@ -145,6 +140,84 @@ function openBenchEvents(id, handlers = {}) {
   es.addEventListener("failed", (ev) => handlers.failed && handlers.failed(ev));
   es.onmessage = (ev) => handlers.message && handlers.message(ev);
   return es;
+}
+
+/* ---------- the jobs of the server ---------- */
+
+// JOB_POLL_MS is how often the document of a job is read while its stream
+// is quiet. The stream carries the progress; the document is the second
+// pair of eyes.
+const JOB_POLL_MS = 2000;
+
+/** watchJob follows one job: the stream carries the progress and the end of
+ *  the work, the document of the job is the second pair of eyes when the
+ *  stream is quiet. It returns the function that stops the watch.
+ *
+ *  path is the document of the job. open opens the stream of that kind of
+ *  job and hands it the handlers progress, log, done and failed. */
+function watchJob(path, open, id, handlers = {}) {
+  let stopped = false;
+  let misses = 0;
+  let stream = null;
+  const stop = () => {
+    stopped = true;
+    clearInterval(timer);
+    if (stream) stream.close();
+  };
+  const timer = setInterval(async () => {
+    if (stopped) return;
+    try {
+      const job = await api(path);
+      if (stopped) return;
+      misses = 0;
+      handlers.progress && handlers.progress(job);
+      if (job && (job.status === "done" || job.status === "failed")) {
+        stop();
+        if (job.status === "failed") {
+          handlers.failed && handlers.failed(new Error(job.error || job.phase || "The job stopped."));
+        } else {
+          handlers.done && handlers.done(job);
+        }
+      }
+    } catch (e) {
+      misses += 1;
+      if (misses >= 3) {
+        stop();
+        handlers.failed && handlers.failed(e);
+      }
+    }
+  }, JOB_POLL_MS);
+  stream = open(id, {
+    progress: (ev) => {
+      if (stopped) return;
+      let doc = null;
+      try { doc = JSON.parse(ev.data); } catch (e) { return; }
+      handlers.progress && handlers.progress(doc);
+    },
+    log: (ev) => { if (!stopped && handlers.log) handlers.log(ev.data); },
+    done: (ev) => {
+      stop();
+      let doc = {};
+      try { doc = JSON.parse(ev.data); } catch (e) { /* the empty job */ }
+      handlers.done && handlers.done(doc);
+    },
+    failed: (ev) => {
+      stop();
+      let text = "The job stopped.";
+      try {
+        const doc = JSON.parse(ev.data);
+        text = doc.error || doc.phase || text;
+      } catch (e) { /* keep the sentence */ }
+      handlers.failed && handlers.failed(new Error(text));
+    },
+  });
+  return stop;
+}
+
+/** watchBenchJob follows one benchmark job: the phase, the log lines and
+ *  the end of the run. */
+function watchBenchJob(id, handlers = {}) {
+  return watchJob("/api/bench/" + encodeURIComponent(id), openBenchEvents, id, handlers);
 }
 
 /** apiText reads a text answer: the markdown receipt of a comparison is not

@@ -184,8 +184,7 @@ function compareTable(cmp) {
         h("td.num", benchNum(v.base, digits) + " " + m.unit),
         h("td.num", benchNum(v.cand, digits) + " " + m.unit),
         h("td.num", (d > 0 ? "+" : d < 0 ? "−" : "") + benchNum(Math.abs(d), 1) + " %"),
-        h("td", verdictChip(v.verdict, [compareBandText(v), compareSpreadText(spread)]
-          .filter(Boolean).join(", ")))));
+        h("td", verdictChip(v.verdict, [compareBandText(v), compareSpreadText(spread)]))));
     }
   }
   if (!rows.length) return null;
