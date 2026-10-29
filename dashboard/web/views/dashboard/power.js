@@ -59,7 +59,7 @@ function dashPowerRow(g, installed) {
     disabled: !installed, "aria-label": "the wanted watts of GPU " + g.hip_index,
     class: "dash-cap-input" });
   const set = h("button", { type: "button", disabled: !installed }, "Set");
-  set.addEventListener("click", () => dashSavePower(g.hip_index, Number(input.value), min, max, input));
+  set.addEventListener("click", () => dashSavePower(g.hip_index, Number(input.value), input));
   const drift = g.drift ? dashPill("warn", "drift") : dashPill("ok", "in sync");
   const cell = (text) => h("td.num", text);
   return h("tr", null,
@@ -72,27 +72,44 @@ function dashPowerRow(g, installed) {
     h("td", drift));
 }
 
-// dashPowerAll writes one cap for every card of the host.
+// dashPowerAll writes one cap for every card of the host. One value has to
+// be one every card can take: the range is the highest minimum and the
+// lowest maximum of the cards. A value outside it is clamped, and the cards
+// that could not take it are named.
 function dashPowerAll(p) {
-  const min = Math.min(...(p.gpus || []).map((g) => g.min_w || 1));
-  const max = Math.max(...(p.gpus || []).map((g) => g.max_w || 1));
+  const gpus = (p.gpus || []).filter((g) => (g.min_w || 0) > 0 || (g.max_w || 0) > 0);
+  const mins = gpus.map((g) => g.min_w || 0).filter((v) => v > 0);
+  const maxs = gpus.map((g) => g.max_w || 0).filter((v) => v > 0);
+  const min = mins.length ? Math.max(...mins) : 1;
+  const max = maxs.length ? Math.min(...maxs) : Math.max(min, 1);
   const input = h("input", { type: "number", min: String(min), max: String(max), step: "1", value: String(Math.round((min + max) / 2)),
     disabled: !p.installed, "aria-label": "the wanted watts of every card",
     class: "dash-cap-input" });
   const set = h("button", { type: "button", disabled: !p.installed }, "Set every card");
-  set.addEventListener("click", () => dashSavePower("all", Number(input.value), min, max, input));
+  set.addEventListener("click", () => dashSavePower("all", Number(input.value), input));
   return h("div", { class: "dash-power-all" },
-    h("span", "One cap for every card:"), input, set);
+    h("span", "One cap for every card:"), input, set,
+    h("span", { class: "small muted" },
+      "The range every card of this host takes: " + Math.round(min) + "–" + Math.round(max) +
+      " W. A value outside it is clamped, and the cards that could not take it are named."));
 }
 
-// dashSavePower writes one wanted cap and says what happened.
-async function dashSavePower(gpu, watts, min, max, input) {
+// dashSavePower writes a wanted cap and says what happened. The server
+// clamps the value to the range the cards share and names the cards that
+// could not take it; the page says what was written.
+async function dashSavePower(gpu, watts, input) {
   if (!isFinite(watts)) { toast("The cap was not saved: enter a number of watts."); return; }
-  const clamped = Math.max(min, Math.min(max, Math.round(watts)));
-  if (input) input.value = String(clamped);
   try {
-    await api("/api/power", { method: "PUT", body: { gpu: gpu, watts: clamped } });
-    toast("The cap was saved. The service applies it.", true);
+    const res = await api("/api/power", { method: "PUT", body: { gpu: gpu, watts: Math.round(watts) } });
+    const held = (res && res.clamped) || [];
+    const written = res && res.watts != null ? Math.round(res.watts) : Math.round(watts);
+    if (input) input.value = String(written);
+    if (held.length) {
+      toast("The cap was saved at " + written + " W. GPU " + held.join(", GPU ") +
+        " could not take " + Math.round(watts) + " W.", true);
+    } else {
+      toast("The cap was saved at " + written + " W. The service applies it.", true);
+    }
     dash.power = await api("/api/power");
     if (dash.live.power) dash.live.power.update();
   } catch (e) {

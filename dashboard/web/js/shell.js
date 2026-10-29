@@ -304,6 +304,5 @@ function phaseSentence(run, fallback) {
     if (typeof run.phase === "string") return run.phase;
     if (run.phase.sentence) return run.phase.sentence;
   }
-  if (run.state_note) return run.state_note;
   return fallback;
 }

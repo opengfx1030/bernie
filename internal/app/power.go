@@ -40,6 +40,9 @@ type PowerDesiredPlan struct {
 	GPUIndexes []int              `json:"gpu_indexes"`
 	Selectors  []string           `json:"selectors"`
 	Desired    map[string]float64 `json:"desired"`
+	// Clamped names the cards whose own range did not hold the wanted
+	// value: they take the clamped value instead.
+	Clamped []int `json:"clamped,omitempty"`
 }
 
 // PowerDesiredResult is the `tune power set --json` document.
@@ -49,6 +52,9 @@ type PowerDesiredResult struct {
 	Watts      float64  `json:"watts"`
 	GPUIndexes []int    `json:"gpu_indexes"`
 	Selectors  []string `json:"selectors"`
+	// Clamped names the cards whose own range did not hold the wanted
+	// value: they take the clamped value instead.
+	Clamped []int `json:"clamped,omitempty"`
 }
 
 // PowerGPUStatus is the desired and actual power state of one GPU.
@@ -99,13 +105,68 @@ func PlanPowerDesired(idx []int, watts float64) (PowerDesiredPlan, error) {
 	}
 	next := copyPowerDesired(d)
 	selectors := powerSelectors(idx)
+	// One value has to fit every card it touches: the wanted value is
+	// clamped to the range the cards share, and the cards that could not
+	// take it are named.
+	written, clamped, err := clampPowerForCards(idx, watts)
+	if err != nil {
+		return PowerDesiredPlan{}, err
+	}
 	for _, selector := range selectors {
-		next.Set(selector, watts)
+		next.Set(selector, written)
 	}
 	return PowerDesiredPlan{
-		File: file, Watts: watts, GPUIndexes: append([]int{}, idx...),
-		Selectors: selectors, Desired: next.GPUs,
+		File: file, Watts: written, GPUIndexes: append([]int{}, idx...),
+		Selectors: selectors, Desired: next.GPUs, Clamped: clamped,
 	}, nil
+}
+
+// clampPowerForCards fits the wanted watts to the cards the command touches.
+// It reads the power range of the cards of this host.
+func clampPowerForCards(idx []int, watts float64) (float64, []int, error) {
+	gpus, err := gpu.List(root)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return 0, nil, err
+	}
+	if gpus == nil {
+		gpus = []gpu.GPU{}
+	}
+	return clampPowerForRows(tuning.PowerStatus(gpus), idx, watts)
+}
+
+// clampPowerForRows fits the wanted watts to the range the cards share and
+// names the cards whose own range did not hold it. One value has to be one
+// every card can take: the range is the highest minimum and the lowest
+// maximum of the cards the command touches.
+func clampPowerForRows(rows []tuning.Power, idx []int, watts float64) (float64, []int, error) {
+	picked := map[int]bool{}
+	for _, i := range idx {
+		picked[i] = true
+	}
+	lo, hi := 0.0, 0.0
+	clamped := []int{}
+	for _, r := range rows {
+		if len(picked) > 0 && !picked[r.HIPIndex] {
+			continue
+		}
+		if r.MinW > 0 && (lo == 0 || r.MinW > lo) {
+			lo = r.MinW
+		}
+		if r.MaxW > 0 && (hi == 0 || r.MaxW < hi) {
+			hi = r.MaxW
+		}
+		if (r.MinW > 0 && watts < r.MinW) || (r.MaxW > 0 && watts > r.MaxW) {
+			clamped = append(clamped, r.HIPIndex)
+		}
+	}
+	if lo > 0 && hi > 0 && lo > hi {
+		return 0, nil, fmt.Errorf("the cards of this host share no power range: %d W to %d W", lo, hi)
+	}
+	out, _, err := tuning.ClampPower(watts, lo, hi)
+	if err != nil {
+		return 0, nil, err
+	}
+	return out, clamped, nil
 }
 
 // PowerDesiredSet writes the desired power state. It needs no root.
@@ -120,7 +181,7 @@ func PowerDesiredSet(idx []int, watts float64) (PowerDesiredResult, error) {
 	}
 	changed := false
 	for _, selector := range plan.Selectors {
-		if before, ok := old.GPUs[selector]; !ok || before != watts {
+		if before, ok := old.GPUs[selector]; !ok || before != plan.Watts {
 			changed = true
 		}
 	}
@@ -128,8 +189,8 @@ func PowerDesiredSet(idx []int, watts float64) (PowerDesiredResult, error) {
 		return PowerDesiredResult{}, err
 	}
 	return PowerDesiredResult{
-		Changed: changed, File: plan.File, Watts: watts,
-		GPUIndexes: plan.GPUIndexes, Selectors: plan.Selectors,
+		Changed: changed, File: plan.File, Watts: plan.Watts,
+		GPUIndexes: plan.GPUIndexes, Selectors: plan.Selectors, Clamped: plan.Clamped,
 	}, nil
 }
 
