@@ -39,7 +39,9 @@ const TAB_SCRIPTS = {
   setup: [],       // the Setup tab is the first paint: index.html carries it
   dashboard: [
     "components/charts.js",
+    "components/gputable.js",
     "views/dashboard/dashboard.js",
+    "views/dashboard/details.js",
     "views/dashboard/gpus.js",
     "views/dashboard/simple.js",
   ],
