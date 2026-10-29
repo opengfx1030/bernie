@@ -83,7 +83,7 @@ const TAB_CSS = {
   setup: [],
   dashboard: ["views/dashboard/dashboard.css", "views/dashboard/simple.css"],
   benchmark: ["css/bench.css"],
-  chat: [],
+  chat: ["views/chat/chat.css"],
   topology: ["views/topology/topology.css"],
   fleet: [],
   logs: ["views/logs/logs.css"],

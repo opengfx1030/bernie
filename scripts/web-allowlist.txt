@@ -6,6 +6,7 @@
 dashboard/web/js/boot.js	the router clears the pending keyboard-shortcut hint after 1.5 seconds
 dashboard/web/js/shell.js	the shell owns the one UI timer for the copy-button feedback
 dashboard/web/views/logs/tail.js	the Logs tail owns the timers that clear a search highlight and release a downloaded file
+dashboard/web/views/chat/chat.js	the Chat tab owns the one streaming request of the answer: it reads the reply as it comes
 
 # Oversized-file allowlist.
 #

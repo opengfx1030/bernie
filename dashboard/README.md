@@ -71,6 +71,7 @@ flowchart LR
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, comparison, step timeline |
 | `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewChat`, `viewBenchmark`, `viewTopology`, `viewFleet`, `viewLogs`, `viewAdvanced` |
 | `web/views/topology/topology.css` | The Topology tab only: the matrix, the legend, the tree and the checklist |
+| `web/views/chat/chat.css` | The Chat tab only: the prompt box, the answer and the numbers of the answer |
 | `web/fonts/` | The self-hosted fonts (Latin subsets, OFL): Montserrat, Inter, JetBrains Mono. No CDN. |
 | `web/css/tokens.css` | The two palettes (dark and light), the type, the fonts, the spacing and the radii |
 | `web/css/layout.css` | The shell, the rail, the grids and the state headline |
@@ -191,7 +192,7 @@ Each tab answers one question. Keep it that way.
 |---|---|---|---|
 | Setup | Is this host ready, what do I do next, and what can it serve? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/recipes`, `.../plan` | run a step, start a run |
 | Dashboard | Is it serving, how fast is it, and how does an app connect? | `/api/telemetry`, `/api/hw`, `/api/runs`, `/api/glossary`, `/api/gpus/history` | copy the URL, stop the run, copy a curl or Python request |
-| Chat | What will I ask the model? (planned) | none yet | none yet: the tab says it is planned |
+| Chat | What will I ask the model? | `/api/chat`, `/api/runs` | send one prompt, stop the answer |
 | Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
 | Topology | Can the cards copy to each other? | `/api/topo`, `/api/topo/check` | check the readiness again |
 | Fleet | What do the other hosts do? (planned) | none yet | none yet: the tab says it is planned |

@@ -383,3 +383,18 @@ func TestNoInlineStylesOrHTML(t *testing.T) {
 		}
 	}
 }
+
+// The Chat tab writes the answer as text: a reply that carries markup must
+// not become markup on the page.
+func TestTheChatViewWritesTheAnswerAsText(t *testing.T) {
+	src, err := fs.ReadFile(webFS, "web/views/chat/chat.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(src), "innerHTML") {
+		t.Error("the chat view writes markup")
+	}
+	if !strings.Contains(string(src), "textContent") {
+		t.Error("the chat view does not write the answer as text")
+	}
+}

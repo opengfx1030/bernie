@@ -1,0 +1,15 @@
+/* The styles of the Chat tab: the prompt box, the answer and the numbers of
+   the answer. Every colour comes from the tokens of css/tokens.css; this file
+   never writes one. */
+
+/* ---- the prompt --------------------------------------------------------- */
+.chat-box { display: grid; gap: var(--space-3); max-width: 60rem; }
+.chat-actions { display: flex; gap: var(--space-2); }
+
+/* ---- the answer --------------------------------------------------------- */
+.chat-answer { display: grid; gap: var(--space-2); margin-top: var(--space-5); max-width: 60rem; }
+.chat-reply { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-reasoning { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2);
+  border-left: 2px solid var(--border-strong); padding-left: var(--space-3); }
+.chat-metrics { margin: 0; color: var(--text-2); font-size: var(--small); }
+.chat-note { margin: var(--space-5) 0 0; max-width: 60rem; color: var(--muted); font-size: var(--small); }
