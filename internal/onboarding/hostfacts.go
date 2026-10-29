@@ -32,7 +32,7 @@ func factsOf(f *Facts) []Fact {
 		out = append(out, Fact{
 			ID:    "memory",
 			Label: "Memory",
-			Value: fmt.Sprintf("%.1f GB", float64(f.Host.RAMBytes)/(1<<30)),
+			Value: fmt.Sprintf("%.1f GiB", float64(f.Host.RAMBytes)/(1<<30)),
 			Why:   "The model has to fit in the memory next to the runtime of the server.",
 		})
 	}
