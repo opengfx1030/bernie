@@ -38,6 +38,7 @@ type handler struct {
 	doc   *hostCache
 	power *hostCache
 	runs  *hostCache
+	hist  *hostCache
 }
 
 // Register adds every dashboard API route to mux.
@@ -53,6 +54,7 @@ func Register(mux *http.ServeMux, o Options) {
 		doc:   newHostCache(checkTTL),
 		power: newHostCache(hostTTL),
 		runs:  newHostCache(runsTTL),
+		hist:  newHostCache(historyTTL),
 	}
 
 	mux.HandleFunc("GET /api/hw", h.getHW)

@@ -25,6 +25,9 @@ const (
 	// runsTTL is for the list of the runs: the page reads it every five
 	// seconds and the list changes when the reader acts.
 	runsTTL = 2 * time.Second
+	// historyTTL is for the history of the cards: the ring buffer moves
+	// every two seconds, so the answer is held for the same time.
+	historyTTL = 2 * time.Second
 )
 
 // cacheEntry is one cached answer and the time it was read.
