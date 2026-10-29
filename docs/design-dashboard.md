@@ -304,7 +304,7 @@ other tab. It adds no endpoint. The old route `#classic` still lands on it.
 |---|---|---|---|
 | Setup | What do I do to make this box serve? | [design/setup.md](design/setup.md) | `design/setup-1280.svg`, `design/setup-390.svg`, `design/setup-blocked-1280.svg` |
 | Dashboard | Is it serving, and how fast? | [design/dashboard.md](design/dashboard.md) | `design/dashboard-1280.svg`, `design/dashboard-390.svg`, `design/dashboard-empty-1280.svg` |
-| Chat | What will I ask the model? (planned) | — | — |
+| Chat | What will I ask the model? | — | — |
 | Benchmark | How fast is it, and does it read the whole prompt? | [design/benchmark.md](design/benchmark.md) | `design/benchmark-1280.svg`, `design/benchmark-390.svg`, `design/benchmark-empty-1280.svg` |
 | Topology | Can the cards copy to each other? | [design/topology.md](design/topology.md) | — (not drawn yet) |
 | Fleet | What do the other hosts do? (planned) | — | — |
@@ -484,22 +484,27 @@ change only by agreement.
 | 4 Benchmark | `web/views/benchmark/*`, `web/css/bench.css`, `web/components/metrics.js` | publishes `metricTable()`, `verdictChip()`, `barCompare()`, `lengthCurve()` |
 | 5 Logs | `web/views/logs/*` | publishes nothing; it uses the components of the other workers |
 
-## 10. Deferred: the chat tab
+## 10. The chat tab
 
-Chat is not in this version. The reference has one; a client that wants it
-asks for a transcript, a system prompt, a parameter panel and a streaming
-reply, and that is a fifth tab of its own. The sketch is kept so it can be
-revived without a redesign:
+The Chat tab ships lean: one prompt box, one answer. It asks the run that
+serves and streams the answer back as it comes, and it keeps no history.
 
 ```
-POST /api/chat  {"run": "flashnext", "model": "flash-next", "stream": true,
-                 "messages": [{"role": "user", "content": "hi"}],
-                 "temperature": 0.7, "max_tokens": 256, "reasoning": false}
-200 text/event-stream, one chunk per event; 400 when the run is not ready;
-401 without the token; 403 without X-Bernie
+POST /api/chat  {"prompt": "hi"}
+200 text/event-stream: delta {"text": ""}, reasoning {"text": ""},
+done {"ttft_ms": 0, "output_tokens": 0, "tok_s": 0}, error {"error": ""};
+400 for an empty prompt, a prompt of more than 8192 bytes or a target that
+is not a server of this host; 409 when an answer is already running; 503
+when nothing serves; 502 when the server does not answer; 401 without the
+token; 403 without X-Bernie
 ```
 
-It would proxy the OpenAI API of the running run, to a loopback target only.
-The cheap version of the same idea ships now: the **Try it** box on the
-Dashboard run card and on the verify step of Setup (G3) sends one prompt and
-answers with the text, the time to first token and the tokens per second.
+It proxies the chat API of the running run, to a loopback target only, and
+the request to the server ends when the page goes away. The reasoning of
+the model comes apart from the answer when the server sends one.
+
+The **Try it** box of the Dashboard run card and of the verify step of
+Setup (G3) stays: it sends one prompt and answers with the text, the time
+to the first token and the tokens per second. The richer client of the
+reference (a transcript, a system prompt, a parameter panel) is not part of
+this tab.

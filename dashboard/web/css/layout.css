@@ -127,7 +127,7 @@ body.shell {
 .tab-count[hidden] { display: none; }
 
 /* the tag of a tab that is planned: the word carries the meaning */
-.tab-soon {
+.tab-planned {
   margin-left: -8px;
   padding: 0 5px;
   border: 1px solid var(--border);
@@ -398,7 +398,7 @@ body.shell {
     border-bottom-color: var(--accent);
   }
 
-  .tab-soon { margin-left: 0; }
+  .tab-planned { margin-left: 0; }
 
   .rail-group { display: none; }
 

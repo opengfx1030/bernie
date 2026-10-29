@@ -15,6 +15,7 @@ var tabOrder = []string{"setup", "dashboard", "chat", "benchmark", "topology", "
 // are not the first paint.
 var tabFiles = []string{
 	"views/chat/chat.js",
+	"views/chat/chat.css",
 	"views/fleet/fleet.js",
 	"views/topology/topology.js",
 	"views/topology/matrix.js",
@@ -120,4 +121,36 @@ func TestTheTopologyAliasIsGone(t *testing.T) {
 	if strings.Contains(body, `topology: ["dashboard", "topology"]`) {
 		t.Error("the old alias #topology still opens the Dashboard tab")
 	}
+}
+
+// The Chat tab ships: it carries no planned tag. Fleet is still planned and
+// says so.
+func TestOnlyFleetIsPlanned(t *testing.T) {
+	h := newServer(Options{Listen: "127.0.0.1:7860"}).handler()
+	w := do(t, h, "GET", "/", map[string]string{"Host": "127.0.0.1:7860"})
+	body := w.Body.String()
+	chat := railEntry(body, "chat")
+	fleet := railEntry(body, "fleet")
+	if chat == "" || fleet == "" {
+		t.Fatalf("the rail has no chat or fleet tab")
+	}
+	if strings.Contains(chat, "tab-planned") || strings.Contains(chat, "soon-note") {
+		t.Errorf("the Chat tab is still marked as planned: %s", chat)
+	}
+	if !strings.Contains(fleet, "tab-planned") || !strings.Contains(fleet, ">Planned<") {
+		t.Errorf("the Fleet tab does not say that it is planned: %s", fleet)
+	}
+}
+
+// railEntry returns the rail entry of one tab.
+func railEntry(body, tab string) string {
+	at := strings.Index(body, `data-tab="`+tab+`"`)
+	if at < 0 {
+		return ""
+	}
+	end := strings.Index(body[at:], "</a>")
+	if end < 0 {
+		return ""
+	}
+	return body[at : at+end]
 }
