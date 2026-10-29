@@ -153,3 +153,73 @@
 }
 .dash-details-path { font-family: var(--font-mono); font-size: var(--small); color: var(--text-2); }
 .dash-details-json { max-height: 340px; overflow: auto; margin: 0; }
+
+/* The tiles, the meters, the bars and the rings lived in views.css so
+   every tab could share them; they only ever render on the Dashboard
+   tab, so they live here and the first paint does not carry them. */
+.tiles {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  margin: 0 0 var(--space-4);
+}
+
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.tile-l {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: var(--small);
+  color: var(--muted);
+  margin: 0;
+}
+
+.tile-n {
+  font: 900 var(--tile-number)/1.1 var(--font-display);
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+
+.tile-n small { font: 600 13px/1 var(--font-body); color: var(--muted); margin-left: 3px; }
+.tile-s { font-size: var(--small); color: var(--text-2); margin: 2px 0 6px; }
+
+.metric { margin-top: var(--space-2); }
+
+.metric .lbl {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--small);
+  color: var(--muted);
+}
+
+.metric .lbl b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.bar {
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  background: var(--series-1);
+  width: 0;
+  transition: width var(--motion-progress) ease;
+}
+
+.bar.hot > i { background: var(--serious); }
+.bar.over > i { background: var(--fail); }
+
+.ring-n { font: 700 17px var(--font-display); }

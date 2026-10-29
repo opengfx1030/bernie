@@ -3,9 +3,14 @@
 // the first paint does not carry it.
 "use strict";
 
+// setupPathLoaded waits for steps.js to be there before this module uses
+// any of its functions. setupEnsureModule loads steps.js on the first call.
+const setupPathLoaded = setupEnsureModule("views/setup/steps.js");
+
 /** setupRunPath starts the whole path: the setup steps, the server and the
  *  check that proves it answers. It is one button and one job. */
 async function setupRunPath() {
+  await setupPathLoaded;
   setupProgress.path = { phase: "Starting\u2026", started: Date.now() };
   setupLogs.path = [];
   paintSetupPath();
@@ -24,7 +29,7 @@ async function setupRunPath() {
     // The path stops at the step that needs root: the page shows the exact
     // command and the Re-check that reads the host again.
     setupProgress.path = {
-      phase: "This step needs root. Run the command below as root, then press Re-check.",
+      phase: "This step needs root. Run the command below as root, then re-check.",
       failed: true,
       commands: (job && job.commands) || [],
     };
@@ -38,6 +43,7 @@ async function setupRunPath() {
 /** setupStopPath stops the run of the path. The job ends and the tab says
  *  so; nothing is hidden. */
 async function setupStopPath() {
+  await setupPathLoaded;
   const id = setupState.pathJobID;
   if (!id) return;
   try {
@@ -52,7 +58,8 @@ async function setupStopPath() {
 
 /** setupAttachPath re-attaches to the job of the whole path after a
  *  reload. The page knows the id, so the run survives the browser. */
-function setupAttachPath(doc) {
+async function setupAttachPath(doc) {
+  await setupPathLoaded;
   const path = doc && doc.path;
   if (!path || !path.id) return;
   setupState.pathJobID = path.id;
