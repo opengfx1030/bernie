@@ -1042,6 +1042,14 @@ hwmon. Without `--gpu`, it writes the `all` selector. With repeatable
 `--gpu`, it writes one selector per HIP index. A later write to the same
 selector replaces its value.
 
+One value has to fit every card it touches, so the wanted value is clamped
+before it is written: to the card's own `power1_cap_min` and `power1_cap_max`
+for one card, and to the range the cards share (the highest `power1_cap_min`
+and the lowest `power1_cap_max` of the cards the command touches) for `all`.
+The answer names the cards whose own range did not hold the wanted value in
+its `clamped` field; they take the clamped value. Cards with no power range
+are left alone.
+
 `tune power apply [--file FILE]` reads the desired state. `FILE` defaults to
 `<config>/power.yaml`. The command needs root because it writes hwmon. As a
 normal user it writes nothing, prints the exact one-line root command and
@@ -1451,7 +1459,7 @@ does not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/recipes` | `recipe list --all` JSON |
 | GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`) |
 | GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Logs tab shows them next to its log. A live run has `phase` ([§5.4](#54-log-phase)); the Logs tab shows the sentence under its state badge. |
-| POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record |
+| POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record. A name that is already running answers 409. |
 | DELETE | `/api/runs/{name}` | stop |
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
 | GET | `/api/runs/{name}/log?tail=2000&level=all&info&warn&error&q=text` | the tail of the log of a run: `{name, state, total_lines, truncated, lines: [{no, level, text}]}`. Every line carries its number in the log and its level. `level` is `all` (the default), `info`, `warn` or `error`; `q` is a case-insensitive substring; `tail` is 2000 lines by default. The levels are the rules of the log doctor: a line with `ERROR`, `Traceback`, `RuntimeError`, `CUDA error` or `Error:` is an error, a line with `WARNING` or `WARN` is a warning, every other line is info. A line that a finding points at is an error. |
@@ -1460,7 +1468,7 @@ does not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/gpus/history?window=5m\|15m\|1h` | the samples of the last minutes, one series per card: `{window, interval_s, points, series: [{hip_index, busy_pct, power_w, vram_used, tokens_per_s, prompt_tok_s}]}`. The window is 15 m when the request names none; another window answers 400. The ring buffer of the telemetry hub keeps 30 minutes at one point every 2 s; the hub samples the host only while a page watches `/api/telemetry`, so the buffer fills while the dashboard is open and the answer is empty (`points: 0`, no series) before the first sample; a window is downsampled so that no series holds more than 240 points (5 m: one point every 2 s, 15 m: every 4 s, 1 h: every 15 s). `tokens_per_s` and `prompt_tok_s` are the output and prefill rates of the live run, read from the hub's vLLM metrics sample; the rate is a property of the server, so every card carries the same number, and the values are zero (the fields absent from a sample without a scrape) when no run serves. The answer is cached for 2 s. |
 | POST | `/api/smoke` | one prompt to a run of this host: `{"prompt": "", "run": "", "model": ""}` → `{url, model, health, reply, ttft_ms, output_tokens, tok_s}`. The target is the run that serves, or the run named by `run`; a name that does not serve answers 404. The prompt is empty by default (then the prompt is "Hello"). The target is always a server of this host; a server that does not answer answers 502 with the reason. |
 | GET | `/api/power` | `tune power service status` JSON |
-| PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
+| PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. The value is clamped to the range the cards share (spec §9.2); the answer names the cards that were clamped in `clamped`. |
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. The target is always a loopback server of this host. One bench at a time; a second gets 409. |
 | POST | `/api/bench/run` | the same body as `POST /api/bench`, but the run happens in the background → `{"id": "b-7f3a"}` (202). The target is always a loopback server of this host. The state of the run is `GET /api/bench/{id}`. |

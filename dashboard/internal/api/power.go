@@ -57,12 +57,12 @@ func (h *handler) putPower(w http.ResponseWriter, r *http.Request) {
 	}
 	watts := req.Watts
 	if !all {
-		row := findPowerGPU(status, target)
-		if row == nil {
+		// The domain clamps the wanted value to the range of the card and
+		// names the cards that could not take it.
+		if findPowerGPU(status, target) == nil {
 			httpjson.Error(w, http.StatusBadRequest, fmt.Sprintf("GPU %d has no power cap", target))
 			return
 		}
-		watts = clampDashboardPower(watts, row.MinW, row.MaxW)
 	}
 	var indexes []int
 	if !all {
@@ -123,14 +123,4 @@ func findPowerGPU(status app.PowerServiceStatus, index int) *app.PowerGPUStatus 
 		}
 	}
 	return nil
-}
-
-func clampDashboardPower(watts, minW, maxW float64) float64 {
-	if minW > 0 && watts < minW {
-		watts = minW
-	}
-	if maxW > 0 && watts > maxW {
-		watts = maxW
-	}
-	return watts
 }

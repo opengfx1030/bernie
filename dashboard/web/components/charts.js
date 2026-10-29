@@ -41,6 +41,40 @@ function chartNumbers(values) {
   return out;
 }
 
+/** chartPaths builds the line and the area of a series. A missing point
+ *  breaks the line: the gap in the data is a gap in the chart, never a
+ *  zero. points holds plain numbers or {v} objects; px and py map an index
+ *  and a value to the canvas; baseY closes the area (null for a line). */
+function chartPaths(points, px, py, baseY) {
+  let line = "";
+  let area = "";
+  let run = [];
+  const flush = () => {
+    if (run.length) {
+      let d = "";
+      for (let k = 0; k < run.length; k++) {
+        d += (k ? "L" : "M") + px(run[k].i).toFixed(1) + " " + py(run[k].v).toFixed(1);
+      }
+      line += d;
+      if (run.length > 1 && baseY != null) {
+        area += d + " L" + px(run[run.length - 1].i).toFixed(1) + " " + baseY +
+          " L" + px(run[0].i).toFixed(1) + " " + baseY + " Z";
+      }
+    }
+    run = [];
+  };
+  (points || []).forEach((p, i) => {
+    const v = p && typeof p === "object" ? p.v : p;
+    if (typeof v !== "number" || !isFinite(v)) {
+      flush();
+      return;
+    }
+    run.push({ i: i, v: v });
+  });
+  flush();
+  return { line: line, area: area };
+}
+
 /** chartPointer wires the pointer and the keyboard of a chart: the pointer
  *  moves the readout and the arrow keys move it too. The index -1 means that
  *  nothing is pointed at. */
@@ -102,35 +136,47 @@ function spark(values, max, label, opts) {
       mark.setAttribute("opacity", "0");
       return;
     }
-    let d = "";
-    vals.forEach((v, i) => { d += (i ? "L" : "M") + px(i).toFixed(1) + " " + py(v).toFixed(1); });
-    line.setAttribute("d", d);
+    // A missing point breaks the line: the gap in the data is a gap in
+    // the chart.
+    line.setAttribute("d", chartPaths(vals, px, py, null).line);
     mark.setAttribute("opacity", "0");
   };
   const show = (i) => {
     if (i < 0) { read.style.opacity = "0"; mark.setAttribute("opacity", "0"); return; }
-    const vals = chartNumbers(values);
-    read.textContent = (options.format ? options.format(vals[i]) : num(vals[i])) + (options.unit ? " " + options.unit : "");
+    const v = values2[i];
+    if (typeof v !== "number" || !isFinite(v)) {
+      read.textContent = "–" + (options.unit ? " " + options.unit : "");
+      read.style.opacity = "1";
+      mark.setAttribute("opacity", "0");
+      return;
+    }
+    read.textContent = (options.format ? options.format(v) : num(v)) + (options.unit ? " " + options.unit : "");
     read.style.opacity = "1";
   };
-  let values2 = chartNumbers(values);
+  let values2 = values || [];
   paint(values2);
   chartPointer(svg, values2.length, (i) => {
     if (i < 0) { read.style.opacity = "0"; mark.setAttribute("opacity", "0"); return; }
-    const top = max && max > 0 ? max : Math.max(1, ...values2);
+    const v = values2[i];
+    if (typeof v !== "number" || !isFinite(v)) {
+      show(i);
+      return;
+    }
+    const top = max && max > 0 ? max : Math.max(1, ...chartNumbers(values2));
     const step = values2.length > 1 ? W / (values2.length - 1) : 0;
     const x = values2.length > 1 ? i * step : W / 2;
-    const y = H - PAD - (Math.min(values2[i], top) / top) * (H - 2 * PAD);
+    const y = H - PAD - (Math.min(v, top) / top) * (H - 2 * PAD);
     mark.setAttribute("cx", x.toFixed(1));
     mark.setAttribute("cy", y.toFixed(1));
     mark.setAttribute("opacity", "1");
     show(i);
   });
   wrap.update = (next, nextMax) => {
-    values2 = chartNumbers(next);
+    values2 = next || [];
     if (nextMax) max = nextMax;
     paint(values2);
-    const last = values2.length ? values2[values2.length - 1] : null;
+    const nums = chartNumbers(values2);
+    const last = nums.length ? nums[nums.length - 1] : null;
     svg.setAttribute("aria-label", (label || "the last minute") + ": " +
       (last == null ? "no sample yet" : (options.format ? options.format(last) : num(last)) + (options.unit ? " " + options.unit : "")));
   };
@@ -142,7 +188,7 @@ function spark(values, max, label, opts) {
  *  or the tokens per second. series is the list of values or the list of
  *  {t, v} points; opts carries the title, the unit, the window and the empty
  *  copy. The element carries an update method. */
-function areaChart(series, opts) {
+function areaChart(input, opts) {
   const options = opts || {};
   const W = 320, H = 170, L = 34, R = 312, T = 8, B = 128;
   const box = h("figure.chart", { class: "chart-figure" });
@@ -159,31 +205,59 @@ function areaChart(series, opts) {
   const xlab = chartSvg("g", { class: "chart-axis" });
   const area = chartSvg("path", { class: "chart-area" });
   const line = chartSvg("path", { class: "chart-line-strong" });
+  const extra = chartSvg("g", { class: "chart-extra" });
   const cross = chartSvg("line", { y1: T, y2: B, class: "chart-cross" });
   const dot = chartSvg("circle", { r: 3.5, class: "chart-dot" });
-  svg.append(grid, area, line, cross, dot, ylab, xlab);
+  svg.append(grid, area, line, extra, cross, dot, ylab, xlab);
   box.append(head, svg);
   const empty = h("div.chart-empty");
   box.append(empty);
 
-  let points = [];
   const norm = (input) => {
     const out = [];
     for (const p of input || []) {
       if (Array.isArray(p)) out.push({ t: null, v: p[1] });
       else if (p && typeof p === "object") out.push({ t: p.t || p.time || null, v: typeof p.v === "number" ? p.v : p.value });
       else if (typeof p === "number") out.push({ t: null, v: p });
+      else out.push({ t: null, v: null });
     }
-    return downsample(out.filter((p) => typeof p.v === "number" && isFinite(p.v)), 240);
+    // A missing point stays in the series: the chart breaks the line there
+    // instead of drawing a zero.
+    return downsample(out, 240);
   };
+  // maxValue is the top of the scale: the fixed maximum of the measure when
+  // there is one, else the largest number that was measured.
+  const maxValue = () => {
+    if (options.max && options.max > 0) return options.max;
+    const nums = chartNumbers(points.map((p) => p.v));
+    return nums.length ? Math.max(1, ...nums) : 1;
+  };
+  // The chart takes one series (a list of values or points) or a list of
+  // series: {values, label, dash}. A second series gets its own line, its
+  // own dash pattern and its own word on the chart, so a reader who cannot
+  // see the colours still knows which line is which.
+  const seriesOf = (input) => {
+    const many = Array.isArray(input) && input.length && input[0] && typeof input[0] === "object" &&
+      !Array.isArray(input[0]) && input[0].values !== undefined;
+    const list = many ? input : [null];
+    return list.map((one) => ({
+      points: norm(one ? one.values : input),
+      label: one && one.label ? one.label : "",
+      dash: !!(one && one.dash),
+    }));
+  };
+
+  let series = [];
   const paint = () => {
-    const n = points.length;
-    const maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...points.map((p) => p.v));
+    const n = Math.max(1, ...series.map((one) => one.points.length));
+    const values = chartNumbers(series.flatMap((one) => one.points.map((p) => p.v)));
+    const maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...values);
     const px = (i) => (n > 1 ? L + (i * (R - L)) / (n - 1) : (L + R) / 2);
     const py = (v) => B - (Math.min(v, maxV) / maxV) * (B - T);
     grid.replaceChildren();
     ylab.replaceChildren();
     xlab.replaceChildren();
+    extra.replaceChildren();
     for (const f of [0, 0.5, 1]) {
       const y = B - f * (B - T);
       grid.append(chartSvg("line", { x1: L, x2: R, y1: y, y2: y }));
@@ -191,8 +265,10 @@ function areaChart(series, opts) {
       t.textContent = f === 1 ? num(maxV, maxV < 10 ? 1 : 0) + (options.unit ? " " + options.unit : "") : f === 0 ? "0" : num(maxV / 2, maxV < 10 ? 1 : 0);
       ylab.append(t);
     }
-    if (!n) {
+    const first = series[0];
+    if (!first || !first.points.length) {
       line.setAttribute("d", "");
+      area.setAttribute("d", "");
       empty.hidden = false;
       empty.textContent = "";
       empty.append(h("b", { class: "chart-strong" }, "No samples yet."),
@@ -200,10 +276,28 @@ function areaChart(series, opts) {
       return;
     }
     empty.hidden = true;
-    let d = "";
-    points.forEach((p, i) => { d += (i ? "L" : "M") + px(i).toFixed(1) + " " + py(p.v).toFixed(1); });
-    line.setAttribute("d", d);
-    area.setAttribute("d", d + " L " + R + " " + B + " L " + L + " " + B + " Z");
+    const used = [];
+    series.forEach((one, idx) => {
+      if (!one.points.length) return;
+      // A missing point breaks the line: the gap in the data is a gap in
+      // the chart, never a zero.
+      const seg = chartPaths(one.points, px, py, idx === 0 ? B : null);
+      if (idx === 0) {
+        line.setAttribute("d", seg.line);
+        area.setAttribute("d", seg.area);
+      } else {
+        extra.append(chartSvg("path", { class: one.dash ? "chart-line-dash" : "chart-line-alt", d: seg.line }));
+      }
+      if (!one.label) return;
+      const nums = chartNumbers(one.points.map((q) => q.v));
+      const last = nums.length ? nums[nums.length - 1] : 0;
+      let y = py(last) - 5;
+      while (used.some((u) => Math.abs(u - y) < 11)) y -= 11;
+      used.push(y);
+      const t = chartSvg("text", { class: "chart-series-label", x: R - 2, y: y, "text-anchor": "end" });
+      t.textContent = one.label;
+      extra.append(t);
+    });
     const mins = options.windowMinutes || 5;
     const marks = [[L, "- " + mins + " min", "start"], [(L + R) / 2, "- " + (mins / 2) + " min", "middle"], [R, "now", "end"]];
     for (const [x, text, anchor] of marks) {
@@ -213,11 +307,22 @@ function areaChart(series, opts) {
     }
   };
   const fmt = (p) => (options.format ? options.format(p.v) : num(p.v)) + (options.unit ? " " + options.unit : "");
+  const at = (i) => series.map((one) => {
+    const p = one.points[i];
+    if (!p) return null;
+    return (one.label ? one.label + " " : "") + fmt(p);
+  }).filter(Boolean).join(" · ");
   const show = (i) => {
-    if (i < 0 || !points.length) { read.textContent = points.length ? fmt(points[points.length - 1]) : ""; cross.setAttribute("opacity", "0"); dot.setAttribute("opacity", "0"); return; }
-    const p = points[i];
-    const maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...points.map((q) => q.v));
-    const px = points.length > 1 ? L + (i * (R - L)) / (points.length - 1) : (L + R) / 2;
+    if (i < 0 || !series.length || !series[0].points.length) {
+      read.textContent = series[0] && series[0].points.length ? at(series[0].points.length - 1) : "";
+      cross.setAttribute("opacity", "0");
+      dot.setAttribute("opacity", "0");
+      return;
+    }
+    const p = series[0].points[i];
+    const maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...chartNumbers(series.flatMap((one) => one.points.map((q) => q.v))));
+    const n = Math.max(1, ...series.map((one) => one.points.length));
+    const px = (n > 1 ? L + (i * (R - L)) / (n - 1) : (L + R) / 2);
     const py = B - (Math.min(p.v, maxV) / maxV) * (B - T);
     cross.setAttribute("x1", px.toFixed(1));
     cross.setAttribute("x2", px.toFixed(1));
@@ -225,21 +330,20 @@ function areaChart(series, opts) {
     dot.setAttribute("cx", px.toFixed(1));
     dot.setAttribute("cy", py.toFixed(1));
     dot.setAttribute("opacity", "1");
-    read.textContent = fmt(p) + (p.t ? " · " + chartClock(p.t) : "");
+    read.textContent = at(i);
   };
-  points = norm(series);
+  series = seriesOf(input);
   paint();
-  chartPointer(svg, points.length, show);
+  chartPointer(svg, series[0] ? series[0].points.length : 0, show);
   box.update = (next, mins) => {
     if (mins) options.windowMinutes = mins;
-    points = norm(next);
+    series = seriesOf(next);
     paint();
-    const last = points.length ? points[points.length - 1] : null;
-    svg.setAttribute("aria-label", (options.title || "the measure") + ": " +
-      (last ? fmt(last) : "no sample yet"));
+    const last = series[0] && series[0].points.length ? series[0].points.length - 1 : -1;
+    svg.setAttribute("aria-label", (options.title || "the measure") + ": " + (last >= 0 ? at(last) : "no sample yet"));
     show(-1);
   };
-  box.update(series);
+  box.update(input);
   return box;
 }
 

@@ -77,7 +77,9 @@ function runURL(r) { return "http://" + (r.host || "127.0.0.1") + ":" + r.port; 
 
 function pushHist(key, v) {
   const a = state.hist[key] || (state.hist[key] = []);
-  a.push(v || 0);
+  // A value that was not measured stays a gap: the chart breaks the line
+  // there instead of drawing a zero.
+  a.push(v == null ? null : v);
   if (a.length > HISTORY) a.shift();
   return a;
 }
