@@ -31,6 +31,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Serve`, `Plan`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `RunOnboardingStep`, `Stop`, `Smoke` | 3 |
 | `internal/flow` | the `status` snapshot and the `up` chain | `Summary`, `Up`, `Findings`, `WaitHealthy`, `Blocked` | 3 |
 | `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `PrepareStep`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
+| `internal/bench/job` | the benchmark jobs: the store, the state machine and the typed progress events | `NewStore`, `Store`, `Request`, `Doc`, `Job`, `Progress` | 3 |
 | `internal/doctor` | the host checks | `Run`, `Report`, `Check`, `Status`, `Options` | 2 |
 | `internal/setup` | the install plan | `Plan`, `Apply`, `Step`, `Options` | 2 |
 | `internal/logdoc` | the log knowledge | `Load`, `Scan`, `ScanFile`, `PhaseOf`, `Rule`, `Match` | 2 |
