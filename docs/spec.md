@@ -1025,6 +1025,19 @@ both index sets: `gpus` are the host HIP indices and
 renumbering of the HIP indices inside a CDI container is not confirmed on
 a live host yet, so the plan warns when the two sets differ.
 
+In classic mode the device flags of the command are `--device /dev/kfd
+--device /dev/dri`. In CDI mode they are `--device amd.com/gpu=<n>`, one
+per selected GPU (`amd.com/gpu=all` when every GPU of the host is
+selected), and the group flags stay: the CDI spec sets the owner and the
+mode of the injected nodes, but it adds no group to the process of the
+container. A run never mixes the two forms: the classic form passes every
+render node of the host.
+
+The Compose file carries the same devices in its `devices:` list. That the
+compose engine accepts a CDI name there is not confirmed on a live host
+yet: the generated file says so and carries the classic form as a
+comment.
+
 ### 8.3 Run record
 
 `<state>/runs/<name>/run.json`:
@@ -1513,10 +1526,12 @@ Rules for responses and tokens:
 - In token mode, `/?token=<t>` is the only URL that accepts the token. It
   sets an HttpOnly, SameSite=Strict cookie and redirects (303) to `/` with no
   query.
-- A browser that opens a page of the dashboard in token mode without the
-  token gets a plain HTML page that says what to do: open the address that
-  `bernie dash` printed, the one that ends in `/?token=…`. The token is never
-  in the page. The `/api` paths keep the JSON error shape.
+- A browser that opens a page of the dashboard in token mode without a
+  valid token gets a plain HTML page that says what to do: open the address
+  that `bernie dash` printed, the one that ends in `/?token=…`. This includes
+  a missing token and an invalid query token. The answer is 401 and sets no
+  cookie. The token is never in the page. The `/api` paths keep the JSON
+  error shape.
 - A `token` query parameter on any `/api/` path is refused with 400
   (`{"error": "...", "exit_code": 2}`) in both modes, even when the token is
   valid. API clients send `Authorization: Bearer <token>`.

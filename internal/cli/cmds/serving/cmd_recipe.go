@@ -247,6 +247,12 @@ func printPlan(w io.Writer, p *recipe.Plan) {
 		}
 		fmt.Fprintf(w, "# groups:    %s\n", strings.Join(gs, ", "))
 	}
+	if p.DeviceAccess != "" {
+		fmt.Fprintf(w, "# access:    %s (%s)\n", p.DeviceAccess, p.DeviceAccessReason)
+		if len(p.CDIDevices) > 0 {
+			fmt.Fprintf(w, "# cdi:       %s\n", strings.Join(p.CDIDevices, ", "))
+		}
+	}
 	fmt.Fprintf(w, "# url:       %s\n", runner.Record{Host: p.Host, Port: p.Port}.URL())
 	for _, warn := range p.Warnings {
 		fmt.Fprintf(w, "# WARNING:   %s\n", warn)
