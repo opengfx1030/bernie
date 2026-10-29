@@ -254,7 +254,10 @@ other file, script or compose file is required.
 | `bernie bench ab --base ARM --cand ARM` | yes (it starts and stops a server for every arm) | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie fleet add <NAME> <URL> [--token T]` / `fleet rm <NAME>` / `fleet ls` | yes (config file) | List of other bernie hosts the Fleet tab watches. The token is stored in the config file with `0600`; it is never sent to the browser ([§11](#11-dashboard)). |
-| `bernie dash [--listen ADDR] [--token T] [--demo]` | no | Start the dashboard. `--demo` serves a captured host and a fake run from a sandbox under the user cache, with the banner "Demo: nothing here is real"; it needs no GPU and changes nothing on the host. |
+| `bernie dash [--listen ADDR] [--token T] [--demo]` | no | Start the dashboard in the foreground. `--demo` serves a captured host and a fake run from a sandbox under the user cache, with the banner "Demo: nothing here is real"; it needs no GPU and changes nothing on the host. |
+| `bernie dash start [--listen ADDR] [--token T] [--rotate-token] [--no-systemd] [--show-token] [--json]` | yes (a background process) | Start the dashboard as a service that outlives the shell ([§11.1](#111-the-dashboard-service)). |
+| `bernie dash stop [--json]` | yes | Stop the dashboard service. |
+| `bernie dash status [--show-token] [--json]` | no | The state of the dashboard service and the URLs to open. |
 | `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
 | `bernie version` | no | Version. |
 
@@ -693,10 +696,10 @@ Steps (filtered by mode and host):
 | `rocm.runtime` | yes | host | Install the ROCm runtime and the HIP SDK from the AMD repository of the distribution ([§6.3](#63-the-rocm-repository)). |
 | `container.engine` | yes | container | Install Docker or Podman and compose. |
 | `venv.create` | no | host | Create the venv (`uv` if present, else `python3 -m venv`). |
-| `venv.torch` | no | host | Install `rocm-sdk`, `torch` and one `rocm-sdk-device-<gfx>` + `amd-torch-device-<gfx>` wheel per code target from the AMD multi-arch index `https://repo.amd.com/rocm/whl-multi-arch/`. The code target of a GPU is its gfx target, or the target of its `hsa_override` ([§4.4](#44-device-tables)): gfx1031 to gfx1036 use the gfx1030 wheels. |
+| `venv.torch` | no | host | Install `torch`, `torchvision`, `torchaudio`, `triton` and one `rocm-sdk-device-<gfx>` + `amd-torch-device-<gfx>` wheel per code target from the AMD multi-arch index `https://repo.amd.com/rocm/whl-multi-arch/`. The code target of a GPU is its gfx target, or the target of its `hsa_override` ([§4.4](#44-device-tables)): gfx1031 to gfx1036 use the gfx1030 wheels. The index has no plain `rocm-sdk` package: `rocm-sdk-device-<gfx>` pulls in `rocm-sdk-libraries`. |
 | `causal-conv1d.build` | no | host | Build causal-conv1d from source for the host GPU targets. |
 | `flash-attn.build` | no | host | Only when a GPU has `flash_attn: true` in the device tables. gfx1030 does not. |
-| `vllm.build` | no | host | Clone the fork and build it in the venv. |
+| `vllm.build` | no | host | Clone the fork and build it in the venv, with `SETUPTOOLS_SCM_PRETEND_VERSION`: the branch carries no tag. |
 | `image.pull` | no | container | Pull the recipe image. |
 | `model.download` | no | both | The files of the repo into the Hugging Face cache ([§6.1](#61-the-model-download)). |
 
@@ -1569,6 +1572,63 @@ page asks for nothing that a run without a health answer does not have.
 The header says when the environment limits the GPUs bernie uses
 ([§7.7](#77-gpu-selection)).
 
+### 11.1 The dashboard service
+
+`bernie dash start` runs the dashboard as a service that outlives the
+shell that started it. `bernie dash stop` ends it. `bernie dash status`
+prints its state and the URLs to open. The three commands and the
+installer flag `--start` are the same operation
+([§3](#3-command-surface)); the MCP server exposes the same three
+operations as tools ([§13.4](#134-tools)).
+
+The state of the service lives under `<state>/dashboard/`:
+
+| File | Mode | What it holds |
+|---|---|---|
+| `token` | 0600 | the bearer token the guard reads. The service writes one when it starts and reuses it after a restart. |
+| `dash.pid` | 0644 | the PID of the dashboard process. |
+| `dash.log` | 0644 | the output of the dashboard process. |
+| `startup.json` | 0600 | the URL the dashboard bound to, its PID and the time it started. |
+
+The token rules:
+
+- The token file is written once (0600) and reused across restarts. It
+  changes only with `--rotate-token`.
+- A listen address that is not loopback always runs in token mode: the
+  token is required on every request, and the URL that carries it is
+  the only way in.
+- The text output of `dash start` and `dash status` carries the token
+  when the process can read the token file. The file is 0600, so only
+  the owner (and root) read it.
+- The JSON document of `dash start` and `dash status` redacts the token
+  (`<redacted>`). `--show-token` puts the real value in it.
+- The MCP tool `dash_status` redacts the token the same way;
+  `show_token: true` reveals it when the file is readable.
+
+The service runs in one of two ways:
+
+- A `systemd --user` unit (`bernie-dash.service`) when the user manager
+  answers. The unit is written under `<state>/dashboard/` and linked
+  with `systemctl --user link`. The dashboard then survives the logout
+  only after the operator runs `loginctl enable-linger $USER` as root.
+  bernie prints that command; it never runs it.
+- A detached process otherwise: the same binary with the internal flag
+  `--child`, in its own session, with the output in `dash.log`.
+
+`dash start` refuses when a dashboard is already running and says which
+one (the PID). A pidfile of a process that is gone is stale: the next
+start clears it.
+
+`dash stop` sends `SIGTERM`, waits five seconds, then sends `SIGKILL`.
+It removes the pidfile. A stop with no dashboard running is not an
+error.
+
+`dash status` prints the state (`running`, `stopped` or `stale`), the
+listen address, the loopback URL, the LAN URLs of the non-loopback
+interfaces, the manager (`process` or `systemd`), the token path and the
+log path. The LAN URLs are empty when the listener is bound to one
+address; then the output carries an `ssh -L` hint.
+
 Rules for responses and tokens:
 
 - Every response carries a cache header. The HTML and the `/api`
@@ -1945,6 +2005,8 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `tunableop_status` | `tune tunableop status` | `venv` |
 | `power_status` | `tune power service status` | none |
 | `onboarding_status` | `status --steps` (the `onboarding` field of `status --json`) | `venv` |
+| `setup_plan` | `setup plan` | `mode`, `venv`, `image`, `model`, `rocm` |
+| `dash_status` | `dash status` | `show_token` (the token is redacted without it) |
 | `jobs` | none (the onboarding jobs of this host) | none |
 
 Mutating tools ([§13.5](#135-write-gate)):
@@ -1959,6 +2021,8 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors", "clamped"}` |
 | `fleet_add` | `fleet add` | `{"name", "url"}` (the token is never in the result) |
 | `fleet_rm` | `fleet rm` | `{"removed": name}` |
+| `dash_start` | `dash start` | the state of the dashboard service ([§11.1](#111-the-dashboard-service)) |
+| `dash_stop` | `dash stop` | `{"stopped": true}` |
 
 `up` and `config set` are not tools. An agent runs them through the CLI.
 
