@@ -84,7 +84,7 @@ func TestSummarize(t *testing.T) {
 			},
 			want: vllm.Stats{RequestsRunning: 3, RequestsWaiting: 4, KVCacheUsage: 0.6,
 				PromptTokens: 1000, GenerationTokens: 500, SpecDrafts: 100, SpecDraftTokens: 200,
-				SpecAcceptedTokens: 150, SpecAcceptRate: 0.75, SpecMeanAcceptLen: 2.5},
+				SpecAcceptedTokens: 150, SpecAcceptRate: 0.75, SpecMeanAcceptLen: 2.5, Speculation: true},
 		},
 		{
 			name: "old kv gauge, no speculation",

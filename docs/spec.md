@@ -1647,8 +1647,10 @@ window, because nothing can be measured across a restart.
 | `prefix_cache_queries_total` | tokens | the tokens the server looked up in its prefix cache |
 | `prefix_cache_hits_total` | tokens | the tokens it found there |
 | `prefix_cache_hit_rate` | fraction (0..1) | hits / queries since the server started |
+| `prefix_cache` | true/false | the server publishes the prefix cache counters |
 | `external_prefix_cache_queries_total` | tokens | the tokens it looked up in the cache of another instance |
 | `external_prefix_cache_hits_total` | tokens | the tokens it found there |
+| `external_cache` | true/false | the server publishes the counters of the cache of another instance |
 | `prompt_tokens_cached_total` | tokens | the prompt tokens the server took from a cache |
 | `prompt_tokens_by_source` | tokens | the prompt tokens per source (`local_compute`, `local_cache_hit`, `external_kv_transfer`) |
 | `num_preemptions_total` | requests | the requests the engine took back and ran again |
@@ -1656,6 +1658,7 @@ window, because nothing can be measured across a restart.
 | `finished_by_reason` | requests | the finished requests per reason (`stop`, `length`, `abort`, `error`, `repetition`) |
 | `spec_drafts_total`, `spec_draft_tokens_total`, `spec_accepted_tokens_total` | tokens | the counters of the speculative decoding |
 | `spec_accept_rate` | fraction (0..1) | the accepted draft tokens / the draft tokens |
+| `speculation` | true/false | the server publishes the counters of the speculative decoding |
 | `spec_mean_accept_len` | tokens | the mean tokens written per draft step |
 | `ttft`, `itl`, `e2e`, `queue` | seconds | the latencies the server measured: `ttft` is the time to the first token, `itl` the time between two tokens, `e2e` the time of the whole request, `queue` the wait in the queue |
 
