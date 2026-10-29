@@ -52,9 +52,6 @@ it changes and holds the command that does it.
 bernie smoke
 ```
 
-It sends one prompt to the server and prints the time to the first token,
-the number of tokens and the output speed. Then `bernie bench` (how fast is
-this host?), `bernie logs <name>` (what is the server saying?) and
-`bernie stop <name>`.
+It sends one prompt to the server and prints the time to the first token, the number of tokens and the output speed. Then `bernie bench` (how fast is this host?), `bernie logs <name>` (what is the server saying?) and `bernie stop <name>`.
 
-When something is wrong, the page and the terminal name the command that fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`.
+When something is wrong, the page and the terminal name the command that fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`. `bernie --root DIR` reads another host tree (a captured host): use it for a demo or a test.
