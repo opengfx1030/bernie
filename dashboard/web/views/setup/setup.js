@@ -15,6 +15,23 @@ const SETUP_EXTRA_STEPS = ["bench", "tuning", "power"];
 // exists. The backend landed POST /api/smoke with the shape of spec §11.
 const SETUP_SMOKE_ENABLED = true;
 
+// setupProgress holds the live progress of a step, by step id. The map
+// lives here so the first paint is one round-trip; steps.js fills it
+// when its module arrives.
+const setupProgress = {};
+
+// setupLogs is the output of a step, by step id. Same ownership.
+const setupLogs = {};
+
+// setupStreams holds the open job streams, by step id. steps.js owns the
+// streams; the map is declared here so the first paint carries nothing.
+const setupStreams = {};
+
+// setupJobRead is the moment each job was read the last time, so a replay
+// of many lines does not ask the server for the same document again and
+// again.
+const setupJobRead = {};
+
 // setupState holds the documents of the tab and the nodes it paints.
 const setupState = {
   doc: null,
@@ -47,7 +64,14 @@ const setupState = {
 async function viewSetup(root) {
   setupState.generation++;
   const gen = setupState.generation;
-  setupStopStreams();
+  // Stop any streams the previous view opened. steps.js owns the streams;
+  // it is loaded lazily, so the call comes back when the module arrives.
+  setupEnsureModule("views/setup/steps.js")
+    .then(() => {
+      if (gen !== setupState.generation) return;
+      if (typeof setupStopStreams === "function") setupStopStreams();
+    })
+    .catch(() => {});
 
   const head = stateHead("Setup");
   const actions = h("div.head-actions");
@@ -63,7 +87,17 @@ async function viewSetup(root) {
   const planBox = h("div.recipe-plan-box");
   const doctorBox = h("div.doctor-findings");
   const glossaryBox = h("div.setup-glossary-body");
-  const glossary = h("details.advanced.setup-glossary", h("summary", "The words on this page"), glossaryBox);
+  // The glossary sits inside a disclosure: the reader opens it to read the
+  // words on this page. Its module comes with the first open, so the
+  // first paint does not carry it.
+  const glossary = h("details.advanced.setup-glossary", {
+    ontoggle: (ev) => {
+      if (!ev.target.open || glossaryBox.hasChildNodes()) return;
+      setupEnsureModule("views/setup/glossary.js")
+        .then(() => paintSetupGlossary(root))
+        .catch(() => {});
+    },
+  }, h("summary", "The words on this page"), glossaryBox);
   // The raw documents are the last thing of the tab: their module comes with
   // the first press, so the first paint does not carry it.
   const advancedBox = h("div");
@@ -102,7 +136,6 @@ async function viewSetup(root) {
 
   await Promise.all([loadSetupDocument(gen), loadSetupRecipes(gen), loadSetupDoctor(gen)]);
   paintSetupRecipeHint();
-  await paintSetupGlossary(root);
 }
 
 /** setupEnsureModule loads a file of the tab the first time it is needed
@@ -154,7 +187,14 @@ async function loadSetupDocument(gen) {
   paintSetupNeedsYou(doc);
   paintSetupTimeline(doc);
   await paintSetupFacts(doc);
-  attachSetupJobs(doc.steps);
+  // The progress streams and the job re-attach live in steps.js; load it
+  // when the doc has settled and attach the running jobs.
+  setupEnsureModule("views/setup/steps.js")
+    .then(() => {
+      if (gen !== setupState.generation) return;
+      attachSetupJobs(doc.steps);
+    })
+    .catch(() => {});
   if (doc.path && doc.path.id) {
     setupEnsureModule("views/setup/path.js")
       .then(() => setupAttachPath(doc))
@@ -207,13 +247,18 @@ function paintSetupTimeline(doc) {
   if (!doc) doc = setupState.doc;
   if (!doc) return;
   const steps = doc.steps || [];
+  // The inline progress of a step lands in setupProgress on first paint;
+  // the live state from steps.js takes over when its module arrives.
   for (const step of steps) {
     if (step.progress && !setupProgress[step.id]) {
       const state = { phase: step.progress.phase || "", started: Date.now() };
       const total = step.progress.total || 0;
       if (total) {
-        const p = { phase: step.progress.phase, files_total: total, files_done: step.progress.done || 0 };
-        setupApplyJobProgress(state, p);
+        const pct = Math.round(((step.progress.done || 0) * 100) / total);
+        state.pct = Math.max(0, Math.min(100, pct));
+        state.detail = state.pct + "%";
+      } else {
+        state.detail = "working…";
       }
       setupProgress[step.id] = state;
     }
@@ -221,7 +266,12 @@ function paintSetupTimeline(doc) {
   put(setupState.timeline, stepTimeline(steps, {
     extraIDs: SETUP_EXTRA_STEPS,
     nextID: doc.next,
-    onRun: runSetupStep,
+    // The press of a step loads steps.js; the first paint does not carry it.
+    onRun: (step, options) => {
+      setupEnsureModule("views/setup/steps.js")
+        .then(() => runSetupStep(step, options))
+        .catch(() => {});
+    },
     onRefresh: () => loadSetupDocument(),
     onWait: setupExplainWait,
     noteFor: setupStepNote,

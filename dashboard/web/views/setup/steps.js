@@ -3,19 +3,11 @@
 // Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 "use strict";
 
-// setupProgress is the live progress of a step, by step id.
-const setupProgress = {};
-
-// setupLogs is the output of a step, by step id.
-const setupLogs = {};
-
-// setupStreams holds the open job streams, by step id.
-const setupStreams = {};
-
-// setupJobRead is the moment each job was read the last time, so a replay
-// of many lines does not ask the server for the same document again and
-// again.
-const setupJobRead = {};
+// The maps of the live step state live in setup.js so the first paint
+// carries nothing. This module reads and writes them; it is loaded
+// lazily, when the reader presses a step or the page re-attaches a job.
+// setupProgress, setupLogs, setupStreams and setupJobRead are declared
+// in setup.js and shared across this file.
 
 /**
  * runSetupStep starts one step of the checklist. The server answers with a

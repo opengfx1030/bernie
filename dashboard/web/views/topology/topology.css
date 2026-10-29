@@ -203,3 +203,20 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* The shared shape of the matrix lived in views.css so the table cells
+   share their padding with the other tables; it now lives here so the
+   first paint does not carry it. */
+.matrix td, .matrix th {
+  text-align: center;
+  padding: 4px 6px;
+  font-size: var(--small);
+  border: 1px solid var(--border);
+}
+
+.matrix td.self { background: var(--surface-2); color: var(--muted); }
+.matrix .gb { display: block; font-size: 10.5px; color: var(--muted); }
+
+/* The "switch" heading above a matrix lived in views.css too. */
+.switch { margin-bottom: 10px; }
+.switch h3 { font-family: var(--font-mono); font-size: 13px; }

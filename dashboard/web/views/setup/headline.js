@@ -132,7 +132,7 @@ function setupHeadActions(doc, say) {
   if (next) {
     out.push(h("button.primary", {
       type: "button",
-      onclick: () => runSetupStep(next, { onRefresh: () => loadSetupDocument() }),
+      onclick: () => setupStartStep(next, { onRefresh: () => loadSetupDocument() }),
     }, stepActionLabel(next, false)));
   } else if (rootNext) {
     out.push(h("button.primary", {
@@ -177,10 +177,18 @@ function setupRunNextStep() {
   const doc = setupState.doc;
   const next = setupNextRunnable(doc);
   if (!next) {
-    toast("Nothing else can run right now.");
+    toast("There is no step bernie can do right now.");
     return;
   }
-  runSetupStep(next, { onRefresh: () => loadSetupDocument() });
+  setupStartStep(next, { onRefresh: () => loadSetupDocument() });
+}
+
+/** setupStartStep starts one step of the checklist. The module of the
+ *  steps comes with the press, so the first paint does not carry it. */
+function setupStartStep(step, options) {
+  setupEnsureModule("views/setup/steps.js")
+    .then(() => runSetupStep(step, options))
+    .catch(() => {});
 }
 
 /** setupExplainWait says what a later step waits for. */
@@ -264,7 +272,7 @@ function startSetupServer() {
   const doc = setupState.doc;
   const serve = doc && (doc.steps || []).find((s) => s.id === "serve");
   if (serve && serve.can_run) {
-    runSetupStep(serve, { onRefresh: () => loadSetupDocument() });
+    setupStartStep(serve, { onRefresh: () => loadSetupDocument() });
     return;
   }
   startSetupRecipe();

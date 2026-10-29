@@ -206,42 +206,7 @@ details.advanced > summary:hover { color: var(--text); }
 
 /* ---------- the topology ---------- */
 
-.switch { margin-bottom: 10px; }
-.switch h3 { font-family: var(--font-mono); font-size: 13px; }
-
-.matrix td, .matrix th {
-  text-align: center;
-  padding: 4px 6px;
-  font-size: var(--small);
-  border: 1px solid var(--border);
-}
-
-.matrix td.self { background: var(--surface-2); color: var(--muted); }
-.matrix .gb { display: block; font-size: 10.5px; color: var(--muted); }
-
-.c-PIX { background: color-mix(in srgb, var(--series-2) 28%, transparent); }
-.c-PXB { background: color-mix(in srgb, var(--series-1) 28%, transparent); }
-.c-PHB { background: color-mix(in srgb, var(--series-3) 28%, transparent); }
-.c-SYS { background: color-mix(in srgb, var(--series-4) 28%, transparent); }
-
-.legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: var(--small); margin-top: var(--space-2); }
-.legend span { padding: 1px 6px; border-radius: 4px; }
-
 /* ---------- the logs and the findings ---------- */
-
-.log {
-  height: 340px;
-  overflow: auto;
-  background: var(--log-bg, var(--surface-2));
-  color: var(--log-fg, var(--text));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  font-family: var(--font-mono);
-  font-size: var(--mono);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
 
 .findings { margin: 0 0 10px; }
 
@@ -254,75 +219,6 @@ details.advanced > summary:hover { color: var(--text); }
 }
 
 .finding > div { margin: 2px 0; }
-
-/* ---------- the tiles, the meters and the rings ---------- */
-
-.tiles {
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
-  margin: 0 0 var(--space-4);
-}
-
-.tile {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 12px 14px;
-  min-width: 0;
-}
-
-.tile-l {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
-  font-size: var(--small);
-  color: var(--muted);
-  margin: 0;
-}
-
-.tile-n {
-  font: 900 var(--tile-number)/1.1 var(--font-display);
-  margin: 4px 0 0;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.01em;
-}
-
-.tile-n small { font: 600 13px/1 var(--font-body); color: var(--muted); margin-left: 3px; }
-.tile-s { font-size: var(--small); color: var(--text-2); margin: 2px 0 6px; }
-
-.metric { margin-top: var(--space-2); }
-
-.metric .lbl {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
-  font-size: var(--small);
-  color: var(--muted);
-}
-
-.metric .lbl b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-
-.bar {
-  height: 8px;
-  background: var(--surface-3);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-top: 3px;
-}
-
-.bar > i {
-  display: block;
-  height: 100%;
-  background: var(--series-1);
-  width: 0;
-  transition: width var(--motion-progress) ease;
-}
-
-.bar.hot > i { background: var(--serious); }
-.bar.over > i { background: var(--fail); }
-
-.ring-n { font: 700 17px var(--font-display); }
 
 /* The words of the glossary that stand on the Setup tab. */
 .setup-glossary-list {
