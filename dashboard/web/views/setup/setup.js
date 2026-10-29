@@ -160,6 +160,12 @@ function paintSetupHead(doc) {
   const say = setupHeadline(doc);
   setHead(setupState.head, say.title, say.lede);
   put(setupState.actions, setupHeadActions(doc, say));
+  // The line under the one button: the checklist below is there for the
+  // reader who wants to go step by step.
+  const primary = doc.primary;
+  if (say.action === "setup" && primary && primary.kind === "setup") {
+    setupState.actions.append(h("span.small.muted.step-by-step", "or go step by step below."));
+  }
 }
 
 /** paintSetupStale shows the banner of a checklist that is older than its
