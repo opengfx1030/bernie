@@ -355,6 +355,11 @@ async function pollCounts() {
   try {
     const rep = await api("/api/doctor");
     const sum = rep.summary || {};
+    // The P2P readiness checks live on the Topology tab (spec §4.5): the
+    // doctor runs the same checklist under the category "topo.p2p", so the
+    // badge of that tab needs no extra request.
+    const p2p = (rep.checks || []).filter((c) => c.category === "topo.p2p" && c.status === "fail").length;
+    setTabCount("topology", p2p);
     setTabCount("dashboard", sum.fail || 0);
   } catch (e) { /* the badge keeps its last number */ }
 }

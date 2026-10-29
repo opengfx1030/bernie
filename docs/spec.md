@@ -1467,8 +1467,14 @@ Rules for responses and tokens:
 - The server writes no per-request log, so a query string never reaches the
   log. The start line prints the bootstrap URL once.
 
-The page has five tabs: Setup, Dashboard, Benchmark, Logs and Advanced. The
-Advanced tab is the first bernie dashboard, kept as it is for comparison: the
+The page has eight tabs: Setup, Dashboard, Chat, Benchmark, Topology, Fleet,
+Logs and Advanced. The Topology tab is the tab of the PCIe tree, of the link
+classes and of the P2P readiness checklist: it reads `/api/topo` and
+`/api/topo/check`, its route is `#topology`, and the old route
+`#dashboard/topology` is gone (the topology is a tab of its own now, not a
+section of the Dashboard tab). Chat and Fleet are planned: their tabs carry
+one honest sentence and no control. The Advanced tab is the first bernie
+dashboard, kept as it is for comparison: the
 same sections (the cards, the last minutes, the run, the power caps, the
 topology, the known problems), the same order and the same controls, drawn
 with the current design (the tokens, the fonts and the shared components of

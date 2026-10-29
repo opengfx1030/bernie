@@ -42,7 +42,7 @@ Every rule carries its check. The tags:
 5. **Writes are guarded.** Every POST and DELETE keeps the `X-Bernie` header
    check and the token rules in `internal/auth`. Never loosen them. **[test]**
 6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
-7. **One question per tab.** Do not add a sixth tab for a feature that fits
+7. **One question per tab.** Do not add a tab for a feature that fits
    an existing one. Do not put two questions in one tab. The Advanced tab is
    the one exception: it is the first bernie dashboard, kept as it is for
    comparison, and it answers the same question as the Dashboard tab.
@@ -348,7 +348,7 @@ for the first time (the manifest of `web/js/boot.js`).
 | Pointer target | ≥ 24×24 px (SC 2.5.8 AA) | 18×18 (info button), ≈11 px (JSON link), 20×20 (radio) | **[review]** |
 | CSP | strict, no `'unsafe-inline'` | strict, but inline styles are still used | **[lint]** |
 
-The JavaScript of the page is plain, hand-written and unminified: five tabs
+The JavaScript of the page is plain, hand-written and unminified: eight tabs
 of it are 265.8 KB. It is not one file that the reader downloads, it is
 265.8 KB of which 101.4 KB arrive with the first paint. The line that
 matters is the first paint: it is the one the reader waits for. The whole
