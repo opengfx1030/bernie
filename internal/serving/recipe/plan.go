@@ -85,8 +85,19 @@ type Plan struct {
 	// GroupAdd are the numeric group ids a container run needs to open the
 	// GPU devices of the host (spec §8.2).
 	GroupAdd []host.DeviceGroup `json:"group_add,omitempty"`
-	Warnings []string           `json:"warnings"`
-	Exec     *Exec              `json:"exec,omitempty"`
+	// DeviceAccessRequest is the device access mode that was asked for:
+	// classic, cdi or auto (spec §8.2).
+	DeviceAccessRequest string `json:"device_access_request,omitempty"`
+	// DeviceAccess is the mode the run uses: classic or cdi.
+	DeviceAccess string `json:"device_access,omitempty"`
+	// DeviceAccessReason says why that mode was chosen, in one sentence.
+	DeviceAccessReason string `json:"device_access_reason,omitempty"`
+	// CDIDevices are the CDI device names of the selected GPUs.
+	CDIDevices []string `json:"cdi_devices,omitempty"`
+	// ContainerHIPDevices are the HIP indices inside the container.
+	ContainerHIPDevices string   `json:"container_hip_devices,omitempty"`
+	Warnings            []string `json:"warnings"`
+	Exec                *Exec    `json:"exec,omitempty"`
 }
 
 // PlanOptions are the inputs of BuildPlan. Sets are applied in order (config
@@ -325,9 +336,11 @@ func planContainer(r *Recipe, p *Plan) {
 		}
 		p.Pull = r.Container.Pull == nil || *r.Container.Pull
 		p.TunableOpProfile = r.Container.TunableOpProfile
+		p.DeviceAccessRequest = r.Container.DeviceAccess
 	}
 	if p.Mode == ModeHost {
 		p.Image, p.ShmSize, p.Pull, p.TunableOpProfile = "", "", false, ""
+		p.DeviceAccessRequest = ""
 	}
 }
 

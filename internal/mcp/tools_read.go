@@ -54,20 +54,21 @@ type idIn struct {
 }
 
 type launchIn struct {
-	ID          string   `json:"id" jsonschema:"recipe id (recipe_list)"`
-	Set         []string `json:"set,omitempty" jsonschema:"overrides, each INPUT=VALUE or section.key=VALUE with a YAML value"`
-	Mode        string   `json:"mode,omitempty" jsonschema:"host or container (default: config, else container when the recipe has an image and an engine is usable)"`
-	Name        string   `json:"name,omitempty" jsonschema:"run name (default: the recipe id)"`
-	Venv        string   `json:"venv,omitempty" jsonschema:"host-mode venv directory"`
-	Engine      string   `json:"engine,omitempty" jsonschema:"container engine (default: config, else the first usable)"`
-	Profile     string   `json:"profile,omitempty" jsonschema:"force a TunableOp profile"`
-	NoTunableOp bool     `json:"no_tunableop,omitempty" jsonschema:"do not set TunableOp"`
-	Tuning      bool     `json:"tuning,omitempty" jsonschema:"TunableOp online tuning into the per-user rows file"`
+	ID           string   `json:"id" jsonschema:"recipe id (recipe_list)"`
+	Set          []string `json:"set,omitempty" jsonschema:"overrides, each INPUT=VALUE or section.key=VALUE with a YAML value"`
+	Mode         string   `json:"mode,omitempty" jsonschema:"host or container (default: config, else container when the recipe has an image and an engine is usable)"`
+	Name         string   `json:"name,omitempty" jsonschema:"run name (default: the recipe id)"`
+	Venv         string   `json:"venv,omitempty" jsonschema:"host-mode venv directory"`
+	Engine       string   `json:"engine,omitempty" jsonschema:"container engine (default: config, else the first usable)"`
+	DeviceAccess string   `json:"device_access,omitempty" jsonschema:"how the container gets the GPU: classic, cdi or auto (default: config, else the recipe, else auto)"`
+	Profile      string   `json:"profile,omitempty" jsonschema:"force a TunableOp profile"`
+	NoTunableOp  bool     `json:"no_tunableop,omitempty" jsonschema:"do not set TunableOp"`
+	Tuning       bool     `json:"tuning,omitempty" jsonschema:"TunableOp online tuning into the per-user rows file"`
 }
 
 func (l launchIn) prepare() runner.PrepareOptions {
 	return runner.PrepareOptions{Recipe: l.ID, Sets: l.Set, Mode: l.Mode, Name: l.Name, Venv: l.Venv, Engine: l.Engine,
-		Profile: l.Profile, NoTunableOp: l.NoTunableOp, Tuning: l.Tuning}
+		DeviceAccess: l.DeviceAccess, Profile: l.Profile, NoTunableOp: l.NoTunableOp, Tuning: l.Tuning}
 }
 
 type logsIn struct {

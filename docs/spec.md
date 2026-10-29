@@ -107,6 +107,7 @@ needs a reason in its description.
 | host | The Linux machine with the GPUs. |
 | mode | How vLLM runs: `host` (a Python venv on the host) or `container` (Docker or Podman). |
 | engine | The container program: `docker` or `podman`. |
+| device access | How a container gets the GPU: `classic` (the device nodes of the host) or `cdi` (the AMD Container Toolkit). |
 | recipe | A YAML file that describes one vLLM configuration. |
 | fragment | A recipe whose id starts with `_`. It is only used through `extends`. It is never listed or launched. |
 | input | A named value that a recipe needs from the operator, for example a local path. |
@@ -249,7 +250,8 @@ other file, script or compose file is required.
 A `no*` command writes only its generated files under the state directory.
 
 `recipe plan`, `serve` and `compose` share the launch flags: `--set`,
-`--mode`, `--name`, `--venv`, `--engine`, `--profile` (force a TunableOp
+`--mode`, `--name`, `--venv`, `--engine`, `--device-access` (`classic`,
+`cdi` or `auto`), `--profile` (force a TunableOp
 profile), `--no-tunableop` and `--tuning`. `serve` adds `--foreground`,
 `--no-pull`, `--wait D`, `--dash[=ADDR]` and `--dry-run` (same output as
 `recipe plan`). `serve --wait D` waits up to `D` until `/health` answers,
@@ -805,6 +807,7 @@ container:                      # omit (or null) = host mode only: the image lac
   tunableop_profile: rocm7.14-rocblas5.5   # rows for the image's rocBLAS build
   shm_size: 16g
   pull: true                    # pull before start (tags are refreshed in place); --no-pull skips
+  device_access: auto           # classic | cdi | auto (auto: CDI when the host can, else classic)
 
 env:                            # environment for vLLM; null removes a key
   VLLM_RDNA_AR: "1"
@@ -988,6 +991,39 @@ Its container runs in its own user namespace, where a group id of the host
 is not mapped: only the groups of the user are. `compose` writes the same
 plan as a Compose file that works with `docker compose`, `podman compose`
 and `podman-compose`.
+
+#### 8.2.1 Device access
+
+A container gets the GPU in one of two ways:
+
+- `classic`: the device nodes of the host are passed in (`--device /dev/kfd
+  --device /dev/dri`). Every GPU of the host is visible in the container.
+- `cdi`: the AMD Container Toolkit injects the GPUs through a CDI spec
+  (`--device amd.com/gpu=<n>`). Only the selected GPUs are visible in the
+  container.
+
+The mode is `classic`, `cdi` or `auto` (the default). It comes from the
+recipe field `container.device_access`, the `--device-access` flag and the
+config key `device_access`: the flag wins, then the config, then the
+recipe. `auto` uses CDI when the host has a valid `amd.com/gpu` spec and
+the engine can use it, else the classic form. A host without the toolkit
+changes nothing.
+
+The plan carries the decision:
+
+| Field | Meaning |
+|---|---|
+| `device_access_request` | the mode that was asked for: `classic`, `cdi` or `auto` |
+| `device_access` | the mode the run uses: `classic` or `cdi` |
+| `device_access_reason` | one sentence saying why that mode was chosen |
+| `cdi_devices` | the CDI device names of the selected GPUs |
+
+The index of a CDI device is the PCI-address order of the GPUs of the
+host, not the HIP order that `HIP_VISIBLE_DEVICES` uses. The plan keeps
+both index sets: `gpus` are the host HIP indices and
+`container_hip_devices` are the indices inside the container. The
+renumbering of the HIP indices inside a CDI container is not confirmed on
+a live host yet, so the plan warns when the two sets differ.
 
 ### 8.3 Run record
 
@@ -1674,6 +1710,7 @@ Config file `<config>/config.yaml`:
 venv: /home/me/Apps/vllm/venv-7.14.0   # host-mode default
 mode: host                              # host | container
 engine: podman                          # docker | podman (auto when empty)
+device_access: auto                     # classic | cdi | auto (auto when empty)
 hf_home: /data/hf                       # Hugging Face cache root
 set: ["env.GPU_MAX_HW_QUEUES=2"]        # default overrides, applied before --set
 ```
@@ -1755,7 +1792,7 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `smoke` | `smoke` | `url` (loopback only), `model` |
 | `recipe_list` | `recipe list` | `all` |
 | `recipe_show` | `recipe show` | `id` |
-| `recipe_plan` | `recipe plan` | the launch flags: `id`, `set`, `mode`, `name`, `venv`, `engine`, `profile`, `no_tunableop`, `tuning` |
+| `recipe_plan` | `recipe plan` | the launch flags: `id`, `set`, `mode`, `name`, `venv`, `engine`, `device_access`, `profile`, `no_tunableop`, `tuning` |
 | `ps` | `ps` | none |
 | `logs` | none (text) | `name`, `tail` (1 to 10000, default 100) |
 | `bench_list` | `bench list` | none |

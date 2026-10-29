@@ -133,6 +133,8 @@ func TestValidate(t *testing.T) {
 		{"env map value", leaf + "env: {A: {b: 1}}\n", []string{"env.A: want a string"}},
 		{"required fields", "schema: 1\n", []string{"name: required", "status: required", "model.source: required", "requires.arch: required", "requires.gpus: required"}},
 		{"container without image", leaf + "container: {shm_size: 8g}\n", []string{"container.image: required"}},
+		{"device access", leaf + "container: {image: img, device_access: cdi}\n", nil},
+		{"bad device access", leaf + "container: {image: img, device_access: gpu}\n", []string{"container.device_access: want one of classic, cdi, auto"}},
 		{"bad status", strings.Replace(leaf, "experimental", "great", 1), []string{"status: want one of"}},
 		{"schema 2", strings.Replace(leaf, "schema: 1", "schema: 2", 1), []string{"schema: want 1"}},
 	}

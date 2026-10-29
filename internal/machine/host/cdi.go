@@ -45,6 +45,10 @@ const (
 	DeviceAccessAuto = "auto"
 )
 
+// DeviceAccessModes are the modes a recipe, a flag or the config may ask
+// for.
+var DeviceAccessModes = []string{DeviceAccessClassic, DeviceAccessCDI, DeviceAccessAuto}
+
 // CDIDevice is one device of a CDI spec.
 type CDIDevice struct {
 	Name  string   `json:"name"`
