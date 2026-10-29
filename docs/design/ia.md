@@ -78,28 +78,8 @@ is a view of the CLI, never a second implementation.
 
 So the information architecture below is really one question asked three
 times: **what is the smallest set of questions a user has, and where does each
-question live?**
-
-The answer today, and the answer this file proposes, is the same shape:
-
-```mermaid
-flowchart TD
-  A[Bernie] --> B[CLI]
-  A --> C[MCP]
-  A --> D[Dashboard]
-  B --> S[Setup: make this box serve]
-  B --> T[Dashboard: is it serving and how fast]
-  B --> M[Benchmark: how fast and does it read the prompt]
-  B --> G[Topology: can the cards copy to each other]
-  B --> L[Logs: what did the server say]
-  B --> X[Advanced: the operator's console]
-  D --> S
-  D --> T
-  D --> M
-  D --> G
-  D --> L
-  D --> X
-```
+question live?** The answer is the same on all three front ends: the six
+questions of §4.1, in the same order.
 
 ## 2. The vocabulary
 
@@ -196,21 +176,9 @@ page can copy the shape rather than invent one:
 **The rule for the page**: every problem card has the same four fields in
 the same order — what happened, why, the fix, the doc link — and the fix is
 a command with a copy button, never advice. The CLI's `cause:` / `fix:` /
-`doc:` / `line:` labels are the names of the fields on both front ends.
-
-Two rules the page breaks today, both in the Setup tab:
-
-- The rule "no `invalid`, `illegal`, `wrong`, `incorrect` in the user-visible
-  copy of this tab" (dashboard/AGENTS.md, Setup rule 9) holds for the setup
-  copy. The **CLI** does not follow the same rule: `bernie status` prints
-  `[FAIL] /dev/kfd is readable and writable → sudo modprobe amdgpu`, which is
-  fine, but a usage error prints `bernie: unknown command "tune power"`,
-  which names the mistake without the fix. The CLI's usage error should end
-  with the command that would have worked.
-- The CLI's finding block prints `cause:`, `fix:`, `doc:`, `line:` as raw
-  labels (`internal/cli/findings.go:16-22`). The page renders the same four
-  facts as a card. The labels should be the same words on both front ends:
-  **cause**, **fix**, **doc**, **line**.
+`doc:` / `line:` labels are the names of the fields on both front ends, and
+the page never says "invalid", "illegal", "wrong" or "incorrect" (the rule in
+`dashboard/AGENTS.md`, Setup rule 9).
 
 ### 2.3 The step names, one list
 
@@ -548,33 +516,14 @@ The SIMPLE view of a tab is *the one question, the one action, and the
 numbers that answer the question*. The DETAILS view of a tab is *the same
 numbers with their raw form, their reason and their document*.
 
-**Setup** — SIMPLE
-
-1. the headline (`THIS BOX IS SERVING.` / `SETTING UP THIS BOX.` / `THIS BOX IS READY TO SERVE.`) and the lede naming one next action and who does it;
-2. the facts strip: GPUs, memory, ROCm, the system — each with its reason;
-3. the path: the 8 steps plus the 3 extras, one row each, with the state word, one sentence, the command, and one filled button on the step to do now;
-4. the recipe: the best fit, why it fits, the mode switch, the plan with the settings and their reasons;
-5. the doctor summary: the count of checks that pass, warn and fail, and the failing ones with their fix.
-
-**Setup** — DETAILS: the install plan (`setup plan`), the venv and its source, the glossary of the words on the page, the raw JSON of `/api/onboarding`, `/api/recipes`, `/api/recipes/{id}/plan`, `/api/doctor`, and the four commands that produce them.
-
-**Dashboard** — SIMPLE: the hero (state word, sentence, endpoint + `Copy URL`, `Stop`, the output speed with its unit), the six serving tiles (Prompt reading, Active requests, First token, KV cache, Prefix cache hits, Draft accepted), two rate charts, one card per GPU, `This machine`, `Connect an app` (curl and Python).
-
-**Dashboard** — DETAILS: the exact per-GPU table, the history window control, the power read-out per card, the raw JSON of `/api/telemetry`, `/api/hw`, `/api/runs`, `/api/gpus/history`.
-
-**Benchmark** — SIMPLE: the suites as radio cards with their digest, the last result in one sentence, the table of the cells (median and p95, with the count behind them), the length curve, the comparison of two results with a verdict on every group, the receipt, the history of the saved results, and the A/B section.
-
-**Benchmark** — DETAILS: the raw JSON of `/api/bench`, `/api/bench/suites`, `/api/bench/compare`, and the commands `bernie bench list`, `bernie bench suites`, `bernie bench compare A B`, `bernie bench compare A B --markdown`, `bernie bench ab BASE CAND`.
-
-**Topology** — SIMPLE: the link classes, the PCIe tree, the readiness checklist (8 items with a verdict and a line each), the last bandwidth measurement.
-
-**Topology** — DETAILS: the pair table, the raw JSON of `/api/topo` and `/api/topo/check`, and the commands `bernie topo`, `bernie topo --check`.
-
-**Logs** — SIMPLE: the run picker, the findings (cause, fix, doc, line), the tail with the level filter and the search.
-
-**Logs** — DETAILS: the raw JSON of `/api/runs` and the log of the picked run, and the commands `bernie ps` and `bernie logs NAME`.
-
-**Advanced** — the operator's console: the full per-GPU table, the power caps (read and write), the doctor report in full (all 9 categories, all checks), the job list, the run record, and the raw JSON of every endpoint of the page.
+| Tab | SIMPLE (the default) | DETAILS (the toggle) |
+|---|---|---|
+| Setup | the headline (`THIS BOX IS SERVING.` / `SETTING UP THIS BOX.` / `THIS BOX IS READY TO SERVE.`) and the lede naming one next action and who does it; the facts strip (GPUs, memory, ROCm, the system) each with its reason; the path (the 8 steps plus the 3 extras, one row each, with the state word, one sentence, the command, and one filled button on the step to do now); the recipe (the best fit, why it fits, the mode switch, the plan with the settings and their reasons); the doctor summary (the count that pass, warn and fail, and the failing ones with their fix) | the install plan, the venv and its source, the glossary of the words on the page, the raw JSON of `/api/onboarding`, `/api/recipes`, `/api/recipes/{id}/plan`, `/api/doctor`, and the four commands that produce them |
+| Dashboard | the hero (state word, sentence, endpoint + `Copy URL`, `Stop`, the output speed with its unit); the six serving tiles (Prompt reading, Active requests, First token, KV cache, Prefix cache hits, Draft accepted); two rate charts; one card per GPU; `This machine`; `Connect an app` (curl and Python) | the exact per-GPU table, the history window control, the power read-out per card, the raw JSON of `/api/telemetry`, `/api/hw`, `/api/runs`, `/api/gpus/history` |
+| Benchmark | the suites as radio cards with their digest; the last result in one sentence; the table of the cells (median and p95, with the count behind them); the length curve; the comparison of two results with a verdict on every group; the receipt; the history of the saved results; the A/B section | the raw JSON of `/api/bench`, `/api/bench/suites`, `/api/bench/compare`, and the commands `bernie bench list`, `bernie bench suites`, `bernie bench compare A B`, `bernie bench compare A B --markdown`, `bernie bench ab BASE CAND` |
+| Topology | the link classes; the PCIe tree; the readiness checklist (8 items with a verdict and a line each); the last bandwidth measurement | the pair table; the raw JSON of `/api/topo` and `/api/topo/check`; the commands `bernie topo` and `bernie topo --check` |
+| Logs | the run picker; the findings (cause, fix, doc, line); the tail with the level filter and the search | the raw JSON of `/api/runs` and the log of the picked run; the commands `bernie ps` and `bernie logs NAME` |
+| Advanced | the operator's console: the full per-GPU table, the power caps (read and write), the doctor report in full (all 9 categories, all checks), the job list, the run record, and the raw JSON of every endpoint of the page | — (the tab is already the deep one) |
 
 ### 4.4 Navigation
 
@@ -600,7 +549,7 @@ missing ones, all of them one click:
 | Setup, the `power` extra step | Advanced | a link on the step row | the power caps are in Advanced |
 | Setup, the `verify` step | Logs | `Read the logs` (exists) | |
 | Setup, the doctor findings | Advanced | a link on the section head | the full report is in Advanced |
-| Dashboard, a problem | Setup | a `Fix this` link on the finding | **the missing one.** The Dashboard hero has a problem card? Today it does not; the doctor findings are on Setup and Advanced. When the Dashboard shows a problem, it must link to the Setup step that fixes it. |
+| Dashboard, a problem | Setup | a `Fix this` link on the finding | **the missing one.** The Dashboard tab shows no problems today; the doctor findings are on Setup and Advanced. When it shows one, it must link to the Setup step that fixes it. |
 | Logs, a finding's fix | the terminal | the copy button on the fix command (exists) | |
 | Topology, a failed checklist item | Setup | a link on the item | a failed `access` item is a Setup step |
 | Any tab, the raw document | the terminal | the command in the details disclosure (exists) | |
@@ -667,12 +616,13 @@ The proposal, in the same frame:
 | The progress sentence | the phase sentence of the job | unchanged, plus the bytes/rate/ETA sentence of the model download (spec §3.3 `progress`) |
 | The end state | the headline says `THIS BOX IS SERVING.` | unchanged; the reader lands on the Dashboard tab by following the `Try it` link |
 
-**What the primary button needs.** A new endpoint: `POST /api/onboarding/run`
-that walks the non-root steps in order, one job at a time, and stops at the
-first step that needs root or that fails. That is the CLI's `up` path
-(`internal/flow/up.go`), exposed the way `POST /api/onboarding/{step}/run`
-already is. Effort: **M** (the flow exists; the endpoint, the job chaining
-and the UI are new).
+**What the primary button needs.** The endpoint already exists:
+`POST /api/onboarding/path/run` walks the non-root steps in order, one job at
+a time, and stops at the first step that needs root or that fails
+(`internal/onboarding/path.go`; the CLI's `up` path is
+`internal/flow/up.go`). What is missing is the page: the button, the
+progress, and the `Stop` on the running path
+(`POST /api/jobs/{id}/stop`). Effort: **S**.
 
 The reference's `Autopilot` (`POST /api/autopilot`) is the same thing. It
 must be in the design as `Set up this box`, with one honest difference: the
@@ -781,14 +731,15 @@ repository.
 ## 6. Chat and Fleet: the two placeholder tabs
 
 The owner's order: the tabs are there, and they are not usable yet. This
-section says what they become, and what it costs.
+section says what they become and what it costs.
 
 ### 6.1 Chat
 
 The lean version: **one prompt box, one reply, streamed.** The reference's
 chat is a transcript with a meta line per message, a system prompt and a
-parameter panel (`~/ui-study/design-dashboard-v2.md` §1.4, `collab/11-chat-live.png`).
-bernie needs none of that to answer the question of the tab.
+parameter panel (`~/ui-study/design-dashboard-v2.md` §1.4,
+`collab/11-chat-live.png`). bernie needs none of that to answer the tab's
+question.
 
 | Piece | What | Where |
 |---|---|---|
@@ -797,33 +748,23 @@ bernie needs none of that to answer the question of the tab.
 | The model | the model of the running run | Chat **D** |
 | The request as text | the exact JSON body that was sent | Chat **D** |
 
-**What it needs.** `POST /api/chat` (spec §10 of `docs/design-dashboard.md`
-has the shape: `{"run", "model", "stream", "messages", "temperature",
-"max_tokens", "reasoning"}`, `text/event-stream`, 400 when the run is not
-ready, 401 without the token, 403 without `X-Bernie`). The backend proxies the
-OpenAI API of the running run, to a loopback target only — the same rule the
-`/api/smoke` endpoint already follows (spec §11).
+**What it needs.** `POST /api/chat`: the shape is in
+`docs/design-dashboard.md` §10 (`{"run", "model", "stream", "messages",
+"temperature", "max_tokens", "reasoning"}`, `text/event-stream`, 400 when the
+run is not ready, 401 without the token, 403 without `X-Bernie`). The backend
+proxies the OpenAI API of the running run, to a loopback target only — the
+rule `/api/smoke` already follows (spec §11). **Effort: M**: the endpoint,
+the streaming writer (the SSE writer of `dashboard/internal/sse/` exists) and
+the page.
 
-**Effort: M.** The endpoint, the streaming writer (the SSE writer of
-`dashboard/internal/sse/` already exists) and the page. The design has the
-shape in `docs/design-dashboard.md` §10.
-
-**Why not keep it a placeholder.** A tab that says "planned" for a release
-and a half teaches the reader that bernie promises and does not deliver. A
-one-prompt Chat that works is the smallest honest version of the tab, and it
-reuses `/api/smoke`, which already exists and already answers.
+A tab that says "planned" for a release and a half teaches the reader that
+bernie promises and does not deliver; a one-prompt Chat is the smallest
+honest version, and `/api/smoke` already answers most of it.
 
 ### 6.2 Fleet
 
 The lean version: **the list of the other bernie hosts and what they are
-doing.** The reference's fleet view is a list of the other boxes with their
-telemetry, a share button and a remove button
-(`GET /api/fleet`, `POST /api/fleet/remove`).
-
-bernie's problem: spec §14 says *"Multi-host fleet control. The dashboard
-shows one host"* is out of scope for draft 1. A Fleet tab that lists other
-hosts needs a way to know about them: either a file of host addresses that
-bernie reads, or a federation between the dashboards themselves.
+doing** (the reference's `GET /api/fleet` and `POST /api/fleet/remove`).
 
 | Piece | What | Where |
 |---|---|---|
@@ -831,17 +772,16 @@ bernie reads, or a federation between the dashboards themselves.
 | The share button | the redacted report of this host, copied (R24) | Fleet **S** |
 | The remove button | forget a host | Fleet **S** |
 
-**What it needs.** A place to declare the other hosts: `bernie config set
-fleet` (a list of `name=url` pairs), and a read of each host's `/api/telemetry`
-over the network — which means the other host's dashboard token. That is a
-security surface bernie does not have today (the token mode is per-process,
-and the token is printed once).
-
-**Effort: L**, and it opens a security question (how does one host hold
-another's token?) that the owner should answer before any code is written.
+**What it needs.** A place to declare the other hosts (`bernie config set
+fleet`, a list of `name=url` pairs) and a read of each host's
+`/api/telemetry` over the network — which means the other host's dashboard
+token. That is a security surface bernie does not have today (the token mode
+is per-process and the token is printed once). **Effort: L**, and it opens
+the question *how does one host hold another's token?*, which the owner
+should answer before any code is written.
 
 **Recommendation.** Ship the **redacted report** (R24) first, in the Advanced
-tab, and keep the Fleet tab as a placeholder until the token question has an
+tab, and keep the Fleet tab a placeholder until the token question has an
 answer. That gets the reference's most useful fleet feature — the one-click
 report that is safe to paste into an issue — without inventing a federation
 model in a design document.
@@ -898,15 +838,17 @@ The rest of the list below is read out of the source of the tabs.
 
 ### 7.2 The rules that already hold, and must keep holding
 
-- One filled button per tab.
-- Every state is an icon and a word.
+The rules of the page live in [../../dashboard/AGENTS.md](../../dashboard/AGENTS.md)
+and the visual contract in [../design-dashboard.md](../design-dashboard.md).
+The ones this file leans on hardest:
+
+- One filled button per tab; every state is an icon and a word.
 - Every number has a unit and a range; a missing number is `–`.
-- Every command, URL and document has a copy button, and the button copies
-  exactly what is shown.
+- Every command, URL and document has a copy button that copies exactly what
+  is shown.
 - Every tab opens with a headline and a lede; the headline is `aria-live`.
-- Every empty state teaches.
-- One question per tab.
-- Every field on the page exists in the `--json` output with the same name.
+- One question per tab; every field on the page exists in the `--json`
+  output with the same name.
 - The page is small: ≤ 430 KB of HTML+CSS+JS, ≤ 24 requests on the first
   paint, ≤ 240 points per chart.
 
@@ -941,44 +883,25 @@ ordered so that every one of them is safe to stop after.
 | The Chat endpoint becomes an open proxy | C8 | loopback targets only, the same rule as `/api/smoke`; the token and `X-Bernie` rules of spec §11 |
 | The Fleet tab needs a cross-host token | — | the recommendation of §6.2: the Fleet tab stays a placeholder until the owner answers the token question |
 
-### 8.2 The decisions that belong to the owner, again
+### 8.2 The decisions that belong to the owner
 
-D1 (what the Advanced tab is), D2 (Chat and Fleet), D3 (the Dashboard's two
-views), D4 (recipe vs profile) and D5 (the device access) are the five.
-They are at the top of this file, with their recommendations.
+D1 to D5 are at the top of this file, with their recommendations and the
+cost of changing each one.
 
 ---
 
-## 9. The facts this document is built on
+## 9. Where the facts come from
 
-Read, not assumed:
+Every claim above names its source inline. The primary ones are the code and
+the contracts, read in this order: `bernie --help` and `bernie <path> --help`
+for the commands; `internal/cli/`, `internal/mcp/`, `dashboard/internal/api/`
+and `dashboard/web/**` for the three front ends; `docs/spec.md` §3, §3.3, §5,
+§7–§11 and §13 for the contract; `dashboard/AGENTS.md` and
+`docs/design-dashboard.md` for the rules of the page; and the reference
+`vllm-rdna-dash` at HEAD `74fb1d8` (its live demo at
+`http://127.0.0.1:18095/`) with `~/ui-study/notes.md` and
+`~/ui-study/design-dashboard-v2.md` for the study of it.
 
-- `bernie --help` and `bernie <command> --help` for the 19 commands and the
-  25 leaves.
-- `internal/cli/cli.go` (the router, the exit codes, the global flags),
-  `internal/cli/cmds/**` (the families), `internal/cli/findings.go` (the
-  finding block).
-- `internal/mcp/tools_read.go`, `internal/mcp/tools_write.go`,
-  `internal/mcp/tool.go`, `internal/mcp/server_test.go:106` (the 19 read
-  tools), `internal/mcp/server.go` (the transports and the guard).
-- `dashboard/internal/api/api.go:60-90` (the 31 routes),
-  `dashboard/internal/api/*.go` (the handlers), `dashboard/internal/sse/`
-  (the four streams), `dashboard/internal/telemetry/` (the sampler and the
-  ring buffer).
-- `dashboard/web/index.html` (the shell and the eight tabs),
-  `dashboard/web/js/boot.js` (`VIEWS`, `OLD_ROUTES`, the manifest),
-  `dashboard/web/js/shell.js` (the theme, the advanced switch, the run
-  pill, the shortcuts), `dashboard/web/js/data.js` (the one data path),
-  `dashboard/web/components/*.js`, `dashboard/web/views/**`.
-- `docs/spec.md` §3 (the command surface), §3.3 (the checklist), §4.5 (the
-  P2P checklist), §5 (the doctor and the log doctor), §7 (the recipes),
-  §8 (the runs), §9 (the tuning), §10 (the benchmark), §11 (the dashboard
-  API), §13 (MCP).
-- `docs/design-dashboard.md`, `docs/design/setup.md`, `docs/design/dashboard.md`,
-  `docs/design/benchmark.md`, `docs/design/logs.md`, `docs/design/tokens.md`,
-  `docs/design/components.md`, `docs/design/rules-ui.md`.
-- `dashboard/AGENTS.md`, `dashboard/README.md`, `AGENTS.md`.
-- `~/ui-study/notes.md`, `~/ui-study/design-dashboard-v2.md` and the 29
-  screenshots in `~/ui-study/collab/`.
-- The reference `vllm-rdna-dash` at HEAD `74fb1d8` and its live demo at
-  `http://127.0.0.1:18095/`.
+The dashboard was also run against the captured host fixture
+(`internal/support/fixture/testdata/par1-cs25.tar.gz`); the command is in
+§7.1.
