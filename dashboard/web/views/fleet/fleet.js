@@ -136,7 +136,8 @@ async function viewFleet(root) {
   /** load reads the list again. */
   async function load() {
     try {
-      paint(await api("/api/fleet"));
+      const doc = await api("/api/fleet");
+      paint(doc && Array.isArray(doc.hosts) ? doc.hosts : (doc || []));
     } catch (e) {
       put(list, failed(e));
     }
