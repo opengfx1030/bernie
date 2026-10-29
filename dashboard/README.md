@@ -68,16 +68,59 @@ flowchart LR
 | `web/js/shell.js` | The page-wide controls: the toast, the copy handler, the theme, the Advanced panels, the run status pill and the tab counts |
 | `web/js/data.js` | The only place that fetches: `api()`, `apiText()`, the shared state, the SSE streams and the one poller |
 | `web/js/boot.js` | The router, the old-hash aliases, the keyboard shortcuts and the manifest of the files of a tab. Loaded last. |
-| `web/components/` | The shared widgets: cards, command block, charts, metrics, run table, step timeline |
+| `web/components/` | The shared widgets: cards, command block, charts, metrics, comparison, step timeline |
 | `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs`, `viewClassic` |
 | `web/fonts/` | The self-hosted fonts (Latin subsets, OFL): Montserrat, Inter, JetBrains Mono. No CDN. |
 | `web/css/tokens.css` | The two palettes (dark and light), the type, the fonts, the spacing and the radii |
 | `web/css/layout.css` | The shell, the rail, the grids and the state headline |
-| `web/css/components.css` | The buttons, the pills, the cards, the tables, the states and the toast |
+| `web/css/components.css` | The buttons, the pills, the cards, the tables, the meters, the tiles and the states every card can be in |
+| `web/css/overlays.css` | The toast, the tooltip and the spinner: the parts of the page that come and go |
 | `web/css/views.css` | The parts that belong to one tab: the step timeline, the recipes, the doctor, the topology, the logs, the tiles and the rings |
 | `web/css/bench.css` | The Benchmark tab only |
 | `web/css/classic.css` | The Classic tab only: the reference-parity port, scoped under `.classic` |
 | `dashboard_test.go` | API, auth and stream tests |
+
+## Published globals
+
+Every file in `web/` is a classic script loaded in the order of
+`web/index.html`. It publishes its top-level names. The table below lists
+them. `scripts/check-web.sh` fails when the tree and this table disagree.
+
+Regenerate the table rows with `scripts/check-web.sh --print-globals`.
+
+| File | Published globals |
+|---|---|
+| `dashboard/web/components/cards.js` | `jsonLink`, `cardHead`, `stateHead`, `setHead`, `factRow`, `tableHead`, `tableCaption`, `emptyState`, `loading`, `failed` |
+| `dashboard/web/components/charts.js` | `downsample`, `chartNumbers`, `chartPaths`, `chartPointer`, `spark`, `areaChart`, `chartClock`, `ring`, `meter` |
+| `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock` |
+| `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `ladderPoints`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart`, `curveSmallMultiples`, `curveTable` |
+| `dashboard/web/components/metrics.js` | `METRIC_HELP`, `VERDICTS`, `METRIC_COLS`, `COMPARE_METRICS`, `benchNum`, `benchDist`, `benchRate`, `benchDigits`, `SPREAD_STEADY`, `benchSpreadText`, `cellLens`, `cellFlags`, `metricHead`, `cellRow`, `cellsTable`, `verdictChip` |
+| `dashboard/web/components/timeline.js` | `TIMELINE_STATE_WORD`, `TIMELINE_MARK`, `TIMELINE_PILL`, `stepTimeline`, `stepCurrentID`, `stepRow`, `stepPill`, `stepMark`, `stepSummary`, `stepActionLabel`, `stepAction`, `stepProgressNode`, `stepBar`, `stepProblem`, `stepToggleLog` |
+| `dashboard/web/js/boot.js` | `VIEWS`, `OLD_ROUTES`, `TAB_SCRIPTS`, `TAB_CSS`, `tabReady`, `tabLoading`, `loadScript`, `loadStyle`, `openTab`, `parseHash`, `route`, `preparePanel`, `focusSection`, `tabsKey`, `pendingG`, `shortcutsKey`, `boot` |
+| `dashboard/web/js/core.js` | `h`, `add`, `put`, `$`, `GiB`, `bytes`, `num`, `ago`, `badge`, `sh`, `SVG_NS`, `chartSvg` |
+| `dashboard/web/js/data.js` | `HISTORY`, `RUN_POLL_MS`, `MAX_POLL_MS`, `STALE_MS`, `state`, `request`, `api`, `loadHW`, `runsOf`, `runURL`, `pushHist`, `slowAgeNote`, `openTelemetry`, `openRunLogs`, `openJobEvents`, `openBenchEvents`, `JOB_POLL_MS`, `watchBenchJob`, `apiText`, `frameJobs`, `frameHandle`, `frameFallback`, `FRAME_FALLBACK_MS`, `runFrameJobs`, `onFrame`, `frameSubs`, `onTabFrame`, `telemetryStream`, `pollTimer`, `pollDelay`, `pollCycle`, `startTelemetry`, `pollRuns`, `pollCounts`, `schedulePoll`, `startPolling` |
+| `dashboard/web/js/shell.js` | `THEME_KEY`, `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `themeChoice`, `darkNow`, `applyTheme`, `toggleTheme`, `advancedOn`, `applyAdvanced`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
+| `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchCards`, `benchCellName`, `benchBestCell`, `benchHeadline`, `benchResultBody`, `benchCopy`, `benchReceipt`, `benchStartError`, `viewBenchmark` |
+| `dashboard/web/views/benchmark/suites.js` | `benchSuiteCells`, `benchSuiteEstS`, `benchMinutes`, `benchSuiteCard`, `benchSuiteCards`, `benchSentence`, `benchProgress`, `benchBest`, `benchSuiteOf`, `benchHistoryRow`, `benchHistory`, `benchAB`, `benchAdvanced` |
+| `dashboard/web/views/classic/charts.js` | `cfmt`, `cago`, `classicChart`, `classicSpark`, `classicRing`, `classicCount` |
+| `dashboard/web/views/classic/classic.js` | `classic`, `CLASSIC_DOCS`, `CLASSIC_HIST`, `CLASSIC_TAIL`, `viewClassic`, `classicSubscribe`, `classicHistory`, `classicSample`, `classicModel`, `classicLive`, `classicTail` |
+| `dashboard/web/views/classic/paint.js` | `classicUpdate`, `classicCharts`, `classicCrosshair` |
+| `dashboard/web/views/classic/panels.js` | `classicBuild`, `classicMark`, `classicTip`, `classicHeroButtons`, `classicMeterFill`, `classicGpuCard` |
+| `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashGrid`, `dashSection`, `dashInfo`, `dashGroup`, `DASH_PILL_ICON`, `dashPill`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashCardLabel`, `dashLiveRun`, `dashPhase`, `dashSetHead`, `dashAdvanced`, `dashLoad`, `dashHistory`, `dashWindowPrompt`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
+| `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashTiles`, `dashHero`, `dashTilesPaint`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe`, `dashCharts` |
+| `dashboard/web/views/dashboard/overview.js` | `dashRunState`, `dashRunCard`, `dashFindings`, `dashProblems`, `dashStopRun`, `dashRestartRun`, `dashAsk` |
+| `dashboard/web/views/dashboard/power.js` | `dashPower`, `dashPowerRow`, `dashPowerAll`, `dashSavePower` |
+| `dashboard/web/views/dashboard/topology.js` | `DASH_CLASS_COLOR`, `dashTopology`, `dashTree`, `dashMatrix`, `dashChecklist` |
+| `dashboard/web/views/logs/advanced.js` | `logsJsonLink`, `logsAdvanced` |
+| `dashboard/web/views/logs/findings.js` | `logPill`, `logSeverityPill`, `logFixIsCommand`, `logFinding`, `logFindings` |
+| `dashboard/web/views/logs/levels.js` | `LOG_ERROR_MARKS`, `LOG_WARN_MARKS`, `LOG_LEVEL_WORDS`, `logLevel`, `logLevelWord` |
+| `dashboard/web/views/logs/logs.js` | `logsTail`, `logsRun`, `stopLogs`, `logSection`, `logRuns`, `viewLogs`, `followLogs`, `stopRun` |
+| `dashboard/web/views/logs/picker.js` | `logRunState`, `logRunPicker` |
+| `dashboard/web/views/logs/tail.js` | `LOG_MAX_LINES`, `LOG_FILTER_LEVELS`, `logCount`, `logTail` |
+| `dashboard/web/views/setup/advanced.js` | `setupAdvancedPanel`, `loadSetupAdvanced`, `setupAdvancedDocument` |
+| `dashboard/web/views/setup/recipes.js` | `loadSetupRecipes`, `setupRecipeOrder`, `setupRecommendedRecipe`, `setupRecommendedWhy`, `setupRecipeNote`, `setupRecipeCard`, `setupRecipeError`, `setupFitStatus`, `setupFitLine`, `setupSelectRecipe`, `setupPaintRecipeSelection`, `loadSetupPlan`, `setupRecipe`, `setupPlanView`, `setupPlanActions`, `setupPlanReady`, `setupPlanCommand`, `setupQuote`, `setupPlanSettings`, `setupPlanAdjustments`, `setupPlanOverrides`, `setupSetValue`, `setupExtraSets`, `setupApplyOverrides`, `setupSwitchMode`, `startSetupRecipe` |
+| `dashboard/web/views/setup/setup.js` | `SETUP_EXTRA_STEPS`, `SETUP_SMOKE_ENABLED`, `setupState`, `viewSetup`, `paintSetupGlossary`, `paintSetupRecipeHint`, `loadSetupDocument`, `paintSetupHead`, `setupHeadline`, `setupServerEndpoint`, `setupHeadActions`, `setupNextRunnable`, `setupCurrentStep`, `setupRunNextStep`, `setupExplainWait`, `setupWaitSentence`, `pathSteps`, `setupRootCommand`, `setupCopyNextCommand`, `setupCopyText`, `startSetupServer`, `paintSetupStale`, `paintSetupError`, `paintSetupTimeline`, `setupStepLink`, `setupStepNote`, `paintSetupFacts`, `setupFactList`, `setupFact`, `setupFactsFromHost`, `setupMemoryWhy`, `setupPlanSentence`, `setupLoadHW`, `setupLoadDoctorReport`, `loadSetupDoctor`, `setupDoctorFinding`, `setupVerifyBox`, `setupServerRunning`, `setupServerServing`, `setupAskServer`, `focusSetupStep`, `focusSetupDoctor`, `focusSetupVerify`, `setupToggleAdvanced` |
+| `dashboard/web/views/setup/steps.js` | `setupProgress`, `setupLogs`, `setupStreams`, `setupJobRead`, `runSetupStep`, `followSetupJob`, `loadSetupJobProgress`, `setupJobStart`, `setupApplyJobProgress`, `setupProgressPercent`, `setupProgressSentence`, `setupProgressDetail`, `setupElapsed`, `setupElapsedText`, `setupLiveDetail`, `setupRate`, `setupDuration`, `attachSetupJobs`, `attachSetupJob`, `paintSetupProgress`, `setupStopStreams` |
 
 ## The layout
 
@@ -94,7 +137,7 @@ dashboard/
 │   └── httpjson/        the JSON response shapes
 └── web/
     ├── index.html       the shell markup and the script order
-    ├── css/             tokens, layout, components, views, bench, classic
+    ├── css/             tokens, layout, components, overlays, views, bench, classic
     ├── fonts/           the self-hosted fonts and their licences
     ├── js/              core, shell, data, boot
     ├── components/      the shared widgets
@@ -253,8 +296,8 @@ The first paint is measured by the browser against the built binary
 | What | Before | Now |
 |---|---|---|
 | Requests | 43 | **21** (1 HTML + 4 CSS + 12 scripts + 4 fonts) |
-| Text | 341.8 KB | **141.6 KB** |
-| Text, gzipped | 110.3 KB | **45.1 KB** |
+| Text | 341.8 KB | **147.4 KB** |
+| Text, gzipped | 110.3 KB | **46.4 KB** |
 
 A tab that opens for the first time brings its own files (6–8 requests,
 once). The manifest that names them is in `web/js/boot.js`.
@@ -266,12 +309,15 @@ time to live costs 10 ms.
 
 The telemetry stream is the one thing that costs while the page is open:
 the sampler reads the cards of the host once per second, and every read of
-an amdgpu attribute talks to the card. On the 10 GPU box that is 150 reads
-of `/sys` per sample, 15–219 ms per sample (median 146 ms), and **16.7 % of
-one core** of `bernie dash` while a page watches `/api/telemetry`. The
-dashboard with no page open costs nothing: the sampler runs only while a
-page watches the stream, and three pages cost the same as one (the hub
-shares the sample).
+an amdgpu attribute waits for its card. The attributes are read in two
+tiers (the load, the memory and the power every second; the
+temperatures, the caps and the clocks every four seconds), the cards are
+read in parallel, and the hwmon node and the sensor labels are remembered.
+On the 10 GPU box that is **46 reads of `/sys` per second** and **6.4 % of
+one core** of `bernie dash` while a page watches `/api/telemetry` (it was
+16.7 % before the tiers). The dashboard with no page open costs nothing:
+the sampler runs only while a page watches the stream, and three pages
+cost the same as one (the hub shares the sample).
 
 The rules and the numbers are in [AGENTS.md](AGENTS.md) (the budget table)
 and in [../docs/design-dashboard.md §8.3](../docs/design-dashboard.md#83-performance)

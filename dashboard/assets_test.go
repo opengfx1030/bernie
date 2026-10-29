@@ -162,9 +162,10 @@ func TestPayloadBudget(t *testing.T) {
 	// The numbers are honest: the next commit that breaks a line changes the
 	// doc first.
 	const htmlMax = 12 * 1024
-	const jsMax = 280 * 1024 // 259.8 KB now; the plan in §8.3 brings it to 240 KB
+	const jsMax = 290 * 1024 // 275.3 KB now; the five tabs of plain JavaScript
 	const cssMax = 80 * 1024
 	const fontsMax = 130 * 1024
+	const treeMax = 375 * 1024
 	if html > htmlMax {
 		t.Errorf("html %d > %d", html, htmlMax)
 	}
@@ -176,6 +177,9 @@ func TestPayloadBudget(t *testing.T) {
 	}
 	if fonts > fontsMax {
 		t.Errorf("fonts %d > %d", fonts, fontsMax)
+	}
+	if html+js+css > treeMax {
+		t.Errorf("html+css+js %d > %d", html+js+css, treeMax)
 	}
 }
 
