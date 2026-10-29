@@ -4,6 +4,10 @@
 // the answer back as it comes. It keeps no history: the prompt and the
 // answer are not stored.
 
+// The state of the tab: the errors of the last answer. A stopped answer is
+// not an error: the reader stopped it on purpose.
+const chatState = { errors: {} };
+
 /** viewChat opens the Chat tab: the prompt, the button and the answer. */
 async function viewChat(root) {
   const head = stateHead("Chat");
@@ -48,7 +52,9 @@ async function viewChat(root) {
   }
 
   /** stream sends the prompt and reads the answer as it comes. The handlers
-   *  get the events of the stream. */
+   *  get the events of the stream. The body is read to the end and the
+   *  reader lets go of it: the browser closes the request instead of
+   *  cancelling it, so a finished answer leaves no network error behind. */
   async function stream(text, handlers) {
     controller = new AbortController();
     const response = await fetch("/api/chat", {
@@ -69,18 +75,22 @@ async function viewChat(root) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      buf += decoder.decode(chunk.value, { stream: true });
-      let cut = buf.indexOf("\n\n");
-      while (cut >= 0) {
-        const frame = buf.slice(0, cut);
-        buf = buf.slice(cut + 2);
-        const ev = event(frame);
-        if (ev && handlers[ev.name]) handlers[ev.name](ev.doc);
-        cut = buf.indexOf("\n\n");
+    try {
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buf += decoder.decode(chunk.value, { stream: true });
+        let cut = buf.indexOf("\n\n");
+        while (cut >= 0) {
+          const frame = buf.slice(0, cut);
+          buf = buf.slice(cut + 2);
+          const ev = event(frame);
+          if (ev && handlers[ev.name]) handlers[ev.name](ev.doc);
+          cut = buf.indexOf("\n\n");
+        }
       }
+    } finally {
+      try { reader.releaseLock(); } catch (e) { /* the body is closed already */ }
     }
   }
 
@@ -106,14 +116,22 @@ async function viewChat(root) {
           reasoning.hidden = false;
           reasoning.textContent += doc.text || "";
         },
-        done: (doc) => { metrics.textContent = numbers(doc); },
-        error: (doc) => { metrics.textContent = doc.error || "the answer failed"; },
+        // The answer is over: the Stop button goes away at once, so a click
+        // on it cannot cancel a request that is already finished.
+        done: (doc) => { metrics.textContent = numbers(doc); stop.hidden = true; },
+        error: (doc) => {
+          metrics.textContent = doc.error || "the answer failed";
+          chatState.errors["/api/chat"] = metrics.textContent;
+          stop.hidden = true;
+        },
       });
     } catch (e) {
       if (e && e.name === "AbortError") {
+        // The reader stopped the answer on purpose: that is not an error.
         metrics.textContent = "The answer was stopped.";
       } else {
-        metrics.textContent = (e && e.message) || "the request failed";
+        chatState.errors["/api/chat"] = (e && e.message) || "the request failed";
+        metrics.textContent = chatState.errors["/api/chat"];
       }
     } finally {
       busy = false;
