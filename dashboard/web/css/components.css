@@ -277,6 +277,27 @@ tr.sel td { background: var(--surface-2); }
 tr.click { cursor: pointer; }
 tr.click:hover td { background: var(--surface-2); }
 
+/* ---------- the numbers of a chart ---------- */
+
+/* the table under a chart: closed by default, opened by the reader */
+.chart-data { margin-top: 6px; }
+
+.chart-data-summary {
+  cursor: pointer;
+  color: var(--muted);
+  font: 600 var(--small)/1.4 var(--font-body);
+}
+
+.chart-data-table { margin-top: 6px; }
+
+.chart-data-caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--muted);
+  font-size: var(--small);
+  padding-bottom: 4px;
+}
+
 /* ---------- the values and their reasons ---------- */
 
 dl.kv {
