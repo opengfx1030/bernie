@@ -50,13 +50,14 @@ async function viewSetup(root) {
   const hero = h("div.setup-hero");
   const timeline = h("div.setup-timeline-body");
   const recipeBox = h("div.setup-recipe-chooser");
+  const recipeHint = h("div.setup-recipe-hint");
   const recipeErrors = h("div.recipe-errors");
   const planBox = h("div.recipe-plan-box");
   const doctorBox = h("div.doctor-findings");
   const advanced = setupAdvancedPanel();
 
   Object.assign(setupState, {
-    head, actions, banner, hero, timeline, recipeBox, recipeErrors, planBox, doctorBox, advanced,
+    head, actions, banner, hero, timeline, recipeBox, recipeHint, recipeErrors, planBox, doctorBox, advanced,
     onRefresh: () => loadSetupDocument(),
   });
 
@@ -66,7 +67,7 @@ async function viewSetup(root) {
       timeline),
     h("section.section", { id: "setup-recipes" },
       h("h2.section-label", "THE RECIPE"),
-      recipeBox, recipeErrors, planBox),
+      recipeHint, recipeBox, recipeErrors, planBox),
     h("section.section", { id: "setup-doctor" },
       h("h2.section-label", "DOCTOR", h("span.grow"),
         h("button.small", { type: "button", onclick: loadSetupDoctor }, "Re-run")),
@@ -80,6 +81,28 @@ async function viewSetup(root) {
   put(doctorBox, loading());
 
   await Promise.all([loadSetupDocument(gen), loadSetupRecipes(gen), loadSetupDoctor(gen)]);
+  paintSetupRecipeHint();
+}
+
+/** paintSetupRecipeHint says what to do when no recipe fits this host: the
+ *  reason, the next step and the command (Setup rule 11). */
+function paintSetupRecipeHint() {
+  const box = setupState.recipeHint;
+  if (!box) return;
+  const list = (setupState.recipes && setupState.recipes.recipes) || [];
+  if (!list.length) {
+    put(box);
+    return;
+  }
+  const fits = list.filter((r) => setupFitStatus(r) === "fits");
+  if (fits.length) {
+    put(box);
+    return;
+  }
+  const why = list.map(setupFitLine).filter(Boolean).slice(0, 2).join(" ");
+  put(box, emptyState("No recipe fits this host yet.",
+    why + " A recipe is a model and the way it is served. Fix the steps above, then press Re-check.",
+    "bernie recipe list --all"));
 }
 
 /** loadSetupDocument reads the onboarding checklist and paints the
@@ -257,12 +280,22 @@ function setupRunNextStep() {
 
 /** setupExplainWait says what a later step waits for. */
 function setupExplainWait(step) {
+  const sentence = setupWaitSentence(step);
+  if (!sentence) {
+    toast("This step waits for the step before it.");
+    return;
+  }
+  toast(sentence);
+}
+
+/** setupWaitSentence names the step that holds the path for a step that
+ *  waits. The words come from the checklist (spec §3.3). */
+function setupWaitSentence(step) {
   const doc = setupState.doc;
-  if (!doc) return;
-  const currentID = doc.next || (pathSteps(doc)[0] || {}).id || "";
-  const current = (doc.steps || []).find((s) => s.id === currentID);
-  const name = current ? stepActionLabel(current, false) : "the step before it";
-  toast(name + " first.");
+  if (!doc || !step || !step.waits_for) return "";
+  const holds = (doc.steps || []).find((s) => s.id === step.waits_for);
+  if (!holds) return "";
+  return "This step waits for: " + stepActionLabel(holds, false) + ".";
 }
 
 /** pathSteps is the path of the checklist, with the extras removed. */
@@ -397,6 +430,8 @@ function setupStepLink(step) {
 
 /** setupStepNote is the extra line under a step of the checklist. */
 function setupStepNote(step) {
+  const wait = setupWaitSentence(step);
+  if (wait) return wait;
   if (step.id === "recipe") return setupRecipeNote();
   return null;
 }
@@ -599,6 +634,9 @@ function setupServerRunning() {
  *  still loads the model is not serving yet: it is setting up. */
 function setupServerServing(serve) {
   if (!serve || serve.state !== "running") return false;
+  // The backend says whether the server answers (spec §3.3). The phase
+  // words are the fallback for an older answer.
+  if (serve.serving) return true;
   const text = ((serve.progress && serve.progress.phase) || "") + " " + (serve.summary || "");
   return !/loading|compiling|capturing|starting/i.test(text);
 }

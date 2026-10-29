@@ -279,7 +279,8 @@ A step has this record:
 {"id": "hardware", "title": "", "state": "done|todo|running|blocked|skipped",
  "summary": "", "detail": "", "command": "", "can_run": false,
  "root_commands": [], "progress": {"phase": "", "done": 0, "total": 0},
- "problems": [], "job_id": "", "job_state": ""}
+ "problems": [], "job_id": "", "job_state": "", "serving": false,
+ "waits_for": ""}
 ```
 
 - `id` is stable: `hardware`, `access`, `rocm`, `python-env`, `model`,
@@ -298,11 +299,16 @@ A step has this record:
   the work when the step knows it.
 - `problems` are the doctor checks that hold the step back, with their fix
   and their documentation link.
-- `job_id` is the id of the job of this step, when a job is running or has
-  finished less than five minutes ago. `job_state` is the state of that job:
+- `job_id` is the id of the job of this step, when a job is running or
+  has finished less than five minutes ago. `job_state` is the state of that job:
   `running`, `done` or `failed`. A step that is `running` without a `job_id`
   is the serving run, not an onboarding job. The page re-attaches to the job
   with the id.
+- `serving` is true on the serve step when the server answers requests now
+  (its health check passed). The page reads it instead of guessing from the
+  phase, and `next` becomes `verify` when the server serves.
+- `waits_for` is the id of the step that holds the path, on a runnable step
+  that comes after it. The step says in words what it waits for.
 
 The document also holds the facts of the host: the numbers the page shows
 above the steps, each with the reason why it matters.

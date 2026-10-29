@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/doctor"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/setup"
 )
 
@@ -167,6 +168,9 @@ func serveStep(f *Facts) Step {
 		s.Summary = fmt.Sprintf("%s is %s.", run.Name, run.State)
 		s.Detail = run.URL
 		s.Progress = &Progress{Phase: run.Phase}
+		// The run answers when its health check passes: the runner calls
+		// that state "running".
+		s.Serving = run.State == runner.StateRunning
 		return s
 	}
 	s.State = StateTodo

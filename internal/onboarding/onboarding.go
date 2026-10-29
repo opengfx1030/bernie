@@ -81,6 +81,12 @@ type Step struct {
 	JobID string `json:"job_id,omitempty"`
 	// JobState is the state of that job: running, done or failed.
 	JobState string `json:"job_state,omitempty"`
+	// Serving says that the server of the serve step answers requests now.
+	// The page does not have to guess it from the phase.
+	Serving bool `json:"serving,omitempty"`
+	// WaitsFor is the id of the step that holds the path for this step. A
+	// step that waits says so in words.
+	WaitsFor string `json:"waits_for,omitempty"`
 }
 
 // Progress is the progress of a running step: the phase sentence and, when
@@ -121,7 +127,31 @@ func Build(f *Facts) *Document {
 	doc.Next = nextStep(doc.Steps)
 	doc.Facts = factsOf(f)
 	attachJobs(doc.Steps, f.Jobs)
+	setWaitsFor(doc)
 	return doc
+}
+
+// setWaitsFor names the step that holds the path for every runnable step
+// that comes after it. A step that waits says so in words, in every front
+// end.
+func setWaitsFor(doc *Document) {
+	if doc.Next == "" {
+		return
+	}
+	after := false
+	for i := range doc.Steps {
+		if doc.Steps[i].ID == doc.Next {
+			after = true
+			continue
+		}
+		if !after {
+			continue
+		}
+		s := &doc.Steps[i]
+		if s.State == StateTodo && s.CanRun {
+			s.WaitsFor = doc.Next
+		}
+	}
 }
 
 // attachJobs gives every step the job that made it: the page re-attaches to
@@ -160,6 +190,11 @@ func nextStep(steps []Step) string {
 			continue
 		}
 		if s.ID == StepBench || s.ID == StepTuning || s.ID == StepPower {
+			continue
+		}
+		// A server that answers is not the next step: asking it a
+		// question is.
+		if s.ID == StepServe && s.Serving {
 			continue
 		}
 		return s.ID
