@@ -19,7 +19,7 @@ type smokeRequest struct {
 }
 
 // POST /api/smoke — one prompt to a run of this host: the "Try it" box of
-// the Setup tab and of the Dashboard tab. The target is the run that is
+// the Setup tab. The target is the run that is
 // serving, or the run named by the body. The answer carries the text of the
 // reply, the time to the first token, the number of tokens and the output
 // speed.
