@@ -91,7 +91,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 
 | File | Published globals |
 |---|---|
-| `dashboard/web/components/cards.js` | `jsonLink`, `cardHead`, `stateHead`, `setHead`, `factRow`, `tableHead`, `tableCaption`, `emptyState`, `loading`, `failed` |
+| `dashboard/web/components/cards.js` | `jsonLink`, `cardHead`, `stateHead`, `setHead`, `factRow`, `tableHead`, `tableCaption`, `emptyState`, `sectionLabel`, `PILL_ICON`, `statePill`, `loading`, `failed` |
 | `dashboard/web/components/charts.js` | `chartMinMax`, `chartNumbers`, `chartSame`, `chartPaths`, `chartPointer`, `chartNice`, `sparkDomain`, `chartDataTable`, `spark`, `areaChart`, `ring`, `meter` |
 | `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock`, `connectEndpoint`, `connectSnippet` |
 | `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `ladderPoints`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart`, `curveSmallMultiples`, `curveTable` |
@@ -100,14 +100,14 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/js/boot.js` | `VIEWS`, `OLD_ROUTES`, `TAB_SCRIPTS`, `TAB_CSS`, `tabReady`, `tabLoading`, `loadScript`, `loadStyle`, `openTab`, `parseHash`, `route`, `preparePanel`, `focusSection`, `tabsKey`, `pendingG`, `shortcutsKey`, `boot` |
 | `dashboard/web/js/core.js` | `h`, `add`, `put`, `$`, `GiB`, `bytes`, `num`, `ago`, `badge`, `sh`, `SVG_NS`, `chartSvg` |
 | `dashboard/web/js/data.js` | `HISTORY`, `RUN_POLL_MS`, `MAX_POLL_MS`, `STALE_MS`, `state`, `request`, `api`, `loadHW`, `runsOf`, `runURL`, `pushHist`, `slowAgeNote`, `openTelemetry`, `openRunLogs`, `openJobEvents`, `openBenchEvents`, `JOB_POLL_MS`, `watchBenchJob`, `apiText`, `frameJobs`, `frameHandle`, `frameFallback`, `FRAME_FALLBACK_MS`, `runFrameJobs`, `onFrame`, `frameSubs`, `onTabFrame`, `telemetryStream`, `pollTimer`, `pollDelay`, `pollCycle`, `startTelemetry`, `pollRuns`, `pollCounts`, `schedulePoll`, `startPolling` |
-| `dashboard/web/js/shell.js` | `THEME_KEY`, `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `themeChoice`, `darkNow`, `applyTheme`, `toggleTheme`, `advancedOn`, `applyAdvanced`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
+| `dashboard/web/js/shell.js` | `THEME_KEY`, `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `themeChoice`, `darkNow`, `applyTheme`, `toggleTheme`, `advancedOn`, `applyAdvanced`, `applyAdvancedToNew`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
 | `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchCards`, `benchCellName`, `benchBestCell`, `benchHeadline`, `benchResultBody`, `benchCopy`, `benchReceipt`, `benchStartError`, `viewBenchmark` |
 | `dashboard/web/views/benchmark/suites.js` | `benchSuiteCells`, `benchSuiteEstS`, `benchMinutes`, `benchSuiteCard`, `benchSuiteCards`, `benchSentence`, `benchProgress`, `benchBest`, `benchSuiteOf`, `benchHistoryRow`, `benchHistory`, `benchAB`, `benchAdvanced` |
 | `dashboard/web/views/advanced/advanced.js` | `adv`, `viewAdvanced`, `advLoad`, `advSubscribe`, `advRunsOverview`, `advRunsTable`, `advServerMeasures` |
 | `dashboard/web/views/advanced/gpus.js` | `advViewGPUs`, `advGpuHeadline`, `advRenderTiles`, `advGpuCard`, `advUpdateGpuCard`, `advRenderGpuTable`, `advCardListText`, `advCopyCardList`, `advRenderPower`, `advPowerRow`, `advSavePower` |
 | `dashboard/web/views/advanced/topology.js` | `advViewTopology`, `advGpuName`, `advP2pCard`, `advP2pRow` |
 | `dashboard/web/views/chat/chat.js` | `viewChat` |
-| `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashSection`, `dashInfo`, `dashGroup`, `DASH_PILL_ICON`, `dashPill`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashLiveRun`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
+| `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashSection`, `dashInfo`, `dashGroup`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashLiveRun`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
 | `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe` |
 | `dashboard/web/views/dashboard/simple.js` | `dashSimpleHero`, `dashStopRun`, `dashMeaning`, `dashSimpleTiles`, `dashSimpleCharts`, `dashSimpleMachine`, `dashBuildSimple`, `dashSimpleConnect` |
 | `dashboard/web/views/fleet/fleet.js` | `viewFleet` |
@@ -120,7 +120,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/setup/advanced.js` | `setupAdvancedPanel`, `loadSetupAdvanced`, `setupAdvancedDocument` |
 | `dashboard/web/views/setup/facts.js` | `paintSetupFacts`, `setupFactList`, `setupFact`, `setupFactsFromHost`, `setupMemoryWhy`, `setupPlanSentence`, `setupLoadHW`, `setupLoadDoctorReport` |
 | `dashboard/web/views/setup/glossary.js` | `paintSetupGlossary` |
-| `dashboard/web/views/setup/headline.js` | `setupHeadline`, `setupServerEndpoint`, `setupHeadActions`, `setupNextRunnable`, `setupCurrentStep`, `setupRunNextStep`, `setupExplainWait`, `setupWaitSentence`, `pathSteps`, `setupRootCommand`, `setupCopyNextCommand`, `setupCopyText`, `startSetupServer`, `focusSetupStep`, `focusSetupDoctor`, `focusSetupVerify`, `setupToggleAdvanced` |
+| `dashboard/web/views/setup/headline.js` | `setupHeadline`, `setupServerEndpoint`, `setupHeadActions`, `setupNextRunnable`, `setupCurrentStep`, `setupRunNextStep`, `setupExplainWait`, `setupWaitSentence`, `pathSteps`, `setupRootCommand`, `setupCopyNextCommand`, `setupCopyText`, `startSetupServer`, `focusSetupStep`, `focusSetupDoctor`, `focusSetupVerify`, `setupShowDetails` |
 | `dashboard/web/views/setup/recipes.js` | `loadSetupRecipes`, `setupRecommendedCard`, `setupRecipeOrder`, `setupRecommendedRecipe`, `setupRecommendationWhy`, `setupRecipeNote`, `setupRecipeLabel`, `setupRecipeError`, `setupFitStatus`, `setupFitLine`, `loadSetupPlan`, `setupRecipe`, `setupPlanView`, `setupPlanActions`, `setupPlanReady`, `setupPlanCommand`, `setupQuote`, `setupPlanSettings`, `setupPlanAdjustments`, `setupPlanOverrides`, `setupSetValue`, `setupExtraSets`, `setupApplyOverrides`, `setupSwitchMode`, `startSetupRecipe`, `paintSetupRecipeHint` |
 | `dashboard/web/views/setup/setup.js` | `SETUP_EXTRA_STEPS`, `SETUP_SMOKE_ENABLED`, `setupState`, `viewSetup`, `setupEnsureModule`, `setupStartPath`, `loadSetupDocument`, `paintSetupHead`, `paintSetupStale`, `paintSetupError`, `paintSetupTimeline`, `setupStepLink`, `setupStepNote`, `setupEstimateNote`, `loadSetupDoctor`, `setupDoctorFinding`, `setupVerifyBox`, `setupServerRunning`, `setupServerServing`, `setupAskServer` |
 | `dashboard/web/views/setup/chooser.js` | `setupRecipeCard`, `setupPaintRecipeList`, `setupSelectRecipe`, `setupPaintRecipeSelection` |
@@ -130,7 +130,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/topology/checklist.js` | `topoChecklist` |
 | `dashboard/web/views/topology/links.js` | `topoLegend`, `topoTree` |
 | `dashboard/web/views/topology/matrix.js` | `TOPO_CLASS_WORD`, `TOPO_CLASS_ORDER`, `topoClassWords`, `topoMatrix`, `topoPairTable` |
-| `dashboard/web/views/topology/topology.js` | `topo`, `TOPO_PILL_ICON`, `topoPill`, `topoSection`, `viewTopology`, `topoLoad`, `topoCheck`, `topoPaint`, `topoSetHead` |
+| `dashboard/web/views/topology/topology.js` | `topo`, `topoSection`, `viewTopology`, `topoLoad`, `topoCheck`, `topoPaint`, `topoSetHead` |
 
 ## The layout
 
