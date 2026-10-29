@@ -90,7 +90,7 @@ function stepRow(step, index, options, progress, logs, optional, current, queued
   const roots = step.root_commands || [];
   const title = h("h3", step.title || step.id, " ", stepPill(state));
   if (current) title.append(h("span.pill", "next"));
-  else if (queued) title.append(h("span.small.muted", "queued"));
+  else if (queued) title.append(h("span.small.muted", "waits"));
   const body = h("div.step-body",
     title,
     h("p.step-summary", stepSummary(step, state)),
