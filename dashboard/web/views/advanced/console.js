@@ -36,6 +36,7 @@ async function viewAdvanced(root) {
   adv.head = head;
   const table = gpuValueTable([], [], []);
   const power = advPowerCard();
+  const tools = advToolsCard();
   const doctor = advDoctorReport();
   const jobs = advJobList();
   const runs = advRunsTable();
@@ -51,6 +52,8 @@ async function viewAdvanced(root) {
         table.el)),
     h("section.section", { id: "advanced-power", "data-section": "power" },
       sectionLabel("The power caps"), power.el),
+    h("section.section", { id: "advanced-tools", "data-section": "tools" },
+      sectionLabel("The ECC and the power tools"), tools.el),
     h("section.section", { id: "advanced-doctor", "data-section": "doctor" },
       sectionLabel("The doctor report"), doctor.el),
     h("section.section", { id: "advanced-jobs", "data-section": "jobs" },
@@ -66,7 +69,7 @@ async function viewAdvanced(root) {
     h("section.section", { id: "advanced-documents", "data-section": "documents" },
       sectionLabel("The raw documents"), advDocuments()));
   adv.live = {
-    table: table, power: power, doctor: doctor, jobs: jobs, runs: runs,
+    table: table, power: power, tools: tools, doctor: doctor, jobs: jobs, runs: runs,
     measures: measures, prefs: prefs, report: report,
   };
   await advLoad();
@@ -114,6 +117,7 @@ function advPaint() {
     (adv.tele && adv.tele.gpus) || [],
     (adv.doctor && adv.doctor.checks) || []);
   adv.live.doctor.update(adv.doctor);
+  adv.live.tools.update(adv.doctor);
   adv.live.jobs.update(adv.jobs);
   adv.live.runs.update(adv.runs);
   adv.live.measures.update(adv.server);
