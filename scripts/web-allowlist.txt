@@ -16,3 +16,7 @@ dashboard/web/components/charts.js	650	dashboard charts owner: the four charts, 
 internal/cli/cli.go	401	open: 1 line over, split next round
 dashboard/web/css/layout.css	433	shell owner: the rail, the grids and the small widths; split planned in the next shell refactor
 internal/onboarding/steps.go	414	onboarding owner: the eight steps of the path, their commands and their fixes; the 1024 line cap holds
+dashboard/web/js/data.js	411	the one data path: the fetches, the streams and the one frame; the 1024 line cap holds
+dashboard/web/views/benchmark/benchmark.js	401	benchmark owner: the suites, the result, the comparison, the history and the A/B run; the 1024 line cap holds
+internal/onboarding/jobs.go	458	onboarding owner: the jobs, their state machine and the progress of the work; the 1024 line cap holds
+internal/setup/download.go	416	setup owner: the model download, its limit and its progress sentence; the 1024 line cap holds

@@ -130,9 +130,44 @@ function benchStartError(what, e) {
   return reason ? what + ": " + reason : what;
 }
 
+/** cancelBench stops a running suite (R30). The run ends as failed and is
+ *  marked incomplete: the partial result, when one was saved, stays in
+ *  the history. */
+async function cancelBench(id, runBtn, progress) {
+  try {
+    await api("/api/bench/" + encodeURIComponent(id) + "/cancel", { method: "POST", body: {} });
+  } catch (e) {
+    progress.fail("The run could not be stopped: " + (e.message || e));
+    if (runBtn) runBtn.disabled = false;
+    return;
+  }
+  if (progress) progress.fail("The run was stopped.");
+  if (runBtn) runBtn.disabled = false;
+}
+
+/** deleteBenchResult removes a saved result after the reader confirms it
+ *  (R30). A saved result is the evidence of a measurement, so the page
+ *  asks before it removes anything. */
+async function deleteBenchResult(r, btn, reload) {
+  if (!confirm("Delete the saved result " + r.id + "?")) return;
+  btn.disabled = true;
+  try {
+    await api("/api/bench/" + encodeURIComponent(r.id), { method: "DELETE", body: { confirm: true } });
+  } catch (e) {
+    btn.disabled = false;
+    toast("The result was not deleted: " + (e.message || e));
+    return;
+  }
+  await reload();
+}
+
 async function viewBenchmark(root) {
   const runBtn = h("button.primary", { type: "button" }, "Run the suite");
-  const head = stateHead("Benchmark", h("div.head-actions", runBtn));
+  const stopBtn = h("button", { type: "button", hidden: true }, "Stop");
+  stopBtn.addEventListener("click", () => {
+    if (benchState.stop) benchState.stop();
+  });
+  const head = stateHead("Benchmark", h("div.head-actions", stopBtn, runBtn));
 
   const suitesCard = h("div.card.bench-card");
   const progress = benchProgress();
@@ -243,7 +278,7 @@ async function viewBenchmark(root) {
       put(historyCard, benchHistory(list, null, (r) => {
         cand.value = r.id;
         compare();
-      }));
+      }, (r, btn) => deleteBenchResult(r, btn, loadResults)));
       fillPickers(list);
     } catch (e) {
       put(resultCard, benchFailed("The results could not be read.", e, () => loadResults()));
@@ -292,17 +327,24 @@ async function viewBenchmark(root) {
       runBtn.disabled = false;
       return;
     }
+    benchState.runJobID = job.id;
+    benchState.stop = () => cancelBench(job.id, runBtn, progress);
+    stopBtn.hidden = false;
     watchBenchJob(job.id, {
       progress: (j) => progress.show(j),
       log: (line) => progress.log(line),
       done: async (j) => {
         progress.hide();
         runBtn.disabled = false;
+        stopBtn.hidden = true;
+        benchState.stop = null;
         await loadResults(j && j.result_id);
       },
       failed: (e) => {
         progress.fail(String(e.message || e));
         runBtn.disabled = false;
+        stopBtn.hidden = true;
+        benchState.stop = null;
       },
     });
   }

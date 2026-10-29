@@ -40,6 +40,7 @@ async function loadSetupAdvanced(body) {
   }
   put(body,
     h("p.setup-advanced-note", "The documents behind this page. An agent gets the same ones from the API."),
+    setupDownloadLimit(),
     entries.map(setupAdvancedDocument),
     h("h3", "The same thing in a terminal"),
     cmdBlock("bernie status --steps", "Copy the command"),
@@ -47,6 +48,37 @@ async function loadSetupAdvanced(body) {
     cmdBlock("bernie recipe list", "Copy the command"),
     cmdBlock("bernie recipe plan " + (setupState.recipeID || "ID"), "Copy the command"),
     cmdBlock("bernie doctor", "Copy the command"));
+}
+
+/** setupDownloadLimit is the control for the speed limit of the model
+ *  download (R21). The value is in force within a second for every
+ *  running download. */
+function setupDownloadLimit() {
+  const field = h("input", { type: "text", id: "setup-download-limit", placeholder: "5MB" });
+  const note = h("span.small.muted", "");
+  const btn = h("button.small", { type: "button" }, "Set the limit");
+  const box = h("div.setup-download-limit",
+    h("label", { for: "setup-download-limit" }, "Download limit"),
+    field,
+    btn,
+    note);
+  btn.addEventListener("click", async () => {
+    const size = field.value.trim();
+    btn.disabled = true;
+    try {
+      const res = await api("/api/download/limit", { method: "POST", body: { size: size } });
+      note.textContent = (res && res.note) || "Changes take effect within a second.";
+    } catch (e) {
+      note.textContent = "The limit was not changed: " + (e.message || e);
+    }
+    btn.disabled = false;
+  });
+  api("/api/download/limit").then((res) => {
+    const limit = res && res.limit ? String(res.limit) : "";
+    if (!field.value) field.value = limit;
+    note.textContent = (res && res.note) || "";
+  }).catch(() => {});
+  return box;
 }
 
 /** setupAdvancedDocument is one raw document with its endpoint and a copy
