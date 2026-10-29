@@ -737,16 +737,27 @@ The rules already exist, in three places:
 
 ### 7.1 The concrete inconsistencies in the built tree
 
-Measured by reading the files of the built binary (`bin/bernie`) and the
-fixture (`internal/support/fixture/testdata/par1-cs25.tar.gz`), 2026-10-29.
+Measured by reading the files of the built binary (`bin/bernie`) and by
+running it against the captured host fixture, on 2026-10-29:
+
+```bash
+tar xzf internal/support/fixture/testdata/par1-cs25.tar.gz -C /tmp/bernie-ia-fixture
+./bin/bernie --root /tmp/bernie-ia-fixture/par1-cs25 dash --listen 127.0.0.1:17956
+```
+
+The fixture is the reference box (2× gfx1100 W7800 + 8× gfx1030 V620). The
+dashboard answered `/api/onboarding` with the path (`hardware` done,
+`access` blocked, `gpu.kfd` and `gpu.render` failing with
+`sudo modprobe amdgpu`) and `/api/hw` with the inventory of the ten cards.
+The rest of the list below is read out of the source of the tabs.
 
 | # | What | Where | The rule it breaks | The fix |
 |---|---|---|---|---|
-| I1 | The section heading is `h2.section-label` in Setup and Topology, `h2.lg-section-title` in Logs, and `h2.section-label` with a **sentence-case** label in Benchmark (`"The suites"`, `"The result"`, `"The comparison"`, `"The history"`, `"An A/B run"`) | `views/setup/setup.js:72`, `views/topology/topology.js:33`, `views/logs/logs.js:17`, `views/benchmark/benchmark.js:17` | one shape for a section label (tokens.css `--section-label`) | one `sectionLabel(text)` helper in `components/cards.js`; every tab uses it; the label is the uppercase form in every tab |
-| I2 | The label of a section is uppercase in Setup, Topology and Logs (`THE PATH TO A SERVING MODEL`) and sentence case in Benchmark (`The suites`) | as above | the same | the same helper decides the case |
+| I1 | The Logs tab has its own section heading: `h2.lg-section-title` in `600 13px/1 --font-body` with `.05em` letter-spacing, over its own `.lg-section` rule (`24px` padding), while Setup, Topology and Benchmark use the shared `h2.section-label` in `800 13px/1.2 --font-display` with `.14em` over `.section` (`var(--space-6)`) | `views/logs/logs.css:10-11` vs `css/layout.css:251-263` | one shape for a section label (tokens.css `--section-label`) | one `sectionLabel(text)` helper in `components/cards.js`; the Logs sheet loses its private rule |
+| I2 | The label of a section is uppercase in the DOM in Setup, Topology and Logs (`"THE PATH TO A SERVING MODEL"`) and **sentence case** in Benchmark (`"The suites"`, `"The result"`, `"The comparison"`, `"The history"`, `"An A/B run"`). The CSS uppercases both (`text-transform: uppercase`), so the page looks the same but a screen reader reads "The suites" | `views/setup/setup.js:72`, `views/topology/topology.js:33`, `views/logs/logs.js:47-49`, `views/benchmark/benchmark.js:154-163` | the DOM text and the visible text are the same | the same helper decides the case, and the DOM carries the uppercase form in every tab |
 | I3 | The toggle is called `Show details` in the rail and `Advanced` in four tab disclosures | `web/index.html:44` vs `views/setup/advanced.js:9`, `views/logs/advanced.js:18`, `views/topology/advanced.js:35`, `views/benchmark/suites.js:225` | one word for one thing | rename every disclosure summary to `Show details`; keep `Advanced` for the tab |
 | I4 | The Benchmark tab has **two** controls for the same disclosure: an `Advanced` button in the head (`aria-expanded`) and an `Advanced` summary in the panel | `views/benchmark/benchmark.js:135` and `views/benchmark/suites.js:224` | one control per thing | the button in the head goes; the summary stays |
-| I5 | The Setup tab has an `Advanced` button in the head that toggles the *page-wide* switch, so it opens the disclosures of the other tabs too | `views/setup/headline.js:75`, `:85` | a tab control acts on its own tab | the head button opens the Setup disclosure only |
+| I5 | The Setup tab's head carries an `Advanced` button in **five** of its six states (`views/setup/headline.js:75`, `:85`, `:107`, `:111`, `:115`). It calls `setupToggleAdvanced`, which calls the **page-wide** `toggleAdvanced`, so it opens the disclosures of the other tabs too | `views/setup/headline.js:75-115`, `:264-266` | a tab control acts on its own tab | the head button opens the Setup disclosure only |
 | I6 | The pill vocabulary differs per tab: the Dashboard uses `Serving` / `Starting` / `No run` (title case), the rail uses `serving` / `starting` / `not answering` / `idle` / `stopped` (lower case), the topology uses `ok` / `warn` / `fail` / `skip` (status words), the checklist uses `done` / `todo` / `running` / `blocked` / `skipped` (state words) | `views/dashboard/simple.js:63`, `js/shell.js:259`, `views/topology/topology.js:22`, `components/timeline.js:9` | a state is a word, never a colour — and the same state has the same word | one `statePill(kind, word)` in `components/cards.js`; the four call sites pass the word of their own list |
 | I7 | Two icon maps for the same status: `DASH_PILL_ICON` has 7 kinds (`ok warn serious fail skip info running`), `TOPO_PILL_ICON` has 4 (`ok warn fail skip`) | `views/dashboard/dashboard.js:47`, `views/topology/topology.js:22` | one component per concern | one map, in `components/cards.js` |
 | I8 | The empty state vocabulary is 24 different sentences, and only 3 carry a command | `views/**`, `components/**` (24 calls to `emptyState`) | an empty state teaches: what, then what to do | one `emptyState(what, next, command)`; every call carries a command (see the table in §4.4) |
@@ -758,7 +769,7 @@ fixture (`internal/support/fixture/testdata/par1-cs25.tar.gz`), 2026-10-29.
 | I14 | The tab bar's counts exist for Setup, Dashboard and Topology only; Benchmark and Logs have no count even though they have failures (a failed bench, a finding) | `web/index.html:26-34` | a tab shows the number of things that wait | add the count for Logs (the findings) and for Benchmark (the failed runs) |
 | I15 | The Setup tab's `Re-check` button reloads the onboarding document but does not re-read the host; the reference's `Re-check this box` does | `views/setup/headline.js:80`, `views/setup/setup.js` (`loadSetupDocument`) | the button says what it does | the button re-reads the host (the doctor and the setup plan), then the document |
 | I16 | The tab order of the rail and the keyboard shortcuts disagree: the shortcuts are `g` then `s d b t l c`, which is Setup, Dashboard, Benchmark, Topology, Logs, Advanced — Chat and Fleet have no shortcut | `js/shell.js:140-152` | every tab is reachable | add `g` then `h` for Chat and `g` then `f` for Fleet, or leave the two planned tabs without one on purpose and say so |
-| I17 | The rail's `Show details` button opens the disclosures of every tab, including the tabs that are closed, so the state of the button does not match what the reader sees | `js/shell.js:214-227` | one control, one effect | the button opens the disclosure of the tab the reader is on; a second control (in the rail footer, or `g` then `d` for details) opens them all |
+| I17 | The same disclosure behaves three different ways: the Setup summary calls the **page-wide** switch (`toggleAdvanced`), the Topology and Logs summaries open only their own panel, and the Benchmark panel is opened by a **button in the head** | `views/setup/advanced.js:16-21`, `views/topology/advanced.js:35`, `views/logs/advanced.js:18`, `views/benchmark/benchmark.js:135`, `views/benchmark/suites.js:224-226` | one control, one effect | every disclosure is a plain `details` that opens its own panel; the page-wide switch in the rail opens and closes them all, and a `MutationObserver` (`js/boot.js:296`) keeps the state right when a tab's files arrive |
 
 ### 7.2 The rules that already hold, and must keep holding
 
