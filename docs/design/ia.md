@@ -8,6 +8,35 @@ three front ends use. The behaviour of the product is [spec.md](../spec.md).
 The visual design is [../design-dashboard.md](../design-dashboard.md) and the
 component sheets in this folder.
 
+## The summary
+
+1. **One binary, three front ends.** The CLI (19 commands, 38 paths), MCP
+   (19 read tools, 6 write tools) and the dashboard (8 tabs, 33 API routes)
+   are three views of the same code; a value on the page exists in the
+   `--json` output with the same name.
+2. **Two mechanisms for "more information", with different jobs.** The
+   per-tab **Show details** toggle is more about the *same thing* on that
+   tab. The **Advanced tab** is the operator's console: the things about the
+   host that belong to no single tab.
+3. **The tab jobs.** Setup: what do I do to make this box serve? Dashboard:
+   is it serving and how fast? Benchmark: how fast and does it read the whole
+   prompt? Topology: can the cards copy to each other? Logs: what is running
+   and why did it fail? Advanced: what does the operator need to see and
+   change? Chat and Fleet: planned.
+4. **What moves.** The old first-dashboard layout leaves the Advanced tab
+   (its unique parts stay, the duplicates go). The Dashboard tab gains a
+   details disclosure. The Setup tab's primary button runs the whole path.
+5. **What is missing from the reference.** 21 of its 49 features are already
+   in bernie, 19 are partial, 9 are absent. The big absent ones: the
+   one-button setup, the Chat tab, the redacted share report, the
+   preferences form, the download speed limit, the job cancel.
+6. **The order of work.** Nine commits: the spec fixes first (C2), then the
+   shared web vocabulary (C3, C4, C5), then the Setup path (C6), the
+   Advanced tab (C7), Chat (C8) and the report and preferences (C9).
+7. **The counts are checked** against `bernie --help`, the MCP tool list and
+   the route table (§3.11); 25 places where the spec, the code and the page
+   disagree are listed in §3.12.
+
 Read it with:
 
 - [../spec.md](../spec.md) — the contract for the commands, the API and MCP.
@@ -22,13 +51,13 @@ Read it with:
 Five decisions the owner has to make. Each one has a recommendation. The
 rest of this file assumes the recommendation.
 
-| # | Decision | Recommendation | What it costs to change it later |
+| # | Decision | Recommendation | Cost to change later |
 |---|---|---|---|
-| D1 | **What is the Advanced tab?** Today it is the first bernie dashboard (the old layout) kept for comparison. The page also has a per-tab `Advanced` disclosure and a rail-wide `Show details` switch. | Keep the **Advanced tab** as the expert/operations view: everything the simple tabs hide, in one place, plus the raw documents of every endpoint. Keep the per-tab **Show details** toggle as *more detail about the same thing* on that tab. The two jobs are different, so both stay — but the **Advanced tab stops being a copy of the Dashboard tab**: it becomes the operator's console (power caps, the full per-GPU table, the raw documents, the run record detail). The old first-dashboard layout is retired from the tab and kept only as the raw documents it produced. | Renaming or removing the tab later is cheap (one `VIEWS` entry). Rebuilding it is not. |
-| D2 | **Chat and Fleet stay as placeholders?** The owner ordered them present-but-not-usable. | Keep the **Fleet** tab as a placeholder for one more release and mark it *planned*; ship a **lean Chat** now: one prompt box that posts to the running run and streams the reply (`POST /api/smoke` already exists; a streaming variant is ~1 day). A placeholder tab that says "planned" forever is a dead tab; a working one-prompt Chat is the smallest thing that is not a promise. See [§6](#6-chat-and-fleet-the-two-placeholder-tabs). | Low. A placeholder tab can become real at any time. |
-| D3 | **Does the Dashboard tab keep both a simple view and an advanced view?** Today the Dashboard tab has a hand-written *simple* view (`views/dashboard/simple.js`) and the old layout lives in the Advanced tab. | **Yes, keep both, with one rule**: the Dashboard tab's simple view is the default and shows the one question (is it serving, how fast); its `Show details` toggle reveals the per-GPU table, the history window control and the power read-outs for the *same* run. The Advanced tab keeps the *cross-cutting* things: the power **writes**, the raw JSON of every endpoint, the job list and the doctor report in full. | Medium. The Dashboard and Advanced views share `components/charts.js`. |
-| D4 | **"Recipe" or "profile"?** The word *profile* is used today for a TunableOp profile (`tune tunableop`), and *recipe* for a model+flags+mode. The reference uses *profile* for the host profile. | **Recipe** stays the word for a model. **TunableOp profile** keeps its name and is always written with its qualifier. The word *profile* alone is retired from the UI, because the reference uses it for the host. | Low, but it touches copy in four places. |
-| D5 | **Where does the page show how a container gets the GPU?** The domain layer already answers it: `classic`, `cdi` or `auto`, decided by `host.ResolveDeviceAccess` (`internal/machine/host/cdi.go:340`), with the reason in one sentence and the plan carrying `device_access`, `device_access_reason` and `cdi_devices` (`internal/serving/recipe/plan.go:89-96`). The flag is `--device-access` (`internal/cli/cmds/serving/cmd_recipe.go:124`), the config key is `device_access`, and the recipe field is `device_access`. **The dashboard exposes none of it.** | Show it in the **Setup tab's details**, next to the plan: one line — *"The container gets the GPU through the AMD Container Toolkit (CDI)"* or *"through the classic device pass-through"* — and the reason under it (`amd-ctk is not installed, so the classic device pass-through is used`). In the **doctor**, one check in the `container` category: *"the host can give a container the GPU"* with the same reason as its detail. Never in the simple view: a reader who did not ask how the devices get in does not need to know. | Low. The decision and the words already exist in `internal/machine/host/cdi.go`; only the page and the doctor check are missing. |
+| D1 | **What is the Advanced tab?** Today it is the first bernie dashboard (the old layout) kept for comparison. The page also has a per-tab `Advanced` disclosure and a rail-wide `Show details` switch. | Keep the Advanced tab as the operator's console (the power write, the full per-GPU table, the doctor report in full, the jobs, the raw documents of every endpoint) and retire the old layout from it. Keep the per-tab Show details toggle as more detail about the same thing on that tab. The two jobs differ, so both stay; the Advanced tab stops being a copy of the Dashboard tab. | Medium. Renaming the tab is cheap; rebuilding it is not. |
+| D2 | **Chat and Fleet stay as placeholders?** The owner ordered them present-but-not-usable. | Keep Fleet as a placeholder for one more release, marked *planned*; ship a lean Chat now — one prompt box that posts to the running run and streams the reply. A tab that says "planned" forever is a dead tab; a one-prompt Chat is the smallest thing that is not a promise. See [§6](#6-chat-and-fleet-the-two-placeholder-tabs). | Low. A placeholder tab can become real at any time. |
+| D3 | **Does the Dashboard tab keep both a simple view and an advanced view?** Today it has a hand-written *simple* view and the old layout lives in the Advanced tab. | Yes, keep both, with one rule: the simple view is the default and shows the one question; its Show details toggle reveals the per-GPU table, the history window and the power read-out for the *same* run. The Advanced tab keeps the cross-cutting things. | Medium. The two views share `components/charts.js`. |
+| D4 | **"Recipe" or "profile"?** *Profile* is used today for a TunableOp profile, *recipe* for a model+flags+mode. The reference uses *profile* for the host. | Recipe stays the word for a model. A TunableOp profile keeps its name and is always written with its qualifier. The bare word *profile* is retired from the UI, because the reference uses it for the host. | Low, but it touches copy in four places. |
+| D5 | **Where does the page show how a container gets the GPU?** The domain layer already answers it — `classic`, `cdi` or `auto`, decided by `host.ResolveDeviceAccess` (`internal/machine/host/cdi.go:340`), with the reason in one sentence and the plan carrying `device_access`, `device_access_reason` and `cdi_devices`. The flag is `--device-access`, the config key is `device_access`, the recipe field is `device_access`. The dashboard exposes none of it. | Show it in the Setup tab's details next to the plan, in one line with the reason under it, and as one check in the doctor's `container` category. Never in the simple view: a reader who did not ask how the devices get in does not need to know. | Low. The decision and the words already exist; only the page and the doctor check are missing. |
 
 ---
 
