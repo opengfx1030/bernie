@@ -1648,6 +1648,9 @@ not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/prefs` | the `bernie config show` document: the ordered list of keys with their value, the source (`config`, `$BERNIE_VENV`, `$VIRTUAL_ENV`, `$HF_HOME`, `default`, `conventional`, `ambiguous`, `none`), the resolved value when one applies, the choices and the hint. Secrets (the fleet token) are stripped before the document leaves the file (ia.md R28). |
 | PUT | `/api/prefs` | write one `{key, value}` pair: the write goes through the same `Config.SetKey` the CLI uses, so the same validation runs. An unknown key answers 400. The new document is returned. The `X-Bernie: 1` guard of the auth middleware applies. |
 | GET | `/api/report` | the redacted share report of this host: a markdown document an operator can paste into an issue, a chat or a ticket. The same document is the answer of `bernie doctor --report` and of the MCP tool `report`. No hostname, no username, no token, no path with the name of the user (ia.md R24). |
+| GET | `/api/fleet` | the fleet of this box: `{"path", "hosts": [{"name", "url", "me", "reachable", "error", "state", "recipe", "gen_tok_s", "gpus", "vram_total_gb"}]}`. This box comes first, then every configured peer. The token of a peer stays in the config file and is never in the answer. The read of a peer is SSRF-safe: only the configured hosts are reached, only the fixed paths of the allowlist, with a three second timeout, a 256 KiB body cap and no redirect followed. A peer that does not answer keeps its row and says why: the gap stays a gap. The answer is held for five seconds (ia.md R23). |
+| POST | `/api/fleet` | add one peer to the configured fleet: `{"name", "url", "token"}`. The token is stored in the config file (0600 when a token is set) and is never echoed in the response. A bad URL answers 400; a name that already exists answers 409. The `X-Bernie: 1` guard of the auth middleware applies. |
+| DELETE | `/api/fleet/{name}` | forget one peer: the token goes with it. The answer is `{"removed": name}`. A name that is not in the list answers 404. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
 
 Two endpoints of the table have no consumer on the page: `POST /api/bench`
@@ -1876,6 +1879,7 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `models` | `models` | none |
 | `prefs_get` | `config show` | none |
 | `report` | `doctor --report` | none |
+| `fleet` | `fleet ls` | none |
 | `recipe_list` | `recipe list` | `all` |
 | `recipe_show` | `recipe show` | `id` |
 | `recipe_plan` | `recipe plan` | the launch flags: `id`, `set`, `mode`, `name`, `venv`, `engine`, `device_access`, `profile`, `no_tunableop`, `tuning` |
@@ -1900,6 +1904,8 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `bench_ab` | `bench ab` (loopback `base` / `cand` URLs only) | the `suite.ABResult` |
 | `setup_apply` | `setup apply` | the setup steps after the run |
 | `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors", "clamped"}` |
+| `fleet_add` | `fleet add` | `{"name", "url"}` (the token is never in the result) |
+| `fleet_rm` | `fleet rm` | `{"removed": name}` |
 
 `up` and `config set` are not tools. An agent runs them through the CLI.
 
@@ -1943,7 +1949,8 @@ The `plan` is the document the operator confirms: the resolved plan for
 `serve`, `{name, recipe, state, mode, pid, container, url}` for `stop`, the
 normalized options for `bench_run`, `{run, manual}` for `setup_apply` (the
 non-root steps bernie runs, and the root steps it never runs) and
-`{file, watts, gpu_indexes, desired}` for `tune_power_set`.
+`{file, watts, gpu_indexes, desired}` for `tune_power_set`, and
+`{name, url}` for `fleet_add` and `{name}` for `fleet_rm`.
 `setup_apply` with nothing to run returns `executed: false`, a `note` and no
 token.
 
@@ -1959,7 +1966,8 @@ A token:
   `0600`, directory `0700`). The raw token is never stored.
 
 The server runs one host-changing operation at a time (`serve`, `stop`,
-`setup_apply`, `tune_power_set`) and one benchmark at a time. A call that
+`setup_apply`, `tune_power_set`, `fleet_add`, `fleet_rm`) and one benchmark at
+a time. A call that
 finds the slot taken fails with a busy error. The benchmark tools fail with
 `a benchmark is already running`, the sentence of every front end that
 starts a benchmark ([§11](#11-dashboard)).
