@@ -50,12 +50,12 @@ type Options struct {
 
 // Server is one MCP server over the bernie operations.
 type Server struct {
-	o      Options
-	srv    *sdk.Server
-	tokens tokenStore
-	audit  *auditLog
-	mutate sync.Mutex // one host-changing operation at a time
-	benchM sync.Mutex // one benchmark at a time
+	o         Options
+	srv       *sdk.Server
+	tokens    tokenStore
+	audit     *auditLog
+	mutate    sync.Mutex // one host-changing operation at a time
+	benchM    sync.Mutex // one benchmark at a time
 	benchJobs *job.Store
 }
 

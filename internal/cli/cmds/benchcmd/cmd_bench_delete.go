@@ -11,9 +11,9 @@ import (
 // benchDeleteResult is the document of `bernie bench delete --json`: the
 // id that was removed and the path of the saved result file.
 type benchDeleteResult struct {
-	ID    string `json:"id"`
-	Path  string `json:"path"`
-	Note  string `json:"note,omitempty"`
+	ID   string `json:"id"`
+	Path string `json:"path"`
+	Note string `json:"note,omitempty"`
 }
 
 // runBenchDelete removes a saved benchmark result. A saved result is the
