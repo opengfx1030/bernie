@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/setup"
+	"github.com/opengfx1030/bernie/internal/support/netx"
 )
 
 const twoCalls = " Two calls: the first, without confirm_token, returns the plan and a confirm_token; repeat the same arguments with the token to run it."
@@ -270,7 +270,7 @@ func loopbackURL(raw string) error {
 		return fmt.Errorf("url %q is not an http(s) URL", raw)
 	}
 	h := u.Hostname()
-	if ip := net.ParseIP(h); h != "localhost" && (ip == nil || !ip.IsLoopback()) {
+	if !netx.Loopback(h) {
 		return fmt.Errorf("bench_run only targets a loopback server, not %q; use the CLI for another host", h)
 	}
 	return nil

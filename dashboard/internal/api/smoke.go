@@ -2,13 +2,12 @@ package api
 
 import (
 	"errors"
-	"net"
 	"net/http"
-	"net/url"
 
 	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/onboarding"
+	"github.com/opengfx1030/bernie/internal/support/netx"
 )
 
 // smokeRequest is the body of POST /api/smoke: the prompt to send and the
@@ -37,7 +36,7 @@ func (h *handler) postSmoke(w http.ResponseWriter, r *http.Request) {
 		smokeError(w, err)
 		return
 	}
-	if !loopbackURL(target) {
+	if !netx.Loopback(target) {
 		httpjson.Error(w, http.StatusBadRequest, "the smoke check only talks to a server of this host")
 		return
 	}
@@ -59,19 +58,4 @@ func smokeError(w http.ResponseWriter, err error) {
 	default:
 		httpjson.Error(w, http.StatusBadGateway, err.Error())
 	}
-}
-
-// loopbackURL reports whether a URL points at this host. The smoke check
-// never talks to another machine.
-func loopbackURL(raw string) bool {
-	u, err := url.Parse(raw)
-	if err != nil || u.Hostname() == "" {
-		return false
-	}
-	h := u.Hostname()
-	if h == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(h)
-	return ip != nil && ip.IsLoopback()
 }

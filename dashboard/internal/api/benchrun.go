@@ -101,6 +101,10 @@ func (h *handler) postBenchRun(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if err := benchTarget(o.URL); err != nil {
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	job := h.newJob(benchKindRun, benchCells(o))
 	ctx := context.WithoutCancel(r.Context())
 	go h.runBench(ctx, job, o)
@@ -130,9 +134,9 @@ func (h *handler) postBenchAB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, arm := range []string{req.Base, req.Cand} {
-		if strings.HasPrefix(arm, "http://") || strings.HasPrefix(arm, "https://") {
-			if !loopbackURL(arm) {
-				httpjson.Error(w, http.StatusBadRequest, "the run only talks to a server of this host: "+arm)
+		if strings.Contains(arm, "://") {
+			if err := benchTarget(arm); err != nil {
+				httpjson.Error(w, http.StatusBadRequest, err.Error())
 				return
 			}
 		}
