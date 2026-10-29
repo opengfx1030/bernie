@@ -102,7 +102,7 @@ function classicSample(doc) {
     running: stats ? stats.requests_running : null,
     waiting: stats ? stats.requests_waiting : null,
     kv: stats ? stats.kv_cache_usage * 100 : null,
-    spec: stats && stats.spec_draft_tokens > 0 ? stats.spec_accept_rate * 100 : null,
+    spec: stats && stats.spec_draft_tokens_total > 0 ? stats.spec_accept_rate * 100 : null,
   });
   if (classic.hist.length > CLASSIC_HIST) classic.hist.shift();
 }
@@ -156,6 +156,8 @@ function classicModel(doc) {
     record: record,
     runList: runList,
     stats: stats,
+    // the line under the state: what the run is doing right now.
+    sub: live ? "is answering requests" : (starting ? "is loading the model" : ""),
     layout: layout,
     url: url,
     model: record ? record.name : "",
@@ -366,7 +368,7 @@ function classicUpdate(doc) {
   put(el.word, m.live ? h("span.key", m.word) : m.word);
   el.sub.textContent = m.sub || "";
   if (m.sub) {
-    if (m.live && m.model) put(el.sub, h("b", m.model), " is answering requests");
+    if (m.model) put(el.sub, h("b", m.model), " " + m.sub);
     else el.sub.textContent = m.sub;
   }
   put(el.meta);
@@ -414,7 +416,7 @@ function classicUpdate(doc) {
   const spec = classicLive("spec", 0);
   classicCount(el["num-sd"], spec.v, 0);
   el["num-sd"].parentElement.classList.toggle("idle", !!spec.idle);
-  el["sub-sd"].textContent = spec.note || (m.stats && m.stats.spec_draft_tokens > 0 ? "MTP drafts kept" : "no draft tokens yet");
+  el["sub-sd"].textContent = spec.note || (m.stats && m.stats.spec_draft_tokens_total > 0 ? "MTP drafts kept" : "no draft tokens yet");
   put(el["spark-sd"], classicSpark(classicTail("spec"), "s3"));
 
   // the two charts
