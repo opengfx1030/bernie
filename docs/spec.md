@@ -1615,7 +1615,7 @@ not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/doctor` | `doctor` JSON (query `category`, repeatable; `venv`) |
 | GET | `/api/glossary` | the words bernie uses that a reader who has never run vLLM may not know: `{"words": [{"term": "HIP", "meaning": "The number a program uses to name a GPU."}]}`. The page lists the words that stand on the tab it is on. |
 | GET | `/api/recipes` | `recipe list --all` JSON |
-| GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`; `name`) |
+| GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`; `name`). A container plan with an image also carries `compose`: the generated `compose.yml` (ia.md §5 R42). |
 | GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Logs tab shows them next to its log. A live run has `phase` ([§5.4](#54-log-phase)); the Logs tab shows the sentence under its state badge. |
 | POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record. A name that is already running answers 409 Conflict. |
 | DELETE | `/api/runs/{name}` | stop |

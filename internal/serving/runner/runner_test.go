@@ -12,6 +12,7 @@ import (
 
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 func plan(entry string) *recipe.Plan {
@@ -231,6 +232,36 @@ func TestCompose(t *testing.T) {
 	p.Image = ""
 	if _, err := Compose(p, "", ""); err == nil {
 		t.Error("compose of a host-only plan must fail")
+	}
+}
+
+// The plan carries the compose file only in container mode: a host plan
+// has no compose.yml and the field stays empty (ia.md §5 R42).
+func TestAttachComposeOnlyInContainerMode(t *testing.T) {
+	t.Setenv("BERNIE_CACHE_DIR", t.TempDir())
+	t.Setenv("BERNIE_CONFIG_DIR", t.TempDir())
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := plan("cli")
+	host.Mode = recipe.ModeHost
+	attachCompose(host, cfg)
+	if host.Compose != "" {
+		t.Errorf("a host plan carries a compose file: %q", host.Compose)
+	}
+	ctr := plan("cli")
+	ctr.Mode = recipe.ModeContainer
+	attachCompose(ctr, cfg)
+	if !strings.Contains(ctr.Compose, "img:1") || !strings.Contains(ctr.Compose, "services:") {
+		t.Errorf("the container plan carries no compose file: %q", ctr.Compose)
+	}
+	noImage := plan("cli")
+	noImage.Mode = recipe.ModeContainer
+	noImage.Image = ""
+	attachCompose(noImage, cfg)
+	if noImage.Compose != "" {
+		t.Errorf("a plan without an image carries a compose file: %q", noImage.Compose)
 	}
 }
 
