@@ -71,6 +71,16 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 	}
 	doc := onboarding.Build(f)
 
+	// The one action of the first run, in the words of the checklist
+	// (spec §3.3). The CLI, the MCP server and the page print this one
+	// record, so they cannot tell the newcomer different stories.
+	if p := doc.Primary; p != nil && p.Sentence != "" {
+		fmt.Fprintf(log, "up: %s\n", p.Sentence)
+		if p.Command != "" {
+			fmt.Fprintf(log, "  %s\n", p.Command)
+		}
+	}
+
 	// 1. Hardware access problems are not fixable by up. The steps of the
 	// onboarding say what holds the path up (spec §3.1). The caller prints
 	// the reason and the commands, so nothing is written here.
