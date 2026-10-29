@@ -13,9 +13,10 @@ import (
 )
 
 // SetupOptions are the flags of `setup plan` and `setup apply`. Mode, Venv
-// and Image may be empty (config, then defaults).
+// and Image may be empty (config, then defaults). ROCm is the ROCm line to
+// install, empty for the newest one.
 type SetupOptions struct {
-	Mode, Venv, Image, Model string
+	Mode, Venv, Image, Model, ROCm string
 }
 
 // SetupPlan probes the host and returns the ordered install steps.
@@ -38,7 +39,7 @@ func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error) {
 	}
 	return setup.Plan(ctx, h, rocm.Probe(ctx, root), setup.Options{
 		Mode: o.Mode, Venv: cfg.ResolveVenv(o.Venv), Image: o.Image, ModelRepo: o.Model,
-		HFHome: cfg.ResolveHFHome(), GPUArchs: archs,
+		HFHome: cfg.ResolveHFHome(), GPUArchs: archs, ROCm: o.ROCm, Root: root,
 	}), nil
 }
 

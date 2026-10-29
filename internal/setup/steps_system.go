@@ -24,33 +24,6 @@ func userName(h host.Info) string {
 	return "$USER"
 }
 
-func (p planner) rocmRuntime() Step {
-	s := Step{
-		ID: "rocm.runtime", Title: "Install the ROCm runtime and HIP SDK", Mode: "host", Root: true,
-		Done: len(p.r.Installs) > 0 && p.r.Tools["hipcc"] != "",
-		Why:  "Host mode builds the vLLM fork with hipcc and the ROCm headers; the runtime libraries come from the venv wheels.",
-	}
-	switch p.h.PkgManager {
-	case "dnf":
-		s.Commands = []string{
-			"sudo rpm --import https://repo.radeon.com/rocm/rocm.gpg.key",
-			`printf '[rocm]\nname=ROCm 7.2\nbaseurl=https://repo.radeon.com/rocm/el10/7.2/main\nenabled=1\ngpgcheck=1\npriority=50\ngpgkey=https://repo.radeon.com/rocm/rocm.gpg.key\n' | sudo tee /etc/yum.repos.d/rocm.repo`,
-			host.InstallCommand("dnf", host.PkgROCm),
-		}
-	case "apt":
-		s.Commands = []string{
-			"sudo mkdir -p -m 0755 /etc/apt/keyrings && wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg >/dev/null",
-			`echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2 $(. /etc/os-release && echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/rocm.list`,
-			"sudo apt update && " + host.InstallCommand("apt", host.PkgROCm),
-		}
-	case "pacman", "zypper":
-		s.Commands = []string{host.InstallCommand(p.h.PkgManager, host.PkgROCm)}
-	default:
-		s.Commands = []string{"# Install ROCm: https://rocm.docs.amd.com/projects/install-on-linux/en/latest/"}
-	}
-	return s
-}
-
 func (p planner) containerEngine() Step {
 	e, ok := host.Preferred(p.h.Engines, "")
 	s := Step{

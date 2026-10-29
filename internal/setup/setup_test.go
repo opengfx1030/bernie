@@ -107,7 +107,7 @@ func TestPlanHostPar1(t *testing.T) {
 
 func TestPlanFreshHost(t *testing.T) {
 	withWhich(t, "python3.12")
-	h := host.Info{PkgManager: "apt", User: host.User{Name: "op", Groups: []string{"op"}}}
+	h := host.Info{OS: host.OSRelease{ID: "ubuntu", VersionID: "24.04"}, PkgManager: "apt", User: host.User{Name: "op", Groups: []string{"op"}}}
 	venv := filepath.Join(t.TempDir(), "venv")
 	steps := Plan(context.Background(), h, rocm.Report{Tools: map[string]string{}}, Options{Venv: venv, GPUArchs: []string{"gfx1032"}, ModelRepo: "Qwen/Qwen3-8B", HFHome: t.TempDir()})
 	m := stepMap(steps)
@@ -126,7 +126,7 @@ func TestPlanFreshHost(t *testing.T) {
 	if !strings.Contains(m["venv.torch"].Commands[1], "rocm-sdk-device-gfx1030") || !strings.HasPrefix(m["venv.torch"].Commands[0], filepath.Join(venv, "bin/python")+" -m pip install") {
 		t.Errorf("venv.torch = %v", m["venv.torch"].Commands)
 	}
-	if !strings.Contains(strings.Join(m["rocm.runtime"].Commands, "\n"), "repo.radeon.com/rocm/apt/7.2") {
+	if !strings.Contains(strings.Join(m["rocm.runtime"].Commands, "\n"), "repo.amd.com/rocm/packages-multi-arch/ubuntu2404") {
 		t.Errorf("rocm.runtime apt = %v", m["rocm.runtime"].Commands)
 	}
 	if c := m["container.engine"].Commands; c[0] != "sudo apt install -y docker.io docker-compose-v2" || len(c) != 3 {

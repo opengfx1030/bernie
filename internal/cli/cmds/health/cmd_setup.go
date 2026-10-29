@@ -11,11 +11,12 @@ import (
 	"text/tabwriter"
 
 	"github.com/opengfx1030/bernie/internal/app"
+	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/setup"
 )
 
 type setupFlags struct {
-	mode, venv, image, model *string
+	mode, venv, image, model, rocm *string
 }
 
 func addSetupFlags(c *cli.Context, fs *flag.FlagSet) setupFlags {
@@ -24,6 +25,7 @@ func addSetupFlags(c *cli.Context, fs *flag.FlagSet) setupFlags {
 		venv:  &c.Venv,
 		image: fs.String("image", "", "image for container mode (default "+setup.DefaultImage+")"),
 		model: fs.String("model", "", "Hugging Face repo to download (adds the model.download step)"),
+		rocm:  fs.String("rocm", "", "ROCm line to install ("+host.ROCmVersion714+" or "+host.ROCmVersion72+", default "+host.ROCmVersion714+")"),
 	}
 }
 
@@ -36,7 +38,7 @@ func buildPlan(c *cli.Context, f setupFlags) ([]setup.Step, error) {
 }
 
 func setupOptions(f setupFlags) app.SetupOptions {
-	return app.SetupOptions{Mode: *f.mode, Venv: *f.venv, Image: *f.image, Model: *f.model}
+	return app.SetupOptions{Mode: *f.mode, Venv: *f.venv, Image: *f.image, Model: *f.model, ROCm: *f.rocm}
 }
 
 func init() {
