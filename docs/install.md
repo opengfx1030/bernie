@@ -12,7 +12,8 @@ bernie never runs `sudo` by itself.
 | [Compose](#4-compose) | Same, with a file you can keep. |
 | [Build from source](#5-build-from-source) | You develop bernie. |
 
-After you install, run `bernie doctor`.
+After you install, run `bernie up` (it does the doctor, the setup, the
+recipe and the dashboard in one go) or `bernie doctor` for the checks alone.
 
 ## 1. Installer script
 
@@ -22,17 +23,57 @@ curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/ins
 
 The script:
 
-1. downloads `bernie-linux-<arch>` and `SHA256SUMS` from the latest release;
-2. checks the SHA-256 sum and stops if it does not match;
-3. installs the file as `~/.local/bin/bernie`.
+1. detects the OS and the CPU (Linux on amd64 or arm64; nothing else);
+2. downloads `bernie-linux-<arch>` and `SHA256SUMS` from the latest release;
+3. checks the SHA-256 sum and stops if it does not match;
+4. installs the file as `~/.local/bin/bernie`;
+5. prints the next command: `bernie up`.
 
-Settings (environment variables):
+It never calls `sudo` by itself. If the directory you choose is not writable
+by your user, the script says so and prints the exact command to run with
+`sudo`; you decide whether to run it.
+
+### Flags
+
+| Flag | Meaning |
+|---|---|
+| `--version TAG` | Release tag, for example `v0.1.0`. Default: the latest release. |
+| `--dir DIR` | Install directory. Default: `~/.local/bin`. Use `--dir /usr/local/bin` for a system-wide install (needs `sudo`). |
+| `--dry-run` | Print the plan (target, destination, download URL) and stop. Nothing is downloaded or written. |
+| `-h`, `--help` | Print the help. |
+
+### Settings (environment variables)
+
+A flag wins over the variable of the same meaning.
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `BERNIE_VERSION` | `latest` | Release tag, for example `v0.1.0`. |
 | `BERNIE_BIN_DIR` | `~/.local/bin` | Install directory. |
 | `BERNIE_REPO` | `opengfx1030/bernie` | GitHub `owner/repo`. |
+
+### Examples
+
+```bash
+# See what would happen, install nothing.
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --dry-run
+
+# A fixed release into ~/.local/bin.
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --version v0.1.0
+
+# System-wide. The script prints the sudo command; you run it.
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --dir /usr/local/bin
+```
+
+### The test
+
+`scripts/test-install.sh` runs the installer against a fake release server
+(a local `python3` HTTP server) in a temp dir. It never touches
+`~/.local/bin` and never reaches the network.
+
+```bash
+make installtest
+```
 
 ## 2. rpm or deb package
 
