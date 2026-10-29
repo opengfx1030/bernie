@@ -670,7 +670,7 @@ landed.
 | R1 | Seven views: setup, dashboard, chat, bench, topology, fleet, logs | `rdna_dash/web/app.js` (hash router) | **present** — eight tabs (Setup, Dashboard, Chat, Benchmark, Topology, Fleet, Logs, Advanced), one extra (Advanced) | the same eight | — | — |
 | R2 | A 220 px sticky left rail with glyph + word links, a status pill and a theme button in the footer | `app.css`, `app.js` | **present** — `dashboard/web/index.html:19-47` | the same | — | — |
 | R3 | A status pill with a word and an icon | `app.js` (`.pill`) | **present** — `dashboard/web/js/shell.js:248` | the same, plus the spec change of §2.1 | S | C4 |
-| R4 | A theme button (dark default, light override) | `app.css` `data-theme` | **present** — `dashboard/web/js/shell.js:191` | the same | — | — |
+| R4 | A theme button (dark default, light override) | `app.css` `data-theme` | **present** — `dashboard/web/js/theme.js` (the three choices `Auto`, `Dark`, `Light`; `Auto` follows the system) | the same, with the three choices | — | — |
 | R5 | The display headline: italic 900 uppercase with a hard offset shadow | `app.css` `.display` | **present** — `tokens.css` `--font-display` | the same | — | — |
 | R6 | The facts strip (label / value / reason) | `app.js` (`.fact`) | **present** — `components/cards.js:47` (`factRow`) | Setup **S** | — | — |
 | R7 | A copy button on every command, endpoint and snippet | `app.js` (`.cmd .copy`) | **present** — `components/command.js` | the same | — | — |

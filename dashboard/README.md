@@ -65,7 +65,8 @@ flowchart LR
 | `internal/support/redact` | Removes secrets from anything the API returns |
 | `web/index.html` | Page shell: the rail, the tab bar, one section per tab |
 | `web/js/core.js` | The DOM and formatting primitives: `h()`, `put()`, `bytes()`, `num()` |
-| `web/js/shell.js` | The page-wide controls: the toast, the copy handler, the theme, the Advanced panels, the run status pill and the tab counts |
+| `web/js/theme.js` | The theme of the page: the choice of the reader (`Auto`, `Dark`, `Light`) and the palette it puts on `<html>`. Loaded in the head, before the first paint |
+| `web/js/shell.js` | The page-wide controls: the toast, the copy handler, the Advanced panels, the run status pill and the tab counts |
 | `web/js/data.js` | The only place that fetches: `api()`, `apiText()`, the shared state, the SSE streams and the one poller |
 | `web/js/boot.js` | The router, the old-hash aliases, the keyboard shortcuts and the manifest of the files of a tab. Loaded last. |
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, comparison, step timeline |
@@ -103,7 +104,8 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/js/boot.js` | `VIEWS`, `OLD_ROUTES`, `TAB_SCRIPTS`, `TAB_CSS`, `tabReady`, `tabLoading`, `loadScript`, `loadStyle`, `openTab`, `parseHash`, `route`, `preparePanel`, `focusSection`, `tabsKey`, `pendingG`, `shortcutsKey`, `boot` |
 | `dashboard/web/js/core.js` | `h`, `add`, `put`, `$`, `GiB`, `bytes`, `num`, `ago`, `badge`, `sh`, `SVG_NS`, `chartSvg` |
 | `dashboard/web/js/data.js` | `HISTORY`, `RUN_POLL_MS`, `MAX_POLL_MS`, `STALE_MS`, `state`, `request`, `api`, `loadHW`, `runsOf`, `runURL`, `pushHist`, `slowAgeNote`, `openTelemetry`, `openRunLogs`, `openJobEvents`, `openBenchEvents`, `JOB_POLL_MS`, `watchBenchJob`, `apiText`, `frameJobs`, `frameHandle`, `frameFallback`, `FRAME_FALLBACK_MS`, `runFrameJobs`, `onFrame`, `frameSubs`, `onTabFrame`, `telemetryStream`, `pollTimer`, `pollDelay`, `pollCycle`, `startTelemetry`, `pollRuns`, `pollCounts`, `schedulePoll`, `startPolling` |
-| `dashboard/web/js/shell.js` | `THEME_KEY`, `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `themeChoice`, `darkNow`, `applyTheme`, `toggleTheme`, `advancedOn`, `applyAdvanced`, `applyAdvancedToNew`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
+| `dashboard/web/js/shell.js` | `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `advancedOn`, `applyAdvanced`, `applyAdvancedToNew`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
+| `dashboard/web/js/theme.js` | `THEME_KEY`, `THEME_CHOICES`, `themeChoice`, `systemDark`, `applyTheme`, `setTheme`, `watchSystemTheme` |
 | `dashboard/web/views/advanced/console.js` | `adv`, `viewAdvanced`, `advLoad`, `advReload`, `advPaint`, `advHead`, `advSubscribe`, `advRunsTable`, `advCardListText`, `advCopyCardList`, `advServerMeasures` |
 | `dashboard/web/views/advanced/doctor.js` | `advDoctorReport`, `advDoctorCheck` |
 | `dashboard/web/views/advanced/documents.js` | `advDocuments`, `advLoadDocuments`, `advDocument` |
@@ -157,7 +159,7 @@ dashboard/
     ├── index.html       the shell markup and the script order
     ├── css/             tokens, layout, components, overlays, views, bench, advanced
     ├── fonts/           the self-hosted fonts and their licences
-    ├── js/              core, shell, data, boot
+    ├── js/              core, theme, shell, data, boot
     ├── components/      the shared widgets
     └── views/           setup/, dashboard/, benchmark/, logs/, advanced/
 ```
@@ -289,8 +291,8 @@ from the API. A card that shows no data has no link.
 ## The palette
 
 The colours live in `web/css/tokens.css`, one block for the light palette and
-one for the dark palette. The dark palette is the system preference; the
-light one is the override. Every pair is at or above WCAG AA: 4.5:1 for
+one for the dark palette. The dark palette is the base of the stylesheet;
+the light one is the override. Every pair is at or above WCAG AA: 4.5:1 for
 text, 3:1 for large text and for the edges of the controls.
 
 The tokens are `--bg`, `--surface`, `--surface-2`, `--surface-3`,
@@ -313,6 +315,22 @@ What changed on purpose when the palette was rebuilt:
 | The warning, light | `#9a6700` | `#8a6100` | A little darker, so it stays above AA on white. |
 | The failure, light | `#cf222e` | `#b42318` | The same. |
 | The topology classes | four fixed colours | `--series-1` to `--series-5` | The four classes now use the same series as the charts. |
+
+## The theme
+
+The rail holds the three choices of the theme, in words: `Auto`, `Dark` and
+`Light`. `Auto` is the default: the page follows the system
+(`prefers-color-scheme`) and follows it live, so a laptop that changes its
+palette at sunset changes the page with it. `Dark` and `Light` are the two
+palettes of the reference, as overrides. The choice is remembered in
+`localStorage` (`bernie.theme`) and the palette goes on `<html>` as
+`data-theme="dark"` or `data-theme="light"`.
+
+`web/js/theme.js` is loaded in the head of the page: the palette is set
+before the stylesheets paint, so the page never shows the other one for a
+moment. The three buttons carry `aria-pressed`, and the choice is said out
+loud in a live region (`role="status"`): `The theme follows the system.` or
+`The theme is dark.`
 
 ## The budget of the page
 

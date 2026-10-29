@@ -1577,8 +1577,14 @@ Rules for responses and tokens:
   a route that is added later cannot forget it.
 
 The page has eight tabs: Setup, Dashboard, Chat, Benchmark, Topology, Fleet,
-Logs and Advanced. The Topology tab is the tab of the PCIe tree, of the link
-classes and of the P2P readiness checklist: it reads `/api/topo` and
+Logs and Advanced. The theme of the page is the choice of the reader and
+lives in the browser, not in the API: the rail holds the three choices in
+words, `Auto` (the default: the page follows the system and follows it
+live), `Dark` and `Light`; the choice is kept in `localStorage`
+(`bernie.theme`) and the palette is put on `<html>` as `data-theme="dark"`
+or `data-theme="light"` before the first paint, so the page never shows the
+other palette for a moment. The Topology tab is the tab of the PCIe tree, of
+the link classes and of the P2P readiness checklist: it reads `/api/topo` and
 `/api/topo/check`, its route is `#topology`, and the old route
 `#dashboard/topology` is gone (the topology is a tab of its own now, not a
 section of the Dashboard tab). The Chat tab sends one prompt to the run that

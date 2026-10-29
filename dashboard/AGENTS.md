@@ -119,9 +119,15 @@ minute. An agent can read the same page as text.
 11. **Works with a keyboard and a screen reader.** Real `<a>`, `<button>`,
     `role=tab`, visible focus, `aria-live` for updates. → Check: the whole
     tab is reachable with the keyboard alone.
-12. **Light and dark.** Both follow the system setting. Contrast meets WCAG
-    AA. → Check: the palette table in [README.md](README.md); every pair is
-    ≥ 4.5:1 for text and ≥ 3:1 for the edges of the controls.
+12. **Light and dark.** The rail holds the three choices of the theme, in
+    words: `Auto`, `Dark` and `Light`. `Auto` is the default and follows the
+    system (`prefers-color-scheme`), live; the other two are the two
+    palettes of the reference. The choice is remembered and the palette is
+    set before the first paint, so the page never flashes the other one.
+    Contrast meets WCAG AA. → Check: the palette table in
+    [README.md](README.md); every pair is ≥ 4.5:1 for text and ≥ 3:1 for
+    the edges of the controls; the control is announced (`aria-pressed` and a
+    live region).
 13. **Every tab opens with a headline.** The first thing on a tab says in one
     sentence what the situation is. The line under it says what that means
     and what to do next. The headline is read out when it changes. → Check:
@@ -348,11 +354,11 @@ for the first time (the manifest of `web/js/boot.js`).
 | HTML file | ≤ 12 KB | 4.3 KB | **[budget]** |
 | CSS total | ≤ 80 KB | 77.1 KB | **[budget]** |
 | JavaScript total (the six tabs) | ≤ 340 KB | 325.1 KB | **[budget]** |
-| JavaScript on the first paint | ≤ 112 KB | 111.6 KB | **[budget]** |
-| CSS on the first paint | ≤ 40 KB | 37.5 KB | **[budget]** |
+| JavaScript on the first paint | ≤ 112 KB | 111.5 KB | **[budget]** |
+| CSS on the first paint | ≤ 40 KB | 39.2 KB | **[budget]** |
 | Fonts | ≤ 130 KB, ≤ 4 files, woff2, `font-display:swap`, `unicode-range` | 128.4 KB, 4 files, swap, range ✓ | **[budget]** |
-| Requests on the first paint | ≤ 24 | 21 | **[budget]** |
-| Transferred text on the first paint (gzip) | ≤ 60 KB | 46.4 KB | **[budget]** |
+| Requests on the first paint | ≤ 24 | 24 | **[budget]** |
+| Transferred text on the first paint (gzip) | ≤ 60 KB | 50.3 KB | **[budget]** |
 | Text of the whole tree (gzip) | ≤ 145 KB | 136.7 KB | **[budget]** |
 | Points drawn per chart | ≤ 240 | unbounded | **[review]** |
 | Pollers | 1 | 1 poller + 1 extra 1 Hz timer | **[review]** |
