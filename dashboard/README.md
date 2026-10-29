@@ -69,13 +69,14 @@ flowchart LR
 | `web/js/data.js` | The only place that fetches: `api()`, `apiText()`, the shared state, the SSE streams and the one poller |
 | `web/js/boot.js` | The router, the old-hash aliases, the keyboard shortcuts and the manifest of the files of a tab. Loaded last. |
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, comparison, step timeline |
-| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs`, `viewAdvanced` |
+| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewChat`, `viewBenchmark`, `viewTopology`, `viewFleet`, `viewLogs`, `viewAdvanced` |
+| `web/views/topology/topology.css` | The Topology tab only: the matrix, the legend, the tree and the checklist |
 | `web/fonts/` | The self-hosted fonts (Latin subsets, OFL): Montserrat, Inter, JetBrains Mono. No CDN. |
 | `web/css/tokens.css` | The two palettes (dark and light), the type, the fonts, the spacing and the radii |
 | `web/css/layout.css` | The shell, the rail, the grids and the state headline |
 | `web/css/components.css` | The buttons, the pills, the cards, the tables, the meters, the tiles and the states every card can be in |
 | `web/css/overlays.css` | The toast, the tooltip and the spinner: the parts of the page that come and go |
-| `web/css/views.css` | The parts that belong to one tab: the step timeline, the recipes, the doctor, the topology, the logs, the tiles and the rings |
+| `web/css/views.css` | The parts that belong to one tab: the step timeline, the recipes, the doctor, the logs, the tiles and the rings |
 | `web/css/bench.css` | The Benchmark tab only |
 | `web/css/advanced.css` | The Advanced tab only: the layout rules of the first dashboard |
 | `dashboard_test.go` | API, auth and stream tests |
@@ -91,7 +92,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | File | Published globals |
 |---|---|
 | `dashboard/web/components/cards.js` | `jsonLink`, `cardHead`, `stateHead`, `setHead`, `factRow`, `tableHead`, `tableCaption`, `emptyState`, `loading`, `failed` |
-| `dashboard/web/components/charts.js` | `downsample`, `chartNumbers`, `chartPaths`, `chartPointer`, `spark`, `areaChart`, `chartClock`, `ring`, `meter` |
+| `dashboard/web/components/charts.js` | `downsample`, `chartNumbers`, `chartPaths`, `chartPointer`, `chartNice`, `sparkDomain`, `spark`, `areaChart`, `ring`, `meter` |
 | `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock`, `connectEndpoint`, `connectSnippet` |
 | `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `ladderPoints`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart`, `curveSmallMultiples`, `curveTable` |
 | `dashboard/web/components/metrics.js` | `METRIC_HELP`, `VERDICTS`, `METRIC_COLS`, `COMPARE_METRICS`, `benchNum`, `benchDist`, `benchRate`, `benchDigits`, `SPREAD_STEADY`, `benchSpreadText`, `cellLens`, `cellFlags`, `metricHead`, `cellRow`, `cellsTable`, `verdictChip` |
@@ -105,9 +106,11 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/advanced/advanced.js` | `adv`, `viewAdvanced`, `advLoad`, `advSubscribe`, `advRunsOverview`, `advRunsTable` |
 | `dashboard/web/views/advanced/gpus.js` | `advViewGPUs`, `advGpuHeadline`, `advRenderTiles`, `advGpuCard`, `advUpdateGpuCard`, `advRenderGpuTable`, `advCardListText`, `advCopyCardList`, `advRenderPower`, `advPowerRow`, `advSavePower` |
 | `dashboard/web/views/advanced/topology.js` | `advViewTopology`, `advGpuName`, `advP2pCard`, `advP2pRow` |
+| `dashboard/web/views/chat/chat.js` | `viewChat` |
 | `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashSection`, `dashInfo`, `dashGroup`, `DASH_PILL_ICON`, `dashPill`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashLiveRun`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
 | `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe` |
 | `dashboard/web/views/dashboard/simple.js` | `dashSimpleHero`, `dashStopRun`, `dashMeaning`, `dashSimpleTiles`, `dashSimpleCharts`, `dashSimpleMachine`, `dashBuildSimple`, `dashSimpleConnect` |
+| `dashboard/web/views/fleet/fleet.js` | `viewFleet` |
 | `dashboard/web/views/logs/advanced.js` | `logsJsonLink`, `logsAdvanced` |
 | `dashboard/web/views/logs/findings.js` | `logPill`, `logSeverityPill`, `logFixIsCommand`, `logFinding`, `logFindings` |
 | `dashboard/web/views/logs/levels.js` | `LOG_ERROR_MARKS`, `LOG_WARN_MARKS`, `LOG_LEVEL_WORDS`, `logLevel`, `logLevelWord` |
@@ -120,7 +123,12 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/setup/headline.js` | `setupHeadline`, `setupServerEndpoint`, `setupHeadActions`, `setupNextRunnable`, `setupCurrentStep`, `setupRunNextStep`, `setupExplainWait`, `setupWaitSentence`, `pathSteps`, `setupRootCommand`, `setupCopyNextCommand`, `setupCopyText`, `startSetupServer`, `focusSetupStep`, `focusSetupDoctor`, `focusSetupVerify`, `setupToggleAdvanced` |
 | `dashboard/web/views/setup/recipes.js` | `loadSetupRecipes`, `setupRecipeOrder`, `setupRecommendedRecipe`, `setupRecommendedWhy`, `setupRecipeNote`, `setupRecipeCard`, `setupRecipeError`, `setupFitStatus`, `setupFitLine`, `setupSelectRecipe`, `setupPaintRecipeSelection`, `loadSetupPlan`, `setupRecipe`, `setupPlanView`, `setupPlanActions`, `setupPlanReady`, `setupPlanCommand`, `setupQuote`, `setupPlanSettings`, `setupPlanAdjustments`, `setupPlanOverrides`, `setupSetValue`, `setupExtraSets`, `setupApplyOverrides`, `setupSwitchMode`, `startSetupRecipe`, `paintSetupRecipeHint` |
 | `dashboard/web/views/setup/setup.js` | `SETUP_EXTRA_STEPS`, `SETUP_SMOKE_ENABLED`, `setupState`, `viewSetup`, `loadSetupDocument`, `paintSetupHead`, `paintSetupStale`, `paintSetupError`, `paintSetupTimeline`, `setupStepLink`, `setupStepNote`, `loadSetupDoctor`, `setupDoctorFinding`, `setupVerifyBox`, `setupServerRunning`, `setupServerServing`, `setupAskServer` |
-| `dashboard/web/views/setup/steps.js` | `setupProgress`, `setupLogs`, `setupStreams`, `setupJobRead`, `runSetupStep`, `followSetupJob`, `loadSetupJobProgress`, `setupJobStart`, `setupApplyJobProgress`, `setupProgressPercent`, `setupProgressSentence`, `setupProgressDetail`, `setupElapsed`, `setupElapsedText`, `setupLiveDetail`, `setupRate`, `setupDuration`, `attachSetupJobs`, `attachSetupJob`, `paintSetupProgress`, `setupStopStreams` |
+| `dashboard/web/views/setup/steps.js` | `setupProgress`, `setupLogs`, `setupStreams`, `setupJobRead`, `runSetupStep`, `followSetupJob`, `loadSetupJobProgress`, `setupJobStart`, `applyJobProgress`, `setupProgressPercent`, `setupProgressSentence`, `setupProgressDetail`, `setupElapsed`, `setupElapsedText`, `setupLiveDetail`, `setupRate`, `setupDuration`, `attachSetupJobs`, `attachSetupJob`, `paintSetupProgress`, `setupStopStreams` |
+| `dashboard/web/views/topology/advanced.js` | `topoBandwidth`, `topoAdvanced` |
+| `dashboard/web/views/topology/checklist.js` | `topoChecklist` |
+| `dashboard/web/views/topology/links.js` | `topoLegend`, `topoTree` |
+| `dashboard/web/views/topology/matrix.js` | `TOPO_CLASS_WORD`, `TOPO_CLASS_ORDER`, `topoClassWords`, `topoMatrix`, `topoPairTable` |
+| `dashboard/web/views/topology/topology.js` | `topo`, `TOPO_PILL_ICON`, `topoPill`, `topoSection`, `viewTopology`, `topoLoad`, `topoCheck`, `topoPaint`, `topoSetHead` |
 
 ## The layout
 
@@ -173,7 +181,7 @@ number.
 5. Show the unit and the range of every number. Show `–` when a number is
    missing.
 
-## The five tabs
+## The eight tabs
 
 Each tab answers one question. Keep it that way.
 
@@ -181,7 +189,10 @@ Each tab answers one question. Keep it that way.
 |---|---|---|---|
 | Setup | Is this host ready, what do I do next, and what can it serve? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/recipes`, `.../plan` | run a step, start a run |
 | Dashboard | Is it serving, how fast is it, and how does an app connect? | `/api/telemetry`, `/api/hw`, `/api/runs`, `/api/glossary`, `/api/gpus/history` | copy the URL, stop the run, copy a curl or Python request |
+| Chat | What will I ask the model? (planned) | none yet | none yet: the tab says it is planned |
 | Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
+| Topology | Can the cards copy to each other? | `/api/topo`, `/api/topo/check` | check the readiness again |
+| Fleet | What do the other hosts do? (planned) | none yet | none yet: the tab says it is planned |
 | Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
 | Advanced | What did the first bernie dashboard show on this host? | `/api/telemetry`, `/api/gpus/history`, `/api/hw`, `/api/runs`, `/api/doctor`, `/api/power`, `/api/topo` | read only: stop the run, restart it, ask it one question |
 
@@ -203,8 +214,8 @@ step of the path from a bare machine to a serving model, in order, and the
 recipe chooser below it.
 
 The old links still open their new home: `#overview` and `#home` open Setup,
-`#recipes` opens Setup, `#gpus` and `#topology` open Dashboard, `#runs`
-opens Logs and `#bench` opens Benchmark.
+`#recipes` opens Setup, `#gpus` opens Dashboard, `#topology` opens the
+Topology tab, `#runs` opens Logs and `#bench` opens Benchmark.
 
 The checklist takes a moment to arrive: until it does, the headline says
 what bernie is checking and the card names the phase. A checklist that is
@@ -348,4 +359,4 @@ and in [../docs/design-dashboard.md §8.3](../docs/design-dashboard.md#83-perfor
 | No log-error help in the Logs tab | Show the matched rule (id, cause, fix) from the log doctor |
 | No demo mode | Serve a fixture host so people can try the UI without GPUs |
 | Mobile layout is basic | Check each tab at 390 px wide |
-| No screenshot tests | Add a headless-browser smoke test for the five tabs |
+| No screenshot tests | Add a headless-browser smoke test for the eight tabs |
