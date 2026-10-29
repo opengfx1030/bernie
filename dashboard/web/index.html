@@ -9,10 +9,8 @@
 <link rel="stylesheet" href="css/layout.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/views.css">
-<link rel="stylesheet" href="css/bench.css">
-<link rel="stylesheet" href="views/logs/logs.css">
-<link rel="stylesheet" href="css/classic.css">
-  <link rel="stylesheet" href="views/dashboard/dashboard.css">
+<!-- The stylesheet of a tab that is not the first one comes with its files:
+     the manifest of js/boot.js names it. -->
 <link rel="icon" href="data:,">
 </head>
 <body class="shell">
@@ -51,32 +49,16 @@
 <script src="js/core.js"></script>
 <script src="components/command.js"></script>
 <script src="components/cards.js"></script>
-<script src="components/charts.js"></script>
-<script src="components/metrics.js"></script>
-<script src="components/compare.js"></script>
 <script src="components/runs.js"></script>
-<script src="components/timeline.js"></script>
 <script src="js/shell.js"></script>
 <script src="js/data.js"></script>
+<script src="components/timeline.js"></script>
 <script src="views/setup/setup.js"></script>
 <script src="views/setup/steps.js"></script>
 <script src="views/setup/advanced.js"></script>
 <script src="views/setup/recipes.js"></script>
-<script src="views/dashboard/dashboard.js"></script>
-<script src="views/dashboard/gpus.js"></script>
-<script src="views/dashboard/power.js"></script>
-<script src="views/dashboard/topology.js"></script>
-<script src="views/dashboard/overview.js"></script>
-<script src="views/benchmark/benchmark.js"></script>
-<script src="views/benchmark/suites.js"></script>
-<script src="views/logs/levels.js"></script>
-<script src="views/logs/picker.js"></script>
-<script src="views/logs/findings.js"></script>
-<script src="views/logs/tail.js"></script>
-<script src="views/logs/advanced.js"></script>
-<script src="views/logs/logs.js"></script>
-<script src="views/classic/charts.js"></script>
-<script src="views/classic/classic.js"></script>
 <script src="js/boot.js"></script>
+<!-- The files of the other tabs come when their tab opens for the first
+     time: the manifest of js/boot.js names them. -->
 </body>
 </html>
