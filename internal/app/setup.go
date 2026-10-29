@@ -14,9 +14,11 @@ import (
 
 // SetupOptions are the flags of `setup plan` and `setup apply`. Mode, Venv
 // and Image may be empty (config, then defaults). ROCm is the ROCm line to
-// install, empty for the newest one.
+// install, empty for the newest one. Root is the host tree to read, empty
+// for the default ("/" or BERNIE_ROOT).
 type SetupOptions struct {
 	Mode, Venv, Image, Model, ROCm string
+	Root                           string
 }
 
 // SetupPlan probes the host and returns the ordered install steps.
@@ -28,18 +30,22 @@ func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error) {
 	if o.Mode == "" {
 		o.Mode = cfg.Mode
 	}
-	h, err := host.Probe(ctx, root)
+	tree := o.Root
+	if tree == "" {
+		tree = root
+	}
+	h, err := host.Probe(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
-	vis, _ := gpu.Visible(root)
+	vis, _ := gpu.Visible(tree)
 	var archs []string
 	for _, g := range vis.GPUs {
 		archs = append(archs, g.GFX)
 	}
-	return setup.Plan(ctx, h, rocm.Probe(ctx, root), setup.Options{
+	return setup.Plan(ctx, h, rocm.Probe(ctx, tree), setup.Options{
 		Mode: o.Mode, Venv: cfg.ResolveVenv(o.Venv), Image: o.Image, ModelRepo: o.Model,
-		HFHome: cfg.ResolveHFHome(), GPUArchs: archs, ROCm: o.ROCm, Root: root,
+		HFHome: cfg.ResolveHFHome(), GPUArchs: archs, ROCm: o.ROCm, Root: tree,
 	}), nil
 }
 

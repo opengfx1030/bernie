@@ -34,11 +34,18 @@ func buildPlan(c *cli.Context, f setupFlags) ([]setup.Step, error) {
 	if m := *f.mode; m != "" && m != "host" && m != "container" {
 		return nil, cli.Usagef("--mode must be host or container, not %q", m)
 	}
-	return app.SetupPlan(c.Ctx, setupOptions(f))
+	return app.SetupPlan(c.Ctx, setupOptionsOf(c, f))
 }
 
 func setupOptions(f setupFlags) app.SetupOptions {
 	return app.SetupOptions{Mode: *f.mode, Venv: *f.venv, Image: *f.image, Model: *f.model, ROCm: *f.rocm}
+}
+
+// setupOptionsOf adds the root of the host tree the command reads.
+func setupOptionsOf(c *cli.Context, f setupFlags) app.SetupOptions {
+	o := setupOptions(f)
+	o.Root = c.Root
+	return o
 }
 
 func init() {
@@ -81,7 +88,7 @@ func init() {
 				return fmt.Errorf("aborted (use --yes to skip the prompt)")
 			}
 		}
-		after, err := app.SetupApply(c.Ctx, steps, setupOptions(f), only, c.Err)
+		after, err := app.SetupApply(c.Ctx, steps, setupOptionsOf(c, f), only, c.Err)
 		if err != nil {
 			return err
 		}

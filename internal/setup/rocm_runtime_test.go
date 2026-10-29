@@ -251,3 +251,37 @@ func TestROCmRuntimeLdSoConf(t *testing.T) {
 		t.Errorf("the packages ship the loader configuration:\n%s", cmds2)
 	}
 }
+
+// TestROCmRuntimeFixtureTrees reads the captured host trees in testdata.
+func TestROCmRuntimeFixtureTrees(t *testing.T) {
+	tests := []struct {
+		name    string
+		dir     string
+		done    bool
+		wantURL string
+	}{
+		{"fedora 43 with the 7.14 tree", "fedora43", true, "repo.amd.com/rocm/packages-multi-arch/rhel10/x86_64"},
+		{"ubuntu 24.04 without ROCm", "ubuntu2404", false, "repo.amd.com/rocm/packages-multi-arch/ubuntu2404"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := filepath.Join("testdata", tt.dir)
+			h, err := host.Probe(context.Background(), root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rep := rocm.Probe(context.Background(), root)
+			steps := Plan(context.Background(), h, rep, Options{
+				Mode: "host", Venv: filepath.Join(t.TempDir(), "venv"), Root: root, GPUArchs: []string{"gfx1030"},
+			})
+			s := stepMap(steps)["rocm.runtime"]
+			if s.Done != tt.done {
+				t.Errorf("done = %v, want %v", s.Done, tt.done)
+			}
+			cmds := strings.Join(s.Commands, "\n")
+			if !strings.Contains(cmds, tt.wantURL) {
+				t.Errorf("commands lack %q:\n%s", tt.wantURL, cmds)
+			}
+		})
+	}
+}
