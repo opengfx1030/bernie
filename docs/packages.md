@@ -12,6 +12,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | Package | Role | Public surface | Layer |
 |---|---|---|---|
 | `cmd/bernie` | the entry point | `main` | 4 |
+| `scripts/fakevllm` | the fake vLLM server for the bench smoke test | `main` | - |
 | `internal/cli` | the command framework | `Register`, `Main`, `Command`, `Context`, `ExitError`, `WriteMatches` | 4 |
 | `internal/cli/cmds/health` | `doctor`, `setup`, `status`, `up` | `cli.Register` per command | 4 |
 | `internal/cli/cmds/inventory` | `hw`, `topo` | `cli.Register` per command | 4 |
@@ -33,10 +34,12 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/doctor` | the host checks | `Run`, `Report`, `Check`, `Status`, `Options` | 2 |
 | `internal/setup` | the install plan | `Plan`, `Apply`, `Step`, `Options` | 2 |
 | `internal/logdoc` | the log knowledge | `Load`, `Scan`, `ScanFile`, `PhaseOf`, `Rule`, `Match` | 2 |
+| `internal/serving` | the serving package group | none (directory only) | 2 |
 | `internal/serving/recipe` | the recipe and its launch plan | `Load`, `Resolve`, `Validate`, `CheckFit`, `List`, `Best`, `BuildPlan`, `Plan` | 2 |
 | `internal/serving/runner` | the run | `Prepare`, `Start`, `List`, `Stop`, `Logs`, `Get`, `OpenLog`, `Phase` | 2 |
 | `internal/serving/tuning` | the tuning rows and the power cap | `Profiles`, `Select`, `Materialize`, `Env`, `PowerStatus`, `LoadPowerDesired`, `SavePowerDesired`, `GeneratePowerUnits`, `ApplyPowerDesired` | 2 |
-| `internal/serving/vllm` | the vLLM client | `New`, `Health`, `Models`, `Tokenize`, `Metrics` | 2 |
+| `internal/serving/vllm` | the vLLM client | `New`, `BaseURL`, `Health`, `Models`, `Tokenize`, `Complete`, `Metrics` | 2 |
+| `internal/serving/vllm/vllmtest` | the deterministic fake vLLM server for tests | `Config`, `Server`, `New`, `CountTokens`, `Prompts`, `ServeHTTP` | 2 |
 | `internal/serving/bench` | the benchmark | `Run`, `Save`, `List`, `Get`, `Options`, `Result` | 2 |
 | `internal/serving/bench/suite` | the bench suites | `Load`, `List`, `Get`, `Run`, `Compare`, `Judge`, `AB` | 2 |
 | `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `Archs`, `ArchMatch`, `ECC` | 1 |
@@ -52,8 +55,8 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/support/pyenv` | the venv layout | `HasModule`, `SearchPaths`, `SitePackages` | 0 |
 | `internal/support/factcache` | the cached host facts | `Get`, `Load`, `Save` | 0 |
 | `internal/support/fixture` | the test fixtures | `Root`, `Write` | 0 |
-| `internal/glossary` | the words a reader may not know | `Words`, `Terms`, `Meaning` | data |
-| `internal/support/netx` | the shared network checks | `Loopback` | 0 |
+| `internal/glossary` | the words a reader may not know | `Word`, `Words`, `Terms`, `Meaning` | data |
+| `internal/support/netx` | the shared loopback check | `Loopback` | 0 |
 | `recipes`, `tunableop`, `tuned-moe`, `bench` | the embedded data | `FS` | data |
 
 The layer of every package is in [architecture.md](architecture.md) §2.
