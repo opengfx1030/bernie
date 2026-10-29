@@ -308,7 +308,7 @@ function boot() {
 
   startTelemetry();
   startPolling();
-  loadHW().catch(() => {}); // the rail shows the name of the host
+  loadHW().then(demoBanner).catch(() => {}); // the rail shows the name of the host
   route();
 }
 
