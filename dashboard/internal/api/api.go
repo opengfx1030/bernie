@@ -30,6 +30,14 @@ type handler struct {
 	log       io.Writer
 	telemetry Telemetry
 	bench     *benchJobs
+	// The answers that read the host are held for a short time: the page
+	// reads them again and again, the host does not change in between.
+	hw    *hostCache
+	topo  *hostCache
+	check *hostCache
+	doc   *hostCache
+	power *hostCache
+	runs  *hostCache
 }
 
 // Register adds every dashboard API route to mux.
@@ -37,7 +45,15 @@ func Register(mux *http.ServeMux, o Options) {
 	if o.Log == nil {
 		o.Log = io.Discard
 	}
-	h := &handler{log: o.Log, telemetry: o.Telemetry, bench: newBenchJobs()}
+	h := &handler{
+		log: o.Log, telemetry: o.Telemetry, bench: newBenchJobs(),
+		hw:    newHostCache(hostTTL),
+		topo:  newHostCache(hostTTL),
+		check: newHostCache(checkTTL),
+		doc:   newHostCache(checkTTL),
+		power: newHostCache(hostTTL),
+		runs:  newHostCache(runsTTL),
+	}
 
 	mux.HandleFunc("GET /api/hw", h.getHW)
 	mux.HandleFunc("GET /api/topo", h.getTopo)

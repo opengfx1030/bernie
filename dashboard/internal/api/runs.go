@@ -15,12 +15,14 @@ import (
 
 // GET /api/runs — `bernie ps --json`.
 func (h *handler) getRuns(w http.ResponseWriter, r *http.Request) {
-	runs, err := flow.Runs(r.Context())
+	val, err := h.runs.get(r.Context(), "", func(ctx context.Context) (any, error) {
+		return flow.Runs(ctx)
+	})
 	if err != nil {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	httpjson.Redacted(w, http.StatusOK, runs)
+	httpjson.Redacted(w, http.StatusOK, val)
 }
 
 // runRequest is the body of POST /api/runs.
