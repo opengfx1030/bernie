@@ -166,6 +166,40 @@ func TestFetchReachableWithHWAndRuns(t *testing.T) {
 	}
 }
 
+// TestFetchRefusesHostThatIsNotConfigured: the peer is on the list of the
+// hosts the operator configured, so it is reached; a peer that is not on
+// the list is refused before a byte leaves the process and the server never
+// sees the request.
+func TestFetchRefusesHostThatIsNotConfigured(t *testing.T) {
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"gpus":[]}`)
+	}))
+	defer server.Close()
+	entry := config.FleetEntry{Name: "p", URL: server.URL}
+
+	rows := Fetch(context.Background(), Source{Entries: []config.FleetEntry{entry}, Hosts: []string{hostOf(entry.URL)}})
+	if len(rows) != 1 || !rows[0].Reachable {
+		t.Fatalf("the configured peer: %+v", rows)
+	}
+	if hits != 2 {
+		t.Errorf("the configured peer got %d requests, want 2 (hw and runs)", hits)
+	}
+
+	rows = Fetch(context.Background(), Source{Entries: []config.FleetEntry{entry}, Hosts: []string{"another-box"}})
+	if len(rows) != 1 || rows[0].Reachable {
+		t.Fatalf("the peer that is not configured: %+v", rows)
+	}
+	if !strings.Contains(rows[0].Error, "not in the configured fleet list") {
+		t.Errorf("error %q does not name the guard", rows[0].Error)
+	}
+	if hits != 2 {
+		t.Errorf("the peer that is not configured was reached: %d requests", hits)
+	}
+}
+
 // TestValidate checks the host-allowlist guard.
 func TestValidate(t *testing.T) {
 	hosts := []string{"box-a", "box-b"}
