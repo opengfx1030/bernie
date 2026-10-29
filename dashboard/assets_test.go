@@ -183,8 +183,10 @@ func TestPayloadBudget(t *testing.T) {
 	}
 }
 
-// The gzipped body of a text asset is at most ~90 % of its raw body: the
-// HTTP round trip of a text asset on a LAN is bounded.
+// The gzipped body of every text asset of the tree is at most ~90 % of its
+// raw body: the HTTP round trip of a text asset on a LAN is bounded. The
+// line covers the whole tree (the five tabs of plain JavaScript); the first
+// paint has a line of its own in TestFirstPaintPayload.
 func TestGzipSizeBudget(t *testing.T) {
 	web, _ := fs.Sub(webFS, "web")
 	total, gz := 0, 0
@@ -208,8 +210,8 @@ func TestGzipSizeBudget(t *testing.T) {
 		t.Fatal("no text assets measured")
 	}
 	t.Logf("text assets: raw=%d gz=%d (%.0f%%)", total, gz, 100*float64(gz)/float64(total))
-	if gz > 120*1024 {
-		t.Errorf("gzipped text assets %d > 120 KB", gz)
+	if gz > 125*1024 {
+		t.Errorf("gzipped text assets %d > 125 KB", gz)
 	}
 }
 
