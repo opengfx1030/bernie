@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/support/execx"
 	"github.com/opengfx1030/bernie/internal/support/factcache"
 	"github.com/opengfx1030/bernie/internal/support/pyenv"
@@ -247,46 +248,6 @@ func readFile(p string) string {
 	return string(b)
 }
 
-// venvProbeScript prints one marked JSON line. Imports are isolated (-I) so
-// the working directory (for example a vLLM source tree) never shadows
-// packages.
-const venvProbeScript = `
-import json, platform, sys
-r = {"python": platform.python_version()}
-errs = []
-def done():
-    if errs:
-        r["error"] = "; ".join(errs)
-    print("BERNIE_JSON:" + json.dumps(r))
-    sys.exit(0)
-try:
-    import torch
-    r["torch"] = torch.__version__
-    r["hip"] = getattr(torch.version, "hip", None) or ""
-except Exception as e:
-    errs.append("import torch: %s" % e)
-    done()
-try:
-    r["device_count"] = torch.cuda.device_count()
-except Exception as e:
-    errs.append("torch.cuda.device_count: %s" % e)
-try:
-    import vllm
-    r["vllm"] = getattr(vllm, "__version__", "") or "unknown"
-except Exception as e:
-    errs.append("import vllm: %s" % e)
-try:
-    import vllm._rocm_C
-except Exception as e:
-    errs.append("import vllm._rocm_C: %s" % e)
-try:
-    s = [str(x) for x in torch._C._jit_get_all_schemas()]
-    r["rdna_ops"] = sum(1 for x in s if x.startswith("_rocm_C::") and "rdna" in x)
-except Exception as e:
-    errs.append("schemas: %s" % e)
-done()
-`
-
 // ProbeVenv runs the probe script with the venv's Python and the wheel
 // library path (bounded to 30 s). The result is cached under the state
 // directory: importing torch and vLLM takes seconds, and the answer only
@@ -339,14 +300,26 @@ func probeVenv(ctx context.Context, venv string) VenvReport {
 func venvProbeKey(venv string) string { return "venv/probe/" + venv }
 
 // venvFingerprint names the state of a venv: the times of the files that
-// change when the venv is rebuilt.
+// change when the venv is rebuilt, and the GPU restriction of the
+// environment (the probe counts the GPUs that torch sees).
 func venvFingerprint(venv string) string {
 	paths := append([]string{filepath.Join(venv, "pyvenv.cfg")}, pyenv.SitePackages(venv)...)
 	var out []string
 	for _, p := range paths {
 		out = append(out, stamp(p))
 	}
-	return strings.Join(out, ",")
+	return strings.Join(out, ",") + "|" + restriction()
+}
+
+// restriction names the GPU restriction of the environment: the first
+// variable of gpu.RestrictionVars that is set.
+func restriction() string {
+	for _, v := range gpu.RestrictionVars {
+		if s := strings.TrimSpace(os.Getenv(v)); s != "" {
+			return v + "=" + s
+		}
+	}
+	return ""
 }
 
 // stamp returns the modification time of a path, or "-" when it is gone.

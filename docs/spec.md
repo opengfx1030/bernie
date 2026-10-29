@@ -1607,7 +1607,9 @@ the host state it was read from and a time to live. A fact older than its
 time to live is still served and is refreshed in the background: a reader
 never waits for a probe it does not need. A fingerprint that does not match
 the host state anymore makes the fact a miss, so a rebuilt venv or a new
-ROCm tree is probed again.
+ROCm tree is probed again. The fingerprint of a venv probe follows the GPU
+restriction of the environment: the probe counts the GPUs that torch sees,
+and that answer changes when the operator limits them.
 
 | Key | Fact | Time to live |
 |---|---|---|
