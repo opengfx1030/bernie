@@ -1,0 +1,56 @@
+/* bernie dashboard: the Fleet tab only.
+   The list of the other bernie hosts: one row per host, with the state
+   word, the serving model, the output speed and the cards. */
+
+.fleet-list { min-width: 0; }
+
+.fleet-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) auto minmax(0, 1.6fr) auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: 12px 0 14px;
+  border-top: 1px solid var(--border);
+}
+
+.fleet-row:first-child { border-top: 0; }
+
+.fleet-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fleet-name b { font-size: 15px; }
+.fleet-me { color: var(--muted); font-size: var(--small); }
+
+.fleet-state { min-width: 0; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.fleet-why { color: var(--fail); margin: 0; }
+
+.fleet-serving { min-width: 0; color: var(--text-2); }
+.fleet-serving .muted { color: var(--muted); }
+
+.fleet-speed { display: flex; align-items: baseline; gap: 4px; }
+.fleet-num { font: italic 900 22px/1 var(--font-display); }
+
+.fleet-cards { min-width: 0; color: var(--text-2); font-size: var(--small); }
+.fleet-gpu { display: inline-block; margin-right: var(--space-4); }
+.fleet-gpu .muted { color: var(--muted); }
+
+.fleet-open { display: flex; gap: var(--space-3); align-items: center; }
+
+/* ---------- the form that adds a host ---------- */
+
+.fleet-add { margin-top: var(--space-6); display: grid; gap: var(--space-3); max-width: 640px; }
+.fleet-add-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: var(--space-3); align-items: center; }
+.fleet-add-row label { color: var(--text-2); font-size: var(--small); }
+.fleet-add input {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  min-width: 0;
+}
+.fleet-add input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (max-width: 900px) {
+  .fleet-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+  .fleet-add-row { grid-template-columns: minmax(0, 1fr); }
+}

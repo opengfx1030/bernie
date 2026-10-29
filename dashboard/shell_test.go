@@ -123,22 +123,22 @@ func TestTheTopologyAliasIsGone(t *testing.T) {
 	}
 }
 
-// The Chat tab ships: it carries no planned tag. Fleet is still planned and
-// says so.
-func TestOnlyFleetIsPlanned(t *testing.T) {
+// No tab is planned any more: the Chat tab and the Fleet tab both ship.
+func TestNoTabIsPlanned(t *testing.T) {
 	h := newServer(Options{Listen: "127.0.0.1:7860"}).handler()
 	w := do(t, h, "GET", "/", map[string]string{"Host": "127.0.0.1:7860"})
 	body := w.Body.String()
-	chat := railEntry(body, "chat")
-	fleet := railEntry(body, "fleet")
-	if chat == "" || fleet == "" {
-		t.Fatalf("the rail has no chat or fleet tab")
+	for _, tab := range []string{"chat", "fleet"} {
+		entry := railEntry(body, tab)
+		if entry == "" {
+			t.Fatalf("the rail has no %s tab", tab)
+		}
+		if strings.Contains(entry, "tab-planned") || strings.Contains(entry, "soon-note") {
+			t.Errorf("the %s tab is still marked as planned: %s", tab, entry)
+		}
 	}
-	if strings.Contains(chat, "tab-planned") || strings.Contains(chat, "soon-note") {
-		t.Errorf("the Chat tab is still marked as planned: %s", chat)
-	}
-	if !strings.Contains(fleet, "tab-planned") || !strings.Contains(fleet, ">Planned<") {
-		t.Errorf("the Fleet tab does not say that it is planned: %s", fleet)
+	if strings.Contains(body, "soon-note") {
+		t.Error("the rail still carries the planned note")
 	}
 }
 
