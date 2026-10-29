@@ -174,6 +174,7 @@ tuning data.
 | `internal/app/` | the operations more than one front end runs, one `--json` document each | 3 |
 | `internal/flow/` | the `status` snapshot and the `up` chain | 3 |
 | `internal/onboarding/` | the onboarding checklist: the facts, the steps, the jobs | 3 |
+| `internal/bench/job/` | the benchmark jobs: the store, the state machine, the typed progress events | 3 |
 | `internal/doctor/` | the check registry; one file per category of checks | 2 |
 | `internal/setup/` | the install plan and the non-root apply | 2 |
 | `internal/logdoc/` | the known-failure catalogue, the phase catalogue, the log scanner | 2 |
@@ -223,6 +224,7 @@ stay one package:
 | `tune`, the tuning rows and the power cap | `internal/serving/tuning` |
 | `bench` | `internal/serving/bench` |
 | `bench --suite`, the bench suites | `internal/serving/bench/suite`, `bench/suites` |
+| the benchmark jobs and their progress events | `internal/bench/job` |
 | the onboarding checklist | `internal/onboarding` |
 | `up`, the whole path | `internal/flow` |
 | the operations the front ends share | `internal/app` |
@@ -250,6 +252,7 @@ bernie/
 │   ├── mcp/              MCP server: tools, confirm tokens, audit (official Go SDK)
 │   ├── flow/             status snapshot and `up`
 │   ├── onboarding/       the onboarding checklist: facts, steps, jobs
+│   ├── bench/            the benchmark jobs: the store, the state machine, the events
 │   ├── doctor/           check registry; related checks and helpers grouped by role
 │   ├── setup/            install plan and non-root apply
 │   ├── logdoc/           known-failure catalog, phase catalogue (embedded YAML) and log scanner
@@ -333,6 +336,7 @@ every gap.
 | Show a benchmark result | `bench show ID` | `bench_show` | not built: saved-result endpoint (`GET /api/bench/{id}` is a job) | `bench.Get` | partial |
 | Compare two benchmark results | `bench compare A B` | `bench_compare` | `GET /api/bench/compare` | `app.BenchCompare` | built |
 | Run an A/B benchmark | `bench ab` | `bench_ab` | `POST /api/bench/ab` | `app.BenchAB` | built |
+| Follow a benchmark job | not built: a job command | not built: a job tool | `GET /api/bench/{id}`; `GET /api/bench/{id}/events` | `job.Store.Get` | partial |
 | Write a compose file | `compose ID` | not built: `compose` tool | not built: `compose` endpoint | `app.Plan`, `runner.Compose` | partial |
 | Show or set the user defaults | `config show`; `config set` | not built: `config show` tool; deferred: `config set` tool | not built: `config show` endpoint; not built: `config set` endpoint | `config.Load`, `Config.SetKey`, `config.Save` | partial |
 
@@ -353,6 +357,8 @@ The deferred and unbuilt items are:
   `tune power service install-plan`, `tune power service remove-plan`,
   `compose`, `config show`, `config set`, or a saved-result `bench show`.
   The dashboard also has no one-step status endpoint.
+- The CLI and the MCP have no command and no tool that follow a running
+  benchmark job. The dashboard reads the job document and its event stream.
 - The repo gives no separate reason for the unbuilt MCP tools and dashboard
   endpoints above.
 - `tune power apply` needs root. bernie never runs sudo, so the CLI prints
