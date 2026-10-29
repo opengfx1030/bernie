@@ -59,9 +59,7 @@ const TAB_SCRIPTS = {
   advanced: [
     "components/charts.js",
     "views/advanced/advanced.js",
-    "views/advanced/overview.js",
     "views/advanced/gpus.js",
-    "views/advanced/power.js",
     "views/advanced/topology.js",
   ],
 };
