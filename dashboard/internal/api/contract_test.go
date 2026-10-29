@@ -98,6 +98,17 @@ func TestUIFieldContract(t *testing.T) {
 			},
 		},
 		{
+			name: "power result",
+			doc: app.PowerDesiredResult{
+				Changed: true, File: "/config/power.yaml", Watts: 175,
+				GPUIndexes: []int{0, 2}, Selectors: []string{"all"},
+				Clamped: []int{2, 3},
+			},
+			want: []string{
+				"changed", "file", "watts", "gpu_indexes", "selectors", "clamped",
+			},
+		},
+		{
 			name: "gpus history",
 			doc: telemetry.HistoryDocument{
 				Window: "5m", IntervalS: 2, Points: 1,
