@@ -137,6 +137,39 @@ Notes:
 - **Health check.** The image has no shell, so it has no `HEALTHCHECK`. Test
   from outside: `curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:7860/api/hw`.
 
+### GPU access: classic or CDI
+
+A container gets the GPU in one of two ways.
+
+- **Classic.** The device nodes of the host are passed in: `--device /dev/kfd
+  --device /dev/dri`. Every GPU of the host is visible in the container.
+- **CDI.** The AMD Container Toolkit injects the GPUs through a CDI spec:
+  `--device amd.com/gpu=0`. Only the selected GPUs are visible in the
+  container.
+
+The toolkit and the spec (both need root):
+
+```bash
+sudo dnf install -y amd-container-toolkit    # or: sudo apt install -y amd-container-toolkit
+sudo amd-ctk cdi generate --output=/etc/cdi/amd.json
+sudo amd-ctk cdi validate
+```
+
+Write the spec again when a GPU is added or removed: a stale spec names
+nodes that the host does not have. Docker reads CDI from 28.3.0 on, Podman
+from 4.0 on.
+
+bernie uses the classic form unless the host has a valid spec and the
+engine can read it. The recipe field `container.device_access`, the flag
+`--device-access` and the config key `device_access` choose the form:
+`classic`, `cdi` or `auto` (the default).
+
+The group flags stay in both forms. The spec sets the owner and the mode of
+the injected nodes, but it adds no group to the process of the container.
+On a SELinux host the container still needs `--security-opt label=disable`.
+Rootless Podman still needs `--group-add keep-groups`, and the user must be
+in the `video` and `render` groups.
+
 ## 4. Compose
 
 `deploy/compose/compose.yml` is a reference file for the same container.
