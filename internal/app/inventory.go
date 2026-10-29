@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"os"
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
@@ -20,6 +21,9 @@ type HWReport struct {
 	// Restriction says that the environment limits the GPUs bernie uses
 	// (spec §7.7). It is empty when nothing is restricted.
 	Restriction string `json:"restriction,omitempty"`
+	// Demo says the dashboard serves the demo mode: a captured host and a
+	// fake run. The page says so in a banner (ia.md §5 R38).
+	Demo bool `json:"demo,omitempty"`
 	// GPUErr is why GPUs is empty when the KFD topology could not be read.
 	// It is not part of the document: the front end decides what to do.
 	GPUErr error `json:"-"`
@@ -41,7 +45,8 @@ func HW(ctx context.Context) (HWReport, error) {
 	if gpus == nil {
 		gpus = []gpu.GPU{}
 	}
-	return HWReport{Host: h, GPUs: gpus, Restriction: vis.Restriction.Note(), GPUErr: gerr}, nil
+	return HWReport{Host: h, GPUs: gpus, Restriction: vis.Restriction.Note(), GPUErr: gerr,
+		Demo: os.Getenv(DemoEnv) == "1"}, nil
 }
 
 // TopoOptions select the `topo` variant.

@@ -25,8 +25,24 @@ func Logs(ctx context.Context, name string, follow bool, tail int, w io.Writer) 
 		return err
 	}
 	if r.Foreign {
-		fmt.Fprintf(w, "run %s is attached: bernie did not start it, so it has no log to show\n", r.Name)
-		return nil
+		if r.Log == "" {
+			fmt.Fprintf(w, "run %s is attached: bernie did not start it, so it has no log to show\n", r.Name)
+			return nil
+		}
+		// An attached server has no log of its own, unless the record
+		// names one: the demo mode writes the log of its fake run.
+		f, err := os.Open(r.Log)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if err := tailLines(f, tail, w); err != nil {
+			return err
+		}
+		if !follow {
+			return nil
+		}
+		return followLog(ctx, f, w)
 	}
 	if r.Mode == recipe.ModeContainer {
 		args := []string{"logs"}
@@ -54,6 +70,11 @@ func Logs(ctx context.Context, name string, follow bool, tail int, w io.Writer) 
 	if !follow {
 		return nil
 	}
+	return followLog(ctx, f, w)
+}
+
+// followLog writes what the log file grows, until ctx ends.
+func followLog(ctx context.Context, f *os.File, w io.Writer) error {
 	buf := make([]byte, 32<<10)
 	for {
 		n, err := f.Read(buf)
@@ -111,7 +132,12 @@ func Get(name string) (*Record, error) { return readRecord(name) }
 // with ctx.Err() once ctx is done.
 func OpenLog(ctx context.Context, r Record, timeout time.Duration) (io.ReadCloser, error) {
 	if r.Foreign {
-		return nil, fmt.Errorf("run %s is attached: bernie did not start it, so it has no log to show", r.Name)
+		if r.Log == "" {
+			return nil, fmt.Errorf("run %s is attached: bernie did not start it, so it has no log to show", r.Name)
+		}
+		// The demo's fake run is attached and carries the log it writes
+		// (ia.md §5 R38): the fake server writes none of its own.
+		return openLogFile(ctx, r.Log)
 	}
 	if r.Engine != "" && r.Container != "" {
 		res, err := execx.Run(ctx, timeout, r.Engine, "logs", r.Container)
@@ -126,6 +152,18 @@ func OpenLog(ctx context.Context, r Record, timeout time.Duration) (io.ReadClose
 	path := r.Log
 	if _, err := os.Stat(path); path == "" || err != nil {
 		path = filepath.Join(RunDir(r.Name), "serve.log")
+	}
+	return openLogFile(ctx, path)
+}
+
+// openLogFile opens a log file, falling back to serve.log under the run
+// dir when the named path is empty or missing.
+func openLogFile(ctx context.Context, path string) (io.ReadCloser, error) {
+	if path == "" {
+		path = filepath.Join(".", "serve.log")
+	}
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
 	}
 	f, err := os.Open(path)
 	if err != nil {

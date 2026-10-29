@@ -81,6 +81,11 @@ func readRecord(name string) (*Record, error) {
 	return &r, nil
 }
 
+// WriteRecord saves the record of a run. The demo mode uses it: the fake
+// server of the demo writes no log of its own, so the demo points the
+// record at the log it writes.
+func WriteRecord(r *Record) error { return writeRecord(r) }
+
 func writeRecord(r *Record) error {
 	if _, err := paths.Ensure(RunDir(r.Name)); err != nil {
 		return err

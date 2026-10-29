@@ -296,3 +296,10 @@ function phaseSentence(run, fallback) {
   }
   return fallback;
 }
+
+/** demoBanner says on every tab that the page is the demo: a captured host
+ *  and a fake run. Nothing here is real (ia.md §5 R38). */
+function demoBanner(hw) {
+  const banner = document.getElementById("demo-banner");
+  if (banner) banner.hidden = !(hw && hw.demo);
+}

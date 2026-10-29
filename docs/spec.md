@@ -254,7 +254,7 @@ other file, script or compose file is required.
 | `bernie bench ab --base ARM --cand ARM` | yes (it starts and stops a server for every arm) | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie fleet add <NAME> <URL> [--token T]` / `fleet rm <NAME>` / `fleet ls` | yes (config file) | List of other bernie hosts the Fleet tab watches. The token is stored in the config file with `0600`; it is never sent to the browser ([§11](#11-dashboard)). |
-| `bernie dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
+| `bernie dash [--listen ADDR] [--token T] [--demo]` | no | Start the dashboard. `--demo` serves a captured host and a fake run from a sandbox under the user cache, with the banner "Demo: nothing here is real"; it needs no GPU and changes nothing on the host. |
 | `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
 | `bernie version` | no | Version. |
 
