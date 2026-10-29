@@ -700,6 +700,7 @@ Steps (filtered by mode and host):
 | `causal-conv1d.build` | no | host | Build causal-conv1d from source for the host GPU targets. |
 | `flash-attn.build` | no | host | Only when a GPU has `flash_attn: true` in the device tables. gfx1030 does not. |
 | `vllm.build` | no | host | Clone the fork and build it in the venv, with `SETUPTOOLS_SCM_PRETEND_VERSION`: the branch carries no tag. |
+| `venv.verify` | no | host | The checks of the gfx1030 wiki: torch and vLLM import, the fork registers more than ten RDNA ops with an `all_reduce`, the extension finds every library and rocBLAS comes from the wheel of the venv. |
 | `image.pull` | no | container | Pull the recipe image. |
 | `model.download` | no | both | The files of the repo into the Hugging Face cache ([§6.1](#61-the-model-download)). |
 
@@ -762,6 +763,42 @@ DIR`.
 `doctor` and `status` say which venv they used and where it came from:
 `flag`, `$BERNIE_VENV`, `config`, `$VIRTUAL_ENV` or `conventional`. An
 ambiguous choice has the source `ambiguous` and lists the candidates.
+
+The venv holds the stack of the gfx1030 wiki:
+
+1. The ROCm device wheels, `torch`, `torchvision`, `torchaudio` and
+   `triton` (the `venv.torch` step).
+2. The build backend and the build tools of the fork: `setuptools`,
+   `setuptools-scm`, `setuptools-rust`, `cmake`, `ninja`, `wheel`,
+   `jinja2` and `packaging`. The fork is built with
+   `--no-build-isolation`, so the venv must hold them: without them the
+   build stops with `No module named setuptools_scm`.
+3. `causal-conv1d`, built from source for the targets of the host. The
+   HIP compiler takes the targets separated by commas.
+4. The fork of vLLM (`opengfx1030/vllm-rdna`, branch `rdna_extras`),
+   editable, with its runtime dependencies from `requirements/common.txt`.
+
+The build of the fork runs with these variables:
+
+| Variable | Value |
+|---|---|
+| `VLLM_TARGET_DEVICE` | `rocm` |
+| `VLLM_USE_PRECOMPILED` | `0` |
+| `PYTORCH_ROCM_ARCH` | the code targets of the host, separated by `;` |
+| `ROCM_HOME`, `ROCM_PATH`, `HIP_PATH` | the ROCm install that has `hipcc` |
+| `CMAKE_HIP_COMPILER` | `<install>/bin/hipcc` |
+| `HIP_ROOT_DIR`, `CMAKE_HIP_COMPILER_ROCM_ROOT` | the same install |
+| `CMAKE_BUILD_TYPE` | `RelWithDebInfo` |
+| `SETUPTOOLS_SCM_PRETEND_VERSION` | `0.31.0+rdna` (the branch carries no tag) |
+| `MAX_JOBS` | the cores of the host, at most 16 |
+| `PATH` | the bin directory of the venv first: `cmake` and `ninja` live there |
+
+The `venv.verify` step is the postcondition of `vllm.build`. It runs the
+checks of the gfx1030 wiki in the venv: `torch` and `vLLM` import, the
+fork registers more than ten RDNA ops with an `all_reduce`, the extension
+finds every library it needs and rocBLAS comes from the wheel of the venv.
+The step is done when the checks pass; the `doctor` reports the same
+findings.
 
 ### 6.3 The ROCm repository
 

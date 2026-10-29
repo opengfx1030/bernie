@@ -100,6 +100,17 @@ amd-torch-device-<gfx>==2.12.0+rocm7.14.0
 
 Triton stays at 3.7.1: Triton 3.9 dropped RDNA1 and RDNA2.
 
+The venv holds the build tools of the fork as well:
+
+```
+setuptools setuptools-scm setuptools-rust cmake ninja wheel jinja2 packaging
+```
+
+The fork is built with `--no-build-isolation`, so the build backend and
+the build tools have to be in the venv: without them the build stops with
+`No module named setuptools_scm`. The bin directory of the venv is first
+on `PATH` while a build runs: `cmake` and `ninja` live there.
+
 At run time the loader must find the wheel libraries before the system
 ones. The order is:
 
@@ -131,13 +142,41 @@ ROCM_HOME=<tree with bin/hipcc>
 ROCM_PATH=<tree with bin/hipcc>
 HIP_PATH=<tree with bin/hipcc>
 CMAKE_HIP_COMPILER=<tree with bin/hipcc>/bin/hipcc
+HIP_ROOT_DIR=<tree with bin/hipcc>
+CMAKE_HIP_COMPILER_ROCM_ROOT=<tree with bin/hipcc>
+CMAKE_BUILD_TYPE=RelWithDebInfo
 VLLM_PYTHON_EXECUTABLE=<venv>/bin/python
 SETUPTOOLS_SCM_PRETEND_VERSION=0.31.0+rdna
 MAX_JOBS=<cores, 16 at most>
 ```
 
 `SETUPTOOLS_SCM_PRETEND_VERSION` is needed because the branch carries no
-tag: without it setuptools-scm cannot name the package.
+tag: without it setuptools-scm cannot name the package. `HIP_ROOT_DIR` and
+`CMAKE_HIP_COMPILER_ROCM_ROOT` keep cmake from falling back to
+`/opt/rocm`, where the wrong headers win.
+
+The install takes no dependencies (`--no-deps`): the runtime ones are
+installed from `requirements/common.txt` of the fork, the build ones are
+in the venv. The ROCm-only extras of `requirements/rocm.txt` are not
+installed: they are not needed to serve and some of them have no wheel.
+
+## The check
+
+The `venv.verify` step is the postcondition of the build. It runs the
+checks of the gfx1030 wiki in the venv:
+
+- `torch` and `vllm` import.
+- The fork registered more than ten RDNA ops in the `_rocm_C` namespace
+  and one of them is an `all_reduce`. The ops are counted with
+  `torch._C._jit_get_all_schemas()`: `dir(torch.ops._rocm_C)` shows
+  nothing, even when the ops are registered.
+- `ldd` of the extension `_rocm_C.abi3.so` finds every library it needs.
+  Without the wheel libraries in `LD_LIBRARY_PATH` the extension loads
+  but registers no op.
+- rocBLAS comes from the wheel (`_rocm_sdk_libraries`), not from the
+  system.
+
+The `doctor` reports the same findings under the `python` category.
 
 ## What bernie runs and what it prints
 
