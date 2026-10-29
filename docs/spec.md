@@ -1482,8 +1482,8 @@ does not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
 | GET | `/api/runs/{name}/log?tail=2000&level=all&info&warn&error&q=text` | the tail of the log of a run: `{name, state, total_lines, truncated, lines: [{no, level, text}]}`. Every line carries its number in the log and its level. `level` is `all` (the default), `info`, `warn` or `error`; `q` is a case-insensitive substring; `tail` is 2000 lines by default. The levels are the rules of the log doctor: a line with `ERROR`, `Traceback`, `RuntimeError`, `CUDA error` or `Error:` is an error, a line with `WARNING` or `WARN` is a warning, every other line is info. A line that a finding points at is an error. |
 | GET | `/api/runs/{name}/findings` | the known failures in the log of a run: `{name, matches: [{id, severity, cause, fix, doc, line, line_no}]}`. It is the scan of `doctor --run`, with the same rules. |
-| GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}` |
-| GET | `/api/gpus/history?window=5m\|15m\|1h` | the samples of the last minutes, one series per card: `{window, interval_s, points, series: [{hip_index, busy_pct, power_w, vram_used, tokens_per_s, prompt_tok_s}]}`. The window is 15 m when the request names none; another window answers 400. The ring buffer of the telemetry hub keeps 30 minutes at one point every 2 s; the hub samples the host only while a page watches `/api/telemetry`, so the buffer fills while the dashboard is open and the answer is empty (`points: 0`, no series) before the first sample; a window is downsampled so that no series holds more than 240 points (5 m: one point every 2 s, 15 m: every 4 s, 1 h: every 15 s). `tokens_per_s` and `prompt_tok_s` are the output and prefill rates of the live run, read from the hub's vLLM metrics sample; the rate is a property of the server, so every card carries the same number, and the values are zero (the fields absent from a sample without a scrape) when no run serves. The answer is cached for 2 s. |
+| GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, slow_age_s, slow_interval_s, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}`. The sampler reads the cards of the host in two tiers: the fast fields every second, the slow fields every `slow_interval_s` seconds. `slow_age_s` is the age in seconds of the slow fields of this event. |
+| GET | `/api/gpus/history?window=5m\|15m\|1h` | the samples of the last minutes, one series per card: `{window, interval_s, points, series: [{hip_index, busy_pct, power_w, vram_used, tokens_per_s, prompt_tok_s, temp_c, sclk_mhz, mclk_mhz}]}`. The window is 15 m when the request names none; another window answers 400. The slow fields of a card (`temp_c`, `sclk_mhz`, `mclk_mhz`) are null at the points that hold no slow measurement: the ring never carries a slow value forward, and a gap is a gap. The ring buffer of the telemetry hub keeps 30 minutes at one point every 2 s; the hub samples the host only while a page watches `/api/telemetry`, so the buffer fills while the dashboard is open and the answer is empty (`points: 0`, no series) before the first sample; a window is downsampled so that no series holds more than 240 points (5 m: one point every 2 s, 15 m: every 4 s, 1 h: every 15 s). `tokens_per_s` and `prompt_tok_s` are the output and prefill rates of the live run, read from the hub's vLLM metrics sample; the rate is a property of the server, so every card carries the same number, and the values are zero (the fields absent from a sample without a scrape) when no run serves. The answer is cached for 2 s. |
 | POST | `/api/smoke` | one prompt to a run of this host: `{"prompt": "", "run": "", "model": ""}` → `{url, model, health, reply, ttft_ms, output_tokens, tok_s}`. The target is the run that serves, or the run named by `run`; a name that does not serve answers 404. The prompt is empty by default (then the prompt is "Hello"). The target is always a server of this host; a server that does not answer answers 502 with the reason. |
 | GET | `/api/power` | `tune power service status` JSON |
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. The value is clamped to the range the cards share (spec §9.2); the answer names the cards that were clamped in `clamped`. |
@@ -1511,6 +1511,18 @@ The `Sample` of the telemetry stream is one GPU:
 
 `temp_junction_c`, `temp_mem_c`, `sclk_mhz` and `mclk_mhz` are absent when
 the card does not publish them. The dashboard shows `–` for an absent value.
+
+The fields of a `Sample` are read in two tiers, because every read of an
+amdgpu attribute waits for its card:
+
+| Tier | Fields | Read every |
+|---|---|---|
+| fast | `busy_pct`, `power_w`, `vram_used` | one second |
+| slow | `temp_c`, `temp_junction_c`, `temp_mem_c`, `power_cap_w`, `vram_total`, `sclk_mhz`, `mclk_mhz` | `slow_interval_s` seconds (four) |
+
+A sample holds the last value of the slow fields and `slow_age_s` says how
+old it is. The page shows the age of the slow fields when it passes twice
+their own interval; below that the age is not worth a word on the page.
 
 Every card of the page carries a `json` link in its header. It opens the
 raw JSON of the endpoint behind the card in a new tab, so the document a
