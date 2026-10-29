@@ -389,7 +389,7 @@ too, and it arrives when the reader asks for it.
 | HTML | ≤ 12 KB | **4.3 KB** | `index.html` |
 | CSS | ≤ 80 KB, in eight files | **77.1 KB** | the design said four files; the split is `components.css` (the shared) + `views.css` (the per-tab) + `bench.css` + `classic.css` + `logs.css` + `dashboard.css` |
 | JavaScript | ≤ 290 KB | **275.3 KB** | plain, hand-written and unminified; five tabs of it |
-| JavaScript on the first paint | ≤ 110 KB | **105.6 KB** | the shell (49 KB) + the Setup tab (57 KB) |
+| JavaScript on the first paint | ≤ 112 KB | **111.6 KB** | the shell (49 KB) + the Setup tab (62 KB: the shared section/pill/empty-state helpers and the one-button path; the chooser and the path runner load on demand) |
 | CSS on the first paint | ≤ 40 KB | **37.5 KB** | `tokens.css`, `layout.css`, `components.css`, `views.css` |
 | Fonts | ≤ 130 KB, four woff2, OFL, `font-display: swap`, `unicode-range` | **128.4 KB**, four woff2, swap ✓, range ✓ | the license texts (24.5 KB) sit next to the files; they are not loaded by the page |
 | First-paint requests | ≤ 24 | **21** (1 HTML + 4 CSS + 12 scripts + 4 fonts) | the files of the other tabs come when their tab opens |

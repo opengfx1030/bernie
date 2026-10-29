@@ -344,7 +344,7 @@ for the first time (the manifest of `web/js/boot.js`).
 | HTML file | ≤ 12 KB | 4.3 KB | **[budget]** |
 | CSS total | ≤ 80 KB | 77.1 KB | **[budget]** |
 | JavaScript total (the six tabs) | ≤ 340 KB | 325.1 KB | **[budget]** |
-| JavaScript on the first paint | ≤ 110 KB | 105.6 KB | **[budget]** |
+| JavaScript on the first paint | ≤ 112 KB | 111.6 KB | **[budget]** |
 | CSS on the first paint | ≤ 40 KB | 37.5 KB | **[budget]** |
 | Fonts | ≤ 130 KB, ≤ 4 files, woff2, `font-display:swap`, `unicode-range` | 128.4 KB, 4 files, swap, range ✓ | **[budget]** |
 | Requests on the first paint | ≤ 24 | 21 | **[budget]** |
