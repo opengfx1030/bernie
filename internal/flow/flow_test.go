@@ -31,7 +31,7 @@ func TestNextCommand(t *testing.T) {
 			[]string{"bernie recipe list --all   # No recipe fits this host."}},
 		{"failed check goes first", &onboarding.Facts{GPUs: one, Recipe: "r1",
 			Doctor: doctor.Report{Checks: []doctor.Check{warn, fail}}},
-			[]string{"load the amdgpu driver   # This user cannot open the GPU device nodes."}},
+			[]string{"load the amdgpu driver   # This account cannot open the GPU devices."}},
 		{"warnings alone do not add doctor", &onboarding.Facts{GPUs: one, Recipe: "r1",
 			Doctor: doctor.Report{Checks: []doctor.Check{warn}}},
 			[]string{"bernie up r1"}},

@@ -20,14 +20,14 @@ type Fact struct {
 // model.
 func factsOf(f *Facts) []Fact {
 	out := []Fact{}
-	if gpus := f.gpuSummary(); gpus != "" {
-		out = append(out, Fact{
-			ID:    "gpus",
-			Label: "GPUs",
-			Value: gpus,
-			Why:   gpuWhy(f),
-		})
-	}
+	// The GPU fact is always there. A host without a card is exactly the
+	// fact a first-time reader needs, and a missing value is a dash.
+	out = append(out, Fact{
+		ID:    "gpus",
+		Label: "GPUs",
+		Value: dashIfEmpty(f.gpuSummary()),
+		Why:   gpuWhy(f),
+	})
 	if f.Host.RAMBytes > 0 {
 		out = append(out, Fact{
 			ID:    "memory",
@@ -48,7 +48,7 @@ func factsOf(f *Facts) []Fact {
 		ID:    "python",
 		Label: "Python",
 		Value: pythonValue(f),
-		Why:   "The venv holds the torch and vLLM builds that match the ROCm of this host.",
+		Why:   "The Python environment holds the torch and vLLM builds that match the ROCm of this host.",
 	})
 	if f.Model != "" {
 		out = append(out, Fact{
@@ -61,6 +61,15 @@ func factsOf(f *Facts) []Fact {
 	return out
 }
 
+// dashIfEmpty is the value of a fact that the host does not have: a dash,
+// never an empty cell.
+func dashIfEmpty(v string) string {
+	if v == "" {
+		return "–"
+	}
+	return v
+}
+
 // gpuWhy says why the cards of this host are what they are.
 func gpuWhy(f *Facts) string {
 	unique := map[string]bool{}
@@ -68,7 +77,7 @@ func gpuWhy(f *Facts) string {
 		unique[a] = true
 	}
 	if len(unique) == 0 {
-		return "Without a card there is nothing to serve."
+		return "This machine has no AMD GPU, so bernie cannot serve a model here."
 	}
 	if len(unique) == 1 {
 		for a := range unique {

@@ -30,7 +30,7 @@ func hardwareStep(f *Facts) Step {
 	case len(f.GPUs) == 0:
 		s.State = StateBlocked
 		s.Summary = "No AMD GPU is visible to bernie."
-		s.Detail = "bernie reads the GPUs from /sys/class/kfd. The amdgpu driver must be loaded and /dev/kfd must exist."
+		s.Detail = "bernie finds the cards through the amdgpu driver. On Linux that driver must be loaded; then /dev/kfd is the file a program opens to reach the GPU."
 	case hasFail(f.Doctor, stepChecks[StepHardware]...):
 		s.State = StateBlocked
 		s.Summary = "One of the GPUs is not usable yet."
@@ -50,7 +50,7 @@ func accessStep(f *Facts) Step {
 	s.Problems = problemsOf(f.Doctor, stepChecks[StepAccess]...)
 	if hasFail(f.Doctor, stepChecks[StepAccess]...) || len(rootCommands(f.Setup, "groups")) > 0 {
 		s.State = StateBlocked
-		s.Summary = "This user cannot open the GPU device nodes."
+		s.Summary = "This account cannot open the GPU devices."
 		s.RootCommands = rootCommands(f.Setup, "groups")
 		return s
 	}
@@ -93,9 +93,18 @@ func pythonStep(f *Facts) Step {
 	}
 	s.State = StateTodo
 	s.CanRun = true
-	s.Summary = fmt.Sprintf("%d step(s) of the venv are missing.", len(pending))
+	s.Summary = fmt.Sprintf("The Python environment with torch and vLLM is not built yet (%d of %d steps are missing).", len(pending), len(pythonSetupSteps))
+	s.Detail = "It writes the environment in " + venvPath(f) + "."
 	s.Command = applyCommand(pending)
 	return s
+}
+
+// venvPath is the directory of the Python environment of the host.
+func venvPath(f *Facts) string {
+	if f.Venv != "" {
+		return f.Venv
+	}
+	return setup.DefaultVenv()
 }
 
 // modelStep: the model files are in the Hugging Face cache.
@@ -113,6 +122,7 @@ func modelStep(f *Facts) Step {
 		s.State = StateTodo
 		s.CanRun = true
 		s.Summary = "The model files are not in the cache yet."
+		s.Detail = "It writes the files in " + f.HFHome + "."
 		if st.Download != nil && st.Download.ResumeBytes > 0 {
 			s.Progress = &Progress{
 				Phase: fmt.Sprintf("%s already downloaded", humanBytes(st.Download.ResumeBytes)),
