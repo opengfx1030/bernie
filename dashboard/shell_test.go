@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 )
@@ -66,6 +67,45 @@ func TestTheShellServesTheFilesOfTheTabs(t *testing.T) {
 		if r.Code != http.StatusOK {
 			t.Errorf("GET /%s: %d", file, r.Code)
 		}
+	}
+}
+
+// Every rail tab has a panel, a route, a script bundle and a row in the
+// README. A tab that misses one of them opens empty or disappears from the
+// documentation without a tab-by-tab smoke noticing.
+func TestEveryRailTabHasItsContract(t *testing.T) {
+	h := newServer(Options{Listen: "127.0.0.1:7860"}).handler()
+	page := do(t, h, "GET", "/", map[string]string{"Host": "127.0.0.1:7860"})
+	boot := do(t, h, "GET", "/js/boot.js", map[string]string{"Host": "127.0.0.1:7860"})
+	readme, err := os.ReadFile("README.md")
+	if err != nil {
+		t.Fatalf("read README.md: %v", err)
+	}
+	views := map[string]string{
+		"setup": "viewSetup", "dashboard": "viewDashboard", "chat": "viewChat",
+		"benchmark": "viewBenchmark", "topology": "viewTopology", "fleet": "viewFleet",
+		"logs": "viewLogs", "advanced": "viewAdvanced",
+	}
+	labels := map[string]string{
+		"setup": "Setup", "dashboard": "Dashboard", "chat": "Chat",
+		"benchmark": "Benchmark", "topology": "Topology", "fleet": "Fleet",
+		"logs": "Logs", "advanced": "Advanced",
+	}
+	for _, tab := range tabOrder {
+		t.Run(tab, func(t *testing.T) {
+			if !strings.Contains(page.Body.String(), `data-tab-panel="`+tab+`"`) {
+				t.Error("the page has no panel")
+			}
+			if !strings.Contains(boot.Body.String(), tab+`: "`+views[tab]+`"`) {
+				t.Error("the router has no route")
+			}
+			if !strings.Contains(boot.Body.String(), tab+": [") {
+				t.Error("the manifest has no script bundle")
+			}
+			if !strings.Contains(string(readme), "| "+labels[tab]+" |") {
+				t.Error("the README has no tab row")
+			}
+		})
 	}
 }
 

@@ -170,9 +170,9 @@ async function viewBenchmark(root) {
   async function benchDocs() {
     const paths = ["/api/bench", "/api/bench/suites"];
     const a = base.value, b = cand.value;
-    paths.push(a && b && a !== b
-      ? "/api/bench/compare?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b)
-      : "/api/bench/compare");
+    if (a && b && a !== b) {
+      paths.push("/api/bench/compare?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b));
+    }
     const docs = [];
     for (const p of paths) {
       let text = "";
