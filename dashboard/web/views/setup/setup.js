@@ -130,8 +130,14 @@ async function setupStartPath() {
 }
 
 /** loadSetupDocument reads the onboarding checklist and paints the
- *  headline, the facts and the timeline. */
+ *  headline, the facts and the timeline. The Re-check buttons of the tab
+ *  call this: it first drops the host caches (POST /api/refresh) so the
+ *  next read is a fresh probe, then asks for the onboarding document.
+ *  The first paint also drops the cache: the cost is one empty-map clear
+ *  and the reader's wait stays one round-trip. */
 async function loadSetupDocument(gen) {
+  if (gen && gen !== setupState.generation) return;
+  try { await refreshHost(); } catch { /* the cache drop is best-effort */ }
   if (gen && gen !== setupState.generation) return;
   let doc = null;
   try {

@@ -17,7 +17,8 @@ async function viewChat(root) {
   const reply = h("div.chat-reply");
   const metrics = h("p.chat-metrics");
   const note = h("p.chat-note", "No history is kept: the prompt and the answer are not stored.");
-  const box = h("div.chat-box", prompt, h("div.chat-actions", send, stop));
+  const modelLine = h("p.chat-model", "Model: …");
+  const box = h("div.chat-box", prompt, modelLine, h("div.chat-actions", send, stop));
   put(root, head, box, h("div.chat-answer", reasoning, reply, metrics), note);
 
   let controller = null;
@@ -134,12 +135,28 @@ async function viewChat(root) {
   });
 
   // The tab asks the run list: a box without a server under it would only
-  // answer with an error.
+  // answer with an error. When a run is up, the model line shows the first
+  // id the server reports (GET /api/models, ia.md R31); an older release
+  // without /v1/models falls back to the recipe name.
   let serving = false;
+  let modelName = "";
   try {
     const runs = runsOf(await api("/api/runs"));
     serving = runs.some((r) => r.state === "running");
+    const live = runs.find((r) => r.state === "running") || runs[0];
+    if (live) {
+      try {
+        const mod = await api("/api/models");
+        const ids = mod && mod.running;
+        if (Array.isArray(ids) && ids.length) modelName = ids[0];
+      } catch { /* the live model id is best-effort */ }
+      if (!modelName) {
+        const plan = live.plan || {};
+        modelName = plan.served_name || plan.model || live.recipe || live.name || "";
+      }
+    }
   } catch (e) { /* nothing serves: the empty state says so */ }
+  modelLine.textContent = modelName ? "Model: " + modelName : "Model: –";
   if (!serving) {
     setHead(head, "NO MODEL IS SERVING.", "Start one on the Setup tab, then ask it a question.");
     put(box, emptyState("No model is serving on this host.",

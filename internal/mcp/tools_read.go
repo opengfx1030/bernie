@@ -159,6 +159,9 @@ func registerRead(s *Server) {
 	addTool[recipeListIn, recipe.Listing](s, ro("recipe_list", "Recipes with their fit to this host (bernie recipe list)."), nil,
 		func(_ context.Context, _ *call, in recipeListIn) (any, error) { return app.RecipeList(in.All) })
 
+	addTool[noIn, app.ModelsReport](s, ro("models", "Models the running server serves (GET /v1/models) and repos the Hugging Face cache on this host holds (bernie models). A server that fails to answer does not fail the call: live_error carries the reason."), nil,
+		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.Models(ctx) })
+
 	addTool[idIn, *recipe.Recipe](s, ro("recipe_show", "The merged recipe after extends (bernie recipe show)."), patternOf("id"),
 		func(_ context.Context, _ *call, in idIn) (any, error) { return recipe.Load().Resolve(in.ID) })
 

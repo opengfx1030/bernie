@@ -64,12 +64,14 @@ async function topoLoad() {
 }
 
 /** topoCheck reads the checklist again: the reader pressed "Check
- *  readiness" after changing something on the host. The server holds the
- *  answer of the checklist for fifteen seconds, so a second press soon
- *  after the first one shows the same answer. */
+ *  readiness" after changing something on the host. The button drops every
+ *  cached answer of the host (POST /api/refresh) before it reloads, so a
+ *  cable that changed or a kernel module that loaded shows up at once
+ *  (spec §11, ia.md R27). */
 async function topoCheck() {
   const btn = topo.live.head && topo.live.head.querySelector("button.primary");
   if (btn) btn.disabled = true;
+  try { await refreshHost(); } catch { /* the cache drop is best-effort */ }
   await topoLoad();
   if (btn) btn.disabled = false;
 }
