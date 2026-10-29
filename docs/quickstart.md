@@ -2,25 +2,35 @@
 
 From a bare Linux host to a model that answers.
 
-## 1. Install
+## 1. One line, then browser
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --start
+```
+
+The installer puts `bernie` on `$PATH`, starts the dashboard as a
+background service and prints the URL to open. The token (when the
+listen address is not loopback) is persisted at
+`~/.local/state/bernie/dashboard/token` and is part of the URL: anyone
+with the URL can drive the host, so keep it private.
+
+The dashboard is reachable while vLLM is still loading: the Setup tab
+shows the next step and the run as `starting`. The host is checked the
+first time the dashboard reads it; the Setup tab runs the steps bernie
+can do without root and prints the ones that need root.
+
+## 2. Or run the whole path
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
-bernie doctor
-```
-
-`bernie doctor` checks the host: every line names the problem and the command that fixes it. Read the `[FAIL]` lines first.
-
-## 2. Run the whole path
-
-```bash
 bernie up
 ```
 
-`up` checks the host, builds what is missing, picks the recipe that fits,
-starts the server and opens the dashboard. It stops at the first step that
-needs root and prints that command: run it as root, then run `bernie up` again.
+`bernie up` checks the host, builds what is missing, picks the recipe
+that fits, starts the server and opens the dashboard. It stops at the
+first step that needs root and prints that command: run it as root,
+then run `bernie up` again.
 
 ```
 up: stopped: No AMD GPU is visible to bernie.

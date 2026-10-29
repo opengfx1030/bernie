@@ -28,6 +28,16 @@ flowchart LR
 It is one file. Put it on the GPU host (Linux) and run it.
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --start
+# the installer starts the dashboard as a background service and prints
+# the URL to open in a browser; the token is part of the URL on a
+# non-loopback listen address and is persisted at
+# ~/.local/state/bernie/dashboard/token
+```
+
+Or, in two steps:
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh
 bernie          # what this machine has, what is missing, what to type next
 bernie up       # check → install (non-root steps) → best recipe → serve → dashboard
