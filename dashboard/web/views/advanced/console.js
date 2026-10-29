@@ -40,6 +40,8 @@ async function viewAdvanced(root) {
   const jobs = advJobList();
   const runs = advRunsTable();
   const measures = advServerMeasures();
+  const prefs = advPrefsCard();
+  const report = advReportCard();
   put(root, head,
     h("section.section", { id: "advanced-gpus", "data-section": "gpus" },
       sectionLabel("The per-GPU values"),
@@ -55,12 +57,17 @@ async function viewAdvanced(root) {
       sectionLabel("The jobs"), jobs.el),
     h("section.section", { id: "advanced-run", "data-section": "run" },
       sectionLabel("The run record"), runs.el),
+    h("section.section", { id: "advanced-prefs", "data-section": "prefs" },
+      sectionLabel("The preferences"), prefs.el),
+    h("section.section", { id: "advanced-report", "data-section": "report" },
+      sectionLabel("The share report"), report.el),
     h("section.section", { id: "advanced-measures", "data-section": "measures" },
       sectionLabel("The server measures"), measures.el),
     h("section.section", { id: "advanced-documents", "data-section": "documents" },
       sectionLabel("The raw documents"), advDocuments()));
   adv.live = {
-    table: table, power: power, doctor: doctor, jobs: jobs, runs: runs, measures: measures,
+    table: table, power: power, doctor: doctor, jobs: jobs, runs: runs,
+    measures: measures, prefs: prefs, report: report,
   };
   await advLoad();
   advSubscribe();
@@ -83,6 +90,8 @@ async function advLoad() {
   if (!Array.isArray(adv.jobs)) adv.jobs = [];
   advPaint();
   await adv.live.power.reload();
+  await adv.live.prefs.reload();
+  await adv.live.report.reload();
 }
 
 /** advReload reads the documents of the host again. The doctor is held for
@@ -91,7 +100,7 @@ async function advLoad() {
  *  resolved or a cable that changed shows up at once (spec §11, ia.md R27). */
 async function advReload() {
   adv.errors = {};
-  try { await refreshHost(); } catch { /* the cache drop is best-effort */ }
+  try { await api("/api/refresh", { method: "POST" }); } catch { /* the cache drop is best-effort */ }
   await advLoad();
   toast("The host was read again.");
 }
