@@ -116,6 +116,8 @@ function tooltip(text, label) {
 
 function closeTip() {
   if (!tipPanel) return;
+  const anchor = document.querySelector('[aria-describedby="tip-panel"]');
+  if (anchor) anchor.removeAttribute("aria-describedby");
   tipPanel.remove();
   tipPanel = null;
 }
