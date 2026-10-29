@@ -382,15 +382,15 @@ too, and it arrives when the reader asks for it.
 
 | Budget | Target | Measured | Note |
 |---|---|---|---|
-| The whole page (HTML + CSS + JS, uncompressed) | ≤ 360 KB | **345.3 KB** (4.3 + 265.8 + 75.2) | the whole tree; the first paint is 141.6 KB of it |
+| The whole page (HTML + CSS + JS, uncompressed) | ≤ 375 KB | **356.6 KB** (4.3 + 275.3 + 77.1) | the whole tree; the first paint is 147.4 KB of it |
 | HTML | ≤ 12 KB | **4.3 KB** | `index.html` |
-| CSS | ≤ 80 KB, in eight files | **75.2 KB** | the design said four files; the split is `components.css` (the shared) + `views.css` (the per-tab) + `bench.css` + `classic.css` + `logs.css` + `dashboard.css` |
-| JavaScript | ≤ 280 KB | **265.8 KB** | plain, hand-written and unminified; five tabs of it |
-| JavaScript on the first paint | ≤ 110 KB | **101.4 KB** | the shell (46 KB) + the Setup tab (55 KB) |
-| CSS on the first paint | ≤ 40 KB | **37.0 KB** | `tokens.css`, `layout.css`, `components.css`, `views.css` |
+| CSS | ≤ 80 KB, in eight files | **77.1 KB** | the design said four files; the split is `components.css` (the shared) + `views.css` (the per-tab) + `bench.css` + `classic.css` + `logs.css` + `dashboard.css` |
+| JavaScript | ≤ 290 KB | **275.3 KB** | plain, hand-written and unminified; five tabs of it |
+| JavaScript on the first paint | ≤ 110 KB | **105.6 KB** | the shell (49 KB) + the Setup tab (57 KB) |
+| CSS on the first paint | ≤ 40 KB | **37.5 KB** | `tokens.css`, `layout.css`, `components.css`, `views.css` |
 | Fonts | ≤ 130 KB, four woff2, OFL, `font-display: swap`, `unicode-range` | **128.4 KB**, four woff2, swap ✓, range ✓ | the license texts (24.5 KB) sit next to the files; they are not loaded by the page |
 | First-paint requests | ≤ 24 | **21** (1 HTML + 4 CSS + 12 scripts + 4 fonts) | the files of the other tabs come when their tab opens |
-| Transferred text on the first paint (gzip) | ≤ 60 KB | **45.1 KB** (HTML + CSS + JS, 32 %) | the gzipped HTML alone is 1.2 KB |
+| Transferred text on the first paint (gzip) | ≤ 60 KB | **46.4 KB** (HTML + CSS + JS, 32 %) | the gzipped HTML alone is 1.2 KB |
 | First paint on a loopback host | ≤ 1.0 s | **unmeasured** | the binary runs on this Mac; a measurement on the reference box (par1-cs25) lands in `dashboard/README.md` when the integrator pushes |
 | The live numbers | one stream: `GET /api/telemetry` at 1 Hz drives every tile, every ring, every meter and every sparkline | the stream | the poller pauses while `document.hidden` and reads once on return (`web/js/data.js`) |
 | The poller | one timer for the page, in `js/data.js`; no view opens its own timer | one timer | one `setTimeout` re-arms itself with a delay that grows on error (backoff, capped at 60 s) and shrinks on success |
@@ -406,12 +406,15 @@ tree of `a3bd238` (the files of a tab come when the tab opens) and `5154cbf`
 | What | Before | After | How |
 |---|---|---|---|
 | Requests on the first paint | 43 | **21** | the manifest of `web/js/boot.js` names the files of a tab |
-| Text on the first paint | 341.8 KB | **141.6 KB** | the same |
-| Text on the first paint, gzipped | 110.3 KB | **45.1 KB** | the same |
-| JavaScript of the whole tree | 261.6 KB | 265.8 KB | the manifest adds 4 KB to `js/boot.js` |
+| Text on the first paint | 341.8 KB | **147.4 KB** | the same |
+| Text on the first paint, gzipped | 110.3 KB | **46.4 KB** | the same |
+| JavaScript of the whole tree | 261.6 KB | 275.3 KB | the manifest adds 4 KB to `js/boot.js`; the five tabs grew with the comparison of the Benchmark tab |
 | A tab switch | 0 extra requests | 6–8 extra requests, one time | the bundle of the tab, once |
 | The probe of the host for one reader | 220–300 ms per answer | **the same answer for every reader of 5–15 s** | one cache per endpoint (`dashboard/internal/api/cache.go`) |
 | The probe of the host for three readers | 3 probes | **1 probe** | the read is single-flight |
+| The reads of `/sys` per second | 150 | **46** | the two tiers of the sampler (spec §11) |
+| The cpu of `bernie dash` with a page open | 16.7 % of a core | **6.4 %** | the tiers, the cards read in parallel, the hwmon node and the sensor labels remembered |
+| The cpu of `bernie dash` with no page open | 0 % | 0 % | the sampler runs only while a page watches the stream |
 
 #### The cost of the server, measured on the 10 GPU box
 
