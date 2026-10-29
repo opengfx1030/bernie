@@ -117,13 +117,15 @@ func (s *Sampler) Sample(ctx context.Context) []byte {
 		}
 	}
 	if sp.history != nil {
-		// The output rate of the fleet: the rate is a property of the
-		// server, so every card of the history carries it.
-		fleet := 0.0
+		// The output and prefill rates of the fleet: the rates are
+		// properties of the server, so every card of the history carries
+		// them.
+		fleet, fleetPrompt := 0.0, 0.0
 		for i := range t.Runs {
 			fleet += t.Runs[i].GenTokS
+			fleetPrompt += t.Runs[i].PromptTokS
 		}
-		sp.history.Add(now, t.GPUs, fleet)
+		sp.history.Add(now, t.GPUs, fleet, fleetPrompt)
 	}
 	b, err := json.Marshal(t)
 	if err != nil {

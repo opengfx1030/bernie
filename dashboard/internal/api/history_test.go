@@ -47,7 +47,7 @@ func TestHistoryEndpointShape(t *testing.T) {
 	for i := range 3 {
 		hist.Add(now.Add(-time.Duration(3-i)*2*time.Second), []gpu.Sample{
 			{HIPIndex: 0, BusyPct: 12, PowerW: 18.4, VRAMUsed: 24117248},
-		}, 56.1)
+		}, 56.1, 234.5)
 	}
 	h := historyHandler(t, hist)
 	w := get(t, h, "/api/gpus/history?window=5m")
@@ -59,11 +59,12 @@ func TestHistoryEndpointShape(t *testing.T) {
 		IntervalS int    `json:"interval_s"`
 		Points    int    `json:"points"`
 		Series    []struct {
-			HIPIndex   int       `json:"hip_index"`
-			BusyPct    []float64 `json:"busy_pct"`
-			PowerW     []float64 `json:"power_w"`
-			VRAMUsed   []uint64  `json:"vram_used"`
-			TokensPerS []float64 `json:"tokens_per_s"`
+			HIPIndex         int       `json:"hip_index"`
+			BusyPct          []float64 `json:"busy_pct"`
+			PowerW           []float64 `json:"power_w"`
+			VRAMUsed         []uint64  `json:"vram_used"`
+			TokensPerS       []float64 `json:"tokens_per_s"`
+			PromptTokensPerS []float64 `json:"prompt_tok_s"`
 		} `json:"series"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &doc); err != nil {
@@ -76,10 +77,10 @@ func TestHistoryEndpointShape(t *testing.T) {
 		t.Fatalf("the document holds %d series, want 1", len(doc.Series))
 	}
 	s := doc.Series[0]
-	if s.HIPIndex != 0 || len(s.BusyPct) != 3 || len(s.PowerW) != 3 || len(s.VRAMUsed) != 3 || len(s.TokensPerS) != 3 {
+	if s.HIPIndex != 0 || len(s.BusyPct) != 3 || len(s.PowerW) != 3 || len(s.VRAMUsed) != 3 || len(s.TokensPerS) != 3 || len(s.PromptTokensPerS) != 3 {
 		t.Fatalf("the series is %+v", s)
 	}
-	if s.BusyPct[0] != 12 || s.PowerW[0] != 18.4 || s.VRAMUsed[0] != 24117248 || s.TokensPerS[0] != 56.1 {
+	if s.BusyPct[0] != 12 || s.PowerW[0] != 18.4 || s.VRAMUsed[0] != 24117248 || s.TokensPerS[0] != 56.1 || s.PromptTokensPerS[0] != 234.5 {
 		t.Fatalf("the series is %+v", s)
 	}
 }
