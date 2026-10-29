@@ -39,10 +39,15 @@ func List(ctx context.Context) ([]Status, error) {
 // state is running (/health answers), starting (alive, not healthy) or exited.
 func state(ctx context.Context, r *Record) string {
 	alive := false
-	if r.Mode == recipe.ModeContainer {
+	switch {
+	case r.Foreign:
+		// A foreign server has no process of ours to ask. It answers or
+		// it does not.
+		alive = true
+	case r.Mode == recipe.ModeContainer:
 		s, err := engineOut(ctx, r.Engine, "inspect", "--format", "{{.State.Running}}", r.Container)
 		alive = err == nil && s == "true"
-	} else {
+	default:
 		alive = processAlive(r.PID)
 	}
 	if !alive {
@@ -120,11 +125,15 @@ func resolveName(ctx context.Context, name string) (*Record, error) {
 }
 
 // Stop stops a run (the only running one when name is ""): SIGTERM to the
-// process group, 20 s, then SIGKILL; or `<engine> stop` and `rm`.
+// process group, 20 s, then SIGKILL; or `<engine> stop` and `rm`. A foreign
+// run (one bernie attached, R29) is never stopped: Stop only forgets it.
 func Stop(ctx context.Context, name string) error {
 	r, err := resolveName(ctx, name)
 	if err != nil {
 		return err
+	}
+	if r.Foreign {
+		return Forget(r.Name)
 	}
 	if r.Mode == recipe.ModeContainer {
 		if _, err := engineOut(ctx, r.Engine, "stop", "-t", strconv.Itoa(int(StopTimeout/time.Second)), r.Container); err != nil {

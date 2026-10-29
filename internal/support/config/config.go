@@ -150,7 +150,7 @@ func (c *Config) SetKey(key, value string) error {
 	case "hf_home":
 		c.HFHome = value
 	case "download_limit":
-		n, err := parseBytesPerSecond(value)
+		n, err := ParseBytesPerSecond(value)
 		if err != nil {
 			return fmt.Errorf("config download_limit: %w", err)
 		}
@@ -215,10 +215,10 @@ func (c Config) ResolveVenv(flag string) string {
 	return c.ResolveVenvInfo(flag).Path
 }
 
-// parseBytesPerSecond reads a size string of the form "5MB", "500KB",
+// ParseBytesPerSecond reads a size string of the form "5MB", "500KB",
 // "1GB" (decimal units, case-insensitive) or a plain integer of bytes.
 // Empty input is 0 (no limit). Whitespace is trimmed.
-func parseBytesPerSecond(value string) (int64, error) {
+func ParseBytesPerSecond(value string) (int64, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return 0, nil
