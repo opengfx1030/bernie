@@ -52,17 +52,6 @@ func dashNewToken() string {
 	return hex.EncodeToString(b)
 }
 
-// dashIsLoopback reports whether the listen address binds only to
-// loopback.
-func dashIsLoopback(listen string) bool {
-	h, _, err := net.SplitHostPort(listen)
-	if err != nil {
-		h = listen
-	}
-	ip := net.ParseIP(strings.Trim(h, "[]"))
-	return ip != nil && ip.IsLoopback()
-}
-
 // File names in the state directory.
 const (
 	DirName     = "dashboard"

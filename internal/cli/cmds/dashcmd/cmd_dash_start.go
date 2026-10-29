@@ -66,17 +66,17 @@ func runStart(c *cli.Context, args []string) error {
 		fmt.Fprintln(c.Err, "bernie dash: managed by systemd --user; the dashboard survives logout only after `loginctl enable-linger $USER` (root).")
 	}
 	return c.Emit(map[string]any{
-		"state":         st.State,
-		"pid":           st.PID,
-		"listen":        st.Listen,
-		"loopback_url":  st.LoopbackURL,
-		"lan_urls":      st.LANURLs,
-		"token":         st.Token,
-		"manager":       st.Manager,
-		"token_path":    st.TokenPath,
-		"log_path":      st.LogPath,
-		"started_at":    st.StartedAt,
-		"systemd_hint":  "loginctl enable-linger $USER",
+		"state":        st.State,
+		"pid":          st.PID,
+		"listen":       st.Listen,
+		"loopback_url": st.LoopbackURL,
+		"lan_urls":     st.LANURLs,
+		"token":        st.Token,
+		"manager":      st.Manager,
+		"token_path":   st.TokenPath,
+		"log_path":     st.LogPath,
+		"started_at":   st.StartedAt,
+		"systemd_hint": "loginctl enable-linger $USER",
 	}, func(w io.Writer) {
 		fmt.Fprintf(w, "bernie dash: listening on %s\n", st.Listen)
 		if st.LoopbackURL != "" {
