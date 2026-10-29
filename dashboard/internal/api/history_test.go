@@ -128,3 +128,28 @@ func TestHistoryEndpointWithoutTelemetry(t *testing.T) {
 		t.Fatalf("the history without telemetry: got %d, want 503", w.Code)
 	}
 }
+
+// TestHistoryEndpointHoldsTheAnswer checks that the answer is held for two
+// seconds: the ring buffer moves every two seconds, so a page that asks
+// twice in a row gets the same document.
+func TestHistoryEndpointHoldsTheAnswer(t *testing.T) {
+	hist := telemetry.NewHistory()
+	now := time.Now()
+	hist.Add(now, []gpu.Sample{{HIPIndex: 0, BusyPct: 1}}, 0, 0)
+	h := historyHandler(t, hist)
+	first := get(t, h, "/api/gpus/history?window=5m")
+	if first.Code != http.StatusOK {
+		t.Fatalf("the history: %d %s", first.Code, first.Body.String())
+	}
+	// A new point moves the buffer, but the answer is still the held one.
+	hist.Add(now.Add(2*time.Second), []gpu.Sample{{HIPIndex: 0, BusyPct: 2}}, 0, 0)
+	second := get(t, h, "/api/gpus/history?window=5m")
+	if second.Body.String() != first.Body.String() {
+		t.Fatalf("the answer changed inside the hold:\n%s\n%s", first.Body.String(), second.Body.String())
+	}
+	// Another window is another document.
+	other := get(t, h, "/api/gpus/history?window=1h")
+	if other.Body.String() == first.Body.String() {
+		t.Fatal("the windows share one answer")
+	}
+}
