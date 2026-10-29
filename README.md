@@ -113,6 +113,7 @@ each package is in [docs/packages.md](docs/packages.md).
 
 - [docs/overview.html](docs/overview.html) — one-page visual tour (open in a browser).
 - [docs/install.md](docs/install.md) — install: script, rpm/deb, container image, compose, source.
+- [docs/rocm.md](docs/rocm.md) — ROCm on the host: the distributions, the versions, the packages, the loader path.
 - [docs/spec.md](docs/spec.md) — the behavior contract: commands, JSON shapes, recipe schema, files.
 - [docs/architecture.md](docs/architecture.md) — layers, the layout of the repository, dependency graph, flow of `up`, recipe resolution, run states, data per GPU arch.
 - [docs/packages.md](docs/packages.md) — the API of each package.
