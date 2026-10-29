@@ -11,7 +11,7 @@ import (
 func fill(h *History, n int, now time.Time) {
 	for i := range n {
 		at := now.Add(-time.Duration(n-i) * historyStep)
-		h.Add(at, []gpu.Sample{{HIPIndex: 0, BusyPct: float64(i), PowerW: 10.5, VRAMUsed: 1024}}, float64(i), float64(i))
+		h.Add(at, []gpu.Sample{{HIPIndex: 0, BusyPct: float64(i), PowerW: 10.5, VRAMUsed: 1024}}, float64(i), float64(i), false)
 	}
 }
 
@@ -20,12 +20,12 @@ func fill(h *History, n int, now time.Time) {
 func TestHistoryKeepsOnePointPerStep(t *testing.T) {
 	h := NewHistory()
 	now := time.Now()
-	h.Add(now, []gpu.Sample{{HIPIndex: 0}}, 1, 1)
-	h.Add(now.Add(time.Second), []gpu.Sample{{HIPIndex: 0}}, 2, 2)
+	h.Add(now, []gpu.Sample{{HIPIndex: 0}}, 1, 1, false)
+	h.Add(now.Add(time.Second), []gpu.Sample{{HIPIndex: 0}}, 2, 2, false)
 	if h.n != 1 {
 		t.Fatalf("the buffer holds %d points, want 1", h.n)
 	}
-	h.Add(now.Add(2*time.Second), []gpu.Sample{{HIPIndex: 0}}, 3, 3)
+	h.Add(now.Add(2*time.Second), []gpu.Sample{{HIPIndex: 0}}, 3, 3, false)
 	if h.n != 2 {
 		t.Fatalf("the buffer holds %d points, want 2", h.n)
 	}
@@ -41,7 +41,7 @@ func TestHistoryWindowShape(t *testing.T) {
 		h.Add(at, []gpu.Sample{
 			{HIPIndex: 0, BusyPct: 10, PowerW: 20.25, VRAMUsed: 100},
 			{HIPIndex: 1, BusyPct: 30, PowerW: 40.5, VRAMUsed: 200},
-		}, 5, 3)
+		}, 5, 3, false)
 	}
 	doc, err := h.Window(Window5m)
 	if err != nil {
@@ -81,7 +81,7 @@ func TestHistoryLongWindowIsDownsampled(t *testing.T) {
 	now := time.Now()
 	for i := range 30 { // 30 points every 2 s = 60 s
 		at := now.Add(-time.Duration(30-i) * historyStep)
-		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, float64(i), float64(i))
+		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, float64(i), float64(i), false)
 	}
 	doc, err := h.Window(Window1h)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestHistoryKeepsTheLastThirtyMinutes(t *testing.T) {
 	now := time.Now()
 	for i := range historyCapacity + 50 {
 		at := now.Add(-time.Duration(historyCapacity+50-i) * historyStep)
-		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, 0, 0)
+		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, 0, 0, false)
 	}
 	doc, err := h.Window(Window1h)
 	if err != nil {
@@ -143,7 +143,7 @@ func TestHistoryCapsThePointsOfASeries(t *testing.T) {
 	now := time.Now()
 	for i := range historyCapacity { // 30 minutes at one point every 2 s
 		at := now.Add(-time.Duration(historyCapacity-i) * historyStep)
-		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, 0, 0)
+		h.Add(at, []gpu.Sample{{HIPIndex: 0}}, 0, 0, false)
 	}
 	for _, name := range []string{Window5m, Window15m, Window1h} {
 		doc, err := h.Window(name)
@@ -164,12 +164,12 @@ func TestHistoryCapsThePointsOfASeries(t *testing.T) {
 func TestHistoryCachesTheAnswer(t *testing.T) {
 	h := NewHistory()
 	now := time.Now()
-	h.Add(now, []gpu.Sample{{HIPIndex: 0, BusyPct: 5}}, 0, 0)
+	h.Add(now, []gpu.Sample{{HIPIndex: 0, BusyPct: 5}}, 0, 0, false)
 	first, err := h.Window(Window5m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h.Add(now.Add(historyStep), []gpu.Sample{{HIPIndex: 0, BusyPct: 6}}, 0, 0)
+	h.Add(now.Add(historyStep), []gpu.Sample{{HIPIndex: 0, BusyPct: 6}}, 0, 0, false)
 	second, err := h.Window(Window5m)
 	if err != nil {
 		t.Fatal(err)

@@ -88,8 +88,28 @@ func fillDevice(root string, g *GPU) {
 	}
 }
 
-// Telemetry reads one sample per GPU. Missing files read as zero.
+// Telemetry reads the cards of the host and returns one sample per card.
+//
+// Every read of an amdgpu attribute talks to the card: on a host with ten
+// cards the whole set costs more than a tenth of a core per second. The
+// attributes are therefore read in two tiers: the numbers that move every
+// second (TelemetryFast) and the numbers that move every few seconds
+// (TelemetrySlow). Telemetry reads both.
 func Telemetry(root string, gpus []GPU) []Sample {
+	fast := TelemetryFast(root, gpus)
+	slow := TelemetrySlow(root, gpus)
+	for i := range fast {
+		if i < len(slow) {
+			MergeSlow(&fast[i], &slow[i])
+		}
+	}
+	return fast
+}
+
+// TelemetryFast reads the numbers of the cards that move every second: the
+// load of the card, the memory in use and the power it draws. The other
+// attributes are zero in the answer.
+func TelemetryFast(root string, gpus []GPU) []Sample {
 	root = canonRoot(root)
 	out := make([]Sample, 0, len(gpus))
 	for _, g := range gpus {
@@ -98,6 +118,29 @@ func Telemetry(root string, gpus []GPU) []Sample {
 			dev := filepath.Join(root, g.SysfsPath)
 			s.BusyPct = float64(readInt(filepath.Join(dev, "gpu_busy_percent"), 0))
 			s.VRAMUsed = readUint(filepath.Join(dev, "mem_info_vram_used"))
+			if hw := HwmonDir(dev); hw != "" {
+				p := readUint(filepath.Join(hw, "power1_average"))
+				if p == 0 {
+					p = readUint(filepath.Join(hw, "power1_input"))
+				}
+				s.PowerW = microWatts(p)
+			}
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// TelemetrySlow reads the numbers of the cards that move every few seconds:
+// the total memory, the temperatures, the power cap and the clocks. The
+// other attributes are zero in the answer.
+func TelemetrySlow(root string, gpus []GPU) []Sample {
+	root = canonRoot(root)
+	out := make([]Sample, 0, len(gpus))
+	for _, g := range gpus {
+		s := Sample{HIPIndex: g.HIPIndex, VRAMTotal: g.VRAMBytes}
+		if g.SysfsPath != "" {
+			dev := filepath.Join(root, g.SysfsPath)
 			if t := readUint(filepath.Join(dev, "mem_info_vram_total")); t > 0 {
 				s.VRAMTotal = t
 			}
@@ -105,11 +148,6 @@ func Telemetry(root string, gpus []GPU) []Sample {
 				s.TempC = edgeTemp(hw)
 				s.TempJunctionC = tempByLabel(hw, "junction")
 				s.TempMemC = tempByLabel(hw, "mem")
-				p := readUint(filepath.Join(hw, "power1_average"))
-				if p == 0 {
-					p = readUint(filepath.Join(hw, "power1_input"))
-				}
-				s.PowerW = microWatts(p)
 				s.PowerCapW = microWatts(readUint(filepath.Join(hw, "power1_cap")))
 			}
 			s.SclkMHz = dpmClock(filepath.Join(dev, "pp_dpm_sclk"))
@@ -118,6 +156,19 @@ func Telemetry(root string, gpus []GPU) []Sample {
 		out = append(out, s)
 	}
 	return out
+}
+
+// MergeSlow copies the slow attributes of b into a: the temperatures, the
+// power cap, the total memory and the clocks. The fast attributes of a
+// stay as they are.
+func MergeSlow(a, b *Sample) {
+	a.TempC = b.TempC
+	a.PowerCapW = b.PowerCapW
+	a.VRAMTotal = b.VRAMTotal
+	a.TempJunctionC = b.TempJunctionC
+	a.TempMemC = b.TempMemC
+	a.SclkMHz = b.SclkMHz
+	a.MclkMHz = b.MclkMHz
 }
 
 // edgeTemp returns the temperature of the sensor labelled "edge", else the
