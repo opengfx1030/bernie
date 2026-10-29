@@ -119,6 +119,7 @@ async function loadSetupPlan() {
   put(box, loading());
   const query = new URLSearchParams();
   query.set("mode", setupState.mode);
+  if (setupState.name) query.set("name", setupState.name);
   for (const set of setupState.sets) query.append("set", set);
   let plan = null;
   try {
@@ -131,7 +132,21 @@ async function loadSetupPlan() {
     return;
   }
   setupState.plan = plan;
+  await setupEnsurePrefs();
   put(box, setupPlanView(plan, recipe));
+}
+
+/** setupEnsurePrefs reads the list of config keys once, so the plan card
+ *  can offer "Save as default" only for fields that have a config key
+ *  (ia.md R43). */
+async function setupEnsurePrefs() {
+  if (Array.isArray(setupState.prefsKeys)) return;
+  try {
+    const rep = await api("/api/prefs");
+    setupState.prefsKeys = Array.isArray(rep && rep.keys) ? rep.keys.slice() : [];
+  } catch (e) {
+    setupState.prefsKeys = [];
+  }
 }
 /** setupRecipe is the picked recipe of the listing. */
 function setupRecipe() {
@@ -152,10 +167,12 @@ function setupPlanView(plan, recipe) {
           class: m === setupState.mode ? "active" : "",
           "aria-pressed": String(m === setupState.mode),
           onclick: () => setupSwitchMode(m),
-        }, m)))),
+        }, m))),
+      setupPlanSaveDefaultButton()),
     h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, recipe ? setupFitLine(recipe) : "fit: unknown"),
     setupPlanOverrides(recipe),
     (plan.warnings || []).map((w) => h("p.recipe-warning", w)),
+    setupPlanAdjust(plan, recipe),
     setupPlanLaunchBox(plan),
     h("div.recipe-gpus",
       h("span.recipe-gpus-label", "GPUs"),
@@ -224,8 +241,10 @@ function setupPlanAdjustments(plan) {
         a.why ? h("span.recipe-adjustment-why", a.why) : null);
     }));
 }
-/** setupPlanOverrides are the inputs of the recipe and the extra settings
- *  the operator wants. A change builds the plan again. */
+/** setupPlanOverrides are the inputs of the recipe and the structured
+ *  overrides the operator wants (ia.md R43). A change builds the plan
+ *  again; there is no free-text env editor — the page only writes the
+ *  same overrides the CLI accepts (`--set KEY=VALUE`, `--name`). */
 function setupPlanOverrides(recipe) {
   if (!recipe) return null;
   const inputs = recipe.inputs || {};
@@ -241,14 +260,45 @@ function setupPlanOverrides(recipe) {
     });
     return h("label.recipe-input", h("span.recipe-input-name", name + (input.required ? " *" : "")), field);
   });
-  const extra = h("textarea", {
-    rows: 2,
-    placeholder: "args.max-model-len=32768",
+  return h("div.recipe-overrides", fields, setupPlanCommonOverrides());
+}
+/** setupPlanCommonOverrides are the structured overrides a newcomer needs
+ *  (ia.md R43): port, max context length, run name and model path/id.
+ *  Each writes the same flag the CLI accepts. */
+function setupPlanCommonOverrides() {
+  const port = h("input", {
+    type: "number", min: "1", step: "1",
+    name: "args.port",
+    value: setupSetValue("args.port", ""),
+    placeholder: "8080",
     onchange: () => setupApplyOverrides(),
   });
-  extra.value = setupExtraSets(inputs).join("\n");
-  return h("div.recipe-overrides", fields,
-    h("label.recipe-input", h("span.recipe-input-name", "Overrides"), extra));
+  const ctx = h("input", {
+    type: "number", min: "1", step: "1",
+    name: "args.max-model-len",
+    value: setupSetValue("args.max-model-len", ""),
+    placeholder: "32768",
+    onchange: () => setupApplyOverrides(),
+  });
+  const name = h("input", {
+    type: "text",
+    name: "_name",
+    value: setupState.name || "",
+    placeholder: "run name (default: recipe id)",
+    onchange: () => { setupState.name = name.value.trim(); setupApplyOverrides(); },
+  });
+  const model = h("input", {
+    type: "text",
+    name: "model.source",
+    value: setupSetValue("model.source", ""),
+    placeholder: "/path/to/model or org/repo",
+    onchange: () => setupApplyOverrides(),
+  });
+  return h("div.recipe-common-overrides",
+    h("label.recipe-input", h("span.recipe-input-name", "Port"), port),
+    h("label.recipe-input", h("span.recipe-input-name", "Max context length"), ctx),
+    h("label.recipe-input", h("span.recipe-input-name", "Run name"), name),
+    h("label.recipe-input", h("span.recipe-input-name", "Model"), model));
 }
 /** setupSetValue is the value of one input of the recipe. */
 function setupSetValue(name, fallback) {
@@ -256,28 +306,59 @@ function setupSetValue(name, fallback) {
   const found = setupState.sets.find((s) => s.startsWith(prefix));
   return found ? found.slice(prefix.length) : fallback;
 }
-/** setupExtraSets are the overrides that are not an input of the recipe. */
-function setupExtraSets(inputs) {
-  const names = Object.keys(inputs || {});
-  return setupState.sets.filter((s) => !names.some((n) => s.startsWith(n + "=")));
-}
-/** setupApplyOverrides reads the fields of the plan and builds it again. */
+/** setupApplyOverrides reads the fields of the plan and rebuilds it.
+ *  Structured only: recipe inputs + the common overrides; no free-text
+ *  env editor (ia.md R43). */
 async function setupApplyOverrides() {
   const box = setupState.planBox;
   if (!box) return;
   const sets = [];
-  const fields = box.querySelectorAll(".recipe-overrides input");
-  fields.forEach((field) => {
-    if (field.value !== "") sets.push(field.name + "=" + field.value);
+  box.querySelectorAll(".recipe-overrides input, .recipe-common-overrides input").forEach((field) => {
+    const name = field.name;
+    if (!name || name === "_name") return;
+    const v = String(field.value || "").trim();
+    if (v !== "") sets.push(name + "=" + v);
   });
-  const extra = box.querySelector(".recipe-overrides textarea");
-  if (extra) {
-    for (const line of extra.value.split("\n")) {
-      if (line.trim()) sets.push(line.trim());
-    }
-  }
   setupState.sets = sets;
   await loadSetupPlan();
+}
+
+/** setupPlanAdjust is the "The GPUs and the settings of this plan"
+ *  disclosure (ia.md R43, R44). The body loads lazily so the first paint
+ *  stays under budget. */
+function setupPlanAdjust() {
+  const body = h("div.recipe-plan-adjust-body");
+  const panel = h("details.advanced.recipe-plan-adjust",
+    h("summary", "The GPUs and the settings of this plan"), body);
+  let loaded = false;
+  panel.addEventListener("toggle", async () => {
+    if (!panel.open || loaded) return;
+    loaded = true;
+    try {
+      await setupEnsureModule("views/setup/plan-adjust.js");
+      if (typeof setupPlanAdjustBody === "function") put(body, setupPlanAdjustBody());
+    } catch (e) {
+      put(body, failed(e));
+    }
+  });
+  return panel;
+}
+
+/** setupPlanSaveDefaultButton is the ghost button next to the mode switch.
+ *  Renders only when the config knows the "mode" key (ia.md R43). The
+ *  click handler comes from the lazy plan-adjust module. */
+function setupPlanSaveDefaultButton() {
+  const keys = setupState.prefsKeys;
+  if (!Array.isArray(keys) || !keys.includes("mode")) return null;
+  const btn = h("button.small", { type: "button", onclick: setupPlanSaveDefaultClick }, "Save the mode as default");
+  btn.title = "bernie config set mode " + setupState.mode;
+  return btn;
+}
+async function setupPlanSaveDefaultClick() {
+  try {
+    await setupEnsureModule("views/setup/plan-adjust.js");
+  } catch (e) { /* no-op if the module fails */ }
+  if (typeof setupSaveDefaultMode === "function") return setupSaveDefaultMode();
 }
 /** setupSwitchMode changes the mode of the plan and builds it again. */
 async function setupSwitchMode(mode) {
