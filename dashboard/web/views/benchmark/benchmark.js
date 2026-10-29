@@ -84,7 +84,7 @@ function benchHeadline(head, results) {
   const cards = benchCards(last.fingerprint);
   const cellName = best ? benchCellName(best) : "the table";
   const title = best
-    ? "The last benchmark reached " + benchNum(best.output_tok_s, 1) + " tok/s in the cell " + cellName + "."
+    ? "The last benchmark reached " + benchNum(best.output_tok_s, 1) + " tok/s."
     : "The last benchmark has no output rate.";
   const lede = best
     ? "The " + benchSuiteOf(last) + " suite measured " + cells.length + " cells" +
