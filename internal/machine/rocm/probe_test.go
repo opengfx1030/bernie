@@ -109,14 +109,21 @@ func TestCompareVersions(t *testing.T) {
 }
 
 func TestParseVenvOutput(t *testing.T) {
-	out := "INFO 10-28 vllm noise on stdout\nBERNIE_JSON:{\"python\": \"3.12.13\", \"torch\": \"2.12.0+rocm7.14.0\", \"hip\": \"7.14.60850\", \"device_count\": 10, \"vllm\": \"0.31.0+rdna\", \"rdna_ops\": 42}\n"
+	out := "INFO 10-28 vllm noise on stdout\nBERNIE_JSON:{\"python\": \"3.12.13\", \"torch\": \"2.12.0+rocm7.14.0\", \"hip\": \"7.14.60850\", \"device_count\": 10, \"vllm\": \"0.31.0+rdna\", \"rocm_ops\": 83, \"rdna_ops\": 42, \"all_reduce\": true, \"rocm_c\": \"/v/vllm/_rocm_C.abi3.so\", \"missing_libs\": [], \"rocblas\": \"/v/lib/librocblas.so.5\", \"rocblas_wheel\": true, \"verify_errors\": []}\n"
 	rep := VenvReport{Venv: "/v"}
 	if !parseVenvOutput(out, &rep) {
 		t.Fatal("not parsed")
 	}
-	want := VenvReport{Venv: "/v", Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", VLLM: "0.31.0+rdna", DeviceCount: 10, RDNAOps: 42}
-	if rep != want {
+	want := VenvReport{Venv: "/v", Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", VLLM: "0.31.0+rdna", DeviceCount: 10, ROCMOps: 83, RDNAOps: 42, AllReduce: true, ROCMC: "/v/vllm/_rocm_C.abi3.so", MissingLibs: []string{}, ROCBLAS: "/v/lib/librocblas.so.5", ROCBLASWheel: true, VerifyErrors: []string{}}
+	if !reflect.DeepEqual(rep, want) {
 		t.Errorf("got %+v", rep)
+	}
+	if !rep.Verified() {
+		t.Error("a venv without errors must be verified")
+	}
+	bad := VenvReport{VerifyErrors: []string{"no all_reduce"}}
+	if bad.Verified() {
+		t.Error("a venv with verify errors must not be verified")
 	}
 	if parseVenvOutput("Traceback ...\n", &rep) {
 		t.Error("garbage parsed")

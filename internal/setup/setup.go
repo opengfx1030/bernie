@@ -90,9 +90,10 @@ func Plan(ctx context.Context, h host.Info, r rocm.Report, o Options) []Step {
 	}
 	o.GPUArchs = uniq(o.GPUArchs)
 	pl := planner{ctx: ctx, h: h, r: r, o: o, site: sitePackages(o.Venv), targets: devices.CodeTargets(o.GPUArchs)}
+	pl.venvOK = pl.probeVenv()
 	all := []Step{
 		pl.groups(), pl.rocmRuntime(), pl.containerEngine(),
-		pl.venvCreate(), pl.venvTorch(), pl.causalConv1D(), pl.flashAttn(), pl.vllmBuild(),
+		pl.venvCreate(), pl.venvTorch(), pl.causalConv1D(), pl.flashAttn(), pl.vllmBuild(), pl.venvVerify(),
 		pl.imagePull(), pl.modelDownload(),
 	}
 	var out []Step
@@ -116,7 +117,24 @@ type planner struct {
 	// targets are the code-object targets of the GPUs (an HSA override
 	// target replaces the real one): wheels and build targets use them.
 	targets []string
+	// venvOK says that the venv of the host passes the checks of the
+	// gfx1030 wiki: the fork is installed, its ops are registered, its
+	// libraries resolve and rocBLAS comes from the wheel.
+	venvOK bool
 }
+
+// probeVenv checks the venv of the host. The probe starts the venv's
+// Python, which takes seconds, so it only runs when the fork is installed:
+// without it there is nothing to check.
+func (p planner) probeVenv() bool {
+	if !p.has("vllm-*rdna*.dist-info") && !p.has("vllm-*.dist-info") {
+		return false
+	}
+	return probeVenv(p.ctx, p.o.Venv).Verified()
+}
+
+// probeVenv reads the state of a venv. The tests replace it.
+var probeVenv = rocm.ProbeVenv
 
 // which resolves a tool on PATH; tests replace it.
 var which = execx.Which

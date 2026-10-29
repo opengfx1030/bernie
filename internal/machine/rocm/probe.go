@@ -285,7 +285,7 @@ func probeVenv(ctx context.Context, venv string) VenvReport {
 		}
 		env = append(env, "LD_LIBRARY_PATH="+ld)
 	}
-	res, err := execx.RunEnv(ctx, venvProbeTimeout, env, py, "-I", "-c", venvProbeScript)
+	res, err := execx.RunEnv(ctx, venvProbeTimeout, env, py, "-I", "-c", VenvProbeScript)
 	if err != nil {
 		rep.Err = err.Error()
 		return rep

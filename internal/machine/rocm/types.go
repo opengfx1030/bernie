@@ -30,6 +30,29 @@ type VenvReport struct {
 	HIP         string `json:"hip"`
 	VLLM        string `json:"vllm"`
 	DeviceCount int    `json:"device_count"`
-	RDNAOps     int    `json:"rdna_ops"`
-	Err         string `json:"error,omitempty"`
+	// ROCMOps counts the ops the fork registered in the _rocm_C
+	// namespace, RDNAOps the RDNA ones among them.
+	ROCMOps int `json:"rocm_ops"`
+	RDNAOps int `json:"rdna_ops"`
+	// AllReduce is true when the fork registered an all_reduce op.
+	AllReduce bool `json:"all_reduce"`
+	// ROCMC is the file of the compiled extension of the fork.
+	ROCMC string `json:"rocm_c"`
+	// MissingLibs are the libraries the extension needs and the loader
+	// does not find.
+	MissingLibs []string `json:"missing_libs"`
+	// ROCBLAS is the rocBLAS a torch process loads, ROCBLASWheel true
+	// when it is the copy of the wheel of the venv.
+	ROCBLAS      string `json:"rocblas"`
+	ROCBLASWheel bool   `json:"rocblas_wheel"`
+	// VerifyErrors are the checks of the gfx1030 wiki that failed.
+	VerifyErrors []string `json:"verify_errors"`
+	Err          string   `json:"error,omitempty"`
+}
+
+// Verified reports whether the venv passes every check of the gfx1030
+// wiki: torch and vLLM import, the RDNA ops of the fork are registered,
+// the libraries of the extension resolve and rocBLAS comes from the wheel.
+func (r VenvReport) Verified() bool {
+	return r.Err == "" && len(r.VerifyErrors) == 0
 }
