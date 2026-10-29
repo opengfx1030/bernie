@@ -1583,6 +1583,7 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `topo` | `topo` | `bandwidth`, `venv` |
 | `doctor` | `doctor` | `categories`, `venv` |
 | `doctor_log` | `doctor --run` | `run` (a run name, never a path) |
+| `smoke` | `smoke` | `url` (loopback only), `model` |
 | `recipe_list` | `recipe list` | `all` |
 | `recipe_show` | `recipe show` | `id` |
 | `recipe_plan` | `recipe plan` | the launch flags: `id`, `set`, `mode`, `name`, `venv`, `engine`, `profile`, `no_tunableop`, `tuning` |
@@ -1609,6 +1610,11 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors"}` |
 
 `up` and `config set` are not tools. An agent runs them through the CLI.
+
+A tool that runs one onboarding step is deferred. The CLI has no command
+that runs one checklist step, so such a tool would exist only in MCP and
+would break the one-surface rule. An agent uses `setup_apply` and `serve`,
+the CLI actions behind the runnable steps.
 
 `logs` returns a text document, not a CLI document, because `bernie logs`
 is a text stream:

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/jsonschema-go/jsonschema"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/support/netx"
 )
 
 // Input types of the read-only tools. A field without omitempty is required.
@@ -36,6 +38,11 @@ type doctorIn struct {
 
 type runIn struct {
 	Run string `json:"run" jsonschema:"name of a run (ps)"`
+}
+
+type smokeIn struct {
+	URL   string `json:"url,omitempty" jsonschema:"base URL of the server; loopback only (default: the running run)"`
+	Model string `json:"model,omitempty" jsonschema:"model name (default: the first id of /v1/models)"`
 }
 
 type recipeListIn struct {
@@ -139,6 +146,14 @@ func registerRead(s *Server) {
 	addTool[runIn, app.LogReport](s, ro("doctor_log", "Match the log of a run against the known vLLM failures (bernie doctor --run). Returns catalog matches, not raw log text."),
 		patternOf("run"),
 		func(ctx context.Context, _ *call, in runIn) (any, error) { return app.RunLog(ctx, in.Run) })
+
+	addTool[smokeIn, *onboarding.SmokeResult](s, ro("smoke", "Ask the running server one question and return its health, reply, time to the first token, token count and output speed (bernie smoke). The target is always a loopback server."), nil,
+		func(ctx context.Context, _ *call, in smokeIn) (any, error) {
+			if in.URL != "" && !netx.Loopback(in.URL) {
+				return nil, fmt.Errorf("smoke only targets a loopback server, not %q", in.URL)
+			}
+			return app.Smoke(ctx, app.SmokeOptions{URL: in.URL, Model: in.Model})
+		})
 
 	addTool[recipeListIn, recipe.Listing](s, ro("recipe_list", "Recipes with their fit to this host (bernie recipe list)."), nil,
 		func(_ context.Context, _ *call, in recipeListIn) (any, error) { return app.RecipeList(in.All) })

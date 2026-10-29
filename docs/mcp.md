@@ -57,6 +57,7 @@ Read-only by default. Each tool returns the document of its command as
 |---|---|
 | `status`, `hw`, `topo`, `doctor` | the command of the same name |
 | `doctor_log` | `doctor --run NAME` (known failures of a run log) |
+| `smoke` | `smoke`: ask the running server one question (loopback targets only) |
 | `recipe_list`, `recipe_show`, `recipe_plan` | `recipe list`, `show`, `plan` |
 | `ps`, `logs` | `ps`; the log of a run (text, marked untrusted) |
 | `bench_list`, `bench_show` | `bench list`, `bench show` |
@@ -84,8 +85,8 @@ that names a GPU the host does not have is an error, like in the CLI.
 ### What the dashboard has and the MCP server does not
 
 The dashboard answers a few endpoints that the MCP server does not expose:
-the history of the cards (`GET /api/gpus/history`), the smoke check of a
-prompt (`POST /api/smoke`), the log of a run with the level of every line
+the history of the cards (`GET /api/gpus/history`), the log of a run with the
+level of every line
 (`GET /api/runs/{name}/log`), the known failures of a run
 (`GET /api/runs/{name}/findings`) and the benchmark that runs in the
 background (`POST /api/bench/run`, `POST /api/bench/ab`).
