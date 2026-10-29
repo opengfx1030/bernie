@@ -11,6 +11,6 @@ dashboard/web/views/logs/tail.js	the Logs tail owns the timers that clear a sear
 #
 # One path, its current line count and an owner note per line. The path, the
 # line count and the note are separated by tabs.
-dashboard/web/components/charts.js	625	dashboard charts owner: the four charts, their readouts and their tables; the 1024 line cap holds
+dashboard/web/components/charts.js	650	dashboard charts owner: the four charts, their readouts and their tables; the 1024 line cap holds
 internal/cli/cli.go	401	open: 1 line over, split next round
 dashboard/web/css/layout.css	424	shell owner: the rail, the grids and the small widths; split planned in the next shell refactor

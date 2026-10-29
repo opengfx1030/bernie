@@ -322,19 +322,7 @@ details.advanced > summary:hover { color: var(--text); }
 .bar.hot > i { background: var(--serious); }
 .bar.over > i { background: var(--fail); }
 
-.ring { width: 84px; height: 84px; display: block; }
-.ring-bg { fill: none; stroke: var(--surface-3); stroke-width: 7; }
-.ring-fg {
-  fill: none;
-  stroke: var(--series-1);
-  stroke-width: 7;
-  stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: 42px 42px;
-  transition: stroke-dashoffset var(--motion-meter) ease;
-}
-.ring-n { fill: var(--text); font: 700 17px var(--font-display); text-anchor: middle; }
-.ring-u { fill: var(--muted); font: 600 11px var(--font-body); text-anchor: middle; }
+.ring-n { font: 700 17px var(--font-display); }
 
 /* The words of the glossary that stand on the Setup tab. */
 .setup-glossary-list {
