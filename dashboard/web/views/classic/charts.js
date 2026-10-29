@@ -13,14 +13,8 @@
 // cannot be a class (the width of a meter) is written with the CSSOM, which
 // the CSP allows.
 
-const CLASSIC_SVG = "http://www.w3.org/2000/svg";
-
-/** csvg makes one SVG element with its attributes. */
-function csvg(tag, attrs) {
-  const el = document.createElementNS(CLASSIC_SVG, tag);
-  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, String(v));
-  return el;
-}
+// The one helper of the drawings lives in core.js: the charts of the
+// Dashboard tab and the charts of the Classic tab share it.
 
 /** cfmt writes a number the way the reference does: a dash when there is
  *  none, and a thin space between the thousands. */
@@ -63,24 +57,24 @@ function classicChart(opts) {
   const sy = (y) => Tp + (1 - y / ymax) * (H - Tp - B);
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => ymax * f);
 
-  const svg = csvg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.label || "chart" });
-  const grid = csvg("g", { class: "grid" });
+  const svg = chartSvg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.label || "chart" });
+  const grid = chartSvg("g", { class: "grid" });
   for (const t of ticks) {
-    grid.append(csvg("line", { x1: L, x2: W - R, y1: sy(t), y2: sy(t) }));
+    grid.append(chartSvg("line", { x1: L, x2: W - R, y1: sy(t), y2: sy(t) }));
   }
   svg.append(grid);
-  const axis = csvg("g", { class: "axis" });
+  const axis = chartSvg("g", { class: "axis" });
   for (const t of ticks) {
-    axis.append(csvg("text", { x: L - 8, y: sy(t) + 4, "text-anchor": "end" },
-      csvg("tspan", {}, opts.yFmt ? opts.yFmt(t) : cfmt(t))));
+    axis.append(chartSvg("text", { x: L - 8, y: sy(t) + 4, "text-anchor": "end" },
+      chartSvg("tspan", {}, opts.yFmt ? opts.yFmt(t) : cfmt(t))));
   }
   // The x axis of the reference: the age of the oldest point and "now".
   const now = x1;
   [0, 0.5, 1].forEach((f) => {
     const x = x0 + (x1 - x0) * f;
     const label = f === 1 ? "now" : "-" + Math.round((now - x) / 60 * 10) / 10 + " min";
-    axis.append(csvg("text", { x: sx(x), y: H - 6, "text-anchor": f === 0 ? "start" : f === 1 ? "end" : "middle" },
-      csvg("tspan", {}, label)));
+    axis.append(chartSvg("text", { x: sx(x), y: H - 6, "text-anchor": f === 0 ? "start" : f === 1 ? "end" : "middle" },
+      chartSvg("tspan", {}, label)));
   });
   svg.append(axis);
 
@@ -89,29 +83,29 @@ function classicChart(opts) {
     if (!pts.length) continue;
     const d = pts.map((p, i) => `${i ? "L" : "M"}${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join("");
     if (pts.length > 1) {
-      svg.append(csvg("path", {
+      svg.append(chartSvg("path", {
         class: "c-fill-" + s.cls,
         d: `${d}L${sx(pts[pts.length - 1][0]).toFixed(1)},${sy(0)}L${sx(pts[0][0]).toFixed(1)},${sy(0)}Z`,
         opacity: ".12",
       }));
     }
-    svg.append(csvg("path", {
+    svg.append(chartSvg("path", {
       class: "c-stroke-" + s.cls,
       d, fill: "none", "stroke-width": "2",
       "stroke-linejoin": "round", "stroke-linecap": "round",
     }));
     if (pts.length < 3) {
       for (const p of pts) {
-        svg.append(csvg("circle", {
+        svg.append(chartSvg("circle", {
           class: "c-fill-" + s.cls + " c-point",
           cx: sx(p[0]), cy: sy(p[1]), r: 4,
         }));
       }
     }
   }
-  const xh = csvg("line", { class: "c-cross", x1: 0, x2: 0, y1: Tp, y2: H - B, visibility: "hidden" });
+  const xh = chartSvg("line", { class: "c-cross", x1: 0, x2: 0, y1: Tp, y2: H - B, visibility: "hidden" });
   svg.append(xh);
-  svg.append(csvg("rect", { x: L, y: 0, width: W - L - R, height: H, fill: "transparent", class: "hit" }));
+  svg.append(chartSvg("rect", { x: L, y: 0, width: W - L - R, height: H, fill: "transparent", class: "hit" }));
 
   const box = h("div.chart", { "data-chart": opts.id || opts.label || "chart" }, svg);
   classic.charts.set(box, { opts, sx, x0, x1, L, R, W, svg, xh });
@@ -123,15 +117,15 @@ function classicChart(opts) {
 /** classicSpark draws the little line under a number. The class of the
  *  colour is the key ("s1", "key"). */
 function classicSpark(vals, cls, h = 34) {
-  const svg = csvg("svg", { class: "spark", viewBox: `0 0 120 ${h}`, preserveAspectRatio: "none", "aria-hidden": "true" });
+  const svg = chartSvg("svg", { class: "spark", viewBox: `0 0 120 ${h}`, preserveAspectRatio: "none", "aria-hidden": "true" });
   const v = vals.filter((x) => x != null && !isNaN(x));
   if (v.length < 2) return svg;
   const max = Math.max(...v, 1e-9);
   const n = vals.length;
   const pts = vals.map((x, i) => [(i / (n - 1)) * 120, h - 2 - ((x == null ? 0 : x) / max) * (h - 6)]);
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");
-  svg.append(csvg("path", { class: "c-fill-" + cls, d: `${d}L120,${h}L0,${h}Z`, opacity: ".14" }));
-  svg.append(csvg("path", {
+  svg.append(chartSvg("path", { class: "c-fill-" + cls, d: `${d}L120,${h}L0,${h}Z`, opacity: ".14" }));
+  svg.append(chartSvg("path", {
     class: "c-stroke-" + cls,
     d, fill: "none", "stroke-width": "1.6",
     "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round",
@@ -144,9 +138,9 @@ function classicRing(pct, cls) {
   const r = 30;
   const c = 2 * Math.PI * r;
   const p = Math.max(0, Math.min(100, pct || 0));
-  const svg = csvg("svg", { class: "ring", viewBox: "0 0 76 76", "aria-hidden": "true" });
-  svg.append(csvg("circle", { class: "ring-track", cx: 38, cy: 38, r, "stroke-width": 7, fill: "none" }));
-  svg.append(csvg("circle", {
+  const svg = chartSvg("svg", { class: "ring", viewBox: "0 0 76 76", "aria-hidden": "true" });
+  svg.append(chartSvg("circle", { class: "ring-track", cx: 38, cy: 38, r, "stroke-width": 7, fill: "none" }));
+  svg.append(chartSvg("circle", {
     class: "ring-live c-stroke-" + cls,
     cx: 38, cy: 38, r, "stroke-width": 7, fill: "none", "stroke-linecap": "round",
     "stroke-dasharray": c.toFixed(1), "stroke-dashoffset": (c * (1 - p / 100)).toFixed(1),

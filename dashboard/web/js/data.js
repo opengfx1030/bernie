@@ -17,6 +17,8 @@ const state = {
   runs: [],          // /api/runs
   lastUpdate: 0,     // when the numbers were read (ms)
   stale: false,      // the last read did not answer
+  slowAgeS: 0,       // the age of the slow fields of the telemetry
+  slowIntervalS: 0,  // the time between two slow passes of the sampler
 };
 
 /** request performs one JSON request and returns its status and document.
@@ -82,6 +84,17 @@ function pushHist(key, v) {
   a.push(v == null ? null : v);
   if (a.length > HISTORY) a.shift();
   return a;
+}
+
+/** slowAgeNote says how old the slow fields are when they are older than
+ *  twice their own interval. The fast fields (the load, the memory, the
+ *  power) are one second old at most. It is empty while the slow fields
+ *  are fresh. */
+function slowAgeNote() {
+  const age = state.slowAgeS || 0;
+  const interval = state.slowIntervalS || 0;
+  if (!interval || age <= 2 * interval) return "";
+  return "The temperatures and the clocks are " + Math.round(age) + " s old.";
 }
 
 /* ---------- the streams ---------- */
@@ -215,6 +228,11 @@ function startTelemetry() {
       state.tele = t;
       state.lastUpdate = Date.now();
       state.stale = false;
+      // The slow fields (the temperatures, the caps, the clocks) are read
+      // every few seconds: the page says how old they are when they get
+      // older than twice their own interval.
+      state.slowAgeS = t.slow_age_s || 0;
+      state.slowIntervalS = t.slow_interval_s || 0;
       const gs = t.gpus || [];
       let pw = 0, busy = 0, vram = 0, hot = 0, sclk = 0;
       for (const s of gs) {

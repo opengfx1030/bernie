@@ -144,7 +144,8 @@ function dashCard(hip) {
   const temps = h("div.stat-row", { class: "dash-stat-row" });
   const clocks = h("div.stat-row", { class: "dash-stat-row-center" });
   const hot = h("div", { class: "dash-stat-hot" });
-  stats.append(mem, pow, temps, hot, clocks);
+  const age = h("div", { class: "small muted" });
+  stats.append(mem, pow, temps, hot, age, clocks);
   mid.append(ringBox, stats);
   const sparkBox = h("div.gpu-spark", { class: "dash-mt12" });
   const chart = spark([], 100, "the load of GPU " + hip, { unit: "%" });
@@ -173,6 +174,12 @@ function dashCard(hip) {
       pair("JUNCTION", card && card.jtmp != null ? num(card.jtmp) + " °C" : "–"),
       pair("MEM", card && card.mtmp != null ? num(card.mtmp) + " °C" : "–"));
     hot.textContent = isHot ? "hot: the limit of this card is " + limit + " °C" : "";
+    // The temperatures and the clocks are read every few seconds: the
+    // card says how old they are when they get older than twice their own
+    // interval.
+    const ageNote = slowAgeNote();
+    age.textContent = ageNote;
+    age.hidden = !ageNote;
     const ecc = dashEcc(hip);
     clocks.replaceChildren(
       pair("SCLK", card && card.clk != null ? dashGroup(card.clk) + " MHz" : "–"),

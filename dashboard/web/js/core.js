@@ -70,3 +70,17 @@ function badge(status) { return h("span.badge", { class: "b-" + status }, status
 
 /** sh quotes one word of a command for a shell. */
 function sh(a) { return /^[\w@%+=:,./-]+$/.test(a) ? a : "'" + a.replace(/'/g, "'\\''") + "'"; }
+
+// The namespace of the drawings and the one helper that builds them: the
+// charts of the Dashboard tab and the charts of the Classic tab share it.
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** chartSvg builds one node of an inline SVG. */
+function chartSvg(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    el.setAttribute(k, String(v));
+  }
+  return el;
+}

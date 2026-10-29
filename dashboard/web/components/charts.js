@@ -12,17 +12,8 @@
 // measured is a dash, never a zero.
 "use strict";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-/** chartSvg builds one node of an inline SVG. */
-function chartSvg(tag, attrs) {
-  const el = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v == null || v === false) continue;
-    el.setAttribute(k, String(v));
-  }
-  return el;
-}
+// The one helper of the drawings lives in core.js: the charts of the
+// Dashboard tab and the charts of the Classic tab share it.
 
 /** downsample keeps at most max points of an array, evenly spaced. The
  *  chart fills after the first minute; older samples are dropped. */
@@ -113,7 +104,6 @@ function spark(values, max, label, opts) {
   const svg = chartSvg("svg", {
     class: "spark-svg", viewBox: "0 0 " + W + " " + H, preserveAspectRatio: "none",
     role: "img", tabindex: "0", "aria-label": label || "the last minute",
-    class: "spark-svg",
   });
   const base = chartSvg("line", { x1: 0, x2: W, y1: H - 1, y2: H - 1,
     class: "chart-base" });
