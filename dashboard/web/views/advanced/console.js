@@ -21,6 +21,7 @@ const adv = {
   jobs: [],       // /api/jobs
   tele: null,     // the last document of the telemetry stream
   server: null,   // the live run of the stream
+  head: null,     // the headline of the tab
   live: {},       // the parts the tab repaints
   unsub: null,    // the way back from the shared stream
 };
@@ -32,6 +33,7 @@ async function viewAdvanced(root) {
   adv.live = {};
   const head = stateHead("Advanced",
     h("button.primary", { type: "button", onclick: () => advReload() }, "Re-check the host"));
+  adv.head = head;
   const table = gpuValueTable([], [], []);
   const power = advPowerCard();
   const doctor = advDoctorReport();
@@ -91,6 +93,7 @@ async function advReload() {
 /** advPaint repaints every part of the tab with the documents it holds. */
 function advPaint() {
   if (!adv.live.table) return;
+  advHead(adv.head);
   adv.live.table.update(
     (adv.hw && adv.hw.gpus) || [],
     (adv.tele && adv.tele.gpus) || [],
@@ -99,6 +102,22 @@ function advPaint() {
   adv.live.jobs.update(adv.jobs);
   adv.live.runs.update(adv.runs);
   adv.live.measures.update(adv.server);
+}
+
+/** advHead writes the headline of the tab: the situation of the host in one
+ *  sentence, and what the tab holds under it. */
+function advHead(head) {
+  if (!head) return;
+  const sum = (adv.doctor && adv.doctor.summary) || {};
+  const fail = sum.fail || 0;
+  const warn = sum.warn || 0;
+  const title = fail
+    ? fail + (fail === 1 ? " check fails" : " checks fail") + " on this host"
+    : warn
+      ? warn + (warn === 1 ? " check warns" : " checks warn") + " on this host"
+      : "Every check of this host passed";
+  setHead(head, title,
+    "The operator's console: the exact values of every card, the power caps, the whole doctor report, the jobs of the host and the raw documents behind them.");
 }
 
 /** advSubscribe registers the repaint of this tab on the shared stream. The
