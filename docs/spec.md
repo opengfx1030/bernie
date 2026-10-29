@@ -1637,6 +1637,11 @@ not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/jobs` | the jobs of this host, newest first: `[{id, step, state, started_at, finished_at, phase, progress}]`. The list holds at most 50 jobs; `limit` takes 1 to 200. |
 | GET | `/api/jobs/{id}` | the job document: `{"id", "step", "state", "phase", "progress", "error", "findings", "lines", "started_at", "finished_at"}`. `progress` holds the numbers of the work when the step counts them ([§3.3](#33-the-onboarding-checklist)). |
 | GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. The stream replays the buffered lines from the beginning; every line event carries the number of the line as its id, and `Last-Event-ID` (or `last_event_id`) asks for the lines after it. |
+| POST | `/api/refresh` | drop every cached answer of the host (`hw`, `topo`, `doctor`, `onboarding`, `power`, `runs`). The next reader of one of those endpoints re-probes the host. The Re-check buttons of the Setup, Topology and Advanced tabs call it before they reload, so a cable that changed or a check that just resolved shows up without a page reload (ia.md R27). |
+| GET | `/api/models` | the `bernie models` document: the ids `/v1/models` answers when a run is serving, the repos the Hugging Face cache on this host holds with their snapshot commit and the hub cache root. A failure to read the live server is in `live_error` and does not stop the cached part of the report (ia.md R31). |
+| GET | `/api/prefs` | the `bernie config show` document: the ordered list of keys with their value, the source (`config`, `$BERNIE_VENV`, `$VIRTUAL_ENV`, `$HF_HOME`, `default`, `conventional`, `ambiguous`, `none`), the resolved value when one applies, the choices and the hint. Secrets (the fleet token) are stripped before the document leaves the file (ia.md R28). |
+| PUT | `/api/prefs` | write one `{key, value}` pair: the write goes through the same `Config.SetKey` the CLI uses, so the same validation runs. An unknown key answers 400. The new document is returned. The `X-Bernie: 1` guard of the auth middleware applies. |
+| GET | `/api/report` | the redacted share report of this host: a markdown document an operator can paste into an issue, a chat or a ticket. The same document is the answer of `bernie doctor --report` and of the MCP tool `report`. No hostname, no username, no token, no path with the name of the user (ia.md R24). |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
 
 Two endpoints of the table have no consumer on the page: `POST /api/bench`
@@ -1862,6 +1867,9 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `doctor` | `doctor` | `categories`, `venv` |
 | `doctor_log` | `doctor --run` | `run` (a run name, never a path) |
 | `smoke` | `smoke` | `url` (loopback only), `model` |
+| `models` | `models` | none |
+| `prefs_get` | `config show` | none |
+| `report` | `doctor --report` | none |
 | `recipe_list` | `recipe list` | `all` |
 | `recipe_show` | `recipe show` | `id` |
 | `recipe_plan` | `recipe plan` | the launch flags: `id`, `set`, `mode`, `name`, `venv`, `engine`, `device_access`, `profile`, `no_tunableop`, `tuning` |
