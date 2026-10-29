@@ -42,7 +42,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/serving/vllm/vllmtest` | the deterministic fake vLLM server for tests | `Config`, `Server`, `New`, `CountTokens`, `Prompts`, `ServeHTTP` | 2 |
 | `internal/serving/bench` | the benchmark | `Run`, `Save`, `List`, `Get`, `Options`, `Result` | 2 |
 | `internal/serving/bench/suite` | the bench suites | `Load`, `List`, `Get`, `Run`, `Compare`, `Judge`, `AB` | 2 |
-| `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `Archs`, `ArchMatch`, `ECC` | 1 |
+| `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `TelemetryFast`, `TelemetrySlow`, `MergeSlow`, `Archs`, `ArchMatch`, `ECC` | 1 |
 | `internal/machine/gpu/devices` | the device tables | `Lookup`, `LookupArch`, `CodeTargets`, `GFXName`, `Arch`, `Device` | 1 |
 | `internal/machine/host` | the OS facts | `Probe`, `Preferred`, `InstallCommand`, `GPUGroups`, `Info` | 1 |
 | `internal/machine/rocm` | the ROCm facts | `Probe`, `ProbeVenv`, `VenvLibPaths`, `FindROCBLAS`, `CompareVersions` | 1 |
@@ -71,12 +71,16 @@ type Sample struct { HIPIndex int; BusyPct, TempC, PowerW, PowerCapW float64;
     VRAMUsed, VRAMTotal uint64 }
 func List(root string) ([]GPU, error)
 func Telemetry(root string, gpus []GPU) []Sample
+func TelemetryFast(root string, gpus []GPU) []Sample   // the load, the memory, the power
+func TelemetrySlow(root string, gpus []GPU) []Sample   // the totals, the temperatures, the caps, the clocks
+func MergeSlow(a, b *Sample)                          // copies the slow attributes of b into a
 func ArchMatch(patterns []string, gfx string) bool   // full name or prefix
 func Archs(gpus []GPU, idx []int) []string
 ```
 
 `gpu` reads the live GPUs and imports only `devices`. No other package
-names a device.
+names a device. The two tiers of the telemetry are the ones of spec §11:
+`Telemetry` reads both.
 
 ## machine/gpu/devices
 
