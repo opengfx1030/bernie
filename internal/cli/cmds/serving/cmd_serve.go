@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -135,24 +136,7 @@ func init() {
 
 	stop := &cli.Command{Name: "stop", Summary: "Stop a run (the only running one if NAME is absent)", Usage: "[NAME]"}
 	stop.Run = func(c *cli.Context, args []string) error {
-		pos, err := cli.Parse(c.Flags(stop), args)
-		if err != nil {
-			return err
-		}
-		if len(pos) > 1 {
-			return cli.Usagef("stop takes at most one run name")
-		}
-		name := ""
-		if len(pos) == 1 {
-			name = pos[0]
-		}
-		res, err := app.Stop(c.Ctx, name)
-		if err != nil {
-			return err
-		}
-		return c.Emit(res, func(w io.Writer) {
-			fmt.Fprintln(w, "stopped")
-		})
+		return runStop(c, stop, args)
 	}
 	cli.Register(stop)
 
@@ -283,4 +267,34 @@ func printRuns(w io.Writer, runs []flow.Run) {
 			cli.WriteMatches(w, r.Findings)
 		}
 	}
+}
+
+// runStop is the body of `bernie stop [NAME]`. It is split out from the
+// command closure so tests can drive it with a hand-built cli.Context
+// (cmd_serve_test.go).
+func runStop(c *cli.Context, cmd *cli.Command, args []string) error {
+	pos, err := cli.Parse(c.Flags(cmd), args)
+	if err != nil {
+		return err
+	}
+	if len(pos) > 1 {
+		return cli.Usagef("stop takes at most one run name")
+	}
+	name := ""
+	if len(pos) == 1 {
+		name = pos[0]
+	}
+	res, err := app.Stop(c.Ctx, name)
+	if err != nil {
+		// The run record is gone (its parent shell died, another process
+		// cleaned up, the run was already stopped). Tell the operator
+		// instead of letting the bare "no run named X" surface alone.
+		if name != "" && strings.HasPrefix(err.Error(), "no run named ") {
+			c.Logf("hint: the run already exited; nothing to stop")
+		}
+		return err
+	}
+	return c.Emit(res, func(w io.Writer) {
+		fmt.Fprintln(w, "stopped")
+	})
 }
