@@ -46,7 +46,15 @@ function logTail(options) {
     LOG_FILTER_LEVELS.map((lvl) => {
       const input = h("input", {
         type: "radio", name: "lg-level", value: lvl, checked: lvl === "all",
-        onchange: (ev) => { if (ev.target.checked) { level = lvl; apply(); } },
+        onchange: (ev) => {
+          if (!ev.target.checked) return;
+          level = lvl;
+          for (const other of filter.querySelectorAll("input")) {
+            const label = other.closest("label");
+            if (label) label.classList.toggle("on", other.checked);
+          }
+          apply();
+        },
       });
       return h("label.lg-seg", { class: lvl === "all" ? "on" : "" }, input, h("span", lvl));
     }));
