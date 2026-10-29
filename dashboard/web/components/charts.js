@@ -6,22 +6,47 @@
 // ring, the axis of the area chart) follows the reference UI.
 // Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 //
-// Accessibility: every chart says its numbers in words (the aria-label and the
-// text beside it), the two charts with a readout can be reached with the
-// keyboard and the arrow keys move that readout, and a number that was not
-// measured is a dash, never a zero.
+// Accessibility: every chart says its numbers in words (the aria-label, the
+// text beside it and the table under it), the two charts with a readout can
+// be reached with the keyboard and the arrow keys move that readout, and a
+// number that was not measured is a dash, never a zero.
+//
+// A chart is built once and then updated: a frame writes the path of a
+// series and moves the labels, it never builds a node again.
 "use strict";
 
 // The one helper of the drawings lives in core.js: the charts of the
 // Dashboard tab and the charts of the Classic tab share it.
 
-/** downsample keeps at most max points of an array, evenly spaced. The
- *  chart fills after the first minute; older samples are dropped. */
-function downsample(pts, max) {
-  if (pts.length <= max) return pts;
-  const out = new Array(max);
-  const step = (pts.length - 1) / (max - 1);
-  for (let i = 0; i < max; i++) out[i] = pts[Math.round(i * step)];
+/** chartMinMax keeps at most max points of a series and never loses a
+ *  peak: the series is split into buckets and every bucket keeps its
+ *  lowest and its highest value, in the order of the window. A series that
+ *  already fits is kept as it is: the history of the server arrives
+ *  downsampled. points holds {v} points; a point without a value is a gap
+ *  and stays a gap. */
+function chartMinMax(points, max) {
+  if (!points || points.length <= max) return points || [];
+  const n = points.length;
+  const buckets = Math.max(1, Math.floor(max / 2));
+  const out = [];
+  for (let b = 0; b < buckets; b++) {
+    const from = Math.floor((b * n) / buckets);
+    const to = Math.floor(((b + 1) * n) / buckets);
+    if (to <= from) continue;
+    let lo = -1;
+    let hi = -1;
+    for (let i = from; i < to; i++) {
+      const v = points[i].v;
+      if (v == null || !isFinite(v)) continue;
+      if (lo < 0 || v < points[lo].v) lo = i;
+      if (hi < 0 || v > points[hi].v) hi = i;
+    }
+    // A bucket without a measured value keeps a gap.
+    if (lo < 0) { out.push(points[from]); continue; }
+    if (lo === hi) { out.push(points[lo]); continue; }
+    if (lo < hi) out.push(points[lo], points[hi]);
+    else out.push(points[hi], points[lo]);
+  }
   return out;
 }
 
@@ -30,6 +55,15 @@ function chartNumbers(values) {
   const out = [];
   for (const v of values || []) if (typeof v === "number" && isFinite(v)) out.push(v);
   return out;
+}
+
+/** chartSame says whether two lists of numbers hold the same values. A
+ *  chart is repainted from the same document every frame; the comparison
+ *  keeps that frame free of writes. */
+function chartSame(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
 /** chartPaths builds the line and the area of a series. A missing point
@@ -127,6 +161,42 @@ function sparkDomain(values, max) {
   return { min: 0, max: top > 0 ? top : 1, fixed: fixed };
 }
 
+/** chartDataTable builds the table that holds the numbers of a chart: one
+ *  row per point, the unit in the head and the caption in words. The rows
+ *  are written when the chart is drawn and again when the reader opens the
+ *  table: a frame never builds a row, and the reader always sees the
+ *  numbers of the last frame. */
+function chartDataTable(caption, head, summary) {
+  const box = h("details", { class: "chart-data" });
+  const table = h("table", { class: "chart-data-table" });
+  const row = h("tr");
+  for (const name of head) row.append(h("th", { scope: "col" }, name));
+  const body = h("tbody");
+  table.append(h("caption", { class: "chart-data-caption" }, caption),
+    h("thead", row), body);
+  box.append(h("summary", { class: "chart-data-summary" }, summary || "The numbers of the chart"), table);
+  let pending = null;
+  const fill = (rows) => {
+    const frag = document.createDocumentFragment();
+    for (const r of rows) {
+      const tr = h("tr");
+      for (let i = 0; i < r.length; i++) {
+        tr.append(i === 0 ? h("th", { scope: "row" }, r[i]) : h("td", { class: "num" }, r[i]));
+      }
+      frag.append(tr);
+    }
+    body.replaceChildren(frag);
+  };
+  box.update = (rows) => {
+    if (box.open) { fill(rows); pending = null; }
+    else pending = rows;
+  };
+  box.addEventListener("toggle", () => {
+    if (box.open && pending) { fill(pending); pending = null; }
+  });
+  return box;
+}
+
 /** spark draws the last minute of one number as a small line under a tile.
  *  values is the series, max the top of the scale and label the text a screen
  *  reader reads. The element carries an update method: the caller repaints it
@@ -147,7 +217,10 @@ function spark(values, max, label, opts) {
   const mark = chartSvg("circle", { r: 2.4, class: "chart-pointer" });
   svg.append(base, line, mark);
   const read = h("span.chart-read", { class: "chart-readout" });
-  wrap.append(svg, read);
+  const unit = options.unit ? " (" + options.unit + ")" : "";
+  const table = chartDataTable((label || "the last minute") + ": one row per point, the newest last",
+    ["Point", (label || "the value") + unit], "The numbers");
+  wrap.append(svg, read, table);
 
   let values2 = values || [];
   // The top of the scale is the limit of the measure. A caller that names
@@ -183,6 +256,16 @@ function spark(values, max, label, opts) {
     read.textContent = (options.format ? options.format(v) : num(v)) + (options.unit ? " " + options.unit : "");
     read.style.opacity = "1";
   };
+  const rows = (vals) => {
+    const out = [];
+    for (let i = 0; i < vals.length; i++) {
+      const v = vals[i];
+      out.push([String(i + 1), (typeof v === "number" && isFinite(v))
+        ? (options.format ? options.format(v) : num(v)) + (options.unit ? " " + options.unit : "")
+        : "–"]);
+    }
+    return out;
+  };
   paint(values2);
   chartPointer(svg, () => values2.length, (i) => {
     if (i < 0) { read.style.opacity = "0"; mark.setAttribute("opacity", "0"); return; }
@@ -200,11 +283,18 @@ function spark(values, max, label, opts) {
     mark.setAttribute("opacity", "1");
     show(i);
   });
+  let shown = values2;
   wrap.update = (next, nextMax) => {
-    values2 = next || [];
+    const vals = next || [];
+    const same = chartSame(vals, shown) && (!nextMax || nextMax === max);
+    values2 = vals;
     if (nextMax) max = nextMax;
     domain = sparkDomain(values2, limit());
-    paint(values2);
+    if (!same) {
+      paint(values2);
+      table.update(rows(values2));
+    }
+    shown = vals;
     const nums = chartNumbers(values2);
     const last = nums.length ? nums[nums.length - 1] : null;
     // A spark without a fixed limit says the range it draws, so the reader
@@ -243,9 +333,32 @@ function areaChart(input, opts) {
   const cross = chartSvg("line", { y1: T, y2: B, class: "chart-cross" });
   const dot = chartSvg("circle", { r: 3.5, class: "chart-dot" });
   svg.append(grid, area, line, extra, cross, dot, ylab, xlab);
-  box.append(head, svg);
-  const empty = h("div.chart-empty");
-  box.append(empty);
+  // The grid and the axes are built once. A frame writes the path of a
+  // series and moves the labels; it never builds the axis tree again.
+  const yLabels = [];
+  for (const f of [0, 0.5, 1]) {
+    const y = B - f * (B - T);
+    grid.append(chartSvg("line", { x1: L, x2: R, y1: y, y2: y }));
+    yLabels.push(chartSvg("text", { x: L - 6, y: y + 3 }));
+  }
+  ylab.append(...yLabels);
+  const xLabels = [];
+  for (const x of [L, (L + R) / 2, R]) {
+    xLabels.push(chartSvg("text", {
+      x: x, y: B + 18,
+      "text-anchor": x === L ? "start" : x === R ? "end" : "middle",
+    }));
+  }
+  xlab.append(...xLabels);
+  const empty = h("div.chart-empty", { hidden: true },
+    h("b", { class: "chart-strong" }, "No samples yet."),
+    h("span", { class: "chart-sub" }, options.hint || "The chart fills after the first minute."));
+  const unit = options.unit ? " (" + options.unit + ")" : "";
+  const name = options.title || "the measure";
+  const table = chartDataTable(name + ": one row per point, the newest last",
+    ["Point", (options.unit && name.indexOf(options.unit) < 0 ? name + unit : name)],
+    "The numbers of the chart");
+  box.append(head, svg, empty, table);
 
   const norm = (input) => {
     const out = [];
@@ -256,8 +369,9 @@ function areaChart(input, opts) {
       else out.push({ t: null, v: null });
     }
     // A missing point stays in the series: the chart breaks the line there
-    // instead of drawing a zero.
-    return downsample(out, 240);
+    // instead of drawing a zero. The series is capped at 240 points and
+    // the cap never loses a peak.
+    return chartMinMax(out, 240);
   };
   // The chart takes one series (a list of values or points) or a list of
   // series: {values, label, dash}. A second series gets its own line, its
@@ -279,37 +393,52 @@ function areaChart(input, opts) {
   // one, else the largest number that was measured. The paint and the
   // pointer read it, so the dot sits on the line.
   let maxV = 1;
+  // The scale and the window the labels show: they are written when they
+  // move, not on every frame.
+  let scaleV = 0;
+  let windowM = 0;
+  // The path and the word of every second series: they are built once and
+  // then written.
+  const extraPaths = [];
+  const extraLabels = [];
   const paint = () => {
-    const n = Math.max(1, ...series.map((one) => one.points.length));
-    const values = chartNumbers(series.flatMap((one) => one.points.map((p) => p.v)));
-    maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...values);
+    let n = 1;
+    let top = 0;
+    for (const one of series) {
+      if (one.points.length > n) n = one.points.length;
+      for (const p of one.points) {
+        const v = p.v;
+        if (typeof v === "number" && isFinite(v) && v > top) top = v;
+      }
+    }
+    maxV = options.max && options.max > 0 ? options.max : (top > 0 ? top : 1);
     const px = (i) => (n > 1 ? L + (i * (R - L)) / (n - 1) : (L + R) / 2);
     const py = (v) => B - (Math.min(v, maxV) / maxV) * (B - T);
-    grid.replaceChildren();
-    ylab.replaceChildren();
-    xlab.replaceChildren();
-    extra.replaceChildren();
-    for (const f of [0, 0.5, 1]) {
-      const y = B - f * (B - T);
-      grid.append(chartSvg("line", { x1: L, x2: R, y1: y, y2: y }));
-      const t = chartSvg("text", { x: L - 6, y: y + 3 });
-      t.textContent = f === 1 ? num(maxV, maxV < 10 ? 1 : 0) + (options.unit ? " " + options.unit : "") : f === 0 ? "0" : num(maxV / 2, maxV < 10 ? 1 : 0);
-      ylab.append(t);
+    if (maxV !== scaleV) {
+      yLabels[0].textContent = "0";
+      yLabels[1].textContent = num(maxV / 2, maxV < 10 ? 1 : 0);
+      yLabels[2].textContent = num(maxV, maxV < 10 ? 1 : 0) + (options.unit ? " " + options.unit : "");
+      scaleV = maxV;
+    }
+    const mins = options.windowMinutes || 5;
+    if (mins !== windowM) {
+      xLabels[0].textContent = "- " + mins + " min";
+      xLabels[1].textContent = "- " + (mins / 2) + " min";
+      xLabels[2].textContent = "now";
+      windowM = mins;
     }
     const first = series[0];
     if (!first || !first.points.length) {
       line.setAttribute("d", "");
       area.setAttribute("d", "");
       empty.hidden = false;
-      empty.textContent = "";
-      empty.append(h("b", { class: "chart-strong" }, "No samples yet."),
-        h("span", { class: "chart-sub" }, options.hint || "The chart fills after the first minute."));
       return;
     }
     empty.hidden = true;
     const used = [];
-    series.forEach((one, idx) => {
-      if (!one.points.length) return;
+    for (let idx = 0; idx < series.length; idx++) {
+      const one = series[idx];
+      if (!one.points.length) continue;
       // A missing point breaks the line: the gap in the data is a gap in
       // the chart, never a zero.
       const seg = chartPaths(one.points, px, py, idx === 0 ? B : null);
@@ -317,24 +446,32 @@ function areaChart(input, opts) {
         line.setAttribute("d", seg.line);
         area.setAttribute("d", seg.area);
       } else {
-        extra.append(chartSvg("path", { class: one.dash ? "chart-line-dash" : "chart-line-alt", d: seg.line }));
+        let path = extraPaths[idx - 1];
+        if (!path) {
+          path = chartSvg("path", { class: one.dash ? "chart-line-dash" : "chart-line-alt" });
+          extraPaths[idx - 1] = path;
+          extra.append(path);
+        }
+        path.setAttribute("d", seg.line);
       }
-      if (!one.label) return;
-      const nums = chartNumbers(one.points.map((q) => q.v));
-      const last = nums.length ? nums[nums.length - 1] : 0;
+      if (!one.label) continue;
+      let label = extraLabels[idx - 1];
+      if (!label) {
+        label = chartSvg("text", { class: "chart-series-label", "text-anchor": "end" });
+        extraLabels[idx - 1] = label;
+        extra.append(label);
+      }
+      let last = 0;
+      for (let k = one.points.length - 1; k >= 0; k--) {
+        const v = one.points[k].v;
+        if (typeof v === "number" && isFinite(v)) { last = v; break; }
+      }
       let y = py(last) - 5;
       while (used.some((u) => Math.abs(u - y) < 11)) y -= 11;
       used.push(y);
-      const t = chartSvg("text", { class: "chart-series-label", x: R - 2, y: y, "text-anchor": "end" });
-      t.textContent = one.label;
-      extra.append(t);
-    });
-    const mins = options.windowMinutes || 5;
-    const marks = [[L, "- " + mins + " min", "start"], [(L + R) / 2, "- " + (mins / 2) + " min", "middle"], [R, "now", "end"]];
-    for (const [x, text, anchor] of marks) {
-      const t = chartSvg("text", { x: x, y: B + 18, "text-anchor": anchor });
-      t.textContent = text;
-      xlab.append(t);
+      label.setAttribute("x", R - 2);
+      label.setAttribute("y", y);
+      label.textContent = one.label;
     }
   };
   const fmt = (p) => (options.format ? options.format(p.v) : num(p.v)) + (options.unit ? " " + options.unit : "");
@@ -351,7 +488,8 @@ function areaChart(input, opts) {
       return;
     }
     const p = series[0].points[i];
-    const n = Math.max(1, ...series.map((one) => one.points.length));
+    let n = 1;
+    for (const one of series) if (one.points.length > n) n = one.points.length;
     const px = (n > 1 ? L + (i * (R - L)) / (n - 1) : (L + R) / 2);
     const py = B - (Math.min(p.v, maxV) / maxV) * (B - T);
     cross.setAttribute("x1", px.toFixed(1));
@@ -362,16 +500,42 @@ function areaChart(input, opts) {
     dot.setAttribute("opacity", "1");
     read.textContent = at(i);
   };
+  // The rows of the table: the same numbers as the drawing.
+  const rows = () => {
+    const out = [];
+    const n = series.length ? series[0].points.length : 0;
+    for (let i = 0; i < n; i++) {
+      const row = [String(i + 1)];
+      for (const one of series) {
+        const p = one.points[i];
+        row.push(p && typeof p.v === "number" && isFinite(p.v) ? fmt(p) : "–");
+      }
+      out.push(row);
+    }
+    return out;
+  };
   series = seriesOf(input);
   paint();
   chartPointer(svg, () => (series[0] ? series[0].points.length : 0), show);
   box.update = (next, mins) => {
     if (mins) options.windowMinutes = mins;
-    series = seriesOf(next);
+    const nextSeries = seriesOf(next);
+    // The document of a frame is often the one of the frame before: the
+    // chart then writes nothing at all.
+    const same = nextSeries.length === series.length && nextSeries.every((one, i) => {
+      const old = series[i];
+      if (one.label !== old.label || one.dash !== old.dash) return false;
+      if (one.points.length !== old.points.length) return false;
+      for (let k = 0; k < one.points.length; k++) if (one.points[k].v !== old.points[k].v) return false;
+      return true;
+    });
+    if (same && (options.windowMinutes || 5) === windowM) return;
+    series = nextSeries;
     paint();
     const last = series[0] && series[0].points.length ? series[0].points.length - 1 : -1;
     svg.setAttribute("aria-label", (options.title || "the measure") + ": " + (last >= 0 ? at(last) : "no sample yet"));
     show(-1);
+    table.update(rows());
   };
   box.update(input);
   return box;
