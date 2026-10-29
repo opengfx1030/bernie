@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/cli"
-	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 )
 
@@ -26,19 +26,10 @@ func runCompare(c *cli.Context, cmd *cli.Command, args []string) error {
 	if len(pos) != 2 {
 		return cli.Usagef("bench compare needs exactly two result ids")
 	}
-	a, err := bench.Get(pos[0])
+	verdict, err := app.BenchCompare(pos[0], pos[1], band)
 	if err != nil {
 		return err
 	}
-	b, err := bench.Get(pos[1])
-	if err != nil {
-		return err
-	}
-	cmp, err := suite.Compare(a, b)
-	if err != nil {
-		return err
-	}
-	verdict := suite.Judge(cmp, band)
 	print := printVerdict
 	if markdown {
 		print = func(w io.Writer, v *suite.Verdict) { fmt.Fprint(w, suite.Receipt(v)) }

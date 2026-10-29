@@ -173,19 +173,7 @@ func registerRead(s *Server) {
 
 	addTool[benchCompareIn, *suite.Verdict](s, ro("bench_compare", "The verdict of two saved results: better, same, worse or noisy, per metric and per cell (bernie bench compare)."), nil,
 		func(_ context.Context, _ *call, in benchCompareIn) (any, error) {
-			a, err := bench.Get(in.A)
-			if err != nil {
-				return nil, err
-			}
-			b, err := bench.Get(in.B)
-			if err != nil {
-				return nil, err
-			}
-			cmp, err := suite.Compare(a, b)
-			if err != nil {
-				return nil, err
-			}
-			return suite.Judge(cmp, 0), nil
+			return app.BenchCompare(in.A, in.B, 0)
 		})
 
 	addTool[venvIn, app.TunableOpState](s, ro("tunableop_status", "Loaded rocBLAS build and its matching TunableOp profile (bernie tune tunableop status)."), nil,

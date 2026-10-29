@@ -47,22 +47,15 @@ func (h *handler) getBenchCompare(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusBadRequest, "a and b must name two results")
 		return
 	}
-	first, err := bench.Get(a)
+	verdict, err := app.BenchCompare(a, b, 0)
 	if err != nil {
-		httpjson.Error(w, http.StatusNotFound, err.Error())
+		status := http.StatusBadRequest
+		if errors.Is(err, app.ErrBenchResultNotFound) {
+			status = http.StatusNotFound
+		}
+		httpjson.Error(w, status, err.Error())
 		return
 	}
-	second, err := bench.Get(b)
-	if err != nil {
-		httpjson.Error(w, http.StatusNotFound, err.Error())
-		return
-	}
-	cmp, err := suite.Compare(first, second)
-	if err != nil {
-		httpjson.Error(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	verdict := suite.Judge(cmp, 0)
 	if r.URL.Query().Get("format") == "markdown" {
 		writeBenchMarkdown(w, verdict)
 		return
