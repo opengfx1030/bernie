@@ -54,7 +54,7 @@ func par1Host() host.Info {
 func par1ROCm() rocm.Report {
 	return rocm.Report{
 		Installs: []rocm.Install{{Root: "/opt/rocm-7.2.0", Version: "7.2.0", Kind: "opt"}, {Root: "/opt/rocm-7.2.0/core-7.14", Version: "7.14.1", Kind: "therock"}},
-		Tools:    map[string]string{"hipcc": "/opt/rocm/core-7.14/bin/hipcc"},
+		Tools:    map[string]string{"hipcc": "/opt/rocm-7.2.0/core-7.14/bin/hipcc"},
 	}
 }
 
