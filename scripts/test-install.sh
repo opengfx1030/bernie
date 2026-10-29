@@ -226,4 +226,54 @@ assert_equals "unwritable dir exit code" "$rc" "1"
 assert_contains "unwritable dir prints sudo hint" "$out" "rerun with sudo"
 teardown "$t"
 
+echo "test 6: dry-run --start prints the listen address and skips install"
+t=$(setup)
+build_release "$t/release"
+read -r server_pid server_port < <(start_server "$t/release")
+run_install "$t" "http://127.0.0.1:$server_port" "$t/bin" "--dry-run --start --listen 0.0.0.0:7860"
+rc=$(cat "$t/rc"); out=$(cat "$t/out")
+stop_server "$server_pid"
+assert_equals "dry-run --start exit code" "$rc" "0"
+assert_contains "dry-run --start prints listen" "$out" "listen 0.0.0.0:7860"
+assert_contains "dry-run --start stops before download" "$out" "stopping before download"
+assert_contains "dry-run --start mentions dashboard" "$out" "dashboard"
+if [ -e "$t/bin/bernie" ]; then
+    printf '  FAIL  dry-run --start installed a binary\n'; exit 1
+fi
+printf '  PASS  dry-run --start did not install\n'
+teardown "$t"
+
+echo "test 7: --no-lan forces loopback only"
+t=$(setup)
+build_release "$t/release"
+read -r server_pid server_port < <(start_server "$t/release")
+run_install "$t" "http://127.0.0.1:$server_port" "$t/bin" "--dry-run --no-lan"
+rc=$(cat "$t/rc"); out=$(cat "$t/out")
+stop_server "$server_pid"
+assert_equals "dry-run --no-lan exit code" "$rc" "0"
+assert_contains "dry-run --no-lan uses loopback" "$out" "listen 127.0.0.1:7860"
+teardown "$t"
+
+echo "test 8: unknown flag with --start exits non-zero"
+t=$(setup)
+set +e
+sh "$t/install.sh" --start --bogus >"$t/out" 2>&1
+echo $? >"$t/rc"
+set -e
+rc=$(cat "$t/rc"); out=$(cat "$t/out")
+assert_equals "unknown flag with --start exit code" "$rc" "2"
+assert_contains "unknown flag message" "$out" "unknown flag: --bogus"
+teardown "$t"
+
+echo "test 9: --listen needs a value"
+t=$(setup)
+set +e
+sh "$t/install.sh" --listen >"$t/out" 2>&1
+echo $? >"$t/rc"
+set -e
+rc=$(cat "$t/rc"); out=$(cat "$t/out")
+assert_equals "--listen missing value exit code" "$rc" "2"
+assert_contains "--listen missing value message" "$out" "unknown flag: --listen"
+teardown "$t"
+
 echo "all install tests passed"
