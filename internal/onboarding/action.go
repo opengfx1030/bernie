@@ -22,6 +22,9 @@ const (
 // it is already done.
 var ErrNoAction = errors.New("this step has nothing bernie can run")
 
+// ErrUnknownStep means that no onboarding step has the requested id.
+var ErrUnknownStep = errors.New("unknown onboarding step")
+
 // Action is what a step does when it runs. The dashboard, the jobs and `up`
 // all run the same action.
 type Action struct {
@@ -45,6 +48,42 @@ type Action struct {
 // and the jobs run the same action.
 func SetupAction(steps []setup.Step) *Action {
 	return &Action{Kind: ActionSetup, Steps: steps}
+}
+
+// PreparedStep is what a checklist step needs before it can run. A step
+// that needs root carries its commands; a runnable step carries its action.
+type PreparedStep struct {
+	Step         string
+	RootCommands []string
+	Action       *Action
+}
+
+// PrepareStep prepares one step from facts that were already gathered. It
+// returns the root commands when the operator must act, the action when
+// bernie can run the step, and ErrNoAction when the step has nothing to do.
+func PrepareStep(f *Facts, step string, o Options) (*PreparedStep, error) {
+	doc := Build(f)
+	var found *Step
+	for i := range doc.Steps {
+		if doc.Steps[i].ID == step {
+			found = &doc.Steps[i]
+			break
+		}
+	}
+	if found == nil {
+		return nil, fmt.Errorf("%w: %s", ErrUnknownStep, step)
+	}
+	if len(found.RootCommands) > 0 {
+		return &PreparedStep{Step: step, RootCommands: found.RootCommands}, nil
+	}
+	if !found.CanRun {
+		return nil, ErrNoAction
+	}
+	action, err := ActionFor(f, step, o)
+	if err != nil {
+		return nil, err
+	}
+	return &PreparedStep{Step: step, Action: action}, nil
 }
 
 // ActionFor returns the action of a step. It returns ErrNoAction when the
