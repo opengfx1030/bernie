@@ -65,7 +65,7 @@ function advSubscribe() {
 function advRunsOverview(root) {
   const card = h("div.card", cardHead("Runs", "/api/runs", h("a.small", { href: "#logs" }, "manage")), loading());
   put(root, card);
-  const api = {
+  const view = {
     update: async () => {
       try {
         const runs = runsOf(await api("/api/runs"));
@@ -75,8 +75,8 @@ function advRunsOverview(root) {
       }
     },
   };
-  api.update();
-  return api;
+  view.update();
+  return view;
 }
 
 /** advRunsTable is the table of the runs: the name, the state and the
