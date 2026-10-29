@@ -31,7 +31,7 @@
 .ring-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 84px; text-align: center; }
 .ring-n { font: 900 18px/1 var(--font-display); color: var(--text); font-variant-numeric: tabular-nums; }
 .ring-track { position: relative; height: 6px; border-radius: 4px; background: var(--bg); overflow: hidden; }
-.ring-fill { display: block; height: 100%; background: var(--series-1); width: 0%; transition: width 200ms ease; }
+.ring-fill { display: block; height: 100%; background: var(--series-1); width: 0%; }
 .ring-caption { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
 .meter-track-wrap { position: relative; }
 .meter-tick { position: absolute; top: -2px; height: 12px; width: 2px; background: var(--border-strong); display: none; }
