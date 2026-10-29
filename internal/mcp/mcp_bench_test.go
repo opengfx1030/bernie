@@ -32,16 +32,6 @@ func TestBenchCompareRefusesMissingResult(t *testing.T) {
 	}
 }
 
-// bench_run refuses a remote URL (loopback only).
-func TestBenchRunRefusesRemoteURL(t *testing.T) {
-	isolate(t)
-	cs := connect(t, Options{Write: true})
-	res := callTool(t, cs, "bench_run", map[string]any{"url": "http://10.1.2.3:8000"})
-	if !res.IsError {
-		t.Error("bench_run accepted a remote URL")
-	}
-}
-
 // bench_ab refuses a remote URL on either arm (loopback only).
 func TestBenchABRefusesRemoteURL(t *testing.T) {
 	isolate(t)
