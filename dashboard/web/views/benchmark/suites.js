@@ -133,8 +133,13 @@ function benchSuiteOf(r) {
 }
 
 /** benchHistoryRow is one saved result of the history table. */
-function benchHistoryRow(r, verdict, onPick) {
+function benchHistoryRow(r, verdict, onPick, onDelete) {
   const cells = r.cells || [];
+  const del = h("button.small", { type: "button" }, "Delete");
+  del.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (onDelete) onDelete(r, del);
+  });
   const tr = h("tr",
     h("td.small", ago(r.time)),
     h("td", benchSuiteOf(r)),
@@ -143,7 +148,8 @@ function benchHistoryRow(r, verdict, onPick) {
     h("td.num", benchNum(benchBest(cells, (c) => (c.prefill || {}).agg_tok_s), 1)),
     h("td.num", benchNum(benchBest(cells, (c) => (c.decode || {}).agg_tok_s), 1)),
     h("td.num", cells.length),
-    h("td", verdict ? verdictChip(verdict) : h("span.muted", "–")));
+    h("td", verdict ? verdictChip(verdict) : h("span.muted", "–")),
+    h("td", onDelete ? del : null));
   if (onPick) {
     tr.classList.add("click");
     tr.addEventListener("click", () => onPick(r));
@@ -152,7 +158,7 @@ function benchHistoryRow(r, verdict, onPick) {
 }
 
 /** benchHistory is the table of the saved results. */
-function benchHistory(list, verdicts, onPick) {
+function benchHistory(list, verdicts, onPick, onDelete) {
   if (!list || !list.length) {
     return emptyState("No saved result yet.",
       "Every benchmark is saved with its workload, so two results can be compared only when they measured the same thing.",
@@ -162,8 +168,8 @@ function benchHistory(list, verdicts, onPick) {
     h("thead", h("tr",
       h("th", "WHEN"), h("th", "SUITE"), h("th", "MODEL"),
       h("th.num", "OUT TOK/S"), h("th.num", "PREFILL"), h("th.num", "DECODE"),
-      h("th.num", "CELLS"), h("th", "VERDICT"))),
-    h("tbody", list.map((r) => benchHistoryRow(r, verdicts && verdicts[r.id], onPick)))));
+      h("th.num", "CELLS"), h("th", "VERDICT"), h("th", ""))),
+    h("tbody", list.map((r) => benchHistoryRow(r, verdicts && verdicts[r.id], onPick, onDelete)))));
 }
 
 /** benchAB is the A/B run: the two arms and the button that starts it. */

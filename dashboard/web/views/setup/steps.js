@@ -78,8 +78,14 @@ function followSetupJob(step, job, options) {
       if (!setupLogs[id]) setupLogs[id] = [];
       setupLogs[id].push(text);
       const current = setupProgress[id] || (setupProgress[id] = {});
-      current.phase = text;
-      current.detail = setupLiveDetail(current);
+      // The progress sentence of a download is its own line (R20): it
+      // goes under the sentence, it does not replace the phase.
+      if (text.indexOf("model.download: ") === 0 && text.indexOf("·") > 0) {
+        current.detail = text.slice("model.download: ".length).trim();
+      } else {
+        current.phase = text;
+        current.detail = setupLiveDetail(current);
+      }
       paintSetupProgress(id);
       loadSetupJobProgress(job.id, id);
       if (options.onRefresh) options.onRefresh();
@@ -159,10 +165,11 @@ function setupProgressSentence(p) {
 }
 
 /** setupProgressDetail is the line under the bar: the percent, the size,
- *  the rate and the time that is left. The estimate is shown only when the
- *  server measured it, and it is corrected in words when the work takes
- *  longer than the estimate. */
+ *  the rate and the time that is left. The sentence comes from the server
+ *  (R20): the same numbers the CLI prints and the MCP tool returns. A
+ *  server that sends no sentence falls back to the numbers it sent. */
 function setupProgressDetail(p, state) {
+  if (p.sentence) return p.sentence;
   const pct = typeof state.pct === "number" ? state.pct : 0;
   let text = pct + "%";
   if (p.bytes_total) {

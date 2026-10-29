@@ -78,6 +78,7 @@ function setupPaintPath() {
   put(box,
     h("p.small.muted", running ? "bernie is setting up this box." : (live.failed ? "The setup stopped." : "The setup is done.")),
     h("p.step-progress-sentence", live.phase),
+    live.detail ? h("p.small.muted", live.detail) : null,
     commands.map((c) => cmdBlock(c, "Copy the command")),
     running ? h("button.small", { type: "button", onclick: setupStopPath }, "Stop") : null,
     commands.length ? h("button.small", { type: "button", onclick: () => loadSetupDocument() }, "Re-check") : null);
