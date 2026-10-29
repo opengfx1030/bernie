@@ -79,6 +79,8 @@ const TAB_SCRIPTS = {
     "views/advanced/doctor.js",
     "views/advanced/jobs.js",
     "views/advanced/documents.js",
+    "views/advanced/prefs.js",
+    "views/advanced/report.js",
   ],
 };
 
@@ -89,7 +91,7 @@ const TAB_CSS = {
   benchmark: ["css/bench.css"],
   chat: ["views/chat/chat.css"],
   topology: ["views/topology/topology.css"],
-  fleet: [],
+  fleet: ["views/fleet/fleet.css"],
   logs: ["views/logs/logs.css"],
   advanced: ["css/advanced.css"],
 };
