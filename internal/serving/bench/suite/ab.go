@@ -92,6 +92,7 @@ func AB(ctx context.Context, o ABOptions) (*ABResult, error) {
 		default:
 			return nil, fmt.Errorf("the visit %d names the unknown arm %q (base or cand)", i+1, arm)
 		}
+		bench.SendEvent(o.Progress, bench.Event{Kind: bench.EventVisit, Arm: arm, Index: i + 1, Total: len(visits)})
 		recipe := o.Base
 		if arm == ArmCand {
 			recipe = o.Cand

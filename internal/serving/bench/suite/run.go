@@ -27,7 +27,8 @@ func Run(ctx context.Context, s *Suite, o bench.Options, progress io.Writer) (*b
 	o = applyOverrides(s, o)
 	var merged *bench.Result
 	var cells []bench.Cell
-	for _, g := range s.Groups {
+	for gi, g := range s.Groups {
+		bench.SendEvent(progress, bench.Event{Kind: bench.EventGroup, Group: g.Name, Index: gi + 1, Total: len(s.Groups)})
 		fmt.Fprintf(progress, "bench: suite %s group %s: %d prompt tokens, %d output tokens, c=%v, %d repetition(s)\n",
 			s.ID, g.Name, g.InputLen, g.OutputLen, g.Concurrency, g.Reps)
 		reps, first, err := runGroup(ctx, s, g, o, progress)

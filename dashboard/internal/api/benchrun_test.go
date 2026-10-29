@@ -1,11 +1,15 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/opengfx1030/bernie/internal/bench/job"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 )
 
@@ -38,27 +42,84 @@ func TestBenchRunStartsAJob(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("the job: %d %s", w.Code, w.Body.String())
 	}
-	var job struct {
+	var doc struct {
 		ID       string `json:"id"`
 		Status   string `json:"status"`
 		Phase    string `json:"phase"`
 		Done     int    `json:"done"`
 		Total    int    `json:"total"`
 		ResultID string `json:"result_id"`
+		Event    struct {
+			Kind string `json:"kind"`
+		} `json:"event"`
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &job); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &doc); err != nil {
 		t.Fatalf("the job is not JSON: %v\n%s", err, w.Body.String())
 	}
-	if job.ID != id {
-		t.Errorf("the job is %q, want %q", job.ID, id)
+	if doc.ID != id {
+		t.Errorf("the job is %q, want %q", doc.ID, id)
 	}
-	switch job.Status {
-	case benchRunning, benchDone, benchFailed:
+	switch doc.Status {
+	case job.StatusRunning, job.StatusDone, job.StatusFailed:
 	default:
-		t.Errorf("the status is %q", job.Status)
+		t.Errorf("the status is %q", doc.Status)
 	}
-	if job.Total != 1 {
-		t.Errorf("the smoke suite has %d cells, want 1", job.Total)
+	if doc.Total != 1 {
+		t.Errorf("the smoke suite has %d cells, want 1", doc.Total)
+	}
+}
+
+// TestBenchRunAnswersBusy checks that a run that starts while another job
+// runs answers 409 with the busy sentence.
+func TestBenchRunAnswersBusy(t *testing.T) {
+	h := benchHandler(t)
+	// The server never answers: the job of the first request runs until
+	// the test ends.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+	w := post(t, h, "/api/bench/run", `{"url":"`+srv.URL+`"}`)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("the first run: %d %s", w.Code, w.Body.String())
+	}
+	w = post(t, h, "/api/bench/run", `{"url":"`+srv.URL+`"}`)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("a second run: %d %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "a benchmark is already running") {
+		t.Errorf("the busy answer is %q", w.Body.String())
+	}
+}
+
+// TestBenchEventsCarryTheTypedEvent checks that the stream of a job carries
+// the typed event of the run: the page reads it instead of the log text.
+func TestBenchEventsCarryTheTypedEvent(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	store := job.NewStore()
+	j, err := store.Start(context.Background(), job.Request{Kind: job.KindRun, Total: 2,
+		Run: func(ctx context.Context, p *job.Progress) (string, error) {
+			p.Event(bench.Event{Kind: bench.EventCell, Index: 1, Total: 2, Level: 4})
+			_, _ = p.Write([]byte("bench: c=4 done in 1.0s: 4 ok, 0 failed\n"))
+			return "r1", nil
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &handler{bench: store, log: io.Discard}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/api/bench/"+j.ID()+"/events", nil)
+	r.SetPathValue("id", j.ID())
+	h.getBenchEvents(w, r)
+	body := w.Body.String()
+	if !strings.Contains(body, `"kind":"cell"`) {
+		t.Errorf("the stream has no typed event: %s", body)
+	}
+	if !strings.Contains(body, `"level":4`) {
+		t.Errorf("the typed event has no payload: %s", body)
+	}
+	if !strings.Contains(body, "event: progress") {
+		t.Errorf("the stream has no progress event: %s", body)
 	}
 }
 

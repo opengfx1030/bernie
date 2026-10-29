@@ -202,6 +202,7 @@ func (s *Server) benchRun(_ context.Context, c *call, in benchRunIn) (any, error
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
 	return execute(s, c, mutation[bench.Result]{tool: "bench_run", token: token, args: o, plan: o, lock: &s.benchM,
+		busy: app.ErrBenchBusy,
 		run: func(ctx context.Context) (*bench.Result, error) {
 			if o.Suite != "" {
 				r, _, err := app.BenchSuite(ctx, o.Suite, o, c.progress())
@@ -249,6 +250,7 @@ func (s *Server) benchAB(_ context.Context, c *call, in benchABIn) (any, error) 
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
 	return execute(s, c, mutation[suite.ABResult]{tool: "bench_ab", token: token, args: o, plan: o, lock: &s.benchM,
+		busy: app.ErrBenchBusy,
 		run: func(ctx context.Context) (*suite.ABResult, error) {
 			o.Progress = c.progress()
 			res, _, err := app.BenchAB(ctx, o)

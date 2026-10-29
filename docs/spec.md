@@ -1489,10 +1489,10 @@ does not measure is shown as a dash with the words "n/a on this host".
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. The value is clamped to the range the cards share (spec §9.2); the answer names the cards that were clamped in `clamped`. |
 | GET | `/api/bench` | `bench list` JSON |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. The target is always a loopback server of this host. One bench at a time; a second gets 409. |
-| POST | `/api/bench/run` | the same body as `POST /api/bench`, but the run happens in the background → `{"id": "b-7f3a"}` (202). The target is always a loopback server of this host. The state of the run is `GET /api/bench/{id}`. |
-| POST | `/api/bench/ab` | `{"base": "", "cand": "", "suite": "", "model": "", "num_prompts": 0, "seed": 0, "tag": ""}` → `{"id": "b-7f3a"}` (202). A URL arm must be a server of this host. The state of the run is `GET /api/bench/{id}`. |
-| GET | `/api/bench/{id}` | the state of a benchmark run: `{"id", "status", "phase", "done", "total", "result_id"}`. `status` is `running`, `done` or `failed`; `phase` names the cell the run is on; `done` counts the finished cells, `total` is the number of cells of the run and `result_id` is the id of the saved result. |
-| GET | `/api/bench/{id}/events` | Server-sent events of a benchmark run: one `log` event per progress line, a `progress` event with the job document, then a `done` or `failed` event with the job document. |
+| POST | `/api/bench/run` | the same body as `POST /api/bench`, but the run happens in the background → `{"id": "b-7f3a"}` (202). The target is always a loopback server of this host. The state of the run is `GET /api/bench/{id}`. One benchmark job runs at a time; a job that starts while another job runs answers 409. |
+| POST | `/api/bench/ab` | `{"base": "", "cand": "", "suite": "", "model": "", "num_prompts": 0, "seed": 0, "tag": ""}` → `{"id": "b-7f3a"}` (202). A URL arm must be a server of this host. The state of the run is `GET /api/bench/{id}`. One benchmark job runs at a time; a job that starts while another job runs answers 409. |
+| GET | `/api/bench/{id}` | the state of a benchmark run: `{"id", "status", "phase", "event", "done", "total", "result_id"}`. `status` is `running`, `done` or `failed`; `phase` names the cell the run is on; `done` counts the finished cells, `total` is the number of cells of the run and `result_id` is the id of the saved result. `event` is the typed event of the run (below). |
+| GET | `/api/bench/{id}/events` | Server-sent events of a benchmark run: one `log` event per progress line, a `progress` event with the job document, then a `done` or `failed` event with the job document. The document carries the typed event of the run, so the page reads the state of the run and not the text of the log. |
 | GET | `/api/bench/compare?a=ID&b=ID&format=markdown` | the receipt of the comparison as `text/markdown`: the text of `bernie bench compare A B --markdown`. |
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
@@ -1500,6 +1500,37 @@ does not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/jobs/{id}` | the job document: `{"id", "step", "state", "phase", "progress", "error", "findings", "lines", "started_at", "finished_at"}`. `progress` holds the numbers of the work when the step counts them ([§3.3](#33-the-onboarding-checklist)). |
 | GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. The stream replays the buffered lines from the beginning; every line event carries the number of the line as its id, and `Last-Event-ID` (or `last_event_id`) asks for the lines after it. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
+
+A benchmark job is a benchmark that runs in the background. The job has an
+id, a state (`running`, `done` or `failed`), a phase, the counters of the
+work and the typed event of the run.
+
+The typed event says where the run is. Its `kind` is one of:
+
+| Kind | Meaning | Fields |
+|---|---|---|
+| `visit` | a visit of an A/B run starts | `index`, `total`, `arm` |
+| `group` | a group of a suite run starts | `index`, `total`, `group` |
+| `cell` | a cell of the run finished | `index`, `total`, `level` |
+
+`index` is the number of the visit, of the group or of the cell, starting at
+one. `total` is the number of visits, of groups or of cells of the run.
+`arm` is the arm of a visit (`base` or `cand`). `group` is the name of a
+group of a suite run. `level` is the concurrency of a cell.
+
+The typed event is in the job document of `GET /api/bench/{id}` and in the
+`progress` event of `GET /api/bench/{id}/events`. The page reads the event
+and never the text of the log to know where a run is.
+
+One benchmark runs at a time. Every entry that starts a benchmark answers
+the same way when a benchmark runs already: `POST /api/bench`, `POST
+/api/bench/run` and `POST /api/bench/ab` answer 409, the command `bernie
+bench` prints `a benchmark is already running` and exits with a non-zero
+code, and the tools `bench_run` and `bench_ab` of the MCP server return the
+same sentence as an error.
+
+The store of the jobs keeps at most 32 finished jobs. The oldest finished
+job is dropped when a new one finishes.
 
 The `Sample` of the telemetry stream is one GPU:
 
@@ -1713,7 +1744,9 @@ A token:
 
 The server runs one host-changing operation at a time (`serve`, `stop`,
 `setup_apply`, `tune_power_set`) and one benchmark at a time. A call that
-finds the slot taken fails with a busy error.
+finds the slot taken fails with a busy error. The benchmark tools fail with
+`a benchmark is already running`, the sentence of every front end that
+starts a benchmark ([§11](#11-dashboard)).
 
 ### 13.6 Host safety
 

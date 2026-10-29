@@ -32,8 +32,20 @@ type mutation[R any] struct {
 	args  any    // the normalized arguments, without the token
 	plan  any    // what the operator confirms
 	lock  *sync.Mutex
+	// busy is the error of a busy lock. It is errBusy unless the tool has
+	// its own sentence: a benchmark shares the busy answer of the other
+	// front ends.
+	busy error
 	// run does the work. It runs only after a valid token.
 	run func(ctx context.Context) (*R, error)
+}
+
+// busyError is the answer of a busy lock.
+func (m *mutation[R]) busyError() error {
+	if m.busy != nil {
+		return m.busy
+	}
+	return errBusy
 }
 
 // execute plans, or verifies the token and runs. It never changes the host
@@ -68,7 +80,7 @@ func execute[R any](s *Server, c *call, m mutation[R]) (any, error) {
 	if m.lock != nil {
 		if !m.lock.TryLock() {
 			c.result, c.class = "rejected", "busy"
-			return nil, errBusy
+			return nil, m.busyError()
 		}
 		defer m.lock.Unlock()
 	}

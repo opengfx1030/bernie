@@ -165,7 +165,7 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		return s
 	}
 
-	for _, c := range o.Concurrency {
+	for i, c := range o.Concurrency {
 		n := cellPrompts(o, c)
 		warmFailed := 0
 		if o.Warmup > 0 {
@@ -201,6 +201,7 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		cell.StreamIncremental = streamIncremental(samples)
 		fmt.Fprintf(progress, "bench: c=%d done in %.1fs: %d ok, %d failed, %.1f output tok/s\n",
 			c, cell.DurationS, cell.Completed, cell.Failed, cell.OutputTokS)
+		SendEvent(progress, Event{Kind: EventCell, Index: i + 1, Total: len(o.Concurrency), Level: c})
 		if o.Recall || o.Check {
 			asked, passed := recallVerdict(samples)
 			if o.Check {
