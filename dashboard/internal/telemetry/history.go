@@ -55,6 +55,12 @@ type cardPoint struct {
 	busy  float64
 	power float64
 	vram  uint64
+	// The slow fields: the temperature and the clocks. They are nil when
+	// the point holds no slow measurement: a gap is a gap, not a value
+	// carried forward.
+	temp *float64
+	sclk *int
+	mclk *int
 }
 
 // HistorySeries is the history of one card: one value per point.
@@ -65,6 +71,11 @@ type HistorySeries struct {
 	VRAMUsed         []uint64  `json:"vram_used"`
 	TokensPerS       []float64 `json:"tokens_per_s"`
 	PromptTokensPerS []float64 `json:"prompt_tok_s"`
+	// TempC is the temperature of the card and SclkMHz, MclkMHz its
+	// clocks. They are null at the points that hold no slow measurement.
+	TempC   []*float64 `json:"temp_c"`
+	SclkMHz []*int     `json:"sclk_mhz"`
+	MclkMHz []*int     `json:"mclk_mhz"`
 }
 
 // HistoryDocument is the answer of GET /api/gpus/history.
@@ -84,7 +95,11 @@ func NewHistory() *History {
 // the samples in between are dropped. tokS is the output rate of the live
 // run and promptTokS its prefill rate: the rates are properties of the
 // server, so every card carries them, and they are zero when no run serves.
-func (h *History) Add(at time.Time, gpus []gpu.Sample, tokS, promptTokS float64) {
+//
+// slowFresh says that the slow fields of this sample were measured now. A
+// point without a slow measurement holds no slow value: the slow series of
+// the answer carries a gap there, never a value carried forward.
+func (h *History) Add(at time.Time, gpus []gpu.Sample, tokS, promptTokS float64, slowFresh bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if !h.last.IsZero() && at.Sub(h.last) < historyStep {
@@ -93,12 +108,21 @@ func (h *History) Add(at time.Time, gpus []gpu.Sample, tokS, promptTokS float64)
 	h.last = at
 	cards := make([]cardPoint, 0, len(gpus))
 	for _, g := range gpus {
-		cards = append(cards, cardPoint{
+		c := cardPoint{
 			hip:   g.HIPIndex,
 			busy:  round1(g.BusyPct),
 			power: round1(g.PowerW),
 			vram:  g.VRAMUsed,
-		})
+		}
+		if slowFresh {
+			if g.TempC != 0 {
+				t := g.TempC
+				c.temp = &t
+			}
+			c.sclk = g.SclkMHz
+			c.mclk = g.MclkMHz
+		}
+		cards = append(cards, c)
 	}
 	h.pts[h.head] = point{
 		at: at, cards: cards,
@@ -167,16 +191,22 @@ func (h *History) build(name string, dur, step time.Duration, now time.Time) His
 			VRAMUsed:         make([]uint64, 0, len(sel)),
 			TokensPerS:       make([]float64, 0, len(sel)),
 			PromptTokensPerS: make([]float64, 0, len(sel)),
+			TempC:            make([]*float64, 0, len(sel)),
+			SclkMHz:          make([]*int, 0, len(sel)),
+			MclkMHz:          make([]*int, 0, len(sel)),
 		}
 		var busy, power float64
 		var vram uint64
 		for _, p := range sel {
-			for _, c := range p.cards {
-				if c.hip != hip {
-					continue
+			var card *cardPoint
+			for i := range p.cards {
+				if p.cards[i].hip == hip {
+					card = &p.cards[i]
+					break
 				}
-				busy, power, vram = c.busy, c.power, c.vram
-				break
+			}
+			if card != nil {
+				busy, power, vram = card.busy, card.power, card.vram
 			}
 			// A card that is gone keeps its last value: the chart shows no
 			// dip that never happened.
@@ -185,6 +215,17 @@ func (h *History) build(name string, dur, step time.Duration, now time.Time) His
 			s.VRAMUsed = append(s.VRAMUsed, vram)
 			s.TokensPerS = append(s.TokensPerS, p.tokS)
 			s.PromptTokensPerS = append(s.PromptTokensPerS, p.promptTokS)
+			// The slow fields are never carried forward: a point without a
+			// slow measurement is a gap.
+			if card == nil {
+				s.TempC = append(s.TempC, nil)
+				s.SclkMHz = append(s.SclkMHz, nil)
+				s.MclkMHz = append(s.MclkMHz, nil)
+				continue
+			}
+			s.TempC = append(s.TempC, card.temp)
+			s.SclkMHz = append(s.SclkMHz, card.sclk)
+			s.MclkMHz = append(s.MclkMHz, card.mclk)
 		}
 		doc.Series = append(doc.Series, s)
 	}

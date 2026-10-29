@@ -20,11 +20,25 @@ import (
 // host; BERNIE_ROOT points it at a captured host tree (spec §4).
 var root = hostroot.Root()
 
+// slowEvery is the time between two slow passes over the cards. The
+// temperatures, the caps and the clocks move slowly, and every read of an
+// amdgpu attribute talks to the card: on a host with ten cards the slow
+// pass costs as much as four fast passes.
+//
+// The cadence is a multiple of the step of the history (two seconds): every
+// slow pass then lands on a point of the ring, and the points in between
+// carry no slow value. The history never carries a slow value forward: a
+// point without a slow measurement holds a gap.
+const slowEvery = 4 * time.Second
+
 // document is one event of GET /api/telemetry.
 type document struct {
 	Time int64        `json:"time"` // Unix milliseconds
 	GPUs []gpu.Sample `json:"gpus"`
 	Runs []runMetrics `json:"runs"`
+	// SlowAgeS is the age in seconds of the slow fields (the temperatures,
+	// the caps, the clocks). The fast fields are one second old at most.
+	SlowAgeS float64 `json:"slow_age_s"`
 }
 
 // runMetrics is the live vLLM state of one run that is not exited.
@@ -52,6 +66,41 @@ type Sampler struct {
 	gpuT    time.Time
 	prev    map[string]counters
 	history *History // the ring buffer of the last minutes (nil = no history)
+	// slow is the last slow pass over the cards; it is merged into the
+	// fast samples until the next one.
+	slow   []gpu.Sample
+	slowAt time.Time
+	// now is the clock of the sampler. The test sets it to drive the tier
+	// schedule without waiting.
+	now func() time.Time
+	// readFast and readSlow read the two tiers of the attributes of the
+	// cards. The test counts the calls.
+	readFast func(root string, gpus []gpu.GPU) []gpu.Sample
+	readSlow func(root string, gpus []gpu.GPU) []gpu.Sample
+}
+
+// clock returns the time of the sampler.
+func (s *Sampler) clock() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now()
+}
+
+// fast reads the fast tier of the attributes of the cards.
+func (s *Sampler) fast(gpus []gpu.GPU) []gpu.Sample {
+	if s.readFast != nil {
+		return s.readFast(root, gpus)
+	}
+	return gpu.TelemetryFast(root, gpus)
+}
+
+// slowPass reads the slow tier of the attributes of the cards.
+func (s *Sampler) slowPass(gpus []gpu.GPU) []gpu.Sample {
+	if s.readSlow != nil {
+		return s.readSlow(root, gpus)
+	}
+	return gpu.TelemetrySlow(root, gpus)
 }
 
 // SetHistory gives the sampler the ring buffer it fills. The hub owns it.
@@ -67,13 +116,30 @@ func (s *Sampler) Sample(ctx context.Context) []byte {
 	sp := s
 	sp.mu.Lock()
 	defer sp.mu.Unlock()
-	now := time.Now()
+	now := sp.clock()
 	// The GPU list changes only with hardware; re-read it every 30 s.
 	if sp.gpus == nil || now.Sub(sp.gpuT) > 30*time.Second {
 		g, _ := listGPUs()
 		sp.gpus, sp.gpuT = g, now
 	}
-	t := document{Time: now.UnixMilli(), GPUs: gpu.Telemetry(root, sp.gpus), Runs: []runMetrics{}}
+	// The fast tier is read every second, the slow tier every slowEvery.
+	// The slow values are merged into the fast samples: the answer holds
+	// one value per field, and the age of the slow ones says how old they
+	// are.
+	cards := sp.fast(sp.gpus)
+	slowFresh := false
+	if sp.slow == nil || now.Sub(sp.slowAt) >= slowEvery {
+		sp.slow = sp.slowPass(sp.gpus)
+		sp.slowAt = now
+		slowFresh = true
+	}
+	for i := range cards {
+		if i < len(sp.slow) {
+			gpu.MergeSlow(&cards[i], &sp.slow[i])
+		}
+	}
+	t := document{Time: now.UnixMilli(), GPUs: cards, Runs: []runMetrics{}}
+	t.SlowAgeS = now.Sub(sp.slowAt).Seconds()
 	if t.GPUs == nil {
 		t.GPUs = []gpu.Sample{}
 	}
@@ -127,7 +193,7 @@ func (s *Sampler) Sample(ctx context.Context) []byte {
 			fleet += t.Runs[i].GenTokS
 			fleetPrompt += t.Runs[i].PromptTokS
 		}
-		sp.history.Add(now, t.GPUs, fleet, fleetPrompt)
+		sp.history.Add(now, t.GPUs, fleet, fleetPrompt, slowFresh)
 	}
 	b, err := json.Marshal(t)
 	if err != nil {
