@@ -20,6 +20,8 @@ jobs:
         run: make lint
       - name: import layers
         run: make layers
+      - name: web checks
+        run: make webcheck
       - name: modules (verified and tidy)
         run: |
           go mod verify

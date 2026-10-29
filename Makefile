@@ -14,7 +14,7 @@ SHA256   := $(shell command -v sha256sum >/dev/null 2>&1 && echo sha256sum || ec
 ENGINE   ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || { command -v podman >/dev/null 2>&1 && echo podman; })
 IMAGE    ?= ghcr.io/opengfx1030/bernie
 
-.PHONY: build linux test lint check fmt clean dist packages image sums layers
+.PHONY: build linux test lint check fmt clean dist packages image sums layers webcheck
 
 build:
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o $(BIN)/bernie ./cmd/bernie
@@ -33,7 +33,11 @@ lint:
 layers:
 	@scripts/check-layers.sh
 
-check: lint test layers
+# webcheck: the front-end rules of dashboard/AGENTS.md.
+webcheck:
+	@scripts/check-web.sh
+
+check: lint test layers webcheck
 
 fmt:
 	gofmt -w .

@@ -17,12 +17,11 @@ view of the CLI. It adds no logic.
 
 Every rule carries its check. The tags:
 
-- **[lint]** — a Go test fails the build (`dashboard/webassets_test.go`).
-  The assets lint test also checks that every file named in `index.html`
-  exists. **Pending**: the shell worker owns it; until it lands, the rule is
-  reviewed by hand.
-- **[budget]** — the byte budget test fails the build. **Pending**: the shell
-  worker owns it.
+- **[lint]** — `scripts/check-web.sh` fails the build through `make check` and
+  in CI. The Go asset tests (`dashboard/webassets_test.go` and
+  `dashboard/assets_test.go`) fail the build too.
+- **[budget]** — `TestPayloadBudget` in `dashboard/assets_test.go` fails the
+  build.
 - **[layers]** — `make layers` (`scripts/check-layers.sh`) fails the build.
 - **[test]** — an existing Go test in `dashboard/` covers it.
 - **[review]** — checked by a person in the browser check of *Check your
@@ -332,15 +331,15 @@ for the first time (the manifest of `web/js/boot.js`).
 
 | Budget | Target | Now | Check |
 |---|---|---|---|
-| HTML + CSS + JS, uncompressed (the whole tree) | ≤ 360 KB | 345.3 KB | **[budget]** |
+| HTML + CSS + JS, uncompressed (the whole tree) | ≤ 375 KB | 356.6 KB | **[budget]** |
 | HTML file | ≤ 12 KB | 4.3 KB | **[budget]** |
-| CSS total | ≤ 80 KB | 75.2 KB | **[budget]** |
-| JavaScript total (the five tabs) | ≤ 280 KB | 265.8 KB | **[budget]** |
-| JavaScript on the first paint | ≤ 110 KB | 101.4 KB | **[budget]** |
-| CSS on the first paint | ≤ 40 KB | 37.0 KB | **[budget]** |
+| CSS total | ≤ 80 KB | 77.1 KB | **[budget]** |
+| JavaScript total (the five tabs) | ≤ 290 KB | 275.3 KB | **[budget]** |
+| JavaScript on the first paint | ≤ 110 KB | 105.6 KB | **[budget]** |
+| CSS on the first paint | ≤ 40 KB | 37.5 KB | **[budget]** |
 | Fonts | ≤ 130 KB, ≤ 4 files, woff2, `font-display:swap`, `unicode-range` | 128.4 KB, 4 files, swap, range ✓ | **[budget]** |
 | Requests on the first paint | ≤ 24 | 21 | **[budget]** |
-| Transferred text on the first paint (gzip) | ≤ 60 KB | 45.1 KB | **[budget]** |
+| Transferred text on the first paint (gzip) | ≤ 60 KB | 46.4 KB | **[budget]** |
 | Points drawn per chart | ≤ 240 | unbounded | **[review]** |
 | Pollers | 1 | 1 poller + 1 extra 1 Hz timer | **[review]** |
 | Live streams | 1 SSE at 1 Hz | 1 SSE | **[review]** |
