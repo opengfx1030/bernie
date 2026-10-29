@@ -15,11 +15,18 @@
    Latin subsets of Montserrat, Inter and JetBrains Mono, all under the SIL
    Open Font License. See web/fonts/. */
 
+/* The range of every face is the Latin subset plus the marks the page uses
+   (the arrows, the geometric shapes and the check marks of the rail and of
+   the step timeline). The files carry no other glyph: a character outside the
+   range falls back to the font of the system, as it did before the range was
+   declared. */
+
 @font-face {
   font-family: "Montserrat";
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2200-22FF, U+25A0-25FF, U+2600-27BF, U+FEFF, U+FFFD;
   src: url("../fonts/montserrat-latin.woff2") format("woff2");
 }
 
@@ -28,6 +35,7 @@
   font-style: italic;
   font-weight: 100 900;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2200-22FF, U+25A0-25FF, U+2600-27BF, U+FEFF, U+FFFD;
   src: url("../fonts/montserrat-italic-latin.woff2") format("woff2");
 }
 
@@ -36,6 +44,7 @@
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2200-22FF, U+25A0-25FF, U+2600-27BF, U+FEFF, U+FFFD;
   src: url("../fonts/inter-latin.woff2") format("woff2");
 }
 
@@ -44,6 +53,7 @@
   font-style: normal;
   font-weight: 100 800;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2200-22FF, U+25A0-25FF, U+2600-27BF, U+FEFF, U+FFFD;
   src: url("../fonts/jetbrains-mono-latin.woff2") format("woff2");
 }
 
