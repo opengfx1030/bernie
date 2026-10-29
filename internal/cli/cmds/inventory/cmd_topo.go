@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/machine/topo"
@@ -120,5 +121,8 @@ func printTopo(w io.Writer, t topo.Topology) {
 			}
 			return fmt.Sprintf("%.1f", p.GBps)
 		})
+	}
+	if !t.MeasuredAt.IsZero() {
+		fmt.Fprintf(w, "\nmeasured at %s (source: %s)\n", t.MeasuredAt.Format(time.RFC3339), t.MeasuredSource)
 	}
 }

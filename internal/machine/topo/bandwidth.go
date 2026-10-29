@@ -14,6 +14,7 @@ import (
 
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
 	"github.com/opengfx1030/bernie/internal/support/execx"
+	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // Bandwidth sources.
@@ -21,6 +22,91 @@ const (
 	BandwidthRBT   = "rocm-bandwidth-test"
 	BandwidthTorch = "torch"
 )
+
+// Measurement is a saved bandwidth measurement: the GB/s of every pair, the
+// time it was taken and the tool that took it. The page reads it so the
+// Topology tab can show a measured matrix without measuring again
+// (ia.md §5 R32).
+type Measurement struct {
+	MeasuredAt time.Time          `json:"measured_at"`
+	Source     string             `json:"source"`
+	GBps       map[string]float64 `json:"gbps"` // "a-b" -> GB/s
+}
+
+// measurementPath is the file the measurement lives in: under the state
+// directory, next to the runs (nothing is ever written under /tmp).
+func measurementPath() string {
+	return filepath.Join(paths.State(), "topo", "bandwidth.json")
+}
+
+// SaveMeasurement writes the measured bandwidth of the topology to the state
+// directory. It is what `bernie topo --bandwidth` leaves behind, so the page
+// can show the numbers later.
+func SaveMeasurement(t *Topology) error {
+	m := Measurement{
+		MeasuredAt: time.Now(),
+		Source:     t.Bandwidth,
+		GBps:       map[string]float64{},
+	}
+	for _, p := range t.Pairs {
+		if p.GBps > 0 {
+			m.GBps[fmt.Sprintf("%d-%d", p.A, p.B)] = p.GBps
+		}
+	}
+	if len(m.GBps) == 0 {
+		return errors.New("no bandwidth was measured")
+	}
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	p := measurementPath()
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	tmp := p + ".tmp"
+	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, p)
+}
+
+// LoadMeasurement reads the last saved bandwidth measurement. It answers a
+// nil measurement and no error when there is none: the page then says the
+// bandwidth is not measured and names the command.
+func LoadMeasurement() (*Measurement, error) {
+	b, err := os.ReadFile(measurementPath())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var m Measurement
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	if len(m.GBps) == 0 {
+		return nil, nil
+	}
+	return &m, nil
+}
+
+// ApplyMeasurement fills the GB/s of the pairs of the topology from a saved
+// measurement and records when it was taken.
+func ApplyMeasurement(t *Topology, m *Measurement) {
+	if m == nil {
+		return
+	}
+	for i := range t.Pairs {
+		p := &t.Pairs[i]
+		if v, ok := m.GBps[fmt.Sprintf("%d-%d", p.A, p.B)]; ok {
+			p.GBps = v
+		}
+	}
+	t.MeasuredAt = m.MeasuredAt
+	t.MeasuredSource = m.Source
+}
 
 // MeasureBandwidth fills Pair.GBps with unidirectional GPU-to-GPU copy
 // bandwidth: rocm-bandwidth-test when installed, else (with venv) a torch

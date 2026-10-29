@@ -3,18 +3,24 @@
 // The raw documents behind the tab and the commands that make them.
 
 /** topoBandwidth is the state of the bandwidth of this host. The dashboard
- *  never measures it: `bernie topo --bandwidth` does. The tab says so
- *  instead of showing a number it does not have. */
+ *  never measures it: `bernie topo --bandwidth` does, and the command
+ *  saves the result so the page shows it afterwards. When nothing was
+ *  measured the tab says so and names the command (ia.md §5 R32). */
 function topoBandwidth(data) {
   const pairs = (data && data.pairs) || [];
   const measured = pairs.filter((p) => p.gbps);
   if (!measured.length) {
     return emptyState("The bandwidth of this host is not measured.",
-      "The dashboard never measures the bandwidth of the cards. The command below measures the GB/s of every pair.",
+      "The measurement runs copies between the cards and takes minutes. The command below measures the GB/s of every pair and saves it, so the page shows it afterwards.",
       "bernie topo --bandwidth");
   }
+  const when = data.measured_at ? ago(data.measured_at) : "";
+  const source = data.measured_source ? " with " + data.measured_source : "";
   return h("div",
-    h("p.small.muted", "The GB/s of every pair, as the last measurement found it."),
+    h("p.small.muted", "The GB/s of every pair, as the last measurement found it."
+      + (when ? " Measured " + when + source + "." : "")),
+    topoBandwidthMatrix(data),
+    h("h3", { class: "topo-sub" }, "Every pair"),
     topoPairTable(data));
 }
 

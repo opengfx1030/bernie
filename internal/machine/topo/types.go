@@ -3,6 +3,8 @@
 // optional bandwidth tests.
 package topo
 
+import "time"
+
 // Link classes, from closest to farthest.
 const (
 	ClassPIX = "PIX" // same PCIe switch
@@ -36,4 +38,9 @@ type Topology struct {
 	Nodes     []Node `json:"nodes"`
 	Pairs     []Pair `json:"pairs"`
 	Bandwidth string `json:"bandwidth,omitempty"` // "rocm-bandwidth-test" | "torch" | ""
+	// MeasuredAt and MeasuredSource are the time and the source of the
+	// stored bandwidth measurement: when a pair's GBps comes from a file
+	// bernie saved, the page reads them from here (ia.md §5 R32).
+	MeasuredAt     time.Time `json:"measured_at,omitempty"`
+	MeasuredSource string    `json:"measured_source,omitempty"`
 }

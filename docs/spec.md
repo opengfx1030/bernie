@@ -1610,7 +1610,7 @@ not measure is shown as a dash with the words "n/a on this host".
 | Method | Path | Body / output |
 |---|---|---|
 | GET | `/api/hw` | `hw` JSON |
-| GET | `/api/topo` | `topo` JSON |
+| GET | `/api/topo` | `topo` JSON. A pair that was measured carries `gbps`; the document carries `measured_at` and `measured_source` when a measurement was saved (ia.md §5 R32). |
 | GET | `/api/topo/check` | `topo --check` JSON (query `recipe`) |
 | GET | `/api/doctor` | `doctor` JSON (query `category`, repeatable; `venv`) |
 | GET | `/api/glossary` | the words bernie uses that a reader who has never run vLLM may not know: `{"words": [{"term": "HIP", "meaning": "The number a program uses to name a GPU."}]}`. The page lists the words that stand on the tab it is on. |
