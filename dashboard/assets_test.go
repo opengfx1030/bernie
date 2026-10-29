@@ -48,8 +48,13 @@ func TestAssetGzip(t *testing.T) {
 		t.Fatalf("gzip: %v", err)
 	}
 	body, _ := io.ReadAll(gr)
-	if !strings.Contains(string(body), "function h(") {
-		t.Errorf("the decompressed body does not look like core.js")
+	web, _ := fs.Sub(webFS, "web")
+	want, err := fs.ReadFile(web, "js/core.js")
+	if err != nil {
+		t.Fatalf("the shipped core.js: %v", err)
+	}
+	if !bytes.Equal(body, want) {
+		t.Errorf("the served core.js is not the file the binary ships")
 	}
 }
 
