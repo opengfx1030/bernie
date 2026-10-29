@@ -1529,9 +1529,9 @@ Rules for responses and tokens:
 - A browser that opens a page of the dashboard in token mode without a
   valid token gets a plain HTML page that says what to do: open the address
   that `bernie dash` printed, the one that ends in `/?token=…`. This includes
-  a missing token and an invalid query token. The answer is 401 and sets no
-  cookie. The token is never in the page. The `/api` paths keep the JSON
-  error shape.
+  a missing token and an invalid query token. The answer is 401, it sets no
+  cookie and the invalid token is ignored. The token is never in the page.
+  The `/api` paths keep the JSON error shape.
 - A `token` query parameter on any `/api/` path is refused with 400
   (`{"error": "...", "exit_code": 2}`) in both modes, even when the token is
   valid. API clients send `Authorization: Bearer <token>`.

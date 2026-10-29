@@ -84,6 +84,10 @@ func (g *Guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if g.token {
 		if q := r.URL.Query(); r.URL.Path == "/" && q.Has("token") {
 			if !g.match(q.Get("token")) {
+				if wantsHTML(r) {
+					g.tokenPage(w)
+					return
+				}
 				httpjson.Error(w, http.StatusUnauthorized, "invalid token")
 				return
 			}
