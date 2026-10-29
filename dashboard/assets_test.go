@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -207,6 +208,9 @@ func TestGzipSizeBudget(t *testing.T) {
 // the first paint is bounded. The first paint loads the HTML, the
 // stylesheets, the scripts and the fonts; the number of network answers is
 // the number of links.
+//
+// The first paint carries the shell and the Setup tab. The files of the
+// other tabs come when their tab opens (the manifest of js/boot.js).
 func TestFirstPaintRequests(t *testing.T) {
 	web, _ := fs.Sub(webFS, "web")
 	body, err := fs.ReadFile(web, "index.html")
@@ -225,8 +229,59 @@ func TestFirstPaintRequests(t *testing.T) {
 	})
 	total := 1 + css + scripts + fonts
 	t.Logf("first paint: html=1 css=%d scripts=%d fonts=%d total=%d", css, scripts, fonts, total)
-	if total > 45 {
-		t.Errorf("first paint asks %d requests, > 45", total)
+	if total > 24 {
+		t.Errorf("first paint asks %d requests, > 24", total)
+	}
+}
+
+// The bytes of the first paint are bounded. The first paint is the HTML, the
+// stylesheets and the scripts that index.html names, and the fonts. The
+// files of the other tabs are not in it: they come when their tab opens.
+func TestFirstPaintPayload(t *testing.T) {
+	web, _ := fs.Sub(webFS, "web")
+	body, err := fs.ReadFile(web, "index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(body)
+	files := []string{"index.html"}
+	for _, m := range regexp.MustCompile(`<link rel="stylesheet" href="([^"]+)"`).FindAllStringSubmatch(html, -1) {
+		files = append(files, m[1])
+	}
+	for _, m := range regexp.MustCompile(`<script src="([^"]+)"`).FindAllStringSubmatch(html, -1) {
+		files = append(files, m[1])
+	}
+	var js, css, gz int
+	for _, f := range files {
+		raw, err := fs.ReadFile(web, f)
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		switch {
+		case strings.HasSuffix(f, ".js"):
+			js += len(raw)
+		case strings.HasSuffix(f, ".css"):
+			css += len(raw)
+		}
+		var buf bytes.Buffer
+		zw := gzip.NewWriter(&buf)
+		_, _ = zw.Write(raw)
+		_ = zw.Close()
+		gz += buf.Len()
+	}
+	t.Logf("first paint: js=%d (%.1f KB) css=%d (%.1f KB) gzip=%d (%.1f KB)",
+		js, float64(js)/1024, css, float64(css)/1024, gz, float64(gz)/1024)
+	const jsMax = 110 * 1024
+	const cssMax = 40 * 1024
+	const gzMax = 60 * 1024
+	if js > jsMax {
+		t.Errorf("first paint javascript %d > %d", js, jsMax)
+	}
+	if css > cssMax {
+		t.Errorf("first paint css %d > %d", css, cssMax)
+	}
+	if gz > gzMax {
+		t.Errorf("first paint gzipped %d > %d", gz, gzMax)
 	}
 }
 
