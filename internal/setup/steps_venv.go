@@ -76,20 +76,37 @@ func (p planner) tritonDropped() (devices.Arch, bool) {
 	return devices.Arch{}, false
 }
 
-// rocmHome is the newest install with hipcc (TheRock trees preferred on
-// ties), else /opt/rocm.
+// rocmHome is the install the host actually runs: the tree whose hipcc wins
+// on PATH (a TheRock tree nested inside a package install on par1-cs25).
+// Falls back to the newest install with hipcc, nested trees included.
 func (p planner) rocmHome() string {
-	ins := append([]rocm.Install(nil), p.r.Installs...)
+	if path := p.r.Tools["hipcc"]; path != "" {
+		if in, ok := rocm.InstallForPath(p.r.Installs, path); ok {
+			return in.Root
+		}
+	}
+	ins := rocmAllTrees(p.r.Installs)
 	sort.SliceStable(ins, func(i, j int) bool { return rocm.CompareVersions(ins[i].Version, ins[j].Version) > 0 })
 	for _, in := range ins {
 		if isFile(filepath.Join(in.Root, "bin", "hipcc")) {
 			return in.Root
 		}
 	}
-	if len(ins) > 0 {
-		return ins[0].Root
+	if len(p.r.Installs) > 0 {
+		return p.r.Installs[0].Root
 	}
 	return "/opt/rocm"
+}
+
+// rocmAllTrees flattens nested installs (a TheRock tree under a package
+// install counts as its own tree for tool lookup).
+func rocmAllTrees(ins []rocm.Install) []rocm.Install {
+	var out []rocm.Install
+	for _, in := range ins {
+		out = append(out, in)
+		out = append(out, rocmAllTrees(in.Nested)...)
+	}
+	return out
 }
 
 func (p planner) archList() string { return strings.Join(p.targets, ";") }
