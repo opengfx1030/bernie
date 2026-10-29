@@ -67,7 +67,7 @@ flowchart LR
 | `web/js/core.js` | The DOM and formatting primitives: `h()`, `put()`, `bytes()`, `num()` |
 | `web/js/shell.js` | The page-wide controls: the toast, the copy handler, the theme, the Advanced panels, the run status pill and the tab counts |
 | `web/js/data.js` | The only place that fetches: `api()`, `apiText()`, the shared state, the SSE streams and the one poller |
-| `web/js/boot.js` | The router, the old-hash aliases and the keyboard shortcuts. Loaded last. |
+| `web/js/boot.js` | The router, the old-hash aliases, the keyboard shortcuts and the manifest of the files of a tab. Loaded last. |
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, run table, step timeline |
 | `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewBenchmark`, `viewLogs`, `viewClassic` |
 | `web/fonts/` | The self-hosted fonts (Latin subsets, OFL): Montserrat, Inter, JetBrains Mono. No CDN. |
@@ -239,6 +239,34 @@ What changed on purpose when the palette was rebuilt:
 | The warning, light | `#9a6700` | `#8a6100` | A little darker, so it stays above AA on white. |
 | The failure, light | `#cf222e` | `#b42318` | The same. |
 | The topology classes | four fixed colours | `--series-1` to `--series-5` | The four classes now use the same series as the charts. |
+
+## The budget of the page
+
+Two numbers matter. The **first paint** is what the reader waits for: it
+holds the shell and the Setup tab, and nothing else. The **whole tree** is
+what the binary carries: the code of the four closed tabs is in it too, and
+it arrives when the reader asks for it.
+
+The first paint is measured by the browser against the built binary
+(2026-10-29, the tree of `a3bd238`):
+
+| What | Before | Now |
+|---|---|---|
+| Requests | 43 | **21** (1 HTML + 4 CSS + 12 scripts + 4 fonts) |
+| Text | 341.8 KB | **141.6 KB** |
+| Text, gzipped | 110.3 KB | **45.1 KB** |
+
+A tab that opens for the first time brings its own files (6–8 requests,
+once). The manifest that names them is in `web/js/boot.js`.
+
+The server answers the endpoints that read the host from one cache with a
+short time to live (`dashboard/internal/api/cache.go`). On the 10 GPU box
+the first read of `/api/doctor` costs 348 ms and every read inside the
+time to live costs 10 ms.
+
+The rules and the numbers are in [AGENTS.md](AGENTS.md) (the budget table)
+and in [../docs/design-dashboard.md §8.3](../docs/design-dashboard.md#83-performance)
+(the measured before and after).
 
 ## Safe by default
 
