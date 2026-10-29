@@ -160,7 +160,7 @@ func clampPowerForRows(rows []tuning.Power, idx []int, watts float64) (float64, 
 		}
 	}
 	if lo > 0 && hi > 0 && lo > hi {
-		return 0, nil, fmt.Errorf("the cards of this host share no power range: %d W to %d W", lo, hi)
+		return 0, nil, fmt.Errorf("the cards of this host share no power range: %.0f W to %.0f W", lo, hi)
 	}
 	out, _, err := tuning.ClampPower(watts, lo, hi)
 	if err != nil {
