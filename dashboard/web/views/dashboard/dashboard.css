@@ -18,6 +18,9 @@
 .chart-area { fill: var(--series-1); opacity: .18; stroke: none; }
 .chart-line { fill: none; stroke: var(--series-1); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .chart-line-strong { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-line-alt { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-line-dash { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-dasharray: 5 3; stroke-linejoin: round; stroke-linecap: round; }
+.chart-series-label { fill: var(--text-2); font: 600 10px var(--font-body); }
 .chart-base { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
 .chart-cross { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; }
 .chart-dot { fill: var(--series-1); opacity: 0; }

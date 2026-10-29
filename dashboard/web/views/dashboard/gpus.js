@@ -110,7 +110,11 @@ function dashTilesPaint(box) {
       else if (k === "mem") { value = agg.mem == null ? "–" : num(agg.mem / (1024 * 1024 * 1024)); sub = agg.total ? "of " + num(agg.total / (1024 * 1024 * 1024)) + " GiB" : "the memory of the cards"; max = agg.total || null; }
       else if (k === "hot") { value = agg.hot == null ? "–" : num(agg.hot); sub = agg.hotName || "no card"; }
       else if (k === "clk") { value = agg.clk == null ? "–" : dashGroup(agg.clk); sub = agg.clkName || "no card"; }
-      else if (k === "gen") { value = agg.gen == null ? "–" : num(agg.gen); sub = avgGen == null ? "the live run" : "1-min avg " + num(avgGen) + " tok/s"; }
+      else if (k === "gen") {
+        value = agg.gen == null ? "–" : num(agg.gen);
+        sub = avgGen == null ? "the live run" : "1-min avg " + num(avgGen) + " tok/s";
+        if (agg.prompt != null) sub += " · prompt " + num(agg.prompt) + " tok/s";
+      }
       else if (k === "running") { value = agg.running == null ? "–" : num(agg.running, 0); sub = agg.waiting == null ? "no live run" : num(agg.waiting, 0) + " waiting"; }
       else if (k === "kv") { value = agg.kv == null ? "–" : num(agg.kv * 100, 0); sub = agg.kv == null ? "the server does not publish it" : "of the cache of the engine"; max = 100; }
     } else {
@@ -272,7 +276,10 @@ function dashCharts(section) {
       charts.busy.update(dashWindowSeries("busy"), mins);
       charts.pow.update(dashWindowSeries("pow"), mins);
       charts.mem.update(dashWindowSeries("mem"), mins);
-      charts.gen.update(dashWindowSeries("gen"), mins);
+      charts.gen.update([
+        { values: dashWindowSeries("gen"), label: "output" },
+        { values: dashWindowPrompt(), label: "prompt", dash: true },
+      ], mins);
     },
   };
   api.update();
