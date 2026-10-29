@@ -379,8 +379,9 @@ finish are there for a download; the file counts are there when the step
 counts the files. A number that is not measured is absent.
 
 `GET /api/jobs` lists the jobs of this host, newest first:
-`[{id, step, state, started_at, finished_at, phase, progress}]`. The list
-holds at most 50 jobs.
+`[{id, step, state, started_at, finished_at, phase, progress, pid}]`. The list
+holds at most 50 jobs. `pid` is the process that runs the job: a job that is
+still `running` while its process is gone is marked `failed`.
 
 `GET /api/jobs/{id}/events` replays the buffered lines of the job from the
 beginning, so a page that reloads finds the whole output again. Every line

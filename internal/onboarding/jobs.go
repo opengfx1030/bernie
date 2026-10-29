@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/logdoc"
@@ -44,6 +45,9 @@ type Job struct {
 	Lines      []string       `json:"lines,omitempty"`
 	StartedAt  time.Time      `json:"started_at"`
 	FinishedAt *time.Time     `json:"finished_at,omitempty"`
+	// PID is the process that runs the job. A job that is running while its
+	// process is gone is failed: nothing will finish it.
+	PID int `json:"pid,omitempty"`
 }
 
 // JobProgress is the progress of a running job: the phase and the numbers
@@ -91,7 +95,7 @@ func startJob(ctx context.Context, step string, action *Action) (*Job, error) {
 		jobMu.Unlock()
 		return nil, err
 	}
-	job := &Job{ID: id, Step: step, State: JobRunning, StartedAt: time.Now().UTC()}
+	job := &Job{ID: id, Step: step, State: JobRunning, StartedAt: time.Now().UTC(), PID: os.Getpid()}
 	if err := saveJob(job); err != nil {
 		logf.Close()
 		jobMu.Unlock()
@@ -321,7 +325,8 @@ func JobSummaries(limit int) []JobSummary {
 }
 
 // RecentJobs returns the jobs of this host, newest first. A job that was
-// running when the process ended is marked failed.
+// running when its process ended is marked failed. A job of a process that
+// is still there keeps running: it is this process or another one.
 func RecentJobs() []Job {
 	dirs, _ := filepath.Glob(filepath.Join(paths.State(), "jobs", "*"))
 	out := []Job{}
@@ -330,7 +335,7 @@ func RecentJobs() []Job {
 		if err != nil {
 			continue
 		}
-		if j.State == JobRunning {
+		if j.State == JobRunning && !jobAlive(*j) {
 			now := time.Now().UTC()
 			j.State = JobFailed
 			j.Error = "the process that ran this job ended"
@@ -341,6 +346,27 @@ func RecentJobs() []Job {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
 	return out
+}
+
+// jobAlive says whether the process that runs the job is still there. The
+// job of this process is alive by definition.
+func jobAlive(j Job) bool {
+	if j.PID <= 0 {
+		return false // a job from before the pid was recorded
+	}
+	if j.PID == os.Getpid() {
+		return true
+	}
+	return processAlive(j.PID)
+}
+
+// processAlive says whether a process with that pid is still there.
+func processAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	err := syscall.Kill(pid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
 // GetJob returns the job with this id.
