@@ -50,6 +50,10 @@ type runMetrics struct {
 	URL   string      `json:"url"`
 	State string      `json:"state"`
 	Stats *vllm.Stats `json:"stats,omitempty"`
+	// Window is what the server did in the last minute. It is absent
+	// until the sampler has read the server twice: a window needs two
+	// readings.
+	Window *vllm.Window `json:"window,omitempty"`
 	// Token rates from counter deltas between two samples (0 on the first).
 	GenTokS    float64 `json:"gen_tok_s"`
 	PromptTokS float64 `json:"prompt_tok_s"`
@@ -64,11 +68,14 @@ type counters struct {
 
 // Sampler holds state that lives as long as one hub sampler goroutine.
 type Sampler struct {
-	mu      sync.Mutex
-	gpus    []gpu.GPU
-	gpuT    time.Time
-	prev    map[string]counters
-	history *History // the ring buffer of the last minutes (nil = no history)
+	mu   sync.Mutex
+	gpus []gpu.GPU
+	gpuT time.Time
+	prev map[string]counters
+	// watchers read the server of every run and keep the readings of the
+	// last minute, so the stream can say what the server did in it.
+	watchers map[string]*runWatcher
+	history  *History // the ring buffer of the last minutes (nil = no history)
 	// slow is the last slow pass over the cards; it is merged into the
 	// fast samples until the next one.
 	slow   []gpu.Sample
@@ -158,11 +165,12 @@ func (s *Sampler) Sample(ctx context.Context) []byte {
 	t.Runs = make([]runMetrics, len(live))
 	var wg sync.WaitGroup
 	for i, r := range live {
+		w := sp.watcher(r.Name, r.URL())
 		wg.Add(1)
-		go func(i int, r runner.Status) {
+		go func(i int, r runner.Status, w *vllm.Watcher) {
 			defer wg.Done()
-			t.Runs[i] = scrape(ctx, r)
-		}(i, r)
+			t.Runs[i] = scrape(ctx, r, w)
+		}(i, r, w)
 	}
 	wg.Wait()
 
@@ -186,6 +194,11 @@ func (s *Sampler) Sample(ctx context.Context) []byte {
 	for name := range sp.prev {
 		if !seen[name] {
 			delete(sp.prev, name)
+		}
+	}
+	for name := range sp.watchers {
+		if !seen[name] {
+			delete(sp.watchers, name)
 		}
 	}
 	if sp.history != nil {
@@ -230,19 +243,43 @@ func rate(prev, cur float64, dt time.Duration) float64 {
 	return (cur - prev) / dt.Seconds()
 }
 
-func scrape(ctx context.Context, r runner.Status) runMetrics {
+func scrape(ctx context.Context, r runner.Status, w *vllm.Watcher) runMetrics {
 	u := r.URL()
 	m := runMetrics{Name: r.Name, URL: u, State: r.State}
 	ctx, cancel := context.WithTimeout(ctx, 800*time.Millisecond)
 	defer cancel()
-	samples, err := vllm.New(u).Metrics(ctx)
+	reading, err := w.Sample(ctx)
 	if err != nil {
 		if r.State != runner.StateStarting { // vLLM serves /metrics only once it is up
 			m.Error = fmt.Sprint(err)
 		}
 		return m
 	}
-	st := vllm.Summarize(samples)
-	m.Stats = &st
+	m.Stats = &reading.Stats
+	if reading.Window.Seconds > 0 {
+		m.Window = &reading.Window
+	}
 	return m
+}
+
+// watcher returns the watcher of a run: it reads the server of the run and
+// keeps the readings of the last minute. A run that moved to another
+// address gets a new watcher.
+func (sp *Sampler) watcher(name, url string) *vllm.Watcher {
+	if sp.watchers == nil {
+		sp.watchers = map[string]*runWatcher{}
+	}
+	rw, ok := sp.watchers[name]
+	if !ok || rw.url != url {
+		rw = &runWatcher{url: url, Watcher: vllm.NewWatcher(url, vllm.DefaultWindow)}
+		sp.watchers[name] = rw
+	}
+	return rw.Watcher
+}
+
+// runWatcher reads the server of one run. It keeps the address of the run
+// beside the watcher: a run that moved gets a new watcher.
+type runWatcher struct {
+	url string
+	*vllm.Watcher
 }
