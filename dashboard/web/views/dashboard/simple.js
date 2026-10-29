@@ -151,19 +151,28 @@ function dashSimpleTiles() {
             : agg.waiting == null ? "the waiting count is not published"
               : num(agg.waiting, 0) + " waiting in line";
         } else if (key === "ttft") {
-          value = "–";
-          sub = "n/a on this host";
+          value = agg.ttft == null ? "–" : num(agg.ttft, 3);
+          sub = agg.ttft == null
+            ? (agg.statsKnown ? "the server measured no first token yet" : "n/a on this host")
+            : "p95 " + num(agg.ttftP95, 3) + " s";
         } else if (key === "kv") {
           value = agg.kv == null ? "–" : num(agg.kv * 100, 0);
           sub = agg.kv == null ? "n/a on this host" : "of GPU cache in use";
           max = 100;
         } else if (key === "prefix") {
-          value = "–";
-          sub = "n/a on this host";
+          value = agg.prefix == null ? "–" : num(agg.prefix, 1);
+          sub = agg.prefix == null
+            ? (agg.prefixKnown === false
+              ? "this server has no prefix cache"
+              : agg.statsKnown ? "the server read no prompt yet" : "n/a on this host")
+            : num(agg.prefixCached, 0) + " of " + num(agg.prefixQueried, 0) + " prompt tokens came from cache";
+          max = 100;
         } else if (key === "spec") {
           value = agg.spec == null ? "–" : num(agg.spec, 0);
           sub = agg.spec == null
-            ? (agg.statsKnown ? "no draft tokens yet" : "n/a on this host")
+            ? (agg.specOn === false
+              ? "speculation is off"
+              : agg.statsKnown ? "no draft tokens yet" : "n/a on this host")
             : "MTP drafts kept";
           max = 100;
         }

@@ -77,6 +77,18 @@ function dashPush(doc) {
       kv: stats ? stats.kv_cache_usage : null,
       spec: stats && stats.spec_draft_tokens_total > 0 ? stats.spec_accept_rate * 100 : null,
       statsKnown: !!stats,
+      // What the server publishes: a server without the counters has no
+      // such measure.
+      specOn: stats ? !!stats.speculation : null,
+      prefixKnown: stats ? !!stats.prefix_cache : null,
+      // The measures of the server since it started: the time to the
+      // first token and the share of the prompt that came from the cache.
+      ttft: stats && stats.ttft ? stats.ttft.p50 : null,
+      ttftP95: stats && stats.ttft ? stats.ttft.p95 : null,
+      prefix: stats && stats.prefix_cache && stats.prefix_cache_queries_total > 0
+        ? stats.prefix_cache_hit_rate * 100 : null,
+      prefixCached: stats ? stats.prompt_tokens_cached_total : null,
+      prefixQueried: stats ? stats.prompt_tokens_total : null,
     },
   });
   if (dash.samples.length > 3600) dash.samples.shift();

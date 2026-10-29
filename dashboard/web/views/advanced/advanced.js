@@ -14,6 +14,7 @@ const adv = {
   hw: null,      // /api/hw
   power: null,   // /api/power
   doctor: null,  // /api/doctor
+  server: null,  // the live run of the stream and what its server measures
   unsub: null,   // the way back from the shared stream
   live: {},      // the parts the stream repaints
 };
@@ -25,10 +26,12 @@ async function viewAdvanced(root) {
   const gpus = h("section.gpus-section");
   const topology = h("section.topology-section");
   const overview = h("section.runs-overview");
-  put(root, gpus, topology, overview);
+  const measures = h("section.runs-overview");
+  put(root, gpus, topology, overview, measures);
   adv.live.gpus = advViewGPUs(gpus);
   adv.live.topo = advViewTopology(topology);
   adv.live.runs = advRunsOverview(overview);
+  adv.live.measures = advServerMeasures(measures);
   advLoad();
   advSubscribe();
 }
@@ -59,7 +62,10 @@ function advSubscribe() {
     if (!doc) return;
     adv.samples.push({ t: doc.time || Date.now(), gpus: doc.gpus || [] });
     if (adv.samples.length > 3600) adv.samples.shift();
+    const runs = doc.runs || [];
+    adv.server = runs.find((r) => r.state !== "exited") || runs[0] || null;
     if (adv.live.gpus) adv.live.gpus.update();
+    if (adv.live.measures) adv.live.measures.update();
   });
   return adv.unsub;
 }
@@ -97,4 +103,49 @@ function advRunsTable(runs) {
     h("td", r.recipe || "–"),
     h("td", r.started_at ? ago(r.started_at) : "–")));
   return h("div.scroll", h("table", cols, h("tbody", rows)));
+}
+
+/** advServerMeasures is the table of what the server of the live run
+ *  measures: the latencies of the last minute and the counters since the
+ *  server started. A measure the server does not publish is a dash. */
+function advServerMeasures(root) {
+  const card = h("div.card", cardHead("Server measures", "/api/telemetry"), loading());
+  put(root, card);
+  const lat = (d) => (d ? num(d.p50, 3) + " s p50, " + num(d.p95, 3) + " s p95" : "\u2013");
+  const count = (m) => {
+    if (!m) return "\u2013";
+    const keys = Object.keys(m);
+    return keys.length ? keys.map((k) => k + " " + num(m[k], 0)).join(", ") : "0";
+  };
+  const pair = (a, b) => num(a, 0) + " of " + num(b, 0) + " tokens";
+  const view = {
+    update: () => {
+      const run = adv.server;
+      const st = run && run.stats ? run.stats : null;
+      const w = run && run.window ? run.window : null;
+      if (!st) {
+        put(card, cardHead("Server measures", "/api/telemetry"),
+          emptyState("No run is serving.", "A run is a model server on this host.", "bernie serve <recipe>"));
+        return;
+      }
+      const rows = [
+        ["First token", lat(w && w.ttft), lat(st.ttft)],
+        ["Time between tokens", lat(w && w.itl), lat(st.itl)],
+        ["Whole request", lat(w && w.e2e), lat(st.e2e)],
+        ["Wait in the queue", lat(w && w.queue), lat(st.queue)],
+        ["Prompt tokens from the cache", w ? pair(w.prompt_tokens_cached, w.prompt_tokens) : "\u2013",
+          st.prefix_cache ? pair(st.prompt_tokens_cached_total, st.prompt_tokens_total) : "\u2013"],
+        ["External cache hits", "\u2013",
+          st.external_cache ? pair(st.external_prefix_cache_hits_total, st.external_prefix_cache_queries_total) : "\u2013"],
+        ["Preemptions", "\u2013", num(st.num_preemptions_total, 0) + " requests"],
+        ["Waiting by reason", "\u2013", count(st.waiting_by_reason)],
+        ["Finished by reason", "\u2013", count(st.finished_by_reason)],
+      ];
+      const cols = tableHead([{ label: "Measure" }, { label: "Last minute" }, { label: "Since the start" }]);
+      put(card, cardHead("Server measures", "/api/telemetry"),
+        h("div.scroll", h("table", cols, h("tbody", rows.map((r) => h("tr", h("td", r[0]), h("td", r[1]), h("td", r[2])))))));
+    },
+  };
+  view.update();
+  return view;
 }

@@ -60,7 +60,22 @@ func TestUIFieldContract(t *testing.T) {
 				"prompt_tokens_total", "generation_tokens_total",
 				"spec_drafts_total", "spec_draft_tokens_total",
 				"spec_accepted_tokens_total", "spec_accept_rate",
-				"spec_mean_accept_len",
+				"spec_mean_accept_len", "speculation",
+				"prefix_cache_queries_total", "prefix_cache_hits_total",
+				"prefix_cache_hit_rate", "prefix_cache",
+				"external_prefix_cache_queries_total", "external_prefix_cache_hits_total",
+				"external_cache", "prompt_tokens_cached_total", "prompt_tokens_by_source",
+				"num_preemptions_total", "waiting_by_reason", "finished_by_reason",
+				"ttft", "itl", "e2e", "queue",
+			},
+		},
+		{
+			name: "vllm window",
+			doc:  vllm.Window{},
+			want: []string{
+				"seconds", "prefix_cache_queries", "prefix_cache_hits",
+				"prefix_cache_hit_rate", "prompt_tokens", "prompt_tokens_cached",
+				"generation_tokens", "finished", "ttft", "itl", "e2e", "queue",
 			},
 		},
 		{
