@@ -4,224 +4,18 @@ import (
 	"context"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
-// withStateDir redirects the XDG state directory for a single test.
-// We restore the previous value at the end so other tests stay isolated.
-// The cleanup runs even when the test fails; t.Cleanup is the standard
-// hook for that.
-func withStateDir(t *testing.T, dir string) {
-	t.Helper()
-	prev := os.Getenv("BERNIE_STATE_DIR")
-	t.Setenv("BERNIE_STATE_DIR", dir)
-	t.Cleanup(func() {
-		if prev == "" {
-			_ = os.Unsetenv("BERNIE_STATE_DIR")
-		} else {
-			_ = os.Setenv("BERNIE_STATE_DIR", prev)
-		}
-	})
-}
-
-// TestServicePathsAreUnderState verifies the XDG rule of spec §12: no
-// file lands under /tmp. The state dir is the override or the default.
-func TestServicePathsAreUnderState(t *testing.T) {
-	withStateDir(t, t.TempDir())
-	p := ServicePaths()
-	if !strings.HasPrefix(p.State, os.Getenv("BERNIE_STATE_DIR")) {
-		t.Errorf("state dir %q not under BERNIE_STATE_DIR", p.State)
-	}
-	if !strings.HasPrefix(p.Token, p.State) {
-		t.Errorf("token %q not under state dir %q", p.Token, p.State)
-	}
-	if !strings.HasPrefix(p.Pid, p.State) {
-		t.Errorf("pid %q not under state dir %q", p.Pid, p.State)
-	}
-	if !strings.HasPrefix(p.Log, p.State) {
-		t.Errorf("log %q not under state dir %q", p.Log, p.State)
-	}
-	if !strings.HasPrefix(p.Startup, p.State) {
-		t.Errorf("startup %q not under state dir %q", p.Startup, p.State)
-	}
-	// Default state dir is under HOME, never /tmp.
-	def := ServicePaths()
-	if strings.Contains(def.State, "/tmp/") {
-		t.Errorf("default state dir %q must not be under /tmp", def.State)
-	}
-	// Also: paths.State() must agree (sanity).
-	if got, want := def.State, filepath.Join(paths.State(), DirName); got != want {
-		t.Errorf("paths.State()=%q want %q", got, want)
-	}
-}
-
-// TestEnsureDirCreatesDir0700 verifies the state dir is created with a
-// mode that does not let other users read the token file.
-func TestEnsureDirCreatesDir0700(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
-	p, err := EnsureDir()
-	if err != nil {
-		t.Fatalf("EnsureDir: %v", err)
-	}
-	info, err := os.Stat(p.State)
-	if err != nil {
-		t.Fatalf("stat state dir: %v", err)
-	}
-	if perm := info.Mode().Perm(); perm != 0o700 {
-		t.Errorf("state dir mode = %o, want 0700", perm)
-	}
-}
-
-// TestReadTokenPersistsAndReuses verifies the persistent token file:
-// missing → generate, present → reuse the same value, mode is 0600.
-func TestReadTokenPersistsAndReuses(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
-	tok1, _, err := ReadToken()
-	if err != nil {
-		t.Fatalf("first ReadToken: %v", err)
-	}
-	if tok1 == "" {
-		t.Fatalf("first ReadToken returned empty")
-	}
-	info, err := os.Stat(ServicePaths().Token)
-	if err != nil {
-		t.Fatalf("stat token: %v", err)
-	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("token file mode = %o, want 0600", perm)
-	}
-	tok2, _, err := ReadToken()
-	if err != nil {
-		t.Fatalf("second ReadToken: %v", err)
-	}
-	if tok1 != tok2 {
-		t.Errorf("token not persisted: %q vs %q", tok1, tok2)
-	}
-}
-
-// TestWriteTokenRotates verifies WriteToken replaces the persisted value.
-func TestWriteTokenRotates(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
-	tok1, _, err := ReadToken()
-	if err != nil {
-		t.Fatalf("ReadToken: %v", err)
-	}
-	tok2 := "0123456789abcdef0123456789abcdef"
-	if _, err := WriteToken(tok2); err != nil {
-		t.Fatalf("WriteToken: %v", err)
-	}
-	got, _, err := ReadToken()
-	if err != nil {
-		t.Fatalf("ReadToken after rotate: %v", err)
-	}
-	if got != tok2 {
-		t.Errorf("after rotate got %q, want %q", got, tok2)
-	}
-	if tok1 == tok2 {
-		t.Errorf("rotate did not change token")
-	}
-}
-
-// TestIsAliveReportsDeadPID verifies the liveness check.
-func TestIsAliveReportsDeadPID(t *testing.T) {
-	if IsAlive(0) {
-		t.Errorf("IsAlive(0) = true, want false")
-	}
-	if IsAlive(-1) {
-		t.Errorf("IsAlive(-1) = true, want false")
-	}
-	// Pick a PID that almost certainly does not exist: high int.
-	if IsAlive(999_999_999) {
-		t.Errorf("IsAlive(high) = true, want false")
-	}
-}
-
-// TestPidRoundTrip verifies the PID file helpers.
-func TestPidRoundTrip(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
-	p, err := EnsureDir()
-	if err != nil {
-		t.Fatalf("EnsureDir: %v", err)
-	}
-	if err := WritePid(p, 12345); err != nil {
-		t.Fatalf("WritePid: %v", err)
-	}
-	got, err := ReadPid(p)
-	if err != nil {
-		t.Fatalf("ReadPid: %v", err)
-	}
-	if got != 12345 {
-		t.Errorf("ReadPid = %d, want 12345", got)
-	}
-	if err := RemovePid(p); err != nil {
-		t.Fatalf("RemovePid: %v", err)
-	}
-	if _, err := ReadPid(p); !os.IsNotExist(err) {
-		t.Errorf("ReadPid after remove err = %v, want not-exist", err)
-	}
-	if err := RemovePid(p); err != nil {
-		t.Errorf("RemovePid idempotent: %v", err)
-	}
-}
-
-// TestStartupRoundTrip verifies the startup document survives JSON.
-func TestStartupRoundTrip(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
-	p, err := EnsureDir()
-	if err != nil {
-		t.Fatalf("EnsureDir: %v", err)
-	}
-	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
-	want := StartupInfo{
-		Listen:    "127.0.0.1:7860",
-		URL:       "http://127.0.0.1:7860/?token=abc",
-		PID:       4242,
-		StartedAt: now,
-		Version:   "v0.1.0-test",
-		Manager:   "process",
-	}
-	if err := WriteStartup(p, want); err != nil {
-		t.Fatalf("WriteStartup: %v", err)
-	}
-	info, err := ReadStartup(p)
-	if err != nil {
-		t.Fatalf("ReadStartup: %v", err)
-	}
-	if info.Listen != want.Listen || info.URL != want.URL || info.PID != want.PID || info.Version != want.Version || info.Manager != want.Manager {
-		t.Errorf("ReadStartup = %+v, want %+v", info, want)
-	}
-	if !info.StartedAt.Equal(now) {
-		t.Errorf("StartedAt = %v, want %v", info.StartedAt, now)
-	}
-}
-
-// TestStartupReadMissing is the not-exist path of ReadStartup.
-func TestStartupReadMissing(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
-	p, err := EnsureDir()
-	if err != nil {
-		t.Fatalf("EnsureDir: %v", err)
-	}
-	if _, err := ReadStartup(p); !os.IsNotExist(err) {
-		t.Errorf("ReadStartup missing = %v, want not-exist", err)
-	}
-}
+// This file owns the tests of the service: the states of GetStatus, the
+// stop, the URLs and the token resolution. The state on disk is tested
+// in dashsvc_state_test.go.
 
 // TestGetStatusStopped verifies the "not running" path of GetStatus.
 func TestGetStatusStopped(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	st, err := GetStatus()
 	if err != nil {
 		t.Fatalf("GetStatus: %v", err)
@@ -237,8 +31,7 @@ func TestGetStatusStopped(t *testing.T) {
 // TestGetStatusStale writes a pidfile for a dead PID and expects the
 // status to come back as "stale".
 func TestGetStatusStale(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	p, err := EnsureDir()
 	if err != nil {
 		t.Fatalf("EnsureDir: %v", err)
@@ -259,12 +52,11 @@ func TestGetStatusStale(t *testing.T) {
 	}
 }
 
-// TestGetStatusRunning drops a startup document, leaves the pidfile empty
-// and expects "stopped" — without a live PID, GetStatus cannot prove a
-// dashboard is running.
+// TestGetStatusRunningNeedsPID writes a startup document, leaves the
+// pidfile empty and expects "stopped" — without a live PID, GetStatus
+// cannot prove a dashboard is running.
 func TestGetStatusRunningNeedsPID(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	p, err := EnsureDir()
 	if err != nil {
 		t.Fatalf("EnsureDir: %v", err)
@@ -273,7 +65,7 @@ func TestGetStatusRunningNeedsPID(t *testing.T) {
 		Listen:    "127.0.0.1:7860",
 		URL:       "http://127.0.0.1:7860/",
 		PID:       os.Getpid(),
-		StartedAt: time.Now(),
+		StartedAt: nowFunc(),
 		Version:   "v0.0.0-test",
 		Manager:   "process",
 	}); err != nil {
@@ -291,8 +83,7 @@ func TestGetStatusRunningNeedsPID(t *testing.T) {
 // TestGetStatusRunningLivePID writes a startup document and a live PID
 // (this process), then expects "running" with the listen URL.
 func TestGetStatusRunningLivePID(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	p, err := EnsureDir()
 	if err != nil {
 		t.Fatalf("EnsureDir: %v", err)
@@ -301,7 +92,7 @@ func TestGetStatusRunningLivePID(t *testing.T) {
 		Listen:    "127.0.0.1:7860",
 		URL:       "http://127.0.0.1:7860/",
 		PID:       os.Getpid(),
-		StartedAt: time.Now(),
+		StartedAt: nowFunc(),
 		Version:   "v0.0.0-test",
 		Manager:   "process",
 	}); err != nil {
@@ -329,8 +120,7 @@ func TestGetStatusRunningLivePID(t *testing.T) {
 // TestStopNotRunning verifies Stop without a pidfile returns
 // ErrNotRunning.
 func TestStopNotRunning(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	err := Stop(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "not running") {
 		t.Errorf("Stop without pidfile err = %v, want ErrNotRunning", err)
@@ -339,8 +129,7 @@ func TestStopNotRunning(t *testing.T) {
 
 // TestStopStalePidfile verifies Stop clears a stale pidfile.
 func TestStopStalePidfile(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	p, err := EnsureDir()
 	if err != nil {
 		t.Fatalf("EnsureDir: %v", err)
@@ -370,7 +159,7 @@ func TestLoopbackURL(t *testing.T) {
 		{"broken", ""},
 	}
 	for _, c := range cases {
-		if got := loopbackURL(c.listen, nil); got != c.want {
+		if got := loopbackURL(c.listen); got != c.want {
 			t.Errorf("loopbackURL(%q) = %q, want %q", c.listen, got, c.want)
 		}
 	}
@@ -379,7 +168,7 @@ func TestLoopbackURL(t *testing.T) {
 // TestLANURLsNonLoopbackOnly verifies lanURLs returns nothing when the
 // listener is already bound to one address.
 func TestLANURLsNonLoopbackOnly(t *testing.T) {
-	if urls := lanURLs("192.168.1.5:7860", nil); len(urls) != 0 {
+	if urls := lanURLs("192.168.1.5:7860"); len(urls) != 0 {
 		t.Errorf("lanURLs(192.168.1.5:7860) = %v, want empty", urls)
 	}
 }
@@ -393,7 +182,7 @@ func TestLANURLsSkipsLoopback(t *testing.T) {
 	if len(ifaces) == 0 {
 		t.Skip("no interfaces")
 	}
-	urls := lanURLs("0.0.0.0:7860", nil)
+	urls := lanURLs("0.0.0.0:7860")
 	for _, u := range urls {
 		if strings.Contains(u, "127.") {
 			t.Errorf("lanURLs returned loopback URL: %s", u)
@@ -420,8 +209,7 @@ func TestSystemdUnitRender(t *testing.T) {
 // TestResolveTokenKeepsPersisted verifies resolveToken returns the
 // persisted token when no override is given.
 func TestResolveTokenKeepsPersisted(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	p, err := EnsureDir()
 	if err != nil {
 		t.Fatalf("EnsureDir: %v", err)
@@ -441,8 +229,7 @@ func TestResolveTokenKeepsPersisted(t *testing.T) {
 
 // TestResolveTokenRotates verifies --rotate-token replaces the value.
 func TestResolveTokenRotates(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	p, err := EnsureDir()
 	if err != nil {
 		t.Fatalf("EnsureDir: %v", err)
@@ -463,8 +250,7 @@ func TestResolveTokenRotates(t *testing.T) {
 // TestResolveTokenOverrides verifies an explicit --token wins and is
 // persisted.
 func TestResolveTokenOverrides(t *testing.T) {
-	dir := t.TempDir()
-	withStateDir(t, dir)
+	withStateDir(t, t.TempDir())
 	p, err := EnsureDir()
 	if err != nil {
 		t.Fatalf("EnsureDir: %v", err)
@@ -486,3 +272,6 @@ func TestResolveTokenOverrides(t *testing.T) {
 		t.Errorf("persisted token = %q, want %q", cur, override)
 	}
 }
+
+// nowFunc is the clock the tests use.
+func nowFunc() time.Time { return time.Now() }
