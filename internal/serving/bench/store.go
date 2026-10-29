@@ -26,6 +26,9 @@ import (
 // Dir is where results are stored: <state>/bench.
 func Dir() string { return filepath.Join(paths.State(), "bench") }
 
+// ErrBenchResultNotFound means no saved result with the requested id.
+var ErrBenchResultNotFound = errors.New("no saved benchmark result with that id")
+
 // Save writes r to <state>/bench/<id>.json and returns the path. An empty ID
 // is assigned.
 func Save(r *Result) (string, error) {
@@ -69,6 +72,37 @@ func List() ([]Result, error) {
 		return out[i].ID < out[j].ID
 	})
 	return out, nil
+}
+
+// Delete removes the saved result with this id (a prefix is enough when
+// the match is unique). A missing id answers ErrBenchResultNotFound;
+// the file is removed from <state>/bench.
+func Delete(id string) (string, error) {
+	if id == "" || strings.ContainsAny(id, `/\`) {
+		return "", fmt.Errorf("invalid result id %q", id)
+	}
+	path := filepath.Join(Dir(), id+".json")
+	if _, err := os.Stat(path); err == nil {
+		if err := os.Remove(path); err != nil {
+			return "", err
+		}
+		return id, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
+	files, _ := filepath.Glob(filepath.Join(Dir(), id+"*.json"))
+	switch len(files) {
+	case 0:
+		return "", ErrBenchResultNotFound
+	case 1:
+		if err := os.Remove(files[0]); err != nil {
+			return "", err
+		}
+		base := filepath.Base(files[0])
+		return strings.TrimSuffix(base, ".json"), nil
+	default:
+		return "", fmt.Errorf("bench result id %q is ambiguous (%d matches)", id, len(files))
+	}
 }
 
 // Get returns the result with this id, or the only one whose id starts with

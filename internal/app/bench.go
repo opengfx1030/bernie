@@ -120,6 +120,13 @@ func FirstCellError(r *bench.Result) string {
 	return ""
 }
 
+// BenchDelete removes a saved benchmark result. The id may be a prefix:
+// the unique matching file is removed. An unknown id answers
+// ErrBenchResultNotFound (declared in bench_compare.go).
+func BenchDelete(id string) (string, error) {
+	return bench.Delete(id)
+}
+
 // BenchList is the `bench list --json` document: saved results, never null.
 func BenchList() ([]bench.Result, error) {
 	rs, err := bench.List()

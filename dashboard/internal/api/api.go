@@ -76,6 +76,8 @@ var routes = []struct {
 	{"POST /api/bench/run", (*handler).postBenchRun},
 	{"POST /api/bench/ab", (*handler).postBenchAB},
 	{"GET /api/bench/{id}", (*handler).getBenchJob},
+	{"POST /api/bench/{id}/cancel", (*handler).postBenchCancel},
+	{"DELETE /api/bench/{id}", (*handler).deleteBench},
 	{"GET /api/bench/{id}/events", (*handler).getBenchEvents},
 	{"GET /api/onboarding", (*handler).getOnboarding},
 	{"POST /api/onboarding/{step}/run", (*handler).postOnboardingRun},
