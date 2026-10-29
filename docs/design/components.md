@@ -255,34 +255,57 @@ is `--ok`, `--skip`, `--fail` and `--warn`. The chip sits next to the
 number it judges, never alone. A comparison that cannot be decided says so
 in words: `the repetitions disagree, so this metric has no verdict`.
 
-Data: the verdict of one metric of one cell.
+The chip of a comparison carries the band it used and, when the
+repetitions disagree, their spread: `! noisy, band 10.9 %, spread ±10.0 %`.
+The band is the share of a change that counts as noise; the backend widens
+the band of the suite with the spread the arms measured.
+
+Data: the verdict of one metric of one cell, its band and the spread of
+the cell.
 
 ## The length curve
 
 `design/length-curve.svg`
 
+The curve is two charts stacked on top of each other, and they share the
+x-axis. One measure per chart, so the two lines cannot be read as one
+curve.
+
 | Part | Rule |
 |---|---|
-| X | the prompt length in tokens, on a log scale, from 2048 to 16384 |
-| Y | the left axis is the prefill in tok/s, the right axis is the time to first token in seconds |
+| X | the prompt length in tokens, on a log scale, from 2048 to 16384; the axis is labelled once, under the lower chart |
+| Panels | the prefill in tok/s above, the time to the first token in seconds below; each panel carries its own axis label with its unit |
+| Y | every panel starts at zero and its own maximum; the ticks are numbers, the unit is in the axis label |
 | Series | `--series-1` for the prefill, `--series-2` for the time to first token |
-| Points | every point carries its number |
+| Points | the first and the last point carry their number; the rest are in the table under the chart |
 
 The curve shows how the prefill and the time to first token grow with the
 prompt. It is drawn from the cells of a ladder suite. Data: the cells of the
 `long-context` suite.
 
+Under the chart the same numbers are in a table, in a `details` element:
+`The numbers of the curve`.
+
 ## The bar comparison
 
 `design/bar-compare.svg`
 
+The comparison is cell by cell: one block per cell, named `1k at
+concurrency 4`, and inside it the five metric groups of spec §10.1. No
+metric is ever taken from two different cells.
+
 | Part | Rule |
 |---|---|
-| Groups | the five metric groups of spec §10.1, one group per cluster |
-| Bars | the baseline in `--series-1`, the candidate in `--series-2` |
-| Labels | the value on every bar, with its unit |
-| Verdict | a verdict chip over every group |
+| Blocks | one per cell of the comparison, each with its name |
+| Groups | the five metric groups of spec §10.1, one row per group |
+| Bars | the baseline in `--series-1`, the candidate in `--series-2`; every bar of every block is indexed to the baseline on one scale for the whole chart (the baseline is 100) |
+| Labels | the two numbers of the row with their unit, and the change in percent |
+| Verdict | a verdict chip per row, with the band it used |
+| Direct labels | the two arms are named on the marks, not only in the key |
 | Invalid | when the two results do not measure the same workload, the chart is not drawn: the card says `These two runs measured different things.` |
+
+Under the chart the same numbers are in a table, in a `details` element:
+`The numbers of the comparison`.
 
 Data: two results and their comparison (`GET /api/bench/compare`).
 

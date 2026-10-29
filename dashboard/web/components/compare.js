@@ -73,10 +73,15 @@ function compareChipText(m, spread) {
   return word + ", " + parts.join(", ");
 }
 
+/** compareChipWidth is the width the chip of one verdict takes. */
+function compareChipWidth(text) {
+  return 16 + text.length * 6.3;
+}
+
 /** compareChip draws the verdict of one metric: a pill with the word and the
  *  band. It returns the width it took. */
 function compareChip(svg, x, y, text, tone) {
-  const w = 12 + text.length * 5.5;
+  const w = compareChipWidth(text);
   svg.appendChild(svgEl("rect", {
     class: "chip-bg " + tone, x: x, y: y, width: w, height: 20, rx: 999,
   }));
@@ -98,7 +103,7 @@ function compareBlock(cmp, cell, scaleMax) {
     if (v) rows.push({ m: m, v: v });
   }
   if (!rows.length) return null;
-  const width = 760, rowH = 56, barX = 100, plotW = 200, valueX = 320, deltaX = 470;
+  const width = 760, rowH = 76, barX = 110, plotW = 200, valueX = 320;
   const height = 6 + rows.length * rowH;
   const svg = svgEl("svg", {
     class: "bench-bars", viewBox: "0 0 " + width + " " + height, role: "img",
@@ -116,34 +121,34 @@ function compareBlock(cmp, cell, scaleMax) {
     const spread = compareSpread(cmp, cell, m.metric);
     const tone = (VERDICTS[v.verdict] || {}).tone || "skip";
     const digits = benchDigits(m.unit);
-    svg.appendChild(svgEl("text", { class: "bar-label", x: 0, y: y + 30 }, m.label));
-    svg.appendChild(svgEl("text", {
-      class: "bar-value", x: valueX, y: y + 22,
-    }, benchNum(v.base, digits) + " → " + benchNum(v.cand, digits) + " " + m.unit));
-    const d = v.delta_pct;
-    svg.appendChild(svgEl("text", {
-      class: "bar-delta " + tone, x: deltaX, y: y + 22,
-    }, (d > 0 ? "+" : d < 0 ? "−" : "") + benchNum(Math.abs(d), 1) + " %"));
+    svg.appendChild(svgEl("text", { class: "bar-label", x: 0, y: y + 40 }, m.label));
     svg.appendChild(svgEl("line", {
-      class: "bar-index", x1: baseX, x2: baseX, y1: y + 10, y2: y + 52,
+      class: "bar-index", x1: baseX, x2: baseX, y1: y + 22, y2: y + 60,
     }));
     svg.appendChild(svgEl("rect", {
-      class: "bar-rect s1", x: barX, y: y + 14, width: px(100), height: 10, rx: 5,
+      class: "bar-rect s1", x: barX, y: y + 26, width: px(100), height: 10, rx: 5,
     }));
     const ratio = v.base > 0 ? v.cand / v.base : 0;
     const w = px(ratio * 100);
     if (w > 0) {
-      svg.appendChild(svgEl("rect", { class: "bar-rect s2", x: barX, y: y + 30, width: w, height: 10, rx: 5 }));
+      svg.appendChild(svgEl("rect", { class: "bar-rect s2", x: barX, y: y + 44, width: w, height: 10, rx: 5 }));
     } else {
-      svg.appendChild(svgEl("line", { class: "bar-missing", x1: barX, x2: barX + 40, y1: y + 35, y2: y + 35 }));
+      svg.appendChild(svgEl("line", { class: "bar-missing", x1: barX, x2: barX + 40, y1: y + 49, y2: y + 49 }));
     }
     if (i === 0) {
       // The two arms are named on the marks themselves, not only in the key.
-      svg.appendChild(svgEl("text", { class: "bar-sub", x: baseX + 6, y: y + 23 }, "baseline"));
-      svg.appendChild(svgEl("text", { class: "bar-sub", x: barX + w + 6, y: y + 39 }, "candidate"));
+      svg.appendChild(svgEl("text", { class: "bar-sub", x: baseX + 6, y: y + 35 }, "baseline"));
+      svg.appendChild(svgEl("text", { class: "bar-sub", x: barX + w + 6, y: y + 53 }, "candidate"));
     }
+    svg.appendChild(svgEl("text", {
+      class: "bar-value", x: valueX, y: y + 30,
+    }, benchNum(v.base, digits) + " → " + benchNum(v.cand, digits) + " " + m.unit));
+    const d = v.delta_pct;
+    svg.appendChild(svgEl("text", {
+      class: "bar-delta " + tone, x: valueX, y: y + 50,
+    }, (d > 0 ? "+" : d < 0 ? "−" : "") + benchNum(Math.abs(d), 1) + " %"));
     const text = compareChipText(v, spread);
-    compareChip(svg, width - 8 - (12 + text.length * 5.5), y + 16, text, tone);
+    compareChip(svg, width - 4 - compareChipWidth(text), y + 30, text, tone);
   });
   return svg;
 }
