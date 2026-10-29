@@ -30,7 +30,8 @@ the operator.`
 // mutatingTools are the tools that change the host. They exist only when
 // Options.Write is set.
 var mutatingTools = []string{"serve", "stop", "bench_run", "bench_ab", "bench_start", "bench_cancel", "bench_delete",
-	"setup_apply", "tune_power_set", "attach", "config_set", "fleet_add", "fleet_rm"}
+	"setup_apply", "tune_power_set", "attach", "config_set", "fleet_add", "fleet_rm",
+	"dash_start", "dash_stop"}
 
 // IsMutating reports whether name is a tool that changes the host.
 func IsMutating(name string) bool { return slices.Contains(mutatingTools, name) }
@@ -72,6 +73,7 @@ func New(o Options) *Server {
 	s.srv = sdk.NewServer(&sdk.Implementation{Name: "bernie", Version: o.Version}, &sdk.ServerOptions{Instructions: instructions})
 	registerRead(s)
 	registerWrite(s)
+	registerDashTools(s)
 	return s
 }
 

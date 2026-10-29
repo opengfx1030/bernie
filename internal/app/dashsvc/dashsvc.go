@@ -21,10 +21,11 @@ package dashsvc
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -34,9 +35,33 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/opengfx1030/bernie/dashboard"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
+
+// dashDefaultListen is the loopback address of spec §11. The dashboard
+// package owns this constant; we inline it here to avoid a dashboard →
+// mcp → dashsvc → dashboard cycle (the dashboard server wires /mcp).
+const dashDefaultListen = "127.0.0.1:7860"
+
+// dashNewToken is the dashboard token generator (a 128-bit hex string).
+func dashNewToken() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("dashsvc: crypto/rand: " + err.Error())
+	}
+	return hex.EncodeToString(b)
+}
+
+// dashIsLoopback reports whether the listen address binds only to
+// loopback.
+func dashIsLoopback(listen string) bool {
+	h, _, err := net.SplitHostPort(listen)
+	if err != nil {
+		h = listen
+	}
+	ip := net.ParseIP(strings.Trim(h, "[]"))
+	return ip != nil && ip.IsLoopback()
+}
 
 // File names in the state directory.
 const (
@@ -110,7 +135,7 @@ func ReadToken() (string, Paths, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", p, err
 	}
-	tok := dashboard.NewToken()
+	tok := dashNewToken()
 	if err := os.WriteFile(p.Token, []byte(tok+"\n"), 0o600); err != nil {
 		return "", p, err
 	}
@@ -200,7 +225,7 @@ func ReadStartup(p Paths) (*StartupInfo, error) {
 
 // StartOptions configure Start.
 type StartOptions struct {
-	// Listen is the bind address; empty falls back to dashboard.DefaultListen.
+	// Listen is the bind address; empty falls back to dashDefaultListen.
 	Listen string
 	// Token is the explicit token to use; empty means "use or generate".
 	Token string
@@ -254,7 +279,7 @@ func Start(ctx context.Context, o StartOptions) (*Status, error) {
 
 	listen := o.Listen
 	if listen == "" {
-		listen = dashboard.DefaultListen
+		listen = dashDefaultListen
 	}
 
 	if !o.NoSystemd && systemdUserAvailable() {
@@ -278,7 +303,7 @@ func resolveToken(p Paths, o StartOptions) (string, error) {
 		return o.Token, nil
 	}
 	if o.RotateToken {
-		tok := dashboard.NewToken()
+		tok := dashNewToken()
 		if err := os.WriteFile(p.Token, []byte(tok+"\n"), 0o600); err != nil {
 			return "", err
 		}
@@ -658,11 +683,14 @@ type ChildOptions struct {
 	Now     func() time.Time
 }
 
-// RunChild runs the dashboard as a detached service child. The call writes
-// the pidfile and startup document, then serves until ctx ends. It removes
-// the pidfile on exit. The function is the body of the `dash --child`
-// flag; the parent `Start` does not call it.
-func RunChild(ctx context.Context, o ChildOptions) error {
+// RunChild writes the pidfile and startup document for the dashboard
+// service child, then returns. The actual serving of HTTP is done by
+// the caller (the `bernie dash --child` command in cmd_dash.go calls
+// dashboard.Serve directly); we only own the lifecycle files here, to
+// break the dashboard → mcp → dashsvc → dashboard cycle.
+//
+// Callers should defer RunChildCleanup to remove the pidfile on exit.
+func RunChild(_ context.Context, o ChildOptions) error {
 	p, err := EnsureDir()
 	if err != nil {
 		return err
@@ -670,42 +698,26 @@ func RunChild(ctx context.Context, o ChildOptions) error {
 	if err := WritePid(p, os.Getpid()); err != nil {
 		return err
 	}
-	defer RemovePid(p)
-
-	ready := make(chan struct{}, 1)
 	oNow := o.Now
 	if oNow == nil {
 		oNow = time.Now
 	}
-	logF, _ := os.OpenFile(p.Log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-	logW := io.Writer(logF)
-	if logF == nil {
-		logW = io.Discard
-	}
-	serveErr := dashboard.Serve(ctx, dashboard.Options{
-		Listen:  o.Listen,
-		Token:   o.Token,
-		Log:     logW,
-		Version: o.Version,
-		Ready: func(url string) {
-			host, port, _ := net.SplitHostPort(o.Listen)
-			listen := net.JoinHostPort(host, port)
-			_ = WriteStartup(p, StartupInfo{
-				Listen:    listen,
-				URL:       url,
-				PID:       os.Getpid(),
-				StartedAt: oNow(),
-				Version:   o.Version,
-				Manager:   "process",
-			})
-			select {
-			case ready <- struct{}{}:
-			default:
-			}
-		},
+	host, port, _ := net.SplitHostPort(o.Listen)
+	listen := net.JoinHostPort(host, port)
+	_ = WriteStartup(p, StartupInfo{
+		Listen:    listen,
+		URL:       "http://" + listen + "/",
+		PID:       os.Getpid(),
+		StartedAt: oNow(),
+		Version:   o.Version,
+		Manager:   "process",
 	})
-	if logF != nil {
-		_ = logF.Close()
-	}
-	return serveErr
+	return nil
+}
+
+// RunChildCleanup removes the pidfile when the child exits. Callers
+// invoke this in a defer after RunChild.
+func RunChildCleanup() {
+	p := ServicePaths()
+	_ = RemovePid(p)
 }
