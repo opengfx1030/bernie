@@ -7,13 +7,13 @@
 // answers as every other tab.
 //
 // The stream is the one of the page: js/data.js owns it and this view
-// registers its repaint with onTabFrame. It opens no EventSource and no
-// timer of its own.
+// registers its repaint with onTabFrame. It opens no stream of its own.
 
 const adv = {
   samples: [],   // the compact telemetry buffer (the sparklines of the tiles)
   hw: null,      // /api/hw
   power: null,   // /api/power
+  doctor: null,  // /api/doctor
   unsub: null,   // the way back from the shared stream
   live: {},      // the parts the stream repaints
 };
@@ -40,12 +40,16 @@ async function advLoad() {
     try { adv[key] = await api(path); }
     catch (e) { adv[key] = null; adv.errors = adv.errors || {}; adv.errors[path] = e.message || String(e); }
   };
-  await Promise.all([one("/api/hw", "hw"), one("/api/power", "power")]);
+  await Promise.all([
+    one("/api/hw", "hw"),
+    one("/api/power", "power"),
+    one("/api/doctor", "doctor"),
+  ]);
   if (adv.live.gpus) adv.live.gpus.update();
 }
 
 /** advSubscribe registers the repaint of this tab on the shared stream. The
- *  stream lives in js/data.js; this view opens no EventSource of its own.
+ *  stream lives in js/data.js; this view opens no stream of its own.
  *  A hidden tab paints nothing: data.js pauses the poller and skips the
  *  frame. */
 function advSubscribe() {

@@ -11,32 +11,16 @@
 
 const dash = {
   samples: [],   // the compact telemetry ring buffer (one hour of samples)
-  window: "5m",  // the window of the charts: 5m, 15m or 1h
-  history: null, // the answer of GET /api/gpus/history
+  history: null, // the answer of GET /api/gpus/history?window=5m
   historyOK: false,
   hw: null,      // /api/hw
   runs: [],      // /api/runs
   doctor: null,  // /api/doctor
-  power: null,   // /api/power
-  topo: null,    // /api/topo
-  check: null,   // /api/topo/check
+  glossary: {},  // the plain meanings from /api/glossary
   tele: null,    // the last telemetry document
-  head: null,    // the state headline of the tab
   live: {},      // the parts the stream repaints
   subscribed: false, // the repaint of this tab is registered on the stream
-  grids: [],     // the grids that follow the width of the window
 };
-
-// dashGrid keeps the columns of a block: the wide ones until the page is
-// narrow, the narrow ones below. The shell stacks the columns of every tab
-// at 959 px; the hero of this tab keeps its number on the left longer.
-function dashGrid(el, wide, narrow) {
-  const apply = () => {
-    el.style.gridTemplateColumns = window.innerWidth <= 959 ? narrow : wide;
-  };
-  apply();
-  dash.grids.push(apply);
-}
 
 // dashSection is one block of the tab: a rule on top, the name of the block
 // and what it holds. The name is a heading the router can focus.
@@ -69,43 +53,30 @@ function dashPill(kind, word) {
 // The stream lives in js/data.js; the shell calls renderGPUs() on every
 // telemetry message. This view opens no fetch and no timer of its own.
 
-// dashPush keeps one compact sample of the stream and the fleet numbers it
-// carries. The buffer holds one hour, so the 1 h window is always full.
+// dashPush keeps one compact sample of the stream and the serving numbers it
+// carries. The buffer holds one hour, so every chart window stays covered.
 function dashPush(doc) {
   dash.tele = doc;
   const gpus = doc.gpus || [];
   const runs = doc.runs || [];
   const live = runs.find((r) => r.state !== "exited") || runs[0] || null;
-  let busy = 0, pow = 0, mem = 0, cap = 0, total = 0, hot = null, clk = null, hotName = "", clkName = "";
-  const cards = gpus.map((g) => {
-    busy += g.busy_pct || 0;
-    pow += g.power_w || 0;
-    mem += g.vram_used || 0;
-    cap += g.power_cap_w || 0;
-    total += g.vram_total || 0;
-    if (g.temp_c != null && (hot == null || g.temp_c > hot)) { hot = g.temp_c; hotName = dashCardLabel(g.hip_index); }
-    if (g.sclk_mhz != null && (clk == null || g.sclk_mhz > clk)) { clk = g.sclk_mhz; clkName = dashCardLabel(g.hip_index); }
-    return { hip: g.hip_index, busy: g.busy_pct, pow: g.power_w, mem: g.vram_used,
-      tmp: g.temp_c, jtmp: g.temp_junction_c, mtmp: g.temp_mem_c,
-      clk: g.sclk_mhz, mclk: g.mclk_mhz, cap: g.power_cap_w, total: g.vram_total };
-  });
+  const cards = gpus.map((g) => ({
+    hip: g.hip_index, busy: g.busy_pct, pow: g.power_w, mem: g.vram_used,
+    tmp: g.temp_c, jtmp: g.temp_junction_c, mtmp: g.temp_mem_c,
+    clk: g.sclk_mhz, mclk: g.mclk_mhz, cap: g.power_cap_w, total: g.vram_total,
+  }));
   const stats = live && live.stats ? live.stats : null;
   dash.samples.push({
     t: doc.time || Date.now(),
     cards: cards,
     agg: {
-      busy: cards.length ? busy / cards.length : null,
-      pow: cards.length ? pow : null,
-      mem: cards.length ? mem : null,
-      cap: cards.length ? cap : null,
-      total: cards.length ? total : null,
-      hot: hot, hotName: hotName,
-      clk: clk, clkName: clkName,
       gen: live ? live.gen_tok_s : null,
       prompt: live ? live.prompt_tok_s : null,
       running: stats ? stats.requests_running : null,
       waiting: stats ? stats.requests_waiting : null,
       kv: stats ? stats.kv_cache_usage : null,
+      spec: stats && stats.spec_draft_tokens_total > 0 ? stats.spec_accept_rate * 100 : null,
+      statsKnown: !!stats,
     },
   });
   if (dash.samples.length > 3600) dash.samples.shift();
@@ -132,14 +103,6 @@ function dashCardName(hip) {
   return g.name || g.gfx || ("GPU " + hip);
 }
 
-// dashCardLabel names a card for a line that says which card a number comes
-// from: the index of the card and its name. Eight cards of the same model
-// share a name, so the index is what tells them apart.
-function dashCardLabel(hip) {
-  const name = dashCardName(hip);
-  return name === "GPU " + hip ? name : "GPU " + hip + " · " + name;
-}
-
 // dashLiveRun is the run the tab talks about.
 function dashLiveRun() {
   const runs = dash.runs || [];
@@ -154,62 +117,6 @@ function dashPhase(run) {
   return "";
 }
 
-// dashSetHead writes the state headline: one sentence about the situation and
-// one line about what to do next.
-function dashSetHead() {
-  const head = dash.head;
-  if (!head) return;
-  const gpus = (dash.hw && dash.hw.gpus) || [];
-  const run = dashLiveRun();
-  const live = dash.tele && (dash.tele.runs || []).find((r) => run && r.name === r.name);
-  const serving = !!run && run.state !== "exited";
-  if (dash.live.headStop) dash.live.headStop.disabled = !serving;
-  if (dash.live.headRestart) dash.live.headRestart.disabled = !serving;
-  if (!gpus.length) {
-    setHead(head, "NO AMD GPU ON THIS MACHINE.",
-      "bernie reads the cards from /sys/class/kfd. The amdgpu driver has to be loaded and /dev/kfd has to exist.");
-    if (dash.live.modprobe) dash.live.modprobe.hidden = false;
-    return;
-  }
-  if (dash.live.modprobe) dash.live.modprobe.hidden = true;
-  if (!run) {
-    setHead(head, "NOTHING IS SERVING.",
-      "Start a model server on this host, then this tab fills with its numbers.");
-  } else if (run.state === "starting" || (live && live.state === "starting")) {
-    setHead(head, "THE SERVER IS LOADING THE MODEL.",
-      dashPhase(run) || "The server is loading the model.");
-  } else if (live && !live.stats) {
-    setHead(head, "THE SERVER DOES NOT ANSWER.",
-      "The process is alive but /health stays silent. The log says why.");
-  } else {
-    const tok = live && live.gen_tok_s != null ? " at " + num(live.gen_tok_s) + " tok/s" : "";
-    setHead(head, "THIS BOX IS SERVING.",
-      "The model answers on port " + (run.port || "–") + tok + ".");
-  }
-}
-
-// dashAdvanced is the panel with the raw documents and the commands that
-// make them.
-function dashAdvanced() {
-  const docs = [
-    ["/api/hw", dash.hw, "bernie hw"],
-    ["/api/topo", dash.topo, "bernie topo"],
-    ["/api/topo/check", dash.check, "bernie topo --check"],
-    ["/api/doctor", dash.doctor, "bernie doctor"],
-    ["/api/runs", dash.runs, "bernie ps"],
-    ["/api/power", dash.power, "bernie tune power status"],
-    ["/api/telemetry", dash.tele, "bernie status --json"],
-  ];
-  const body = h("div.advanced-body");
-  for (const [path, doc, command] of docs) {
-    body.append(h("h3", path), cmdBlock(command, "Copy the command"));
-    const pre = h("pre", { class: "dash-raw-json" });
-    pre.textContent = doc == null ? "not read yet" : JSON.stringify(doc, null, 2);
-    body.append(pre);
-  }
-  return h("details.advanced", h("summary", "Advanced"), body);
-}
-
 // dashLoad reads the documents the tab needs. One failure does not stop the
 // others: the card that failed says so.
 async function dashLoad() {
@@ -221,114 +128,69 @@ async function dashLoad() {
     one("/api/hw", "hw"),
     one("/api/runs", "runs"),
     one("/api/doctor", "doctor"),
-    one("/api/power", "power"),
-    one("/api/topo", "topo"),
-    one("/api/topo/check", "check"),
   ]);
+  try {
+    const doc = await api("/api/glossary");
+    dash.glossary = {};
+    for (const word of (doc && doc.words) || []) dash.glossary[word.term] = word.meaning;
+  } catch (e) {
+    dash.glossary = {};
+    dash.errors = dash.errors || {};
+    dash.errors["/api/glossary"] = e.message || String(e);
+  }
   if (!Array.isArray(dash.runs)) dash.runs = [];
-  dashSetHead();
-  if (dash.live.tiles) dash.live.tiles.update(dash.samples);
-  if (dash.live.cards) dash.live.cards.update();
-  if (dash.live.run) dash.live.run.update();
-  if (dash.live.power) dash.live.power.update();
-  if (dash.live.topo) dash.live.topo.update();
-  if (dash.live.problems) dash.live.problems.update();
+  dashUpdateSimple();
 }
 
-// dashHistory reads the history of the cards for the window. The endpoint
-// answers one series per card; the fleet numbers are the sum or the mean of
-// the cards.
+// dashUpdateSimple repaints the operational view.
+function dashUpdateSimple() {
+  const api = dash.live.simple;
+  if (!api) return;
+  api.hero.update();
+  api.tiles.update();
+  api.charts.update();
+  api.cards.update();
+  api.machine.update();
+  api.connect.update();
+}
+
+// dashHistory reads the five minutes of history that the Simple charts show.
 async function dashHistory() {
   try {
-    const doc = await api("/api/gpus/history?window=" + dash.window);
-    dash.history = doc;
+    dash.history = await api("/api/gpus/history?window=5m");
     dash.historyOK = true;
   } catch (e) {
     dash.history = null;
     dash.historyOK = false;
   }
-  if (dash.live.charts) dash.live.charts.update();
+  if (dash.live.simple) dash.live.simple.charts.update();
 }
 
-// dashWindowPrompt is the prefill rate of the live run over the window: the
-// prompt tokens per second. The rate is a property of the server, so every
-// card carries the same number; the first series of the history holds it.
-function dashWindowPrompt() {
-  const mins = dash.window === "1h" ? 60 : dash.window === "15m" ? 15 : 5;
-  if (dash.historyOK && dash.history && dash.history.series && dash.history.series.length) {
-    const first = dash.history.series[0];
-    return (first.prompt_tok_s || []).slice();
-  }
-  const want = mins * 60;
-  return dash.samples.slice(-want).map((x) => (x.agg ? x.agg.prompt : null));
-}
-
-// dashWindowSeries is the fleet series of one measure over the window: the
-// history of the server when it has one, the ring buffer of the page when it
-// does not.
-function dashWindowSeries(key, unit) {
-  const mins = dash.window === "1h" ? 60 : dash.window === "15m" ? 15 : 5;
+// dashWindowSeries is the output or prompt rate over the last five minutes:
+// the history of the server when it has one, the ring buffer of the page when
+// it does not. A missing sample stays missing: the chart draws a gap.
+function dashWindowSeries(key) {
   if (dash.historyOK && dash.history && dash.history.series && dash.history.series.length) {
     const series = dash.history.series;
     const n = series[0].busy_pct ? series[0].busy_pct.length : 0;
+    const field = key === "prompt" ? "prompt_tok_s" : "tokens_per_s";
     const out = [];
     for (let i = 0; i < n; i++) {
-      if (key === "busy") {
-        let sum = 0;
-        for (const s of series) sum += (s.busy_pct && s.busy_pct[i]) || 0;
-        out.push(series.length ? sum / series.length : null);
-      } else if (key === "pow") {
-        let sum = 0;
-        for (const s of series) sum += (s.power_w && s.power_w[i]) || 0;
-        out.push(series.length ? sum : null);
-      } else if (key === "mem") {
-        let sum = 0;
-        for (const s of series) sum += (s.vram_used && s.vram_used[i]) || 0;
-        out.push(series.length ? sum / (1024 * 1024 * 1024) : null);
-      } else {
-        out.push((series[0].tokens_per_s && series[0].tokens_per_s[i]) || 0);
-      }
+      const value = series[0][field] && series[0][field][i] != null ? series[0][field][i] : null;
+      out.push(value);
     }
     return out;
   }
-  // The server has no history yet: the samples the page kept itself.
-  const want = mins * 60;
-  const cut = dash.samples.slice(-want);
-  return cut.map((s) => (s.agg ? s.agg[key] : null));
+  return dash.samples.slice(-300).map((s) => (s.agg ? s.agg[key] : null));
 }
 
 async function viewDashboard(root) {
   put(root, loading());
-  dash.grids = [];
-  const stop = h("button", { type: "button", onclick: () => dashStopRun() }, "Stop");
-  const restart = h("button", { type: "button", onclick: () => dashRestartRun() }, "Restart");
-  const head = stateHead("Dashboard", h("div", { class: "dash-head-actions" }, stop, restart));
-  dash.head = head;
-  dash.live.headStop = stop;
-  dash.live.headRestart = restart;
-  const modprobe = cmdBlock("sudo modprobe amdgpu", "Copy the command");
-  modprobe.hidden = true;
-  dash.live.modprobe = modprobe;
-  head.append(modprobe);
-
-  const hero = dashHero();
-  const cards = dashSection("The cards", "gpus");
-  const minutes = dashSection("The last minutes", "minutes");
-  const run = dashSection("The run", "runs");
-  const power = dashSection("The power caps", "power");
-  const topo = dashSection("The topology", "topology");
-  const problems = dashSection("Known problems", "problems");
-  put(root, head, hero.el, cards, minutes, run, power, topo, problems, dashAdvanced());
-
-  dash.live.cards = dashCards(cards);
-  dash.live.charts = dashCharts(minutes);
-  dash.live.run = dashRunCard(run);
-  dash.live.power = dashPower(power);
-  dash.live.topo = dashTopology(topo);
-  dash.live.problems = dashProblems(problems);
-  dash.live.tiles = hero.tiles;
-
+  dash.live = {};
+  dash.errors = {};
+  if (state.tele) dashPush(state.tele);
   await dashLoad();
+  dashBuildSimple(root);
   await dashHistory();
   dashSubscribe();
   renderGPUs();
@@ -337,9 +199,5 @@ async function viewDashboard(root) {
 // dashSample is the stream: it keeps the sample and repaints the live parts.
 function dashSample(doc) {
   dashPush(doc);
-  dashSetHead();
-  if (dash.live.tiles) dash.live.tiles.update(dash.samples);
-  if (dash.live.cards) dash.live.cards.update();
-  if (dash.live.run) dash.live.run.update();
-  if (dash.live.charts) dash.live.charts.update();
+  dashUpdateSimple();
 }
