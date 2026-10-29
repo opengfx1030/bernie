@@ -280,7 +280,7 @@ A step has this record:
  "summary": "", "detail": "", "command": "", "can_run": false,
  "root_commands": [], "progress": {"phase": "", "done": 0, "total": 0},
  "problems": [], "job_id": "", "job_state": "", "serving": false,
- "waits_for": ""}
+ "waits_for": "", "action": ""}
 ```
 
 - `id` is stable: `hardware`, `access`, `rocm`, `python-env`, `model`,
@@ -309,6 +309,8 @@ A step has this record:
   phase, and `next` becomes `verify` when the server serves.
 - `waits_for` is the id of the step that holds the path, on a runnable step
   that comes after it. The step says in words what it waits for.
+- `action` names what the step does, in the words of the reader. The button
+  of the step says this.
 
 The document also holds the facts of the host: the numbers the page shows
 above the steps, each with the reason why it matters.
@@ -322,10 +324,18 @@ above the steps, each with the reason why it matters.
 and not `key`: a member whose name ends in `key` names a secret, so the
 redactor of [§13.7](#137-untrusted-content) would hide it.
 
-The document is `{"next": "<id>", "steps": [...], "facts": [...], "facts_age_s": 0, "stale": false}`.
+The document is `{"next": "<id>", "next_action": {"step": "", "title": "",
+"state": "", "action": "", "sentence": "", "command": "", "root": false,
+"root_commands": []}, "steps": [...], "facts": [...], "facts_age_s": 0,
+"stale": false}`.
 `next` is the step to do
 now: the first step of the path that is not done and not skipped. It is
-empty when the path is complete. `facts_age_s` is the age in seconds of the
+empty when the path is complete. `next_action` is that step in words: the
+`action` names what it does, the `sentence` says what to do and who does it,
+the `command` is the command that does it and `root` says that the operator
+runs the `root_commands` as root. It is empty when the path is complete. The
+CLI, the MCP server and the page print this one record, so they cannot
+disagree about the next step. `facts_age_s` is the age in seconds of the
 facts behind the document; it is 0 when the host was read now. `stale` is
 true when the document was served from the cache while it was past its time
 to live, so a refresh is running: the document is the last known state of

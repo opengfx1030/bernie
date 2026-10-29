@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/doctor"
@@ -25,7 +26,7 @@ var pythonSetupSteps = []string{"venv.create", "venv.torch", "causal-conv1d.buil
 
 // hardwareStep: the GPUs are found and supported.
 func hardwareStep(f *Facts) Step {
-	s := Step{ID: StepHardware, Title: "GPUs found and supported", Command: "bernie hw"}
+	s := Step{ID: StepHardware, Title: "GPUs found and supported", Command: "bernie hw", Action: "Check the cards"}
 	s.Problems = problemsOf(f.Doctor, stepChecks[StepHardware]...)
 	switch {
 	case len(f.GPUs) == 0:
@@ -47,7 +48,7 @@ func hardwareStep(f *Facts) Step {
 
 // accessStep: this user can open the device nodes.
 func accessStep(f *Facts) Step {
-	s := Step{ID: StepAccess, Title: "Device access and groups", Command: "bernie doctor --category gpu"}
+	s := Step{ID: StepAccess, Title: "Device access and groups", Command: "bernie doctor --category gpu", Action: "Fix the device access"}
 	s.Problems = problemsOf(f.Doctor, stepChecks[StepAccess]...)
 	if hasFail(f.Doctor, stepChecks[StepAccess]...) || len(rootCommands(f.Setup, "groups")) > 0 {
 		s.State = StateBlocked
@@ -62,7 +63,7 @@ func accessStep(f *Facts) Step {
 
 // rocmStep: the ROCm runtime and the kernel are ready.
 func rocmStep(f *Facts) Step {
-	s := Step{ID: StepROCm, Title: "ROCm runtime and kernel", Command: "bernie doctor --category rocm"}
+	s := Step{ID: StepROCm, Title: "ROCm runtime and kernel", Command: "bernie doctor --category rocm", Action: "Install the ROCm tools"}
 	s.Problems = problemsOf(f.Doctor, stepChecks[StepROCm]...)
 	if hasFail(f.Doctor, stepChecks[StepROCm]...) || len(rootCommands(f.Setup, "rocm.runtime")) > 0 {
 		s.State = StateBlocked
@@ -77,7 +78,7 @@ func rocmStep(f *Facts) Step {
 
 // pythonStep: the venv holds torch and vLLM for this GPU.
 func pythonStep(f *Facts) Step {
-	s := Step{ID: StepPythonEnv, Title: "Python environment (torch and vLLM)"}
+	s := Step{ID: StepPythonEnv, Title: "Python environment (torch and vLLM)", Action: "Build the Python environment"}
 	s.Problems = problemsOf(f.Doctor, stepChecks[StepPythonEnv]...)
 	pending := pendingSetup(f.Setup, pythonSetupSteps)
 	if len(setupSteps(f.Setup, pythonSetupSteps)) == 0 {
@@ -110,7 +111,7 @@ func venvPath(f *Facts) string {
 
 // modelStep: the model files are in the Hugging Face cache.
 func modelStep(f *Facts) Step {
-	s := Step{ID: StepModel, Title: "Model files", Command: "bernie setup apply --step model.download"}
+	s := Step{ID: StepModel, Title: "Model files", Command: "bernie setup apply --step model.download", Action: "Download the model"}
 	st := setupStep(f.Setup, "model.download")
 	switch {
 	case st == nil:
@@ -136,7 +137,7 @@ func modelStep(f *Facts) Step {
 
 // recipeStep: the recipe to serve is known and complete.
 func recipeStep(f *Facts) Step {
-	s := Step{ID: StepRecipe, Title: "Recipe", Command: "bernie recipe list --all"}
+	s := Step{ID: StepRecipe, Title: "Recipe", Command: "bernie recipe list --all", Action: "Pick the recipe"}
 	if f.Recipe == "" {
 		s.State = StateBlocked
 		s.Summary = "No recipe fits this host."
@@ -159,7 +160,7 @@ func recipeStep(f *Facts) Step {
 
 // serveStep: the server runs.
 func serveStep(f *Facts) Step {
-	s := Step{ID: StepServe, Title: "Serve the model", Command: "bernie up"}
+	s := Step{ID: StepServe, Title: "Serve the model", Command: "bernie up", Action: "Start the server"}
 	if f.Recipe != "" {
 		s.Command = "bernie up " + f.Recipe
 	}
@@ -170,7 +171,7 @@ func serveStep(f *Facts) Step {
 		s.Progress = &Progress{Phase: run.Phase}
 		// The run answers when its health check passes: the runner calls
 		// that state "running".
-		s.Serving = run.State == runner.StateRunning
+		s.Serving = servingRun(f)
 		return s
 	}
 	s.State = StateTodo
@@ -182,9 +183,25 @@ func serveStep(f *Facts) Step {
 	return s
 }
 
+// loadingPhases are the phases in which the server does not answer yet.
+var loadingPhases = regexp.MustCompile(`(?i)loading|compiling|sizing|capturing|starting|warming`)
+
+// servingRun says whether the live run answers requests now: its health
+// check passed and its log shows no step that comes before that.
+func servingRun(f *Facts) bool {
+	run := f.live()
+	if run == nil {
+		return false
+	}
+	if run.State != runner.StateRunning {
+		return false
+	}
+	return !loadingPhases.MatchString(run.Phase)
+}
+
 // verifyStep: the server answers a request.
 func verifyStep(f *Facts) Step {
-	s := Step{ID: StepVerify, Title: "The server answers a request", Command: "bernie smoke"}
+	s := Step{ID: StepVerify, Title: "The server answers a request", Command: "bernie smoke", Action: "Ask the server"}
 	run := f.live()
 	if run == nil {
 		s.State = StateSkipped
@@ -205,7 +222,7 @@ func verifyStep(f *Facts) Step {
 
 // benchStep is an extra: it never holds the path.
 func benchStep(f *Facts) Step {
-	s := Step{ID: StepBench, Title: "Measure the speed (optional)", Command: "bernie bench"}
+	s := Step{ID: StepBench, Title: "Measure the speed (optional)", Command: "bernie bench", Action: "Measure the speed"}
 	s.State = StateTodo
 	s.Summary = "A benchmark shows the tokens per second of this host."
 	if run := f.live(); run != nil {
@@ -216,7 +233,7 @@ func benchStep(f *Facts) Step {
 
 // tuningStep is an extra: it never holds the path.
 func tuningStep(f *Facts) Step {
-	s := Step{ID: StepTuning, Title: "TunableOp profile (optional)", Command: "bernie tune tunableop status"}
+	s := Step{ID: StepTuning, Title: "TunableOp profile (optional)", Command: "bernie tune tunableop status", Action: "Tune the kernels"}
 	s.Problems = problemsOf(f.Doctor, stepChecks[StepTuning]...)
 	if len(s.Problems) > 0 {
 		s.State = StateTodo
@@ -230,7 +247,7 @@ func tuningStep(f *Facts) Step {
 
 // powerStep is an extra: it never holds the path.
 func powerStep(f *Facts) Step {
-	s := Step{ID: StepPower, Title: "Power cap (optional)", Command: "bernie tune power status"}
+	s := Step{ID: StepPower, Title: "Power cap (optional)", Command: "bernie tune power status", Action: "Set the power cap"}
 	s.Problems = problemsOf(f.Doctor, stepChecks[StepPower]...)
 	if len(s.Problems) > 0 {
 		s.State = StateTodo

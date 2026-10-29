@@ -29,7 +29,7 @@ const (
 )
 
 // ErrJobBusy means another job is running. One job runs at a time.
-var ErrJobBusy = errors.New("another onboarding job is running")
+var ErrJobBusy = errors.New("one setup job runs at a time: wait for the job that runs now to finish")
 
 // Job is one background run of an onboarding step. The state is kept on disk
 // (<state>/jobs/<id>), so a page reload finds it again.
