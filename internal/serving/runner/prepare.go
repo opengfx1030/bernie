@@ -143,15 +143,24 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 			p.Exec = &recipe.Exec{Argv: hostArgv(p, filepath.Join(venv, "bin", "python")), Env: hostEnv(p, venv), Unset: p.Unset, Dir: RunDir(p.Name)}
 		}
 	}
-	if mode == recipe.ModeContainer && p.Image != "" {
-		if b, err := Compose(p, rowsMount(p), cfg.ResolveHFHome()); err == nil {
-			p.Compose = string(b)
-		} else {
-			p.Warnings = append(p.Warnings, "compose: "+err.Error())
-		}
-	}
+	attachCompose(p, cfg)
 	p.RefreshSettingValues()
 	return p, nil
+}
+
+// attachCompose fills Plan.Compose with the generated compose.yml of a
+// container plan. A host plan has no compose file: the field stays empty
+// and the page shows the launch command alone (ia.md §5 R42).
+func attachCompose(p *recipe.Plan, cfg config.Config) {
+	if p.Mode != recipe.ModeContainer || p.Image == "" {
+		return
+	}
+	b, err := Compose(p, rowsMount(p), cfg.ResolveHFHome())
+	if err != nil {
+		p.Warnings = append(p.Warnings, "compose: "+err.Error())
+		return
+	}
+	p.Compose = string(b)
 }
 
 // hostEnvDefaults adds ROCM_HOME/ROCM_PATH/HIP_PATH/HIP_ROOT_DIR from the

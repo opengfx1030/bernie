@@ -102,7 +102,7 @@ type Plan struct {
 	// empty. The dashboard renders it in the "Show the exact launch
 	// command" disclosure (ia.md §5 R42).
 	Compose string `json:"compose,omitempty"`
-	Exec                *Exec    `json:"exec,omitempty"`
+	Exec    *Exec  `json:"exec,omitempty"`
 }
 
 // PlanOptions are the inputs of BuildPlan. Sets are applied in order (config
