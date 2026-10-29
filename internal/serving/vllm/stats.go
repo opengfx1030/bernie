@@ -14,6 +14,9 @@ type Stats struct {
 	SpecAcceptedTokens float64 `json:"spec_accepted_tokens_total"`
 	// SpecAcceptRate is accepted / draft tokens (0..1).
 	SpecAcceptRate float64 `json:"spec_accept_rate"`
+	// Speculation is true when the server publishes the counters of the
+	// speculative decoding. A server without them has no speculation on.
+	Speculation bool `json:"speculation"`
 	// SpecMeanAcceptLen is the mean tokens emitted per draft step
 	// (1 + accepted / drafts).
 	SpecMeanAcceptLen float64 `json:"spec_mean_accept_len"`
@@ -21,12 +24,19 @@ type Stats struct {
 	// could serve from the cache.
 	PrefixCacheQueries float64 `json:"prefix_cache_queries_total"`
 	PrefixCacheHits    float64 `json:"prefix_cache_hits_total"`
+	// PrefixCache is true when the server publishes the prefix cache
+	// counters. A server without them is an old release: it has no
+	// prefix cache to measure.
+	PrefixCache bool `json:"prefix_cache"`
 	// PrefixCacheHitRate is hits / queries since the server started (0..1).
 	// It is 0 when the server looked up no token yet.
 	PrefixCacheHitRate float64 `json:"prefix_cache_hit_rate"`
 	// The cache of another instance (the KV connector).
 	ExternalPrefixCacheQueries float64 `json:"external_prefix_cache_queries_total"`
 	ExternalPrefixCacheHits    float64 `json:"external_prefix_cache_hits_total"`
+	// ExternalCache is true when the server publishes the counters of the
+	// cache of another instance.
+	ExternalCache bool `json:"external_cache"`
 	// PromptTokensCached is the prompt tokens the server took from a cache.
 	PromptTokensCached float64 `json:"prompt_tokens_cached_total"`
 	// PromptTokensBySource counts the prompt tokens per source
@@ -111,6 +121,10 @@ func Summarize(m map[string]float64) Stats {
 		kv, _ = Max(m, MetricKVCacheUsageOld)
 	}
 	s.KVCacheUsage = kv
+	s.PrefixCache = hasAny(m, MetricPrefixCacheQueries, MetricPrefixCacheQueriesOld,
+		MetricPrefixCacheHits, MetricPrefixCacheHitsOld)
+	s.ExternalCache = hasAny(m, MetricExternalPrefixCacheQueries, MetricExternalPrefixCacheHits)
+	s.Speculation = hasAny(m, MetricSpecDrafts, MetricSpecDraftTokens, MetricSpecAcceptedToken)
 	if s.SpecDraftTokens > 0 {
 		s.SpecAcceptRate = s.SpecAcceptedTokens / s.SpecDraftTokens
 	}
@@ -138,6 +152,16 @@ func sumAny(m map[string]float64, names ...string) float64 {
 		}
 	}
 	return 0
+}
+
+// hasAny reports whether the server publishes one of the metrics.
+func hasAny(m map[string]float64, names ...string) bool {
+	for _, n := range names {
+		if _, ok := Max(m, n); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // byLabel sums the samples of a metric per the value of one label (the
