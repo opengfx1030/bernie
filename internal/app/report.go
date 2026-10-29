@@ -17,8 +17,8 @@ import (
 // (ia.md R24). No hostname, no username, no token, no path with the name
 // of the user.
 type ShareReport struct {
-	Report   string           `json:"report"`
-	Sections []ReportSection  `json:"sections"`
+	Report   string          `json:"report"`
+	Sections []ReportSection `json:"sections"`
 }
 
 // ReportSection is one block of the report.
