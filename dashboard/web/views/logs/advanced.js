@@ -15,7 +15,7 @@ function logsJsonLink(path) {
 function logsAdvanced(runName) {
   const body = h("div.lg-advanced-body", loading());
   let loaded = false;
-  const det = h("details.advanced.lg-advanced", h("summary", "Advanced"), body);
+  const det = h("details.advanced.lg-advanced", h("summary", "Show details"), body);
   det.addEventListener("toggle", async () => {
     if (!det.open || loaded) return;
     loaded = true;

@@ -18,7 +18,7 @@ runs).
 3. The section `THE PATH TO A SERVING MODEL`: the step timeline.
 4. The section `THE RECIPE`: the chooser and the plan.
 5. The section `DOCTOR`: the findings.
-6. The section `ADVANCED`: the raw documents and the commands.
+6. The section `SHOW DETAILS`: the raw documents and the commands.
 
 ## The widgets
 
@@ -36,7 +36,7 @@ runs).
 | 10 | The doctor findings | `GET /api/doctor` → `checks[]`, `summary` | on open and on `Re-run` | `The doctor found nothing to report.` and `Every check of the host passed.` | `The doctor could not run.` plus the command `bernie doctor` and `Try again` |
 | 11 | The verify step and the `Try it` box | `POST /api/smoke` (G3) | on demand | the box is disabled with the sentence `Start the server first.` | the box shows `The server did not answer.` and the reason |
 | 12 | The stale banner | `GET /api/onboarding` → `stale`, `facts_age_s` | with the document | the banner is hidden | the banner is hidden |
-| 13 | The Advanced panel | `GET /api/onboarding`, `GET /api/recipes`, `GET /api/doctor` | on open | the panel holds the empty answer of the endpoint | the panel holds the error answer |
+| 13 | The Show details panel | `GET /api/onboarding`, `GET /api/recipes`, `GET /api/doctor` | on open | the panel holds the empty answer of the endpoint | the panel holds the error answer |
 
 ## The steps of the timeline
 

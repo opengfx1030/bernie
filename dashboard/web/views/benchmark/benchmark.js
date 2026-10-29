@@ -132,8 +132,7 @@ function benchStartError(what, e) {
 
 async function viewBenchmark(root) {
   const runBtn = h("button.primary", { type: "button" }, "Run the suite");
-  const advBtn = h("button", { type: "button", "aria-expanded": "false", "aria-controls": "bench-advanced" }, "Advanced");
-  const head = stateHead("Benchmark", h("div.head-actions", runBtn, advBtn));
+  const head = stateHead("Benchmark", h("div.head-actions", runBtn));
 
   const suitesCard = h("div.card.bench-card");
   const progress = benchProgress();
@@ -141,7 +140,7 @@ async function viewBenchmark(root) {
   const curveCard = h("div.card.bench-card");
   const compareCard = h("div.card.bench-card");
   const historyCard = h("div.card.bench-card");
-  const advanced = benchAdvanced(benchDocs, advBtn);
+  const advanced = benchAdvanced(benchDocs);
 
   const base = h("select", { id: "bench-cmp-base" });
   const cand = h("select", { id: "bench-cmp-cand" });
@@ -162,7 +161,6 @@ async function viewBenchmark(root) {
     benchSection("The history", historyCard),
     benchSection("An A/B run", benchAB((b, c, out, btn, prog) => runAB(b, c, out, btn, prog))),
     advanced.el);
-  advBtn.addEventListener("click", () => advanced.open());
 
   /** benchDocs reads the raw documents of the endpoints of the tab: the
    *  saved results, the suites and the comparison of the two picked

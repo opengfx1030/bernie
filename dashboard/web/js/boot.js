@@ -293,7 +293,7 @@ function boot() {
   // A panel that appears later follows the choice of the reader.
   const main = document.querySelector("main");
   if (main && window.MutationObserver) {
-    new MutationObserver(() => applyAdvanced(advancedOn())).observe(main, { childList: true, subtree: true });
+    new MutationObserver(() => applyAdvancedToNew(advancedOn())).observe(main, { childList: true, subtree: true });
   }
   window.addEventListener("hashchange", route);
   window.addEventListener("resize", () => state.tab === "dashboard" && typeof renderGPUs === "function" && renderGPUs());

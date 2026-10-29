@@ -226,16 +226,38 @@ function advancedOn() {
   try { return localStorage.getItem(ADVANCED_KEY) === "1"; } catch (e) { return false; }
 }
 
-/** applyAdvanced opens or closes every Advanced panel of every tab. */
+/** applyAdvanced opens or closes every disclosure of every tab. The rail
+ *  button is the page-wide switch: it wins over a disclosure the reader
+ *  opened by hand. */
 function applyAdvanced(on) {
   document.body.dataset.advanced = on ? "on" : "off";
   const btn = $("#advancedBtn");
   if (btn) {
     btn.setAttribute("aria-pressed", String(!!on));
-    btn.setAttribute("aria-label", on ? "Hide the advanced panels" : "Show the advanced panels");
+    btn.setAttribute("aria-label", on ? "Hide the details of every tab" : "Show the details of every tab");
   }
-  for (const det of document.querySelectorAll("details.advanced")) det.open = !!on;
+  for (const det of document.querySelectorAll("details.advanced")) {
+    det.dataset.local = "0";
+    det.open = !!on;
+  }
 }
+
+/** applyAdvancedToNew opens or closes the disclosures that follow the
+ *  page-wide switch. A disclosure the reader opened by hand keeps its own
+ *  state. */
+function applyAdvancedToNew(on) {
+  for (const det of document.querySelectorAll("details.advanced")) {
+    if (det.dataset.local === "1") continue;
+    det.open = !!on;
+  }
+}
+
+// A disclosure the reader opens by hand keeps its own state: the page-wide
+// switch leaves it alone until the reader uses the switch again.
+document.addEventListener("click", (ev) => {
+  const sum = ev.target && ev.target.closest ? ev.target.closest("details.advanced > summary") : null;
+  if (sum && sum.parentElement) sum.parentElement.dataset.local = "1";
+});
 
 function toggleAdvanced() {
   const next = !advancedOn();

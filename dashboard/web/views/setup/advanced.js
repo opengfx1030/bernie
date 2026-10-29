@@ -6,20 +6,17 @@
 /** setupAdvancedPanel is the disclosure at the end of the tab. */
 function setupAdvancedPanel() {
   const body = h("div.setup-advanced-body", loading());
-  const summary = h("summary", "Advanced");
+  const summary = h("summary", "Show details");
   const panel = h("details.advanced.setup-advanced", summary, body);
+  // The tab remembers the state of the disclosure: the tab repaints itself
+  // when a job reports, and the disclosure stays where the reader left it.
+  panel.open = !!setupState.detailsOpen;
+  panel.dataset.local = setupState.detailsOpen ? "1" : "0";
   let loaded = false;
   panel.addEventListener("toggle", async () => {
     if (!panel.open || loaded) return;
     loaded = true;
     await loadSetupAdvanced(body);
-  });
-  // The panel follows the page-wide Advanced switch: the summary and the
-  // rail button open the same panels.
-  summary.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (typeof toggleAdvanced === "function") toggleAdvanced();
-    else panel.open = !panel.open;
   });
   return panel;
 }

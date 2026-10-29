@@ -195,7 +195,7 @@ function benchAB(onRun) {
  *  and the commands that produce the same documents. The documents are read
  *  when the panel opens. The panel is a details element, so the button of
  *  the shell opens it with every other panel of the page. */
-function benchAdvanced(load, headBtn) {
+function benchAdvanced(load) {
   const body = h("div.advanced-body.bench-advanced-body");
   let filled = false;
   async function fill() {
@@ -224,14 +224,11 @@ function benchAdvanced(load, headBtn) {
       cmdBlock("bernie bench ab BASE CAND")));
   }
   const det = h("details.advanced.bench-advanced", { id: "bench-advanced" },
-    h("summary", "Advanced"), body);
+    h("summary", "Show details"), body);
   det.addEventListener("toggle", () => {
     if (det.open) fill();
-    if (headBtn) headBtn.setAttribute("aria-expanded", String(det.open));
   });
   return {
     el: det,
-    /** open opens or closes the panel. */
-    open: () => { det.open = !det.open; },
   };
 }
