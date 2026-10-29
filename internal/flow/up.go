@@ -68,9 +68,9 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 	doc := onboarding.Build(f)
 
 	// 1. Hardware access problems are not fixable by up. The steps of the
-	// onboarding say what holds the path up (spec §3.1).
+	// onboarding say what holds the path up (spec §3.1). The caller prints
+	// the reason and the commands, so nothing is written here.
 	if b := blocked(doc); b != nil {
-		fmt.Fprintf(log, "up: BLOCKED %s\n", b.Reason)
 		return nil, b
 	}
 
