@@ -102,7 +102,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/js/core.js` | `h`, `add`, `put`, `$`, `GiB`, `bytes`, `num`, `ago`, `badge`, `sh`, `SVG_NS`, `chartSvg` |
 | `dashboard/web/js/data.js` | `HISTORY`, `RUN_POLL_MS`, `MAX_POLL_MS`, `STALE_MS`, `state`, `request`, `api`, `loadHW`, `runsOf`, `runURL`, `pushHist`, `slowAgeNote`, `openTelemetry`, `openRunLogs`, `openJobEvents`, `openBenchEvents`, `JOB_POLL_MS`, `watchBenchJob`, `apiText`, `frameJobs`, `frameHandle`, `frameFallback`, `FRAME_FALLBACK_MS`, `runFrameJobs`, `onFrame`, `frameSubs`, `onTabFrame`, `telemetryStream`, `pollTimer`, `pollDelay`, `pollCycle`, `startTelemetry`, `pollRuns`, `pollCounts`, `schedulePoll`, `startPolling` |
 | `dashboard/web/js/shell.js` | `THEME_KEY`, `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `themeChoice`, `darkNow`, `applyTheme`, `toggleTheme`, `advancedOn`, `applyAdvanced`, `applyAdvancedToNew`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
-| `dashboard/web/views/advanced/console.js` | `adv`, `viewAdvanced`, `advLoad`, `advReload`, `advPaint`, `advSubscribe`, `advRunsTable`, `advServerMeasures` |
+| `dashboard/web/views/advanced/console.js` | `adv`, `viewAdvanced`, `advLoad`, `advReload`, `advPaint`, `advHead`, `advSubscribe`, `advRunsTable`, `advServerMeasures` |
 | `dashboard/web/views/advanced/doctor.js` | `advDoctorReport`, `advDoctorCheck` |
 | `dashboard/web/views/advanced/documents.js` | `advDocuments`, `advLoadDocuments`, `advDocument` |
 | `dashboard/web/views/advanced/jobs.js` | `advJobList`, `advJobState` |
