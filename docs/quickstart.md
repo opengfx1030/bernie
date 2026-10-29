@@ -28,7 +28,7 @@ up: stopped: No AMD GPU is visible to bernie.
   sudo modprobe amdgpu
 ```
 
-Run the command as root, then run `bernie up` again.
+Run it as root, then run `bernie up` again.
 
 ## 3. Open the dashboard
 
@@ -56,20 +56,14 @@ bernie smoke
 ```
 
 It sends one prompt to the server and prints the time to the first token,
-the number of tokens and the output speed. The last step of the Setup tab
-asks the server the same question. Then:
-
-```bash
-bernie bench        # how fast is this host?
-bernie logs <name>  # what is the server saying?
-bernie stop <name>  # stop the server
-```
+the number of tokens and the output speed. Then `bernie bench` (how fast is
+this host?), `bernie logs <name>` (what is the server saying?) and
+`bernie stop <name>`.
 
 ## 6. When something is wrong
 
 Every error on the page names the command that fixes it. The same is in the
-terminal: `bernie status --steps` (the checklist as text),
-`bernie status --json` (the same for a script), `bernie doctor` (every
-check with its fix).
+terminal: `bernie status --steps` (the checklist as text), `bernie status
+--json` (the same for a script), `bernie doctor` (every check with its fix).
 
 More: [install.md](install.md), [spec.md](spec.md), [mcp.md](mcp.md).
