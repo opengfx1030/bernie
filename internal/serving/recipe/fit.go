@@ -65,19 +65,23 @@ func CheckFit(r *Recipe, gpus []gpu.GPU, ramBytes uint64) Fit {
 
 // ListEntry is one row of `recipe list` (and the dashboard's /api/recipes).
 type ListEntry struct {
-	ID         string           `json:"id"`
-	Name       string           `json:"name"`
-	Status     string           `json:"status"`
-	Priority   int              `json:"priority"`
-	Model      string           `json:"model"`
-	Entrypoint string           `json:"entrypoint"`
-	GPUs       int              `json:"gpus"`
-	Arch       []string         `json:"arch"`
-	Tags       []string         `json:"tags"`
-	Source     string           `json:"source"`
-	Inputs     map[string]Input `json:"inputs"`
-	Modes      []string         `json:"modes"`
-	Fit        Fit              `json:"fit"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Description is the one line of the recipe file that says what the
+	// recipe is. The page shows it under the name, so a reader does not
+	// have to know the id.
+	Description string           `json:"description,omitempty"`
+	Status      string           `json:"status"`
+	Priority    int              `json:"priority"`
+	Model       string           `json:"model"`
+	Entrypoint  string           `json:"entrypoint"`
+	GPUs        int              `json:"gpus"`
+	Arch        []string         `json:"arch"`
+	Tags        []string         `json:"tags"`
+	Source      string           `json:"source"`
+	Inputs      map[string]Input `json:"inputs"`
+	Modes       []string         `json:"modes"`
+	Fit         Fit              `json:"fit"`
 }
 
 // Listing is the `recipe list` document.
@@ -107,7 +111,7 @@ func List(s Set, gpus []gpu.GPU, ramBytes uint64, all bool) Listing {
 			continue
 		}
 		e := ListEntry{
-			ID: r.ID, Name: r.Name, Status: r.Status, Priority: r.Priority,
+			ID: r.ID, Name: r.Name, Description: r.Description, Status: r.Status, Priority: r.Priority,
 			Model: r.Model.Source, Entrypoint: r.Entrypoint, GPUs: r.Requires.GPUs,
 			Arch: r.Requires.Arch, Tags: r.Tags, Source: r.Source, Inputs: r.Inputs,
 			Modes: fit.Modes, Fit: fit,

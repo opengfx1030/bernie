@@ -60,6 +60,13 @@ type JobProgress struct {
 // jobMu holds the single job slot of this process.
 var jobMu sync.Mutex
 
+// jobCancels holds the cancel function of every job that runs in this
+// process, by job id. The Stop control of the Setup tab calls it.
+var jobCancels = map[string]context.CancelFunc{}
+
+// jobCancelMu guards jobCancels.
+var jobCancelMu sync.Mutex
+
 // maxJobLines is the number of output lines a job keeps.
 const maxJobLines = 50
 
@@ -95,15 +102,38 @@ func startJob(ctx context.Context, step string, action *Action) (*Job, error) {
 		jobMu.Unlock()
 		return nil, err
 	}
-	// The job outlives the request that started it.
-	go runJob(context.WithoutCancel(ctx), job, action, logf)
+	// The job outlives the request that started it, but the reader can stop
+	// it: the cancel function is kept under the id of the job.
+	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	jobCancelMu.Lock()
+	jobCancels[id] = cancel
+	jobCancelMu.Unlock()
+	go runJob(runCtx, job, action, logf)
 	return job, nil
+}
+
+// CancelJob stops the job with this id. It reports whether a running job of
+// this process was found: a job of another process cannot be stopped here.
+func CancelJob(id string) bool {
+	jobCancelMu.Lock()
+	cancel, ok := jobCancels[id]
+	jobCancelMu.Unlock()
+	if !ok {
+		return false
+	}
+	cancel()
+	return true
 }
 
 // runJob does the action of a job and records its end.
 func runJob(ctx context.Context, job *Job, action *Action, logf *os.File) {
 	defer jobMu.Unlock()
 	defer logf.Close()
+	defer func() {
+		jobCancelMu.Lock()
+		delete(jobCancels, job.ID)
+		jobCancelMu.Unlock()
+	}()
 	w := &jobWriter{job: job, f: logf}
 	err := action.Run(ctx, w)
 	now := time.Now().UTC()

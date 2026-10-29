@@ -56,6 +56,14 @@ type Document struct {
 	// FactsAgeS is the age in seconds of the facts behind the document. It
 	// is 0 when the host was read now.
 	FactsAgeS int `json:"facts_age_s"`
+	// Recommendation is the recipe bernie recommends for this host: which
+	// one, what it is and why. The CLI, the MCP server and the page read
+	// this one record, so they cannot disagree about the choice.
+	Recommendation *Recommendation `json:"recommendation,omitempty"`
+	// Primary is the one action of the first run: the button the reader
+	// presses. The CLI, the MCP server and the page read this one record,
+	// so they cannot disagree about what the reader does next.
+	Primary *Primary `json:"primary,omitempty"`
 	// Stale is true when the document was served from the cache while it
 	// was past its time to live: a refresh is running (spec §3.3).
 	Stale bool `json:"stale"`
@@ -93,6 +101,10 @@ type Step struct {
 	// Action names what the step does, in the words of the reader. The
 	// button of the step says this.
 	Action string `json:"action,omitempty"`
+	// Estimate says what the step costs: the time and the size it took the
+	// last time it ran on this host. It is absent when the step never ran
+	// here: the numbers are measured, never guessed.
+	Estimate *Estimate `json:"estimate,omitempty"`
 }
 
 // NextAction is the next step of the path in words: what to do, the
@@ -149,6 +161,11 @@ func Build(f *Facts) *Document {
 	attachJobs(doc.Steps, f.Jobs)
 	setWaitsFor(doc)
 	doc.NextAction = nextAction(doc)
+	doc.Recommendation = recommend(f)
+	doc.Primary = primary(doc)
+	for i := range doc.Steps {
+		doc.Steps[i].Estimate = estimateOf(f, doc.Steps[i].ID)
+	}
 	return doc
 }
 

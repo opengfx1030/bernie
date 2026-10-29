@@ -1,0 +1,69 @@
+package onboarding
+
+import (
+	"context"
+	"fmt"
+	"io"
+
+	"github.com/opengfx1030/bernie/internal/setup"
+)
+
+// ActionPath runs every step of the path that bernie can do itself, in the
+// order of the path: the setup steps (the Python environment and the model
+// download), then the server, then the question that proves it answers.
+//
+// It is the action of the one button of the Setup tab and of `bernie up`:
+// the same setup.Apply, the same serve and the same check, in one run.
+const ActionPath = "path"
+
+// PathAction returns the action of the whole path: every setup step that is
+// missing, then the server, then the check.
+func PathAction(f *Facts, o Options) *Action {
+	a := &Action{Kind: ActionPath, Recipe: f.Recipe, Mode: f.Mode, Venv: o.Venv,
+		Sets: o.Sets, Engine: o.Engine, Name: o.Name}
+	for _, s := range f.Setup {
+		if s.Done || s.Root {
+			continue
+		}
+		a.Steps = append(a.Steps, s)
+	}
+	return a
+}
+
+// PreparePath prepares the action of the whole path from facts that were
+// already gathered. It returns the root commands when the operator must act
+// first, and the action when bernie can do everything that is missing.
+func PreparePath(f *Facts, o Options) (*PreparedStep, error) {
+	for _, s := range f.Setup {
+		if s.Done || !s.Root {
+			continue
+		}
+		return &PreparedStep{Step: "path", RootCommands: s.Commands}, nil
+	}
+	if f.Recipe == "" {
+		return nil, ErrNoAction
+	}
+	return &PreparedStep{Step: "path", Action: PathAction(f, o)}, nil
+}
+
+// runPath does the whole path: the setup steps, then the server, then the
+// check that proves the server answers.
+func (a *Action) runPath(ctx context.Context, log io.Writer) error {
+	if len(a.Steps) > 0 {
+		ids := make([]string, len(a.Steps))
+		for i, s := range a.Steps {
+			ids[i] = s.ID
+		}
+		fmt.Fprintf(log, "setup: %s\n", a.Steps[0].Title)
+		if err := setup.Apply(ctx, a.Steps, ids, log); err != nil {
+			return err
+		}
+	}
+	if a.Recipe == "" {
+		return ErrNoAction
+	}
+	if err := a.serve(ctx, log); err != nil {
+		return err
+	}
+	return a.verify(ctx, log)
+}

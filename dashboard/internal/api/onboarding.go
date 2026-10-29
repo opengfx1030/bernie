@@ -70,6 +70,44 @@ func (h *handler) postOnboardingRun(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// POST /api/onboarding/path/run — run the whole path that bernie can do
+// itself in the background: the setup steps, the server and the check. It
+// is the one action of the Setup tab. A step that needs root answers with
+// the commands to run, and runs nothing.
+func (h *handler) postOnboardingPath(w http.ResponseWriter, r *http.Request) {
+	var req onboardingRunRequest
+	if !httpjson.Decode(w, r, &req) {
+		return
+	}
+	res, err := app.RunOnboardingPath(r.Context(), req.options())
+	switch {
+	case errors.Is(err, onboarding.ErrNoAction):
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, onboarding.ErrJobBusy):
+		httpjson.Error(w, http.StatusConflict, err.Error())
+	case err != nil:
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
+	case res.RootRequired:
+		httpjson.Write(w, http.StatusOK, map[string]any{
+			"step": "path", "root_required": true, "commands": res.Commands,
+		})
+	default:
+		httpjson.Write(w, http.StatusCreated, res.Job)
+	}
+}
+
+// POST /api/jobs/{id}/stop — stop the job with this id. The job ends as
+// failed with the reason "the job was stopped".
+func (h *handler) postJobStop(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := app.OnboardingJob(id); err != nil {
+		httpjson.Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	stopped := app.CancelOnboardingJob(id)
+	httpjson.Write(w, http.StatusOK, map[string]any{"id": id, "stopped": stopped})
+}
+
 // GET /api/jobs — the jobs of this host, newest first. The page re-attaches
 // to a job with its id. The answer is capped; `limit` takes 1 to 200.
 func (h *handler) getJobs(w http.ResponseWriter, r *http.Request) {
