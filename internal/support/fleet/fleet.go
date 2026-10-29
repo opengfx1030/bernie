@@ -36,23 +36,23 @@ const (
 // fields are populated from the peer's own /api/hw and /api/runs; gaps
 // stay gaps when the peer is down.
 type Summary struct {
-	Name    string         `json:"name"`
-	URL     string         `json:"url,omitempty"`
-	Self    bool           `json:"me,omitempty"`
-	Reachable bool         `json:"reachable"`
-	Error   string         `json:"error,omitempty"`
-	State   string         `json:"state,omitempty"`
-	Recipe  string         `json:"recipe,omitempty"`
-	GenTokS *float64       `json:"gen_tok_s,omitempty"`
-	GPU     []GPUDetail    `json:"gpus,omitempty"`
-	VRAMGiB *float64       `json:"vram_total_gb,omitempty"`
+	Name      string      `json:"name"`
+	URL       string      `json:"url,omitempty"`
+	Self      bool        `json:"me,omitempty"`
+	Reachable bool        `json:"reachable"`
+	Error     string      `json:"error,omitempty"`
+	State     string      `json:"state,omitempty"`
+	Recipe    string      `json:"recipe,omitempty"`
+	GenTokS   *float64    `json:"gen_tok_s,omitempty"`
+	GPU       []GPUDetail `json:"gpus,omitempty"`
+	VRAMGiB   *float64    `json:"vram_total_gb,omitempty"`
 }
 
 // GPUDetail is one card on a peer: model name, VRAM and power cap.
 type GPUDetail struct {
-	Index    int    `json:"index"`
-	Name     string `json:"name"`
-	VRAMGiB  *float64 `json:"vram_total_gb,omitempty"`
+	Index     int      `json:"index"`
+	Name      string   `json:"name"`
+	VRAMGiB   *float64 `json:"vram_total_gb,omitempty"`
 	PowerCapW *float64 `json:"power_cap_w,omitempty"`
 }
 
@@ -255,8 +255,8 @@ func allowedPath(path string) bool {
 // anything that is not the same host as the original request.
 func defaultClient() *http.Client {
 	transport := &http.Transport{
-		Proxy: nil, // honour $HTTP_PROXY only when explicitly set by the operator
-		DialContext: (&net.Dialer{Timeout: Timeout, KeepAlive: 30 * time.Second}).DialContext,
+		Proxy:                 nil, // honour $HTTP_PROXY only when explicitly set by the operator
+		DialContext:           (&net.Dialer{Timeout: Timeout, KeepAlive: 30 * time.Second}).DialContext,
 		ResponseHeaderTimeout: Timeout,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
