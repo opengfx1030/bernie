@@ -24,7 +24,9 @@ type Summary struct {
 	Best        string                `json:"best_recipe"`
 	Fits        []string              `json:"fitting_recipes"`
 	Runs        []Run                 `json:"runs"`
-	Next        []string              `json:"next"`
+	// Serving holds what the server of every live run measures (spec §11).
+	Serving []Serving `json:"serving"`
+	Next    []string  `json:"next"`
 	// Onboarding is the checklist of the steps from a bare machine to a
 	// serving model (spec §11). It is the same document the dashboard and
 	// the MCP server read.
@@ -54,6 +56,7 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 	if s.Runs == nil {
 		s.Runs = []Run{}
 	}
+	s.Serving = serving(ctx, runs)
 	if s.Fits == nil {
 		s.Fits = []string{}
 	}
