@@ -26,6 +26,12 @@ services:
     devices:
       - /dev/kfd
       - /dev/dri
+      # With the AMD Container Toolkit (amd-ctk) and a spec in /etc/cdi, the
+      # GPUs can be injected by CDI instead. Replace the two lines above with
+      # the device names of the spec:
+      #   - amd.com/gpu=0
+      # The CDI names in devices: are not confirmed on a live host yet.
+      # See docs/install.md.
     # The image has no /etc/group: a group name does not resolve there.
     # Use the numeric ids of the GPU groups of THIS host.
     #   getent group video      -> VIDEO_GID

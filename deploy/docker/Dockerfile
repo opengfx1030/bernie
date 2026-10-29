@@ -10,6 +10,10 @@
 #     --device /dev/kfd --device /dev/dri --group-add <render-gid> --group-add <video-gid> \
 #     --security-opt seccomp=unconfined --security-opt label=disable \
 #     -v "$PWD/data:/data" -v /sys:/sys:ro ghcr.io/opengfx1030/bernie
+#
+# The AMD Container Toolkit injects the GPUs by CDI instead:
+#   --device amd.com/gpu=0
+# The group flags stay in both forms. See docs/install.md.
 
 FROM --platform=$BUILDPLATFORM golang:1.26@sha256:670bb5aa5349ae03b8516764718486f4f16399134bdc9acd0c46a23f043ab05c AS build
 ARG TARGETOS=linux

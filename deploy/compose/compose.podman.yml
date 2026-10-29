@@ -9,6 +9,9 @@
 # needs no chown.
 # Without `!override` support: replace the group_add list in compose.yml with
 # `- keep-groups` and set `user: "0:0"` there.
+#
+# CDI (the AMD Container Toolkit) does not change this: the group flags stay
+# in both device access modes. See docs/install.md.
 services:
   bernie:
     user: "0:0"
