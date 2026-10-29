@@ -72,6 +72,7 @@ flowchart LR
 | `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewChat`, `viewBenchmark`, `viewTopology`, `viewFleet`, `viewLogs`, `viewAdvanced` |
 | `web/views/topology/topology.css` | The Topology tab only: the matrix, the legend, the tree and the checklist |
 | `web/views/chat/chat.css` | The Chat tab only: the prompt box, the answer and the numbers of the answer |
+| `web/views/fleet/fleet.css` | The Fleet tab only: the rows of the other hosts and the form that adds one |
 | `web/fonts/` | The self-hosted fonts (Latin subsets, OFL): Montserrat, Inter, JetBrains Mono. No CDN. |
 | `web/css/tokens.css` | The two palettes (dark and light), the type, the fonts, the spacing and the radii |
 | `web/css/layout.css` | The shell, the rail, the grids and the state headline |
@@ -107,6 +108,8 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/advanced/doctor.js` | `advDoctorReport`, `advDoctorCheck` |
 | `dashboard/web/views/advanced/documents.js` | `advDocuments`, `advLoadDocuments`, `advDocument` |
 | `dashboard/web/views/advanced/jobs.js` | `advJobList`, `advJobState` |
+| `dashboard/web/views/advanced/prefs.js` | `advPrefsCard`, `prefsList`, `prefRow`, `setResolved`, `savePref` |
+| `dashboard/web/views/advanced/report.js` | `advReportCard`, `advReportText`, `advCopyReport`, `advDownloadReport` |
 | `dashboard/web/views/advanced/power.js` | `advPowerCard`, `advPaintPower`, `advPowerRow`, `advSavePower` |
 | `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchCards`, `benchCellName`, `benchBestCell`, `benchHeadline`, `benchResultBody`, `benchCopy`, `benchReceipt`, `benchStartError`, `viewBenchmark` |
 | `dashboard/web/views/benchmark/suites.js` | `benchSuiteCells`, `benchSuiteEstS`, `benchMinutes`, `benchSuiteCard`, `benchSuiteCards`, `benchSentence`, `benchProgress`, `benchBest`, `benchSuiteOf`, `benchHistoryRow`, `benchHistory`, `benchAB`, `benchAdvanced` |
@@ -115,7 +118,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/dashboard/details.js` | `DASH_DETAIL_WINDOWS`, `dashDetails`, `dashLoadDetails`, `dashDetailsRead`, `dashDetailsWindow`, `dashWindowMinutes`, `dashDetailsPower`, `dashDetailsDocuments` |
 | `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe` |
 | `dashboard/web/views/dashboard/simple.js` | `dashSimpleHero`, `dashStopRun`, `dashMeaning`, `dashSimpleTiles`, `dashSimpleCharts`, `dashSimpleMachine`, `dashBuildSimple`, `dashSimpleConnect` |
-| `dashboard/web/views/fleet/fleet.js` | `viewFleet` |
+| `dashboard/web/views/fleet/fleet.js` | `FLEET_STATE_WORD`, `fleetStatePill`, `fleetGPUs`, `fleetRow`, `fleetShare`, `viewFleet` |
 | `dashboard/web/views/logs/advanced.js` | `logsJsonLink`, `logsAdvanced` |
 | `dashboard/web/views/logs/findings.js` | `logPill`, `logSeverityPill`, `logFixIsCommand`, `logFinding`, `logFindings` |
 | `dashboard/web/views/logs/levels.js` | `LOG_ERROR_MARKS`, `LOG_WARN_MARKS`, `LOG_LEVEL_WORDS`, `logLevel`, `logLevelWord` |
@@ -199,7 +202,7 @@ Each tab answers one question. Keep it that way.
 | Chat | What will I ask the model? | `/api/chat`, `/api/runs` | send one prompt, stop the answer |
 | Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
 | Topology | Can the cards copy to each other? | `/api/topo`, `/api/topo/check` | check the readiness again |
-| Fleet | What do the other hosts do? (planned) | none yet | none yet: the tab says it is planned |
+| Fleet | What do the other hosts do? | `/api/fleet`, `/api/report` | add a host, forget a host, copy the redacted report, open that host's own dashboard |
 | Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
 | Advanced | What can I inspect and change on this host? | `/api/hw`, `/api/doctor`, `/api/power`, `/api/runs`, `/api/jobs`, `/api/telemetry` | write the power cap, re-check the host |
 
