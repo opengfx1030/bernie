@@ -141,7 +141,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/topology/advanced.js` | `topoBandwidth`, `topoAdvanced` |
 | `dashboard/web/views/topology/checklist.js` | `topoChecklist` |
 | `dashboard/web/views/topology/links.js` | `topoLegend`, `topoTree` |
-| `dashboard/web/views/topology/matrix.js` | `TOPO_CLASS_WORD`, `TOPO_CLASS_ORDER`, `topoClassWords`, `topoMatrix`, `topoPairTable` |
+| `dashboard/web/views/topology/matrix.js` | `TOPO_CLASS_WORD`, `TOPO_CLASS_ORDER`, `topoClassWords`, `topoMatrix`, `topoBandwidthMatrix`, `topoPairTable` |
 | `dashboard/web/views/topology/topology.js` | `topo`, `topoSection`, `viewTopology`, `topoLoad`, `topoCheck`, `topoPaint`, `topoSetHead` |
 
 ## The layout

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"time"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
@@ -76,6 +77,22 @@ func Topo(ctx context.Context, o TopoOptions) (topo.Topology, error) {
 		if err := topo.MeasureBandwidth(ctx, &t, cfg.ResolveVenv(o.Venv)); err != nil {
 			return topo.Topology{}, err
 		}
+		t.MeasuredAt = time.Now()
+		t.MeasuredSource = t.Bandwidth
+		// The measurement is saved so the page can show it later: the
+		// measurement runs GPU copies and must not run again on a page
+		// load (ia.md §5 R32).
+		if err := topo.SaveMeasurement(&t); err != nil {
+			logf(o.Progress, "warning: the measurement was not saved: "+err.Error())
+		}
+	} else {
+		// Without a measurement the last saved one is shown, with the time
+		// it was taken. The page reads the same numbers.
+		m, err := topo.LoadMeasurement()
+		if err != nil {
+			logf(o.Progress, "warning: the saved measurement could not be read: "+err.Error())
+		}
+		topo.ApplyMeasurement(&t, m)
 	}
 	return t, nil
 }
