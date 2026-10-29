@@ -14,19 +14,16 @@ var dpmMHz = regexp.MustCompile(`(\d+)\s*Mhz`)
 // tempByLabel returns the temperature of the hwmon sensor with this label,
 // in degrees Celsius. It is nil when the card has no such sensor.
 func tempByLabel(hw, label string) *float64 {
-	for _, l := range tempLabels(hw) {
-		if readString(l) != label {
-			continue
-		}
-		f := filepath.Join(hw, strings.TrimSuffix(filepath.Base(l), "_label")+"_input")
-		v := readUint(f)
-		if v == 0 {
-			return nil
-		}
-		t := float64(v) / 1000
-		return &t
+	f := tempSensor(hw, label)
+	if f == "" {
+		return nil
 	}
-	return nil
+	v := readUint(f)
+	if v == 0 {
+		return nil
+	}
+	t := float64(v) / 1000
+	return &t
 }
 
 // tempLabels lists the label files of an hwmon node.

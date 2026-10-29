@@ -79,7 +79,7 @@ func fillDevice(root string, g *GPU) {
 	g.Link.Gen = LinkGen(readString(filepath.Join(dev, "current_link_speed")))
 	g.Link.Width = int(readInt(filepath.Join(dev, "current_link_width"), 0))
 	g.NUMANode = int(readInt(filepath.Join(dev, "numa_node"), -1))
-	if hw := HwmonDir(dev); hw != "" {
+	if hw := hwmonDir(dev); hw != "" {
 		g.PowerCapW = microWatts(readUint(filepath.Join(hw, "power1_cap")))
 	}
 	g.Name = readString(filepath.Join(dev, "product_name"))
@@ -118,7 +118,7 @@ func TelemetryFast(root string, gpus []GPU) []Sample {
 			dev := filepath.Join(root, g.SysfsPath)
 			s.BusyPct = float64(readInt(filepath.Join(dev, "gpu_busy_percent"), 0))
 			s.VRAMUsed = readUint(filepath.Join(dev, "mem_info_vram_used"))
-			if hw := HwmonDir(dev); hw != "" {
+			if hw := hwmonDir(dev); hw != "" {
 				p := readUint(filepath.Join(hw, "power1_average"))
 				if p == 0 {
 					p = readUint(filepath.Join(hw, "power1_input"))
@@ -144,7 +144,7 @@ func TelemetrySlow(root string, gpus []GPU) []Sample {
 			if t := readUint(filepath.Join(dev, "mem_info_vram_total")); t > 0 {
 				s.VRAMTotal = t
 			}
-			if hw := HwmonDir(dev); hw != "" {
+			if hw := hwmonDir(dev); hw != "" {
 				s.TempC = edgeTemp(hw)
 				s.TempJunctionC = tempByLabel(hw, "junction")
 				s.TempMemC = tempByLabel(hw, "mem")
