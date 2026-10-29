@@ -7,7 +7,7 @@
 function advViewTopology(root) {
   put(root, loading());
   const head = stateHead("Topology", h("button.primary", { type: "button", onclick: () => advViewTopology(root) }, "Re-check the links"));
-  const api = {
+  const view = {
     update: async () => {
       try {
         const [topo, check] = await Promise.all([
@@ -66,8 +66,8 @@ function advViewTopology(root) {
       }
     },
   };
-  api.update();
-  return api;
+  view.update();
+  return view;
 }
 
 /** advGpuName is the name of one card of the host. */
