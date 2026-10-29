@@ -39,7 +39,7 @@ function benchSuiteCard(s, picked, onPick) {
       h("p.bench-suite-name", s.name || s.id),
       h("p.bench-suite-desc", s.description || ""),
       h("p.bench-suite-meta",
-        benchSuiteCells(s) + " cells · about " + benchMinutes(benchSuiteEstS(s))),
+        benchSuiteCells(s) + (benchSuiteCells(s) === 1 ? " cell · about " : " cells · about ") + benchMinutes(benchSuiteEstS(s))),
       h("p.bench-suite-digest",
         h("code", "digest: " + (digest ? digest.slice(0, 12) : "unknown")),
         copyBtn(digest || "unknown", "Copy the digest"))));

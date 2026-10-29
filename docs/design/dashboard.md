@@ -88,8 +88,8 @@ sparkline of the last minute.
 | The load | the mean of `busy_pct` over the cards | `%` | `the mean of 8 cards` |
 | The power | the sum of `power_w` | `W` | `of 1400 W allowed` |
 | The memory | the sum of `vram_used` | `GiB` | `of 240 GiB` |
-| The hottest card | the maximum of `temp_c` | `°C` | the name of the card |
-| The highest clock | the maximum of `sclk_mhz` | `MHz` | the name of the card |
+| The hottest card | the maximum of `temp_c` | `°C` | the index and the name of the card (`GPU 7 · AMD RADEON PRO V620 Azure`) |
+| The highest clock | the maximum of `sclk_mhz` | `MHz` | the index and the name of the card |
 | The tokens per second | `gen_tok_s` of the live run | `tok/s` | `1-min avg 44.0 tok/s` |
 | The running requests | `requests_running` | | `2 waiting` |
 | The KV cache | `kv_cache_usage` | `%` | `of the cache of the engine` |
