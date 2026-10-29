@@ -91,7 +91,7 @@ const TAB_CSS = {
   topology: ["views/topology/topology.css"],
   fleet: [],
   logs: ["views/logs/logs.css"],
-  advanced: [],
+  advanced: ["css/advanced.css"],
 };
 
 // The tabs whose files are on the page.

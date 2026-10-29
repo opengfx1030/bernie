@@ -79,6 +79,7 @@ flowchart LR
 | `web/css/overlays.css` | The toast, the tooltip and the spinner: the parts of the page that come and go |
 | `web/css/views.css` | The parts that belong to one tab: the step timeline, the recipes, the doctor, the logs, the tiles and the rings |
 | `web/css/bench.css` | The Benchmark tab only |
+| `web/css/advanced.css` | The Advanced tab only: the doctor report of the console and the raw documents |
 | `dashboard_test.go` | API, auth and stream tests |
 
 ## Published globals
@@ -151,7 +152,7 @@ dashboard/
 │   └── httpjson/        the JSON response shapes
 └── web/
     ├── index.html       the shell markup and the script order
-    ├── css/             tokens, layout, components, overlays, views, bench
+    ├── css/             tokens, layout, components, overlays, views, bench, advanced
     ├── fonts/           the self-hosted fonts and their licences
     ├── js/              core, shell, data, boot
     ├── components/      the shared widgets
