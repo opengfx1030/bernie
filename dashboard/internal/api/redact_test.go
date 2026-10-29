@@ -10,6 +10,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -39,6 +41,19 @@ var routePaths = map[string]string{
 // placeholder matches the "{name}" of a route pattern.
 var placeholder = regexp.MustCompile(`\{[^}]*\}`)
 
+// writeFleetConfig writes a config file that holds one peer whose token is
+// the secret. The Fleet tab reads the peers from that file, so the answer of
+// GET /api/fleet must not carry the token.
+func writeFleetConfig(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("BERNIE_CONFIG_DIR", dir)
+	body := "fleet:\n  - name: gpu-box-2\n    url: http://127.0.0.1:1\n    token: " + theSecret + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(body), 0600); err != nil {
+		t.Fatalf("the config file: %v", err)
+	}
+}
+
 // routeRequest returns the method and the path of a request that reaches the
 // route of this pattern.
 func routeRequest(pattern string) (string, string) {
@@ -58,6 +73,7 @@ func routeRequest(pattern string) (string, string) {
 // text would answer with it if it did not redact.
 func TestEveryRouteRedacts(t *testing.T) {
 	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	writeFleetConfig(t)
 	mux := http.NewServeMux()
 	Register(mux, Options{Telemetry: fakeTelemetry{}})
 	writeRun(t, "flashnext", "the server starts\nHF_TOKEN="+theSecret+"\nAuthorization: Bearer "+theSecret+"\n")
@@ -112,5 +128,26 @@ func TestRoutesRedactWhatTheyRead(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "<redacted>") {
 		t.Errorf("the plan was not redacted:\n%s", w.Body.String())
+	}
+}
+
+// TestFleetAnswerCarriesNoToken checks the rule of the Fleet tab: the token
+// of a peer stays in the config file and never reaches the browser. The
+// answer names the peer and carries no token, not even a part of one.
+func TestFleetAnswerCarriesNoToken(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	writeFleetConfig(t)
+	mux := http.NewServeMux()
+	Register(mux, Options{Telemetry: fakeTelemetry{}})
+
+	w := get(t, mux, "/api/fleet")
+	if w.Code != http.StatusOK {
+		t.Fatalf("the fleet: %d %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "gpu-box-2") {
+		t.Errorf("the fleet does not name the peer:\n%s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), theSecret) {
+		t.Errorf("the fleet answers with the token of the peer:\n%s", w.Body.String())
 	}
 }
