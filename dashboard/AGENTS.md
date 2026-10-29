@@ -273,8 +273,10 @@ honest and reachable.
    → Check: **[lint]** no `fetch`, `EventSource` or timer outside
    `web/js/data.js`.
 5. **One frame.** All the repaints caused by one sample happen in a single
-   `requestAnimationFrame` callback. → Check: a view opens no timer of its
-   own.
+   `requestAnimationFrame` callback. A page that is never painted (a
+   background tab, a browser without a compositor) runs the same batch from
+   the one timer of `web/js/data.js` instead, so the numbers still reach the
+   reader. → Check: a view opens no timer of its own.
 6. **Pause when hidden.** While `document.hidden` is true the poller stops
    and no repaint runs; on `visibilitychange` back to `visible` the page
    refreshes once, at once. → Check: a hidden tab sends no request.

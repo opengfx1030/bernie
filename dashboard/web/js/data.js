@@ -145,6 +145,21 @@ async function apiText(path) {
 
 const frameJobs = new Set();
 let frameHandle = 0;
+let frameFallback = 0;
+
+// FRAME_FALLBACK_MS is how long the batch waits for a frame before it runs
+// itself. A page that is not painted never runs its animation frames.
+const FRAME_FALLBACK_MS = 250;
+
+/** runFrameJobs runs the batch of the repaints of one sample. One broken
+ *  card must not stop the page. */
+function runFrameJobs() {
+  const jobs = Array.from(frameJobs);
+  frameJobs.clear();
+  for (const job of jobs) {
+    try { job(); } catch (e) { /* one broken card must not stop the page */ }
+  }
+}
 
 /** onFrame batches the repaints of one sample into a single frame. A view
  *  hands its work to it; the page paints once. It is the only place that
@@ -154,12 +169,17 @@ function onFrame(fn) {
   if (frameHandle) return;
   frameHandle = requestAnimationFrame(() => {
     frameHandle = 0;
-    const jobs = Array.from(frameJobs);
-    frameJobs.clear();
-    for (const job of jobs) {
-      try { job(); } catch (e) { /* one broken card must not stop the page */ }
-    }
+    if (frameFallback) { clearTimeout(frameFallback); frameFallback = 0; }
+    runFrameJobs();
   });
+  // A page that is not painted (a tab in the background, a browser without a
+  // compositor) never runs its animation frames, and the numbers would never
+  // reach the reader. The fallback runs the same batch a moment later.
+  frameFallback = setTimeout(() => {
+    frameFallback = 0;
+    if (frameHandle) { cancelAnimationFrame(frameHandle); frameHandle = 0; }
+    runFrameJobs();
+  }, FRAME_FALLBACK_MS);
 }
 
 /* ---------- one stream, one repaint per tab ---------- */
