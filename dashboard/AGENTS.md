@@ -259,18 +259,22 @@ honest and reachable.
 1. **No inline styles.** The page is served with `style-src 'self'`; the
    browser drops every `style` attribute. A static style is a class in
    `web/css/`; a runtime value is written through the CSSOM
-   (`el.style.width = "50%"`). → Check: **[lint]** no `style:` attribute in
-   `web/**/*.js`, and every chart draws.
+   (`el.style.width = "50%"`). → Check: **[lint]**
+   `TestNoInlineStylesOrHTML` in `dashboard/assets_test.go` finds no `style:`
+   attribute in `web/**/*.js`, and every chart draws.
 2. **No inline scripts and no `on*` attributes.** Every handler is added
    with `addEventListener` in the file that owns the element. → Check:
    **[lint]** no `on*` attribute in the DOM.
 3. **One namespace.** Every file in `web/` is a classic script loaded in the
    order of `web/index.html` and may only add names to `window.Bernie`.
-   → Check: **[lint]** no global outside `window.Bernie`.
+   The table in [README.md](README.md) lists the top-level names that the
+   files publish. → Check: **[lint]** `scripts/check-web.sh` finds no name
+   published by two files and compares the tree with the table.
 4. **One data path.** Only `web/js/data.js` opens a `fetch`, an `EventSource`
    or a timer. A view never reads the clock, the URL or the network.
-   → Check: **[lint]** no `fetch`, `EventSource` or timer outside
-   `web/js/data.js`.
+   → Check: **[lint]** `scripts/check-web.sh` finds no `fetch`, `EventSource`
+   or timer outside `web/js/data.js`, apart from the documented exceptions in
+   `scripts/web-allowlist.txt`.
 5. **One frame.** All the repaints caused by one sample happen in a single
    `requestAnimationFrame` callback. A page that is never painted (a
    background tab, a browser without a compositor) runs the same batch from
@@ -313,7 +317,8 @@ honest and reachable.
 14. **A file owns one concern and stays under 400 lines.** A component
     exports one function that returns `{el, update}`; it touches only its
     own element and reads no global except `window.Bernie`. → Check:
-    **[lint]** no file in `web/` is longer than 400 lines.
+    **[lint]** `scripts/check-web.sh` finds no file in `web/` over 400 lines
+    unless `scripts/web-allowlist.txt` lists it.
 15. **One question per tab, one data path, one file per concern.** These are
     the front-end form of the structure rules above. → Check: the tab table
     in [README.md](README.md) and the file tree beside it.
