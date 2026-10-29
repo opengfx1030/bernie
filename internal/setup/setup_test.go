@@ -94,7 +94,7 @@ func TestPlanHostPar1(t *testing.T) {
 		}
 	}
 	build := strings.Join(m["vllm.build"].Commands, "\n")
-	for _, want := range []string{"git clone -b rdna_extras https://github.com/opengfx1030/vllm-rdna.git /src/vllm-rdna", "PYTORCH_ROCM_ARCH='gfx1100;gfx1030'", "ROCM_HOME=/opt/rocm-7.2.0/core-7.14", "MAX_JOBS=16", "SETUPTOOLS_SCM_PRETEND_VERSION=0.31.0+rdna", "-e . triton==3.7.1"} {
+	for _, want := range []string{"git clone -b rdna_extras https://github.com/opengfx1030/vllm-rdna.git /src/vllm-rdna", "PYTORCH_ROCM_ARCH='gfx1100;gfx1030'", "ROCM_HOME=/opt/rocm-7.2.0/core-7.14", "HIP_ROOT_DIR=/opt/rocm-7.2.0/core-7.14", "CMAKE_HIP_COMPILER_ROCM_ROOT=/opt/rocm-7.2.0/core-7.14", "CMAKE_BUILD_TYPE=RelWithDebInfo", "MAX_JOBS=16", "SETUPTOOLS_SCM_PRETEND_VERSION=0.31.0+rdna", "-e . triton==3.7.1"} {
 		if !strings.Contains(build, want) {
 			t.Errorf("vllm.build commands lack %q:\n%s", want, build)
 		}
