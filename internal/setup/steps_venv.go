@@ -164,6 +164,15 @@ func (p planner) vllmBuild() Step {
 	env := strings.Join(append(vars,
 		"ROCM_HOME="+shq(rh), "ROCM_PATH="+shq(rh), "HIP_PATH="+shq(rh),
 		"CMAKE_HIP_COMPILER="+shq(rh+"/bin/hipcc"),
+		// cmake needs ROCM_HOME for FindHIP.cmake and the ROCm cmake
+		// modules (amdsmi, hipruntime, hipblas). Without HIP_ROOT_DIR and
+		// CMAKE_HIP_COMPILER_ROCM_ROOT the build falls back to /opt/rocm
+		// and the wrong headers win.
+		"HIP_ROOT_DIR="+shq(rh),
+		"CMAKE_HIP_COMPILER_ROCM_ROOT="+shq(rh),
+		// RelWithDebInfo is the gfx1030 wiki build mode: enough debug
+		// symbols for hipErrorInvalidImage triage, with -O2 for the rest.
+		"CMAKE_BUILD_TYPE=RelWithDebInfo",
 		"VLLM_PYTHON_EXECUTABLE="+shq(p.python()),
 		// The branch carries no tag: setuptools-scm cannot name the
 		// package without this.
