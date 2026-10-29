@@ -92,7 +92,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | File | Published globals |
 |---|---|
 | `dashboard/web/components/cards.js` | `jsonLink`, `cardHead`, `stateHead`, `setHead`, `factRow`, `tableHead`, `tableCaption`, `emptyState`, `loading`, `failed` |
-| `dashboard/web/components/charts.js` | `downsample`, `chartNumbers`, `chartPaths`, `chartPointer`, `spark`, `areaChart`, `chartClock`, `ring`, `meter` |
+| `dashboard/web/components/charts.js` | `downsample`, `chartNumbers`, `chartPaths`, `chartPointer`, `chartNice`, `sparkDomain`, `spark`, `areaChart`, `ring`, `meter` |
 | `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock`, `connectEndpoint`, `connectSnippet` |
 | `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `ladderPoints`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart`, `curveSmallMultiples`, `curveTable` |
 | `dashboard/web/components/metrics.js` | `METRIC_HELP`, `VERDICTS`, `METRIC_COLS`, `COMPARE_METRICS`, `benchNum`, `benchDist`, `benchRate`, `benchDigits`, `SPREAD_STEADY`, `benchSpreadText`, `cellLens`, `cellFlags`, `metricHead`, `cellRow`, `cellsTable`, `verdictChip` |
