@@ -351,3 +351,24 @@ async function startSetupRecipe() {
     toast("Start failed: " + (e.message || e));
   }
 }
+
+/** paintSetupRecipeHint says what to do when no recipe fits this host: the
+ *  reason, the next step and the command (Setup rule 11). */
+function paintSetupRecipeHint() {
+  const box = setupState.recipeHint;
+  if (!box) return;
+  const list = (setupState.recipes && setupState.recipes.recipes) || [];
+  if (!list.length) {
+    put(box);
+    return;
+  }
+  const fits = list.filter((r) => setupFitStatus(r) === "fits");
+  if (fits.length) {
+    put(box);
+    return;
+  }
+  const why = list.map(setupFitLine).filter(Boolean).slice(0, 2).join(" ");
+  put(box, emptyState("No recipe fits this host yet.",
+    why + " A recipe is a model and the way it is served. Fix the steps above, then press Re-check.",
+    "bernie recipe list --all"));
+}
