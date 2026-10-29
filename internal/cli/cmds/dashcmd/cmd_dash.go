@@ -158,9 +158,18 @@ func runChildMode(c *cli.Context, args []string) error {
 	// the parent's CancelFunc does not reach here.
 	ctx, cancel := signal.NotifyContext(c.Ctx, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
-	return dashsvc.RunChild(ctx, dashsvc.ChildOptions{
+	defer dashsvc.RunChildCleanup()
+	if err := dashsvc.RunChild(ctx, dashsvc.ChildOptions{
 		Listen:  listen,
 		Token:   token,
+		Version: cli.Version,
+	}); err != nil {
+		return err
+	}
+	return dashboard.Serve(ctx, dashboard.Options{
+		Listen:  listen,
+		Token:   token,
+		Log:     c.Err,
 		Version: cli.Version,
 	})
 }
