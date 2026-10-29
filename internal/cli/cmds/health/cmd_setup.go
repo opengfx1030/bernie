@@ -51,7 +51,7 @@ func setupOptionsOf(c *cli.Context, f setupFlags) app.SetupOptions {
 func init() {
 	cmd := &cli.Command{Name: "setup", Summary: "Install plan for this host and non-root apply"}
 
-	plan := &cli.Command{Name: "plan", Summary: "Ordered install steps for this host", Usage: "[--mode M] [--venv DIR] [--image I] [--model REPO]"}
+	plan := &cli.Command{Name: "plan", Summary: "Ordered install steps for this host", Usage: "[--mode M] [--venv DIR] [--image I] [--model REPO] [--rocm VERSION]"}
 	plan.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(plan)
 		f := addSetupFlags(c, fs)
@@ -65,7 +65,7 @@ func init() {
 		return c.Emit(steps, func(w io.Writer) { printSteps(w, steps) })
 	}
 
-	apply := &cli.Command{Name: "apply", Summary: "Run the steps that do not need root; print the root steps", Usage: "[--mode M] [--step ID]... [--yes]"}
+	apply := &cli.Command{Name: "apply", Summary: "Run the steps that do not need root; print the root steps", Usage: "[--mode M] [--step ID]... [--rocm VERSION] [--yes]"}
 	apply.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(apply)
 		f := addSetupFlags(c, fs)
