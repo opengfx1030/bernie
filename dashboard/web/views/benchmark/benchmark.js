@@ -170,7 +170,13 @@ async function viewBenchmark(root) {
   async function benchDocs() {
     const paths = ["/api/bench", "/api/bench/suites"];
     const a = base.value, b = cand.value;
-    if (a && b && a !== b) {
+    const suiteOf = (id) => {
+      const r = (benchState.results || []).find((x) => x.id === id);
+      return r ? benchSuiteOf(r) : "";
+    };
+    // Two results of different suites cannot be compared: the endpoint
+    // would answer 400. The panel asks only for a comparison that holds.
+    if (a && b && a !== b && suiteOf(a) && suiteOf(a) === suiteOf(b)) {
       paths.push("/api/bench/compare?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b));
     }
     const docs = [];
