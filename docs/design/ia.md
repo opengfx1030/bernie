@@ -694,7 +694,7 @@ landed.
 | R20 | **The progress sentence with bytes, rate and ETA** ("88% · 53.7 of 61.4 GB · 112 MB/s · about 4s left · file 7 of 14") | `rdna_dash/jobs.py` | **partial** — the job carries `progress` (spec §3.3) but the page shows the phase sentence only | Setup **S**: the sentence under the progress bar of the `model` step | S | C5 |
 | R21 | **The download speed limit** ("Changes take effect within a second") | `POST /api/download/limit`, `rdna_dash/download.py` | **absent** — bernie's downloader has no limit | Setup **D**: a field on the `model` step | M | C7 |
 | R22 | **The Chat tab** | `POST /api/chat`, `rdna_dash/serve.py` | **present** — the Chat tab has one prompt box and one streamed answer (`POST /api/chat`, `dashboard/web/views/chat/chat.js`) | Chat **S**: one prompt box, one streaming reply | M | C8 |
-| R23 | **The Fleet tab** — the other boxes, a share button, a remove button | `GET /api/fleet`, `POST /api/fleet/remove`, `rdna_dash/profile.py` | **absent** — the tab is a placeholder by the owner's order; spec §14 says multi-host fleet control is out of scope | Fleet **S** (planned): the list of the other bernie hosts and their state | L | C9 |
+| R23 | **The Fleet tab** — the other boxes, a share button, a remove button | `GET /api/fleet`, `POST /api/fleet/remove`, `rdna_dash/profile.py` | **present** — `bernie fleet add|rm|ls` keeps the peers in the config file (the token with 0600, never sent to the browser); `GET /api/fleet` reads every peer over its own dashboard API (fixed paths, a short timeout, a size cap, no redirect followed) and holds the answer for five seconds; the tab shows the state word, the model, the output speed, the cards and their VRAM, an Open link without the token, a Share button (the redacted report of R24) and a Forget button (`internal/support/fleet/`, `dashboard/internal/api/fleet.go`, `dashboard/web/views/fleet/fleet.js`) | Fleet **S**: the list of the other bernie hosts and their state | L | C9 |
 | R24 | **The redacted share report** ("Copies a report with no hostname, username or tokens") | `POST /api/profile/share` | **present** — `bernie doctor --report` prints the redacted report; `GET /api/report`, the MCP tool `report` and `bernie doctor --report` carry the same document (`internal/app/report.go`, `dashboard/internal/api/report.go`); the Advanced tab has Copy report / Download report | Advanced **A**: a `Copy a redacted report` button | M | C9 |
 | R25 | **The server start / stop / restart from the page** | `POST /api/server/start`, `/stop`, `/restart` | **present** — `POST /api/runs`, `DELETE /api/runs/{name}`; the Dashboard hero has `Stop` and `Start a run` | Dashboard **S** | — | — |
 | R26 | **The server log pane** | `GET /api/server/log` | **present** — the Logs tab | Logs **S** | — | — |
@@ -780,23 +780,33 @@ doing** (the reference's `GET /api/fleet` and `POST /api/fleet/remove`).
 
 | Piece | What | Where |
 |---|---|---|
-| The list of hosts | the hosts bernie knows, with their state and their last answer | Fleet **S** |
-| The share button | the redacted report of this host, copied (R24) | Fleet **S** |
-| The remove button | forget a host | Fleet **S** |
+| The list of hosts | the hosts bernie knows, with their state and their last answer | Fleet **S** — landed |
+| The share button | the redacted report of this host, copied (R24) | Fleet **S** — landed |
+| The remove button | forget a host | Fleet **S** — landed |
+| The add form | a host with its dashboard URL and its token | Fleet **S** — landed |
 
-**What it needs.** A place to declare the other hosts (`bernie config set
-fleet`, a list of `name=url` pairs) and a read of each host's
-`/api/telemetry` over the network — which means the other host's dashboard
-token. That is a security surface bernie does not have today (the token mode
-is per-process and the token is printed once). **Effort: L**, and it opens
-the question *how does one host hold another's token?*, which the owner
-should answer before any code is written.
+**What it needed.** A place to declare the other hosts and a read of each
+host's dashboard API over the network — which means the other host's
+dashboard token. That is a security surface bernie did not have (the token
+mode is per-process and the token is printed once).
 
-**Recommendation.** Ship the **redacted report** (R24) first, in the Advanced
-tab, and keep the Fleet tab a placeholder until the token question has an
-answer. That gets the reference's most useful fleet feature — the one-click
-report that is safe to paste into an issue — without inventing a federation
-model in a design document.
+**What it is.** The peers live in `config.yaml` under `fleet`: the name,
+the dashboard URL and the token that host printed. The file is `0600` when
+a token is on it. The token is read server-side and never reaches the
+browser: the answer carries the name and the URL only, and the "Open" link
+carries no token — the reader logs in on that host.
+
+The read of a peer is SSRF-safe by construction: only the configured hosts
+are reached, only the fixed paths of the allowlist (`/api/hw`, `/api/runs`),
+with a three second timeout, a 256 KiB body cap and no redirect followed. A
+peer that does not answer keeps its row and says why: the gap stays a gap.
+
+**The three front ends.** The CLI (`bernie fleet add|rm|ls`), the MCP
+server (`fleet`, `fleet_add`, `fleet_rm`) and the dashboard (`GET
+/api/fleet`, `POST /api/fleet`, `DELETE /api/fleet/{name}`) call the same
+`app.Fleet` / `app.FleetAdd` / `app.FleetRemove` and return the same
+document. The add and the forget are writes: the MCP tools follow the
+two-call confirm gate of [§13.5](#135-write-gate).
 
 ---
 

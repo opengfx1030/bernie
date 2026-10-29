@@ -24,6 +24,10 @@ func Logs(ctx context.Context, name string, follow bool, tail int, w io.Writer) 
 	if err != nil {
 		return err
 	}
+	if r.Foreign {
+		fmt.Fprintf(w, "run %s is attached: bernie did not start it, so it has no log to show\n", r.Name)
+		return nil
+	}
 	if r.Mode == recipe.ModeContainer {
 		args := []string{"logs"}
 		if tail > 0 {
@@ -106,6 +110,9 @@ func Get(name string) (*Record, error) { return readRecord(name) }
 // `<engine> logs`, run with the execx timeout. Reads from a host log fail
 // with ctx.Err() once ctx is done.
 func OpenLog(ctx context.Context, r Record, timeout time.Duration) (io.ReadCloser, error) {
+	if r.Foreign {
+		return nil, fmt.Errorf("run %s is attached: bernie did not start it, so it has no log to show", r.Name)
+	}
 	if r.Engine != "" && r.Container != "" {
 		res, err := execx.Run(ctx, timeout, r.Engine, "logs", r.Container)
 		if err != nil {

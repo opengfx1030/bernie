@@ -7,6 +7,7 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 
 	"github.com/opengfx1030/bernie/internal/app"
+	"github.com/opengfx1030/bernie/internal/bench/job"
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/machine/topo"
@@ -15,12 +16,18 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/support/config"
 	"github.com/opengfx1030/bernie/internal/support/netx"
 )
 
 // Input types of the read-only tools. A field without omitempty is required.
 
 type noIn struct{}
+
+// benchJobIn names the benchmark job to read.
+type benchJobIn struct {
+	JobID string `json:"job_id" jsonschema:"id of the benchmark job (bench_start returns it)"`
+}
 
 type venvIn struct {
 	Venv string `json:"venv,omitempty" jsonschema:"host-mode venv directory (default: BERNIE_VENV, the config venv, then VIRTUAL_ENV)"`
@@ -217,4 +224,16 @@ func registerRead(s *Server) {
 
 	addTool[noIn, app.FleetList](s, ro("fleet", "The fleet of this box: this host first, then every configured peer, with the state word, the model, the cards and the output speed (bernie fleet ls). A peer that does not answer keeps its row and says why."), nil,
 		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.Fleet(ctx) })
+
+	addTool[benchJobIn, job.Doc](s, ro("bench_status", "The state of a benchmark job of this server: the phase, the cells that are done and whether the result is incomplete (bench_start returns the id)."), nil,
+		func(_ context.Context, _ *call, in benchJobIn) (any, error) {
+			j, ok := s.benchJobs.Get(in.JobID)
+			if !ok {
+				return nil, fmt.Errorf("no benchmark run named %q", in.JobID)
+			}
+			return j.Doc(), nil
+		})
+
+	addTool[noIn, config.Config](s, ro("config_show", "The user defaults of this host (bernie config show): the venv, the mode, the engine, the device access, the Hugging Face home, the download limit and the default overrides."), nil,
+		func(context.Context, *call, noIn) (any, error) { return config.Load() })
 }

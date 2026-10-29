@@ -14,6 +14,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/opengfx1030/bernie/internal/bench/job"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
@@ -28,7 +29,8 @@ the operator.`
 
 // mutatingTools are the tools that change the host. They exist only when
 // Options.Write is set.
-var mutatingTools = []string{"serve", "stop", "bench_run", "bench_ab", "setup_apply", "tune_power_set", "fleet_add", "fleet_rm"}
+var mutatingTools = []string{"serve", "stop", "bench_run", "bench_ab", "bench_start", "bench_cancel", "bench_delete",
+	"setup_apply", "tune_power_set", "attach", "config_set", "fleet_add", "fleet_rm"}
 
 // IsMutating reports whether name is a tool that changes the host.
 func IsMutating(name string) bool { return slices.Contains(mutatingTools, name) }
@@ -54,6 +56,7 @@ type Server struct {
 	audit  *auditLog
 	mutate sync.Mutex // one host-changing operation at a time
 	benchM sync.Mutex // one benchmark at a time
+	benchJobs *job.Store
 }
 
 // New builds the server and registers its fixed tool catalog.
@@ -65,7 +68,7 @@ func New(o Options) *Server {
 		o.Version = "dev"
 	}
 	dir := filepath.Join(paths.State(), "mcp")
-	s := &Server{o: o, tokens: tokenStore{dir: filepath.Join(dir, "tokens")}, audit: &auditLog{path: filepath.Join(dir, "audit.jsonl")}}
+	s := &Server{o: o, tokens: tokenStore{dir: filepath.Join(dir, "tokens")}, audit: &auditLog{path: filepath.Join(dir, "audit.jsonl")}, benchJobs: job.NewStore()}
 	s.srv = sdk.NewServer(&sdk.Implementation{Name: "bernie", Version: o.Version}, &sdk.ServerOptions{Instructions: instructions})
 	registerRead(s)
 	registerWrite(s)

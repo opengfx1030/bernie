@@ -147,7 +147,18 @@ func gibString(b uint64) string {
 func redactReportText(s string) string {
 	s = redactHome(s)
 	s = redactUserPaths(s)
-	return s
+	return redactUserName(s)
+}
+
+// redactUserName removes the name of the user from a line, wherever it
+// stands: a path segment, a sentence, a fix. The name of the operator
+// identifies the host, so the report never carries it.
+func redactUserName(s string) string {
+	name := currentUserName()
+	if name == "" || len(name) < 2 {
+		return s
+	}
+	return strings.ReplaceAll(s, name, "<user>")
 }
 
 func redactHome(s string) string {

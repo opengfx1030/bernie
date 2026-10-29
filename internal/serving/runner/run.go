@@ -45,6 +45,10 @@ type Record struct {
 	Image       string       `json:"image"`
 	ImageDigest string       `json:"image_digest"`
 	Plan        *recipe.Plan `json:"plan"`
+	// Foreign is true when bernie did not start this server: it was
+	// attached with `bernie attach` (R29). bernie never stops a foreign
+	// server; Stop only forgets the record.
+	Foreign bool `json:"foreign,omitempty"`
 }
 
 // Status is a record with its live state.

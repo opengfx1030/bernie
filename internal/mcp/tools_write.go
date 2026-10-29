@@ -125,7 +125,7 @@ func registerWrite(s *Server) {
 		func(sc *jsonschema.Schema) {
 			prop(sc, "watts").ExclusiveMinimum = jsonschema.Ptr(0.0)
 			g := prop(sc, "gpu_indexes")
-			g.Items.Minimum, g.UniqueItems = jsonschema.Ptr(0.0), true
+			g.Items.Minimum, g.Items.UniqueItems = jsonschema.Ptr(0.0), true
 			tokenSchema(sc)
 		}, s.powerSet)
 
@@ -134,6 +134,8 @@ func registerWrite(s *Server) {
 
 	addTool[fleetRmIn, Outcome[map[string]string]](s, w("fleet_rm", "Forget one peer of the fleet (bernie fleet rm). The token goes with it.", true, true, false),
 		func(sc *jsonschema.Schema) { tokenSchema(sc) }, s.fleetRm)
+
+	registerJobTools(s)
 }
 
 // planOf is the plan of a recipe on this host. The tests count the calls: a
