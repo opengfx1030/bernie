@@ -7,18 +7,6 @@
 // SETUP_EXTRA_STEPS are the steps that come after the path of the host.
 const SETUP_EXTRA_STEPS = ["bench", "tuning", "power"];
 
-// SETUP_STEP_NAMES name a step of the path in one plain phrase.
-const SETUP_STEP_NAMES = {
-  hardware: "the cards",
-  access: "the device groups",
-  rocm: "the ROCm tools",
-  "python-env": "the Python environment",
-  model: "the model",
-  recipe: "a recipe",
-  serve: "the server",
-  verify: "the server check",
-};
-
 // SETUP_SMOKE_ENABLED says whether the endpoint that answers one prompt
 // exists. The backend landed POST /api/smoke with the shape of spec §11.
 const SETUP_SMOKE_ENABLED = true;
@@ -157,15 +145,14 @@ function setupHeadline(doc) {
       action: "doctor",
     };
   }
-  const rootClause = pending.some((s) => (s.root_commands || []).length)
-    ? " Copy the command, run it as root in a terminal, then press Re-check."
-    : "";
-  const runnable = path.find((s) => s.state === "todo" && s.can_run);
-  let lede = rootClause;
-  if (runnable) {
-    const verb = (stepActionLabel(runnable, false) || "").charAt(0).toLowerCase() + (stepActionLabel(runnable, false) || "").slice(1);
-    lede = "Next: " + verb + ". bernie does it here." + rootClause;
-  } else if (!rootClause) {
+  const current = setupCurrentStep(doc);
+  let lede = "";
+  if (current && current.state === "todo" && current.can_run) {
+    const name = stepActionLabel(current, false);
+    lede = "Next: " + name.charAt(0).toLowerCase() + name.slice(1) + ". bernie does it here.";
+  } else if (current && (current.root_commands || []).length) {
+    lede = "Copy the command, run it as root in a terminal, then press Re-check.";
+  } else {
     lede = "The doctor report says what is missing.";
   }
   return {
@@ -206,8 +193,9 @@ function setupHeadActions(doc, say) {
     out.push(h("button", { type: "button", onclick: () => { location.hash = "#logs"; } }, "Read the logs"));
     return out;
   }
-  const next = setupNextRunnable(doc);
-  const rootNext = !next && setupNextRoot(doc);
+  const current = setupCurrentStep(doc);
+  const next = current && current.can_run ? current : null;
+  const rootNext = !next && current && (current.root_commands || []).length ? current : null;
   if (next) {
     out.push(h("button.primary", {
       type: "button",
@@ -238,11 +226,16 @@ function setupNextRunnable(doc) {
   return path.find((s) => s.state === "todo" && s.can_run) || null;
 }
 
-/** setupNextRoot is the next step that needs root. */
-function setupNextRoot(doc) {
-  const steps = (doc && doc.steps) || [];
-  const path = steps.filter((s) => !SETUP_EXTRA_STEPS.includes(s.id));
-  return path.find((s) => s.state === "blocked" && (s.root_commands || []).length) || null;
+/** setupCurrentStep is the step the reader does next: the one that runs,
+ *  the one the checklist names, or the first step of the path that is not
+ *  done yet. The headline and the timeline mark the same step. */
+function setupCurrentStep(doc) {
+  const path = pathSteps(doc);
+  const running = path.find((s) => s.state === "running");
+  if (running) return running;
+  const named = path.find((s) => s.id === (doc && doc.next));
+  if (named) return named;
+  return path.find((s) => s.state !== "done" && s.state !== "skipped") || null;
 }
 
 /** setupRunNextStep starts the next step bernie can do. */
