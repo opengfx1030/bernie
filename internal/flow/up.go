@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/onboarding"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/setup"
 )
@@ -44,6 +45,9 @@ type UpOptions struct {
 	Dashboard Dashboard
 	// Runner starts the run and lists the runs. Nil means the real one.
 	Runner Runner
+	// Prepared is an already built plan. Nil means the shared serve
+	// operation prepares it.
+	Prepared *recipe.Plan
 }
 
 // UpResult is the outcome of a completed Up.
@@ -122,12 +126,8 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 	}
 
 	// 6. Serve, start the dashboard, wait for health.
-	p, err := runner.Prepare(ctx, runner.PrepareOptions{Recipe: id, Mode: mode, Name: o.Name, Venv: o.Venv, Engine: o.Engine, Sets: o.Sets})
-	if err != nil {
-		return nil, err
-	}
 	res := &UpResult{Recipe: id, Mode: mode, Applied: apply}
-	if err := serveAndWait(ctx, o, log, p, res); err != nil {
+	if err := serveAndWait(ctx, o, log, res); err != nil {
 		return res, err
 	}
 	return res, nil

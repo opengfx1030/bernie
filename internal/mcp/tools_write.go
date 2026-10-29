@@ -129,18 +129,9 @@ func registerWrite(s *Server) {
 }
 
 func (s *Server) serve(ctx context.Context, c *call, in serveIn) (any, error) {
-	p, err := runner.Prepare(ctx, in.prepare())
+	p, err := app.Plan(ctx, in.prepare())
 	if err != nil {
 		return nil, err
-	}
-	runs, err := runner.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range runs {
-		if r.Name == p.Name && r.State != runner.StateExited {
-			return nil, fmt.Errorf("run %s is %s; stop it or choose another name", r.Name, r.State)
-		}
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
@@ -150,7 +141,10 @@ func (s *Server) serve(ctx context.Context, c *call, in serveIn) (any, error) {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			return runner.Start(context.WithoutCancel(ctx), p, runner.StartOptions{Venv: in.Venv, Engine: in.Engine, NoPull: in.NoPull, Progress: c.progress()})
+			return app.Serve(context.WithoutCancel(ctx), app.ServeOptions{
+				Prepared: p,
+				Start:    runner.StartOptions{Venv: in.Venv, Engine: in.Engine, NoPull: in.NoPull, Progress: c.progress()},
+			})
 		}})
 }
 

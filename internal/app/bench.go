@@ -8,6 +8,7 @@ import (
 
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
 )
 
 // ErrAllFailed means every measured request of a benchmark failed. Bench
@@ -84,6 +85,12 @@ func BenchAB(ctx context.Context, o suite.ABOptions) (*suite.ABResult, []string,
 		return nil, nil, ErrBenchBusy
 	}
 	defer benchMu.Unlock()
+	o.Starter = func(ctx context.Context, recipeID, name string) (*runner.Record, error) {
+		return Serve(ctx, ServeOptions{
+			Prepare: runner.PrepareOptions{Recipe: recipeID, Name: name},
+			Start:   runner.StartOptions{},
+		})
+	}
 	res, err := suite.AB(ctx, o)
 	if err != nil {
 		return nil, nil, err

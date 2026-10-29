@@ -163,7 +163,7 @@ func registerRead(s *Server) {
 
 	addTool[launchIn, *recipe.Plan](s, ro("recipe_plan", "The plan of a recipe on this host: exact environment, command, GPUs, TunableOp rows and the reason for each annotated setting (bernie recipe plan). It starts nothing; it may write TunableOp rows to the data directory."),
 		launchSchema,
-		func(ctx context.Context, _ *call, in launchIn) (any, error) { return runner.Prepare(ctx, in.prepare()) })
+		func(ctx context.Context, _ *call, in launchIn) (any, error) { return app.Plan(ctx, in.prepare()) })
 
 	addTool[noIn, []flow.Run](s, ro("ps", "Runs with state and health; an exited run carries the known failures of its log (bernie ps)."), nil,
 		func(ctx context.Context, _ *call, _ noIn) (any, error) { return flow.Runs(ctx) })
