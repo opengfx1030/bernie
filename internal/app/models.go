@@ -21,7 +21,7 @@ type ModelsReport struct {
 	// Running is the list of model ids /v1/models answered when a run is
 	// serving on this host. Empty when nothing serves; RunningURL then names
 	// the server bernie tried.
-	Running   []string `json:"running"`
+	Running    []string `json:"running"`
 	RunningURL string   `json:"running_url,omitempty"`
 	// Cached is the repos the Hugging Face cache on this host holds, in
 	// "org/name" form. Each entry carries the snapshot commit and the path
