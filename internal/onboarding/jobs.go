@@ -46,12 +46,14 @@ type Job struct {
 
 // JobProgress is the progress of a running job: the phase and the numbers
 // of the work. The numbers are there when the step counts them; a step that
-// only counts items keeps the done and the total of the step.
+// only counts items keeps the done and the total of the step. Sentence is
+// the one-line progress sentence the CLI and the dashboard show (R20).
 type JobProgress struct {
 	Phase string `json:"phase"`
 	// Step is the step of the path the job is on now. A job that runs the
 	// whole path names the step it is on.
 	Step       string `json:"step,omitempty"`
+	Sentence   string `json:"sentence,omitempty"`
 	BytesDone  int64  `json:"bytes_done,omitempty"`
 	BytesTotal int64  `json:"bytes_total,omitempty"`
 	RateBPS    int64  `json:"rate_bps,omitempty"`
@@ -227,7 +229,10 @@ func (w *jobWriter) line(text string) {
 }
 
 // progress reads the numbers of a line into the progress of the job: the
-// phase and, for a download, the bytes and the rate.
+// phase and, for a download, the bytes and the rate. The download writes
+// three kinds of line: the bytes line (parsed for rate and ETA), the
+// sentence line (copied as the sentence of the job, R20), and a file
+// marker line that updates the file count.
 func (w *jobWriter) progress(text string) {
 	p := w.job.Progress
 	if p == nil {
@@ -244,6 +249,21 @@ func (w *jobWriter) progress(text string) {
 		return
 	}
 	p.Phase = "model.download"
+	rest := strings.TrimPrefix(text, "model.download: ")
+	// Sentence line: starts with "<n>%" and uses middle dots to separate
+	// the parts of the sentence (R20).
+	if isSentenceLine(rest) {
+		p.Sentence = strings.TrimSpace(rest)
+		if f, t, ok := parseFileCount(rest); ok {
+			p.FilesDone, p.FilesTotal = f, t
+		}
+		return
+	}
+	// File marker line: "file 7 of 14".
+	if f, t, ok := parseFileLine(rest); ok {
+		p.FilesDone, p.FilesTotal = f, t
+		return
+	}
 	done, total, rate, ok := parseDownload(text)
 	if !ok {
 		return
@@ -252,6 +272,62 @@ func (w *jobWriter) progress(text string) {
 	if rate > 0 && total > done {
 		p.ETAS = int((total - done) / rate)
 	}
+}
+
+// isSentenceLine reports whether the line that follows "model.download: "
+// is a progress sentence (the "<n>% · ..." form), not a bytes line nor
+// a file marker.
+func isSentenceLine(rest string) bool {
+	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		return false
+	}
+	if !strings.Contains(rest, "\u00b7") {
+		return false
+	}
+	i := strings.Index(rest, "%")
+	if i <= 0 {
+		return false
+	}
+	for _, c := range rest[:i] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// parseFileLine reads "file 7 of 14" into the done and the total.
+func parseFileLine(rest string) (int, int, bool) {
+	rest = strings.TrimSpace(rest)
+	if !strings.HasPrefix(rest, "file ") {
+		return 0, 0, false
+	}
+	rest = strings.TrimPrefix(rest, "file ")
+	parts := strings.Split(rest, " of ")
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	f, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, false
+	}
+	t, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return 0, 0, false
+	}
+	return f, t, true
+}
+
+// parseFileCount reads "file X of Y" out of a sentence tail and returns
+// the done and the total. A missing pair returns ok=false.
+func parseFileCount(sentence string) (int, int, bool) {
+	i := strings.LastIndex(sentence, "\u00b7 file ")
+	if i < 0 {
+		return 0, 0, false
+	}
+	tail := "file " + sentence[i+len("\u00b7 file "):]
+	return parseFileLine(tail)
 }
 
 // stepMarker reads the step of the path a line names:
