@@ -97,6 +97,11 @@ type Plan struct {
 	// ContainerHIPDevices are the HIP indices inside the container.
 	ContainerHIPDevices string   `json:"container_hip_devices,omitempty"`
 	Warnings            []string `json:"warnings"`
+	// Compose is the generated docker-compose.yml of the plan. It is set
+	// when the plan is a container plan with an image; host plans leave it
+	// empty. The dashboard renders it in the "Show the exact launch
+	// command" disclosure (ia.md §5 R42).
+	Compose string `json:"compose,omitempty"`
 	Exec                *Exec    `json:"exec,omitempty"`
 }
 

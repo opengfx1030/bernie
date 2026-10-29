@@ -143,6 +143,13 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 			p.Exec = &recipe.Exec{Argv: hostArgv(p, filepath.Join(venv, "bin", "python")), Env: hostEnv(p, venv), Unset: p.Unset, Dir: RunDir(p.Name)}
 		}
 	}
+	if mode == recipe.ModeContainer && p.Image != "" {
+		if b, err := Compose(p, rowsMount(p), cfg.ResolveHFHome()); err == nil {
+			p.Compose = string(b)
+		} else {
+			p.Warnings = append(p.Warnings, "compose: "+err.Error())
+		}
+	}
 	p.RefreshSettingValues()
 	return p, nil
 }
