@@ -280,7 +280,8 @@ A step has this record:
  "summary": "", "detail": "", "command": "", "can_run": false,
  "root_commands": [], "progress": {"phase": "", "done": 0, "total": 0},
  "problems": [], "job_id": "", "job_state": "", "serving": false,
- "waits_for": "", "action": ""}
+ "waits_for": "", "action": "",
+ "estimate": {"seconds": 0, "size_bytes": 0}}
 ```
 
 - `id` is stable: `hardware`, `access`, `rocm`, `python-env`, `model`,
@@ -311,6 +312,9 @@ A step has this record:
   that comes after it. The step says in words what it waits for.
 - `action` names what the step does, in the words of the reader. The button
   of the step says this.
+- `estimate` says what the step costs: the time in seconds and the size in
+  bytes it took the last time it ran on this host. It is absent when the
+  step never ran here: the numbers are measured, never guessed.
 
 The document also holds the facts of the host: the numbers the page shows
 above the steps, each with the reason why it matters.
@@ -326,8 +330,25 @@ redactor of [§13.7](#137-untrusted-content) would hide it.
 
 The document is `{"next": "<id>", "next_action": {"step": "", "title": "",
 "state": "", "action": "", "sentence": "", "command": "", "root": false,
-"root_commands": []}, "steps": [...], "facts": [...], "facts_age_s": 0,
+"root_commands": []}, "primary": {"kind": "", "label": "", "sentence": "",
+"command": "", "root_commands": [], "steps": []},
+"recommendation": {"id": "", "name": "", "description": "", "why": "",
+"alternatives": []},
+"steps": [...], "facts": [...], "facts_age_s": 0,
 "stale": false}`.
+`primary` is the one action of the first run: the button the reader presses.
+Its `kind` is `root` (only the operator can move the path on), `setup`
+(bernie does everything that is missing), `serve`, `verify` or `done`. The
+`label` is the text of the button, the `sentence` says what the action does
+and who does it, the `command` is the command that does the same work in a
+terminal, the `root_commands` are the commands the operator runs as root and
+the `steps` are the ids of the steps the action covers. The CLI, the MCP
+server and the page read this one record, so they cannot disagree about the
+button.
+`recommendation` is the recipe bernie recommends for this host: the `id`, the
+human `name`, the one-line `description` of the recipe file, the `why` (one
+sentence that says why this one) and the `alternatives` (the other recipes
+that fit). It is absent when no recipe fits.
 `next` is the step to do
 now: the first step of the path that is not done and not skipped. It is
 empty when the path is complete. `next_action` is that step in words: the
@@ -1513,6 +1534,8 @@ as a dash with the words "n/a on this host".
 | GET | `/api/bench/compare?a=ID&b=ID&format=markdown` | the receipt of the comparison as `text/markdown`: the text of `bernie bench compare A B --markdown`. |
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
+| POST | `/api/onboarding/path/run` | start the whole path that bernie can do itself in the background → the job document. The body is the same as the step run. It is the one action of the Setup tab. A step that needs root answers `{"step": "path", "root_required": true, "commands": []}` and runs nothing. |
+| POST | `/api/jobs/{id}/stop` | stop the job with this id → `{"id": "", "stopped": true}`. `stopped` is false when the job runs in another process and cannot be stopped from here. |
 | GET | `/api/jobs` | the jobs of this host, newest first: `[{id, step, state, started_at, finished_at, phase, progress}]`. The list holds at most 50 jobs; `limit` takes 1 to 200. |
 | GET | `/api/jobs/{id}` | the job document: `{"id", "step", "state", "phase", "progress", "error", "findings", "lines", "started_at", "finished_at"}`. `progress` holds the numbers of the work when the step counts them ([§3.3](#33-the-onboarding-checklist)). |
 | GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. The stream replays the buffered lines from the beginning; every line event carries the number of the line as its id, and `Last-Event-ID` (or `last_event_id`) asks for the lines after it. |

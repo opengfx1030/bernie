@@ -78,6 +78,36 @@ func RunOnboardingStep(ctx context.Context, step string, o OnboardingOptions) (O
 	return OnboardingStepResult{Job: job}, nil
 }
 
+// RunOnboardingPath runs the whole path that bernie can do itself: the
+// setup steps, the server and the check that proves it answers. It is the
+// one action of the Setup tab. A step that needs root comes first: the
+// answer carries the commands and nothing runs.
+func RunOnboardingPath(ctx context.Context, o OnboardingOptions) (OnboardingStepResult, error) {
+	f, err := onboarding.Gather(ctx, o)
+	if err != nil {
+		return OnboardingStepResult{}, err
+	}
+	prepared, err := onboarding.PreparePath(f, o)
+	if err != nil {
+		return OnboardingStepResult{}, err
+	}
+	if len(prepared.RootCommands) > 0 {
+		return OnboardingStepResult{RootRequired: true, Commands: prepared.RootCommands}, nil
+	}
+	prepared.Action.Serve = serveOnboarding
+	job, err := onboarding.StartJob(ctx, prepared)
+	if err != nil {
+		return OnboardingStepResult{}, err
+	}
+	return OnboardingStepResult{Job: job}, nil
+}
+
+// CancelOnboardingJob stops the job with this id. It reports whether a
+// running job of this process was found.
+func CancelOnboardingJob(id string) bool {
+	return onboarding.CancelJob(id)
+}
+
 // OnboardingJob returns the job with this id.
 func OnboardingJob(id string) (*onboarding.Job, error) {
 	return onboarding.GetJob(id)

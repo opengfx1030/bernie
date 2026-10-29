@@ -85,8 +85,10 @@ func Register(mux *http.ServeMux, o Options) {
 	mux.HandleFunc("GET /api/bench/{id}/events", h.getBenchEvents)
 	mux.HandleFunc("GET /api/onboarding", h.getOnboarding)
 	mux.HandleFunc("POST /api/onboarding/{step}/run", h.postOnboardingRun)
+	mux.HandleFunc("POST /api/onboarding/path/run", h.postOnboardingPath)
 	mux.HandleFunc("GET /api/jobs", h.getJobs)
 	mux.HandleFunc("GET /api/jobs/{id}", h.getJob)
+	mux.HandleFunc("POST /api/jobs/{id}/stop", h.postJobStop)
 	mux.HandleFunc("GET /api/jobs/{id}/events", h.getJobEvents)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)

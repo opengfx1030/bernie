@@ -135,6 +135,8 @@ func ActionFor(f *Facts, step string, o Options) (*Action, error) {
 // Run does the action and writes its progress to log.
 func (a *Action) Run(ctx context.Context, log io.Writer) error {
 	switch a.Kind {
+	case ActionPath:
+		return a.runPath(ctx, log)
 	case ActionSetup:
 		ids := make([]string, len(a.Steps))
 		for i, s := range a.Steps {
