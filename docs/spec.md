@@ -137,7 +137,8 @@ other file, script or compose file is required.
   ([§3.3](#33-the-onboarding-checklist)): the ordered steps from a bare
   machine to a serving model, the state of each step, the command that does
   it and the step to do now. `status --json` carries the same steps in the
-  `onboarding` field.
+  `onboarding` field. `--steps` changes the human text only: the JSON
+  document is the same with and without it.
 - `bernie up [RECIPE]` does the full path in one command:
   1. It reads the onboarding steps ([§3.3](#33-the-onboarding-checklist)). A
      blocked step (the GPUs are not usable by this user yet) stops `up` with
@@ -154,7 +155,8 @@ other file, script or compose file is required.
      for yet.
   7. It starts the dashboard on `--listen` (default `127.0.0.1:7860`), unless
      `--no-dash` is given, and prints the URL to open (with `?token=` in token
-     mode). The dashboard is reachable while the server loads the model: the
+     mode). With `--json` no dashboard is started. The dashboard is reachable
+     while the server loads the model: the
      Logs tab shows the run as `starting`, its phase sentence and its log.
   8. It waits until `/health` answers (`--wait`, default 30 minutes) and
      prints the progress.
@@ -200,6 +202,11 @@ other file, script or compose file is required.
   captured host. `BERNIE_ROOT` holds the same value for a process that
   cannot take a flag (the MCP server, a service).
 - Explicit help (`--help`, `-h`, `help`) is printed on stdout and exits 0.
+  `help <command>` prints the top-level help: the topic is ignored.
+- A command that takes no positional argument ignores the positional
+  arguments it is given. `version` ignores every argument and every flag.
+- `bernie --json` without a command is a usage error: stdout carries
+  `{"error": "missing subcommand", "exit_code": 2}` and the exit code is 2.
 - Diagnostics and progress go to stderr.
 - Flags and positional arguments can be in any order.
 - Exit codes: `0` success, `1` runtime failure, `2` usage error,
@@ -218,18 +225,18 @@ other file, script or compose file is required.
 | `bernie topo --check [--recipe ID]` | no | P2P readiness checklist ([§4.5](#45-p2p-readiness-checklist)). Exit 3 if an item fails. |
 | `bernie doctor [--category C]... [--venv DIR]` | no | All checks. Exit 3 if one check fails. |
 | `bernie doctor --log FILE\|-` / `doctor --run NAME` | no | Match a vLLM log against known failures ([§5.3](#53-log-doctor)). |
-| `bernie setup plan [--mode M]` | no | Ordered install steps for this host. |
-| `bernie setup apply [--mode M] [--step ID]... [--yes]` | yes | Run the steps that do not need root. Print the root steps. |
+| `bernie setup plan [--mode M] [--venv DIR] [--image I] [--model M]` | no | Ordered install steps for this host. |
+| `bernie setup apply [--mode M] [--step ID]... [--yes] [--venv DIR] [--image I] [--model M]` | yes | Run the steps that do not need root. Print the root steps. |
 | `bernie recipe list [--all]` | no | Recipes, with fit to this host. `--all` includes recipes that do not fit. |
 | `bernie recipe show <id>` | no | The merged recipe (after `extends`). |
 | `bernie recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
-| `bernie recipe plan <id> [--set K=V]... [--mode M] [--name N]` | no | The plan, as an exact command and environment. |
-| `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--foreground] [--no-pull] [--wait D] [--dash[=ADDR]] [--dry-run]` | yes | Start a run. |
+| `bernie recipe plan <id> [--set K=V]... [--mode M] [--name N] [--venv DIR] [--engine E] [--device-access A] [--profile P] [--no-tunableop] [--tuning]` | no | The plan, as an exact command and environment. |
+| `bernie serve <id> [--set K=V]... [--mode M] [--name N] [--venv DIR] [--engine E] [--device-access A] [--profile P] [--no-tunableop] [--tuning] [--foreground] [--no-pull] [--wait D] [--dash[=ADDR]] [--dry-run]` | yes | Start a run. |
 | `bernie ps` | no | Runs, with state and health. For an exited run: the known failures in its log. |
-| `bernie smoke [--url URL] [--model NAME]` | no | Check that the running server answers: `/health`, then one completion. The answer carries the time to the first token, the number of tokens and the output speed. `--url` picks the server (default: the running run). |
+| `bernie smoke [--url URL] [--model NAME]` | no | Check that the running server answers: `/health`, then one completion. The answer carries the time to the first token, the number of tokens and the output speed under `--json`; the human output prints the server, the model and the answer. `--url` picks the server (default: the running run). |
 | `bernie stop [NAME]` | yes | Stop a run (the only run if NAME is absent). |
 | `bernie logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
-| `bernie compose <id> [--set K=V]... [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
+| `bernie compose <id> [--set K=V]... [--mode M] [--name N] [--venv DIR] [--engine E] [--device-access A] [--profile P] [--no-tunableop] [--tuning] [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
 | `bernie tune tunableop list` | no | Registered TunableOp profiles. |
 | `bernie tune tunableop status [--venv DIR]` | no | Loaded rocBLAS build, matching profile. |
 | `bernie tune tunableop env [--venv DIR] [--profile P] [--tuning]` | no* | `export` lines for TunableOp (*materializes rows). |
@@ -240,11 +247,11 @@ other file, script or compose file is required.
 | `bernie tune power service install-plan` | no* | Print the root commands that install the unit pair. |
 | `bernie tune power service status` | no | Service state, desired caps, actual caps and drift. |
 | `bernie tune power service remove-plan` | no* | Print the root commands that remove the unit pair. |
-| `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. |
+| `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. With no arguments it runs the benchmark with the default flags; it never prints help. |
 | `bernie bench suites` | no | The built-in suites with their digest and their groups. |
 | `bernie bench list` / `bench show <ID>` | no | Saved results. |
 | `bernie bench compare <ID-A> <ID-B> [--band P] [--markdown]` | no | Two results side by side with a verdict. Refuses two different workloads. `--markdown` prints the receipt of the comparison as markdown. |
-| `bernie bench ab --base ARM --cand ARM` | no* | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
+| `bernie bench ab --base ARM --cand ARM` | yes (it starts and stops a server for every arm) | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie dash [--listen ADDR] [--token T]` | no | Start the dashboard. |
 | `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
@@ -1496,9 +1503,10 @@ are the rules of §10.3.
 `127.0.0.1:7860` by default. On a non-loopback address the dashboard runs in
 token mode: every request needs the token (`Authorization: Bearer <t>` or the
 cookie). The token is `--token`, else `$BERNIE_DASH_TOKEN`, else a random
-token printed at start. POST, PUT and DELETE requests also need the header
-`X-Bernie: 1`. On a loopback address the `Host` header must be a loopback
-name (this blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
+token printed at start when the listen address is not a loopback address.
+POST, PUT and DELETE requests also need the header `X-Bernie: 1`. When no
+token is set, the `Host` header must be a loopback name (this blocks DNS
+rebinding). Errors are `{"error": "...", "exit_code": N}`.
 
 `up` starts the dashboard before the server is healthy
 ([§3.1](#31-the-default-run-the-binary)). The Runs tab then shows the run
@@ -1554,20 +1562,21 @@ same sections (the cards, the last minutes, the run, the power caps, the
 topology, the known problems), the same order and the same controls, drawn
 with the current design (the tokens, the fonts and the shared components of
 the shell). It reads `/api/hw`, `/api/runs`, `/api/doctor`, `/api/power`,
-`/api/topo`, `/api/topo/check`, `/api/gpus/history` and the shared telemetry
-stream of `/api/telemetry`, it adds no endpoint, and the old route
-`#classic` still lands on it. A number this host does not measure is shown
-as a dash with the words "n/a on this host".
+`/api/topo`, `/api/topo/check` and the shared telemetry stream of
+`/api/telemetry`, it adds no endpoint, and the old route `#classic` still
+lands on it. The history of the cards (`/api/gpus/history`) is read by the
+Dashboard tab. A number this host does not measure is shown as a dash with
+the words "n/a on this host".
 
 | Method | Path | Body / output |
 |---|---|---|
 | GET | `/api/hw` | `hw` JSON |
 | GET | `/api/topo` | `topo` JSON |
 | GET | `/api/topo/check` | `topo --check` JSON (query `recipe`) |
-| GET | `/api/doctor` | `doctor` JSON |
+| GET | `/api/doctor` | `doctor` JSON (query `category`, repeatable; `venv`) |
 | GET | `/api/glossary` | the words bernie uses that a reader who has never run vLLM may not know: `{"words": [{"term": "HIP", "meaning": "The number a program uses to name a GPU."}]}`. The page lists the words that stand on the tab it is on. |
 | GET | `/api/recipes` | `recipe list --all` JSON |
-| GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`) |
+| GET | `/api/recipes/{id}/plan` | `recipe plan` JSON (query `set=K=V`, repeatable; `mode`; `name`) |
 | GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Logs tab shows them next to its log. A live run has `phase` ([§5.4](#54-log-phase)); the Logs tab shows the sentence under its state badge. |
 | POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record. A name that is already running answers 409 Conflict. |
 | DELETE | `/api/runs/{name}` | stop |
@@ -1580,6 +1589,7 @@ as a dash with the words "n/a on this host".
 | GET | `/api/power` | `tune power service status` JSON |
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. The value is clamped to the range the cards share (spec §9.2); the answer names the cards that were clamped in `clamped`. |
 | GET | `/api/bench` | `bench list` JSON |
+| GET | `/api/bench/suites` | `bench suites` JSON: the built-in suites with their digest and their groups |
 | POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. The target is always a loopback server of this host. One bench at a time; a second gets 409. |
 | POST | `/api/bench/run` | the same body as `POST /api/bench`, but the run happens in the background → `{"id": "b-7f3a"}` (202). The target is always a loopback server of this host. The state of the run is `GET /api/bench/{id}`. One benchmark job runs at a time; a job that starts while another job runs answers 409. |
 | POST | `/api/bench/ab` | `{"base": "", "cand": "", "suite": "", "model": "", "num_prompts": 0, "seed": 0, "tag": ""}` → `{"id": "b-7f3a"}` (202). A URL arm must be a server of this host. The state of the run is `GET /api/bench/{id}`. One benchmark job runs at a time; a job that starts while another job runs answers 409. |
@@ -1594,6 +1604,13 @@ as a dash with the words "n/a on this host".
 | GET | `/api/jobs/{id}` | the job document: `{"id", "step", "state", "phase", "progress", "error", "findings", "lines", "started_at", "finished_at"}`. `progress` holds the numbers of the work when the step counts them ([§3.3](#33-the-onboarding-checklist)). |
 | GET | `/api/jobs/{id}/events` | Server-sent events of a job: one `line` event per output line, then a `done` or `failed` event with the job document. The stream replays the buffered lines from the beginning; every line event carries the number of the line as its id, and `Last-Event-ID` (or `last_event_id`) asks for the lines after it. |
 | POST | `/mcp` | MCP over Streamable HTTP, with its own guard ([§13.10](#1310-http-guard)). Loopback addresses only. |
+
+Two endpoints of the table have no consumer on the page: `POST /api/bench`
+(the synchronous form; the Benchmark tab starts a run in the background with
+`POST /api/bench/run`) and `GET /api/jobs` (the page reads the job of a step
+from the job document of that step). The `level` and `q` parameters of `GET
+/api/runs/{name}/log` are answered by the API, but the Logs tab filters the
+lines in the browser.
 
 A benchmark job is a benchmark that runs in the background. The job has an
 id, a state (`running`, `done` or `failed`), a phase, the counters of the
@@ -1834,7 +1851,7 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `bench_run` | `bench` (loopback `url` only, `recall`, `suite` optional) | the saved `bench.Result` |
 | `bench_ab` | `bench ab` (loopback `base` / `cand` URLs only) | the `suite.ABResult` |
 | `setup_apply` | `setup apply` | the setup steps after the run |
-| `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors"}` |
+| `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors", "clamped"}` |
 
 `up` and `config set` are not tools. An agent runs them through the CLI.
 
@@ -1863,8 +1880,10 @@ reads the variable at start (`bernie mcp` and `bernie dash`).
 
 A mutating tool runs in two calls:
 
-1. The first call has no `confirm_token`. The server computes the plan
-   without any change. It returns
+1. The first call has no `confirm_token`. The server computes the plan and
+   changes nothing: no run starts and no state is written. The plan has the
+   side effects of the command it plans (`recipe plan` may write TunableOp
+   rows). `serve` computes its plan on both calls. It returns
    `{"executed": false, "plan": {...}, "confirm_token": "...", "expires_at": "..."}`.
 2. The second call repeats the same arguments and adds the token. The server
    verifies the token, runs the action and returns

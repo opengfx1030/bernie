@@ -45,17 +45,20 @@ extras after them:
 
 | Order | Id | Title | What the row shows |
 |---|---|---|---|
-| 1 | `hardware` | The cards are there | the doctor checks of the `gpu` category |
-| 2 | `access` | The groups are right | the `gpu.groups` check and its fix |
-| 3 | `rocm` | The ROCm tools work | the `rocm` category and its fix |
-| 4 | `python-env` | The Python environment is ready | the `python` category and the venv it used |
-| 5 | `model` | The model is on the disk | the download progress and its sentence |
-| 6 | `recipe` | A recipe fits | the fit of the best recipe and the reason |
-| 7 | `serve` | The server answers | the state of the run and its phase |
+| 1 | `hardware` | GPUs found and supported | the doctor checks of the `gpu` category |
+| 2 | `access` | Device access and groups | the `gpu.groups` check and its fix |
+| 3 | `rocm` | ROCm runtime and kernel | the `rocm` category and its fix |
+| 4 | `python-env` | Python environment (torch and vLLM) | the `python` category and the venv it used |
+| 5 | `model` | Model files | the download progress and its sentence |
+| 6 | `recipe` | Recipe | the fit of the best recipe and the reason |
+| 7 | `serve` | Serve the model | the state of the run and its phase |
 | 8 | `verify` | The server answers a request | the `Try it` box |
-| 9 | `bench` | The speed is measured | a link to the Benchmark tab |
-| 10 | `tuning` | The kernels are tuned | a link to the Dashboard tab |
-| 11 | `power` | The power caps are set | a link to the Dashboard tab |
+| 9 | `bench` | Measure the speed (optional) | a link to the Benchmark tab |
+| 10 | `tuning` | TunableOp profile (optional) | a link to the Dashboard tab |
+| 11 | `power` | Power cap (optional) | a link to the Dashboard tab |
+
+The titles are the titles of the code (`internal/onboarding/steps.go`), the
+same words that `bernie status --steps` prints.
 
 The step the reader does next is the **current** step: it carries the word
 `next`, its row carries `aria-current="step"`, and its button is the filled

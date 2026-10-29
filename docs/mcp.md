@@ -87,13 +87,15 @@ that names a GPU the host does not have is an error, like in the CLI.
 The dashboard answers a few endpoints that the MCP server does not expose:
 the history of the cards (`GET /api/gpus/history`), the log of a run with the
 level of every line
-(`GET /api/runs/{name}/log`), the known failures of a run
-(`GET /api/runs/{name}/findings`) and the benchmark that runs in the
+(`GET /api/runs/{name}/log`) and the benchmark that runs in the
 background (`POST /api/bench/run`, `POST /api/bench/ab`).
 
+The known failures of a run are not a separate tool: `doctor_log` returns the
+same matches as `GET /api/runs/{name}/findings`.
+
 They answer the same documents as the matching commands, so an agent that
-needs them runs the CLI: `bernie smoke`, `bernie doctor --run NAME`,
-`bernie logs NAME` and `bernie bench`. The catalog of the tools is fixed by
+needs them runs the CLI: `bernie smoke`, `bernie logs NAME` and
+`bernie bench`. The catalog of the tools is fixed by
 [spec §13.4](spec.md#134-tools): a new tool needs a new command first.
 
 ## Write mode
