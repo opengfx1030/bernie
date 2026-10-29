@@ -80,12 +80,11 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 			mode = recipe.ModeHost
 		}
 	}
+	eng, engErr := resolveEngine(ctx, o.Engine, cfg)
 	if mode == "" {
 		mode = recipe.ModeHost
-		if r.Container != nil {
-			if _, err := resolveEngine(ctx, o.Engine, cfg); err == nil {
-				mode = recipe.ModeContainer
-			}
+		if r.Container != nil && engErr == nil {
+			mode = recipe.ModeContainer
 		}
 	}
 
@@ -118,6 +117,12 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 		p.GroupAdd = host.GPUGroups(ctx, hostroot.Root())
 		if len(p.GroupAdd) == 0 {
 			p.Warnings = append(p.Warnings, "no GPU group id found on this host: the container may not open /dev/kfd")
+		}
+		if engErr == nil {
+			// The CDI index of a GPU is its rank in the PCI-address order
+			// of the host, so the mapping needs every GPU of the host.
+			all, _ := gpu.List(hostroot.Root())
+			resolveDeviceAccess(ctx, p, eng, all)
 		}
 	}
 	if !o.NoTunableOp {

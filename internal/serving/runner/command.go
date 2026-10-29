@@ -153,8 +153,8 @@ func ContainerCommand(p *recipe.Plan, eng host.Engine, rowsDir, hfCache string) 
 	a := []string{name, "run", "-d",
 		"--name", ContainerName(p.Name), "--label", "bernie.run=" + p.Name,
 		"--network", "host", "--ipc", "host", "--shm-size", p.ShmSize,
-		"--device", "/dev/kfd", "--device", "/dev/dri",
 	}
+	a = append(a, deviceArgs(p)...)
 	a = append(a, groupArgs(p, eng)...)
 	a = append(a, "--security-opt", "seccomp=unconfined", "--security-opt", "label=disable")
 	for _, v := range volumes(p, rowsDir, hfCache) {
@@ -321,7 +321,7 @@ func Compose(p *recipe.Plan, rowsDir, hfCache string) ([]byte, error) {
 		NetworkMode:   "host",
 		IPC:           "host",
 		ShmSize:       p.ShmSize,
-		Devices:       []string{"/dev/kfd", "/dev/dri"},
+		Devices:       deviceList(p),
 		GroupAdd:      groupIDs(p),
 		SecurityOpt:   []string{"seccomp=unconfined", "label=disable"},
 		Volumes:       escAll(volumes(p, rowsDir, hfCache)),
@@ -340,6 +340,11 @@ func Compose(p *recipe.Plan, rowsDir, hfCache string) ([]byte, error) {
 		fmt.Fprintf(&b, "#   %d (%s, from %s)\n", g.GID, g.Role, g.Source)
 	}
 	fmt.Fprintf(&b, "# Rootless Podman: replace group_add with [keep-groups].\n")
+	if p.DeviceAccess == host.DeviceAccessCDI && len(p.CDIDevices) > 0 {
+		fmt.Fprintf(&b, "# devices holds CDI device names (%s): the compose engine must accept them.\n", strings.Join(p.CDIDevices, ", "))
+		fmt.Fprintf(&b, "# That is not confirmed on a live host yet. The classic form of this plan is:\n")
+		fmt.Fprintf(&b, "#   devices: [/dev/kfd, /dev/dri]\n")
+	}
 	enc := yaml.NewEncoder(&b)
 	enc.SetIndent(2)
 	if err := enc.Encode(composeFile{Name: ContainerName(p.Name), Services: map[string]composeService{"vllm": svc}}); err != nil {
