@@ -179,15 +179,6 @@ function cellRow(c, withServer, mark) {
   return row;
 }
 
-/** metricTable is the table of the metrics of one cell: the five groups of
- *  numbers with their distribution, the server numbers and the flags. */
-function metricTable(cell) {
-  const list = cell ? [cell] : [];
-  const withServer = list.some((c) => c.server_side);
-  return h("div.scroll", h("table.bench-table", metricHead(withServer),
-    h("tbody", list.map((c) => cellRow(c, withServer)))));
-}
-
 /** cellsTable is the table of the cells of a result. The mark is the cell the
  *  headline names, so the reader can find the number of the headline. */
 function cellsTable(cells, mark) {
@@ -198,32 +189,14 @@ function cellsTable(cells, mark) {
     h("tbody", list.map((c) => cellRow(c, withServer, mark)))));
 }
 
-/** verdictChip is the icon and the word of a verdict. The colour never
- *  carries the meaning alone. */
-function verdictChip(v) {
-  const d = VERDICTS[v];
-  if (!d) return h("span.pill.verdict.skip", "–");
-  return h("span.pill.verdict." + d.tone, d.icon + " " + d.word);
-}
-
-/** verdictChip is the icon and the word of a verdict, with the band the
- *  verdict used when there is one. The colour never carries the meaning
- *  alone. */
+/** verdictChip is the icon and the word of a verdict, with the parts that
+ *  explain it (the band the verdict used, the spread of the repetitions).
+ *  The parts may be one string or a list of them; the empty ones are
+ *  dropped. The colour never carries the meaning alone. */
 function verdictChip(v, extra) {
   const d = VERDICTS[v];
   if (!d) return h("span.pill.verdict.skip", "–");
-  return h("span.pill.verdict." + d.tone, d.icon + " " + d.word + (extra ? ", " + extra : ""));
-}
-
-/** barCompare draws the comparison of two runs: one block per cell, the five
- *  metric groups of that cell in each block, the bars indexed to the
- *  baseline and the numbers of every cell in a table under the chart. */
-function barCompare(cmp) {
-  return compareChart(cmp);
-}
-
-/** lengthCurve draws the prefill speed and the time to the first token
- *  against the prompt length, as two charts that share the log x-axis. */
-function lengthCurve(cells) {
-  return curveSmallMultiples(cells);
+  const parts = Array.isArray(extra) ? extra.filter(Boolean) : (extra ? [extra] : []);
+  const why = parts.length ? ", " + parts.join(", ") : "";
+  return h("span.pill.verdict." + d.tone, d.icon + " " + d.word + why);
 }

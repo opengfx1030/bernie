@@ -123,61 +123,11 @@ async function benchReceipt(a, b) {
   return await apiText("/api/bench/compare?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b) + "&format=markdown");
 }
 
-/** benchWatch follows a running job: the stream of the shell carries the
- *  progress and the end of the run, the job document is the second pair of
- *  eyes when the stream is quiet. */
-function benchWatch(id, onProgress, onLog, onDone, onFail) {
-  let stopped = false;
-  let stream = null;
-  let misses = 0;
-  const stop = () => {
-    stopped = true;
-    clearInterval(timer);
-    if (stream) stream.close();
-  };
-  const timer = setInterval(async () => {
-    if (stopped) return;
-    try {
-      const job = await api("/api/bench/" + encodeURIComponent(id));
-      if (stopped) return;
-      misses = 0;
-      onProgress(job);
-      if (job && (job.status === "done" || job.status === "failed")) {
-        stop();
-        if (job.status === "failed") onFail(new Error(job.error || job.phase || "The run stopped."));
-        else onDone(job);
-      }
-    } catch (e) {
-      misses += 1;
-      if (misses >= 3) {
-        stop();
-        onFail(e);
-      }
-    }
-  }, 2000);
-  stream = openBenchEvents(id, {
-    progress: (ev) => {
-      if (stopped) return;
-      try { onProgress(JSON.parse(ev.data)); } catch (e) { /* a plain line */ }
-    },
-    log: (ev) => { if (!stopped) onLog(ev.data); },
-    done: (ev) => {
-      stop();
-      let job = {};
-      try { job = JSON.parse(ev.data); } catch (e) { /* the empty job */ }
-      onDone(job);
-    },
-    failed: (ev) => {
-      stop();
-      let text = "The run stopped.";
-      try {
-        const job = JSON.parse(ev.data);
-        text = job.error || job.phase || text;
-      } catch (e) { /* keep the sentence */ }
-      onFail(new Error(text));
-    },
-  });
-  return stop;
+/** benchStartError says why a run could not start: the answer of the server
+ *  when it gave one, the plain sentence when it did not. */
+function benchStartError(what, e) {
+  const reason = e && e.status ? String(e.message || "") : "";
+  return reason ? what + ": " + reason : what;
 }
 
 async function viewBenchmark(root) {
@@ -280,7 +230,7 @@ async function viewBenchmark(root) {
       const pick = pickId ? list.find((r) => r.id === pickId) : (list[0] || null);
       benchState.result = pick || null;
       put(resultCard, benchResultBody(pick, pick === list[0] ? headline : null));
-      const curve = pick ? lengthCurve(pick.cells) : null;
+      const curve = pick ? curveSmallMultiples(pick.cells) : null;
       put(curveCard, curve || emptyState("This suite has no ladder.",
         "Run the long-context suite to see the curve."));
       put(historyCard, benchHistory(list, null, (r) => {
@@ -311,9 +261,9 @@ async function viewBenchmark(root) {
         // not decide: the reasons say why.
         put(cmpOut, h("div",
           h("p.small.muted", (cmp.reasons || []).join(" · ") || "The comparison could not decide."),
-          barCompare(cmp)));
+          compareChart(cmp)));
       } else {
-        put(cmpOut, barCompare(cmp));
+        put(cmpOut, compareChart(cmp));
       }
     } catch (e) {
       put(cmpOut, benchFailed("The two results measured different things.", e, compare));
@@ -326,81 +276,57 @@ async function viewBenchmark(root) {
     if (!benchState.suite) return;
     runBtn.disabled = true;
     progress.show({ done: 0, total: 0 });
-    let res;
+    let job;
     try {
-      res = await fetch("/api/bench/run", {
-        method: "POST",
-        headers: { "X-Bernie": "1", "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ suite: benchState.suite }),
-      });
+      job = await api("/api/bench/run", { method: "POST", body: { suite: benchState.suite } });
     } catch (e) {
-      progress.fail("The run could not be started.");
+      progress.fail(benchStartError("The run could not be started.", e));
       runBtn.disabled = false;
       return;
     }
-    if (!res.ok) {
-      let text = "The run could not be started.";
-      try { text = (await res.json()).error || text; } catch (e) { /* keep the sentence */ }
-      progress.fail(text);
-      runBtn.disabled = false;
-      return;
-    }
-    const job = await res.json();
-    benchWatch(job.id,
-      (j) => progress.show(j),
-      (line) => progress.log(line),
-      async (j) => {
+    watchBenchJob(job.id, {
+      progress: (j) => progress.show(j),
+      log: (line) => progress.log(line),
+      done: async (j) => {
         progress.hide();
         runBtn.disabled = false;
         await loadResults(j && j.result_id);
       },
-      (e) => {
+      failed: (e) => {
         progress.fail(String(e.message || e));
         runBtn.disabled = false;
-      });
+      },
+    });
   }
 
   /** runAB starts the A/B run of the two arms. */
   async function runAB(baseArm, candArm, out, btn, prog) {
     btn.disabled = true;
     put(out, h("p.small.muted", "The A/B run starts. It visits the base, then the candidate, then the candidate again, then the base."));
-    let res;
+    let job;
     try {
-      res = await fetch("/api/bench/ab", {
-        method: "POST",
-        headers: { "X-Bernie": "1", "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ base: baseArm, cand: candArm }),
-      });
+      job = await api("/api/bench/ab", { method: "POST", body: { base: baseArm, cand: candArm } });
     } catch (e) {
-      put(out, benchFailed("The A/B run could not be started.", e, null));
+      put(out, benchFailed(benchStartError("The A/B run could not be started.", e), null, null));
       btn.disabled = false;
       return;
     }
-    if (!res.ok) {
-      let text = "The A/B run could not be started.";
-      try { text = (await res.json()).error || text; } catch (e) { /* keep the sentence */ }
-      put(out, benchFailed(text, null, null));
-      btn.disabled = false;
-      return;
-    }
-    const job = await res.json();
     if (prog) prog.show({ done: 0, total: 0 });
-    benchWatch(job.id,
-      (j) => { if (prog) prog.show(j); },
-      (line) => { if (prog) prog.log(line); },
-      async () => {
+    watchBenchJob(job.id, {
+      progress: (j) => { if (prog) prog.show(j); },
+      log: (line) => { if (prog) prog.log(line); },
+      done: async () => {
         btn.disabled = false;
         if (prog) prog.hide();
         await loadResults();
         put(out, h("p.small.muted", "The A/B run ended. Pick its two results in the comparison above."));
       },
-      (e) => {
+      failed: (e) => {
         btn.disabled = false;
         if (prog) prog.fail(String(e.message || e));
         put(out, benchFailed("The A/B run stopped.", e, null));
-      });
+      },
+    });
   }
 
   runBtn.addEventListener("click", runSuite);
