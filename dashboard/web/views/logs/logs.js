@@ -46,7 +46,7 @@ async function viewLogs(root) {
     logSection("THE RUN", runsBox),
     logSection("THE KNOWN PROBLEMS", findBox),
     logSection("THE LOG", tail.el),
-    logSection("ADVANCED", advanced));
+    logSection("Show details", advanced));
 
   /** setLede writes the line under the headline. The count of the lines
    *  changes with every line, the headline does not. */
