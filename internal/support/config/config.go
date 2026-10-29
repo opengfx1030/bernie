@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -32,10 +33,21 @@ type Config struct {
 	// asks for it.
 	DownloadLimit int64    `json:"download_limit" yaml:"download_limit,omitempty"`
 	Set           []string `json:"set" yaml:"set,omitempty"` // applied before --set
+	// Fleet is the list of other bernie hosts the Fleet tab watches.
+	// The Token stays in the file (mode 0600); it never reaches the browser
+	// (spec §11). Name is unique within the list; URL is http or https.
+	Fleet []FleetEntry `json:"fleet,omitempty" yaml:"fleet,omitempty"`
+}
+
+// FleetEntry is one configured peer of the Fleet tab.
+type FleetEntry struct {
+	Name  string `json:"name" yaml:"name"`
+	URL   string `json:"url" yaml:"url"`
+	Token string `json:"token,omitempty" yaml:"token,omitempty"`
 }
 
 // Keys are the settable keys, in file order.
-var Keys = []string{"venv", "mode", "engine", "device_access", "hf_home", "download_limit", "set"}
+var Keys = []string{"venv", "mode", "engine", "device_access", "hf_home", "download_limit", "set", "fleet"}
 
 // Path is <config>/config.yaml.
 func Path() string { return filepath.Join(paths.Config(), "config.yaml") }
@@ -85,13 +97,25 @@ func (c Config) validate() error {
 			return fmt.Errorf("config set entry %q: want KEY=VALUE", s)
 		}
 	}
+	seen := map[string]bool{}
+	for i, e := range c.Fleet {
+		if err := ValidateFleetEntry(e); err != nil {
+			return fmt.Errorf("config fleet[%d]: %w", i, err)
+		}
+		if seen[e.Name] {
+			return fmt.Errorf("config fleet[%d]: duplicate name %q", i, e.Name)
+		}
+		seen[e.Name] = true
+	}
 	return nil
 }
 
-// Save writes config.yaml (0644), creating the config directory.
+// Save writes config.yaml, creating the config directory. The file is 0600
+// when the config carries a fleet token, 0644 otherwise: the token is a
+// secret and the file must be readable by its owner only.
 func Save(c Config) error { return SaveFile(Path(), c) }
 
-// SaveFile writes one config file.
+// SaveFile writes one config file. See Save for the permissions.
 func SaveFile(path string, c Config) error {
 	if err := c.validate(); err != nil {
 		return err
@@ -103,16 +127,35 @@ func SaveFile(path string, c Config) error {
 	if err != nil {
 		return err
 	}
+	mode := os.FileMode(0o644)
+	if c.hasSecret() {
+		mode = 0o600
+	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+	if err := os.WriteFile(tmp, b, mode); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)
 }
 
+// hasSecret reports whether the config carries a value that must stay
+// readable by its owner only. The fleet token is the only such value today.
+func (c Config) hasSecret() bool {
+	for _, e := range c.Fleet {
+		if e.Token != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // SetKey changes one key. For "set", VALUE is one KEY=VALUE override: it
 // replaces an entry with the same KEY, and "KEY=" with an empty value after
 // "-" ("-KEY") removes it. An empty VALUE clears scalar keys and the list.
+//
+// For "fleet" VALUE is one fleet command: "add NAME URL" or "rm NAME". The
+// token, when one is given, comes through "fleet add NAME URL TOKEN" or is
+// already on the entry (the CLI prompts for it).
 func (c *Config) SetKey(key, value string) error {
 	switch key {
 	case "venv":
@@ -133,6 +176,19 @@ func (c *Config) SetKey(key, value string) error {
 		c.DownloadLimit = n
 	case "set":
 		c.Set = setOverride(c.Set, value)
+	case "fleet":
+		op, name, url, token, err := parseFleetOp(value)
+		if err != nil {
+			return err
+		}
+		switch op {
+		case "add":
+			c.UpsertFleet(FleetEntry{Name: name, URL: url, Token: token})
+		case "rm":
+			c.RemoveFleet(name)
+		default:
+			return fmt.Errorf("config fleet: unknown op %q (have add, rm)", op)
+		}
 	default:
 		return fmt.Errorf("unknown config key %q (keys: %s)", key, strings.Join(Keys, ", "))
 	}
@@ -249,16 +305,103 @@ func expandHome(p string) string {
 }
 
 // Map returns the config as ordered key/value pairs for display. The set
-// list keeps its order: later entries win.
+// list keeps its order: later entries win. The fleet row lists the names of
+// the configured peers — never the URL and never the token.
 func (c Config) Map() [][2]string {
 	var limit string
 	if c.DownloadLimit > 0 {
 		limit = strconv.FormatInt(c.DownloadLimit, 10)
+	}
+	names := make([]string, len(c.Fleet))
+	for i, e := range c.Fleet {
+		names[i] = e.Name
 	}
 	return [][2]string{
 		{"venv", c.Venv}, {"mode", c.Mode}, {"engine", c.Engine},
 		{"device_access", c.DeviceAccess},
 		{"hf_home", c.HFHome}, {"download_limit", limit},
 		{"set", strings.Join(c.Set, " ")},
+		{"fleet", strings.Join(names, " ")},
 	}
+}
+
+// UpsertFleet adds or replaces one entry by name. A name that exists keeps
+// its token when the new entry has none.
+func (c *Config) UpsertFleet(e FleetEntry) {
+	for i, cur := range c.Fleet {
+		if cur.Name == e.Name {
+			if e.Token == "" {
+				e.Token = cur.Token
+			}
+			c.Fleet[i] = e
+			return
+		}
+	}
+	c.Fleet = append(c.Fleet, e)
+}
+
+// RemoveFleet drops the entry with this name. The result reports whether a
+// change was made.
+func (c *Config) RemoveFleet(name string) bool {
+	out := c.Fleet[:0:0]
+	removed := false
+	for _, e := range c.Fleet {
+		if e.Name == name {
+			removed = true
+			continue
+		}
+		out = append(out, e)
+	}
+	c.Fleet = out
+	return removed
+}
+
+// ValidateFleetEntry checks one entry: name non-empty, URL http or https,
+// token allowed to be empty.
+func ValidateFleetEntry(e FleetEntry) error {
+	if e.Name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if e.URL == "" {
+		return fmt.Errorf("url is required")
+	}
+	u, err := url.Parse(e.URL)
+	if err != nil {
+		return fmt.Errorf("url: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("url must be http or https, not %q", u.Scheme)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("url must name a host")
+	}
+	return nil
+}
+
+// parseFleetOp splits the value of "config set fleet VALUE" into one fleet
+// command. The shape is "add NAME URL [TOKEN]" or "rm NAME".
+func parseFleetOp(value string) (op, name, url, token string, err error) {
+	fields := strings.Fields(value)
+	if len(fields) == 0 {
+		return "", "", "", "", fmt.Errorf("config fleet: need add NAME URL or rm NAME")
+	}
+	op = fields[0]
+	switch op {
+	case "add":
+		if len(fields) < 3 {
+			return "", "", "", "", fmt.Errorf("config fleet add: need NAME URL [TOKEN]")
+		}
+		name, url = fields[1], fields[2]
+		if len(fields) >= 4 {
+			token = fields[3]
+		}
+	case "rm":
+		if len(fields) != 2 {
+			return "", "", "", "", fmt.Errorf("config fleet rm: need NAME")
+		}
+		name = fields[1]
+	default:
+		return "", "", "", "", fmt.Errorf("config fleet: unknown op %q (have add, rm)", op)
+	}
+	return op, name, url, token, nil
 }

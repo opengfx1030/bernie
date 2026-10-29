@@ -140,3 +140,114 @@ func TestResolveHFHome(t *testing.T) {
 		t.Errorf("default: %q", got)
 	}
 }
+
+func TestFleetRoundTrip(t *testing.T) {
+	// add then load then re-add then remove; the token stays on the entry
+	// that already has one and rides with the file.
+	c := Config{}
+	if err := c.SetKey("fleet", "add gpu-box-2 http://127.0.0.1:7860 abcdef"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetKey("fleet", "add gpu-box-3 http://127.0.0.1:7861"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetKey("fleet", "add gpu-box-2 http://127.0.0.1:7862"); err != nil {
+		t.Fatal(err)
+	} // no token keeps the old one
+	p := filepath.Join(t.TempDir(), "config.yaml")
+	if err := SaveFile(p, c); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("with a fleet token, file mode = %v, want 0600", info.Mode().Perm())
+	}
+	back, err := LoadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Fleet) != 2 {
+		t.Fatalf("got %d entries, want 2", len(back.Fleet))
+	}
+	if back.Fleet[0].Name != "gpu-box-2" || back.Fleet[0].URL != "http://127.0.0.1:7862" || back.Fleet[0].Token != "abcdef" {
+		t.Errorf("gpu-box-2: %+v", back.Fleet[0])
+	}
+	if back.Fleet[1].Name != "gpu-box-3" || back.Fleet[1].URL != "http://127.0.0.1:7861" || back.Fleet[1].Token != "" {
+		t.Errorf("gpu-box-3: %+v", back.Fleet[1])
+	}
+	if !back.RemoveFleet("gpu-box-2") {
+		t.Errorf("remove: got false")
+	}
+	if back.RemoveFleet("gpu-box-2") {
+		t.Errorf("second remove: got true")
+	}
+	// A config without a token goes back to 0644.
+	if err := SaveFile(p, back); err != nil {
+		t.Fatal(err)
+	}
+	info, err = os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o644 {
+		t.Errorf("without a token, file mode = %v, want 0644", info.Mode().Perm())
+	}
+}
+
+func TestFleetValidate(t *testing.T) {
+	cases := []struct {
+		name    string
+		entry   FleetEntry
+		wantErr string
+	}{
+		{"empty name", FleetEntry{URL: "http://h"}, "name is required"},
+		{"empty url", FleetEntry{Name: "a"}, "url is required"},
+		{"bad scheme", FleetEntry{Name: "a", URL: "ftp://h"}, "url must be http or https"},
+		{"no host", FleetEntry{Name: "a", URL: "http://"}, "url must name a host"},
+		{"good", FleetEntry{Name: "a", URL: "http://h:7860", Token: "t"}, ""},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateFleetEntry(tt.entry)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("got %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("err = %v, want %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestFleetDuplicateName(t *testing.T) {
+	c := Config{}
+	if err := c.SetKey("fleet", "add box http://h:1"); err != nil {
+		t.Fatal(err)
+	}
+	err := c.SetKey("fleet", "add box http://h:2")
+	if err == nil || !strings.Contains(err.Error(), "duplicate") {
+		t.Errorf("err = %v, want duplicate", err)
+	}
+}
+
+func TestFleetMapHidesURLAndToken(t *testing.T) {
+	c := Config{Fleet: []FleetEntry{
+		{Name: "box", URL: "http://h:1", Token: "secret-token"},
+	}}
+	seen := map[string]bool{}
+	for _, kv := range c.Map() {
+		seen[kv[0]] = true
+		if strings.Contains(kv[1], "secret-token") || strings.Contains(kv[1], "http://") {
+			t.Errorf("fleet row %q carries the secret or the URL: %q", kv[0], kv[1])
+		}
+	}
+	if !seen["fleet"] {
+		t.Errorf("Map: no fleet row")
+	}
+}
