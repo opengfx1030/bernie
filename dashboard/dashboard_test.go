@@ -116,6 +116,20 @@ func TestTokenCookieFlow(t *testing.T) {
 		t.Fatalf("bad query token: %d, cookies %v", w.Code, w.Result().Cookies())
 	}
 
+	// A browser with an invalid query token gets the same page as one with no
+	// token. The answer stays 401 and no cookie is set.
+	html := httptest.NewRequest("GET", "/?token=nope", nil)
+	html.Host = "gpu-box"
+	html.Header.Set("Accept", "text/html")
+	htmlRec := httptest.NewRecorder()
+	h.ServeHTTP(htmlRec, html)
+	if htmlRec.Code != http.StatusUnauthorized || !strings.Contains(htmlRec.Body.String(), "needs the token") {
+		t.Fatalf("bad query token in a browser: %d %s", htmlRec.Code, htmlRec.Body.String())
+	}
+	if len(htmlRec.Result().Cookies()) != 0 {
+		t.Fatalf("bad query token set a cookie: %v", htmlRec.Result().Cookies())
+	}
+
 	w := do(t, h, "GET", "/?tab=1&token="+testToken, map[string]string{"Host": "gpu-box"})
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("query token: got %d, want 303", w.Code)
