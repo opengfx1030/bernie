@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 )
 
 // Power is the power cap state of one GPU. Watts; Path is the power1_cap file.
@@ -22,7 +23,7 @@ type Power struct {
 // PowerStatus reads power1_cap, power1_cap_min and power1_cap_max of each GPU.
 // GPUs without a hwmon power cap are omitted.
 func PowerStatus(gpus []gpu.GPU) []Power {
-	return powerStatus("/", gpus)
+	return powerStatus(hostroot.Root(), gpus)
 }
 
 func powerStatus(root string, gpus []gpu.GPU) []Power {

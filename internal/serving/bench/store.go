@@ -18,6 +18,7 @@ import (
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 	"github.com/opengfx1030/bernie/internal/support/netx"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
@@ -256,7 +257,7 @@ func powerCaps(gpus []gpu.GPU) string {
 // host publishes none.
 func gpuClocks(gpus []gpu.GPU) string {
 	var parts []string
-	for _, s := range gpu.Telemetry("/", gpus) {
+	for _, s := range gpu.Telemetry(hostroot.Root(), gpus) {
 		if s.SclkMHz == nil && s.MclkMHz == nil {
 			continue
 		}
@@ -280,7 +281,7 @@ func selectedGPUs(rec *runRecord) (gpus []gpu.GPU, scope string, missing []int) 
 		var p planGPUFields
 		if json.Unmarshal(rec.Plan, &p) == nil {
 			if idx := p.indices(); len(idx) > 0 {
-				all, _ := gpuList("/")
+				all, _ := gpuList(hostroot.Root())
 				byIndex := make(map[int]gpu.GPU, len(all))
 				for _, g := range all {
 					byIndex[g.HIPIndex] = g
@@ -296,7 +297,7 @@ func selectedGPUs(rec *runRecord) (gpus []gpu.GPU, scope string, missing []int) 
 			}
 		}
 	}
-	all, err := gpuList("/")
+	all, err := gpuList(hostroot.Root())
 	if err != nil || len(all) == 0 {
 		return nil, "all (run selection unknown)", nil
 	}

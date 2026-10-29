@@ -102,7 +102,7 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 		}
 	} else {
 		containerMounts(p)
-		p.GroupAdd = host.GPUGroups(ctx, "/")
+		p.GroupAdd = host.GPUGroups(ctx, hostroot.Root())
 		if len(p.GroupAdd) == 0 {
 			p.Warnings = append(p.Warnings, "no GPU group id found on this host: the container may not open /dev/kfd")
 		}
@@ -134,7 +134,7 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 // recipe or --set gave them.
 func hostEnvDefaults(p *recipe.Plan, cfg config.Config) {
 	var best rocm.Install
-	for _, in := range rocm.FindInstalls("/") {
+	for _, in := range rocm.FindInstalls(hostroot.Root()) {
 		if best.Root == "" || rocm.CompareVersions(in.Version, best.Version) > 0 {
 			best = in
 		}
@@ -191,7 +191,7 @@ func applyTunableOp(p *recipe.Plan, archs []string, venv, explicit string, tune 
 			p.Warnings = append(p.Warnings, "--tuning in container mode writes inside the container (lost on exit)")
 		}
 	} else {
-		lib := rocm.FindROCBLAS("/", venv)
+		lib := rocm.FindROCBLAS(hostroot.Root(), venv)
 		if lib == "" {
 			p.Warnings = append(p.Warnings, "librocblas.so.5 not found (venv wheel or system); TunableOp is off")
 			return nil
