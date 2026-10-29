@@ -107,7 +107,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/js/shell.js` | `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `advancedOn`, `applyAdvanced`, `applyAdvancedToNew`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence` |
 | `dashboard/web/js/theme.js` | `THEME_KEY`, `THEME_CHOICES`, `themeChoice`, `systemDark`, `applyTheme`, `setTheme`, `watchSystemTheme` |
 | `dashboard/web/views/advanced/console.js` | `adv`, `viewAdvanced`, `advLoad`, `advReload`, `advPaint`, `advHead`, `advSubscribe`, `advRunsTable`, `advCardListText`, `advCopyCardList`, `advServerMeasures` |
-| `dashboard/web/views/advanced/doctor.js` | `advDoctorReport`, `advDoctorCheck` |
+| `dashboard/web/views/advanced/doctor.js` | `advDoctorReport`, `advToolsCard`, `advToolsEcc`, `advDoctorCheck` |
 | `dashboard/web/views/advanced/documents.js` | `advDocuments`, `advLoadDocuments`, `advDocument` |
 | `dashboard/web/views/advanced/jobs.js` | `advJobList`, `advJobState` |
 | `dashboard/web/views/advanced/prefs.js` | `advPrefsCard`, `prefsList`, `prefRow`, `setResolved`, `savePref` |
@@ -213,9 +213,11 @@ Each tab answers one question. Keep it that way.
 The Advanced tab is the operator's console: the things about the host that
 belong to no single tab. It holds the exact per-GPU table (the same one the
 Dashboard tab shows in its details), the power caps with the only write of
-the page, the doctor report in full (every category, every check), the jobs
-of the host, the run record with the measures of the server, and the raw
-documents of every endpoint it reads. The old first-dashboard layout is gone
+the page, the ECC and the power tools (the exact commands of the reference's
+`tools/ecc.sh` and `tools/power.sh`, in the words of bernie; bernie never
+runs them as root), the doctor report in full (every category, every check),
+the jobs of the host, the run record with the measures of the server, and the
+raw documents of every endpoint it reads. The old first-dashboard layout is gone
 from it: the tiles and the cards are on the Dashboard tab, the PCIe tree and
 the P2P checklist are on the Topology tab, and the known problems are on the
 Logs tab. It lives in `web/views/advanced/`, it reads the same `/api/*`
