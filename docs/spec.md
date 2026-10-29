@@ -1558,16 +1558,22 @@ classes and of the P2P readiness checklist: it reads `/api/topo` and
 section of the Dashboard tab). The Chat tab sends one prompt to the run that
 serves and streams the answer back; it keeps no history. Fleet is planned:
 its tab carries one honest sentence and no control. The Advanced tab is the
-first bernie dashboard, kept as it is for comparison: the
-same sections (the cards, the last minutes, the run, the power caps, the
-topology, the known problems), the same order and the same controls, drawn
-with the current design (the tokens, the fonts and the shared components of
-the shell). It reads `/api/hw`, `/api/runs`, `/api/doctor`, `/api/power`,
-`/api/topo`, `/api/topo/check` and the shared telemetry stream of
+operator's console: the things about the host that belong to no single tab.
+It holds the exact per-GPU table, the power caps with the only write of the
+page, the doctor report in full (every category, every check), the jobs of
+the host, the run record with the measures of the server and the raw
+documents of every endpoint it reads. It reads `/api/hw`, `/api/runs`,
+`/api/doctor`, `/api/power`, `/api/jobs` and the shared telemetry stream of
 `/api/telemetry`, it adds no endpoint, and the old route `#classic` still
-lands on it. The history of the cards (`/api/gpus/history`) is read by the
-Dashboard tab. A number this host does not measure is shown as a dash with
-the words "n/a on this host".
+lands on it. The old first-dashboard layout is gone from it: the tiles and
+the cards are on the Dashboard tab, the PCIe tree and the P2P checklist are
+on the Topology tab, and the known problems are on the Logs tab. The
+Dashboard tab keeps its clear operational view and ends with a `Show details`
+disclosure: the same per-GPU table, the window of the history, the power
+read-out of every card and the raw documents of `/api/telemetry`,
+`/api/hw`, `/api/runs` and `/api/gpus/history`. The history of the cards
+(`/api/gpus/history`) is read by the Dashboard tab. A number this host does
+not measure is shown as a dash with the words "n/a on this host".
 
 | Method | Path | Body / output |
 |---|---|---|
