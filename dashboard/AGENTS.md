@@ -314,7 +314,8 @@ honest and reachable.
     exports one function that returns `{el, update}`; it touches only its
     own element and reads no global except `window.Bernie`. → Check:
     **[lint]** `scripts/check-web.sh` finds no file in `web/` over 400 lines
-    unless `scripts/web-allowlist.txt` lists it.
+    unless `scripts/web-allowlist.txt` lists it; a listed file may not pass
+    1024 lines (the owner's cap, for the chart module).
 15. **One question per tab, one data path, one file per concern.** These are
     the front-end form of the structure rules above. → Check: the tab table
     in [README.md](README.md) and the file tree beside it.
