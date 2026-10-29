@@ -12,6 +12,8 @@ const (
 	PkgEngine        = "engine"         // a container engine with compose
 	PkgDockerCompose = "docker-compose" // compose for docker
 	PkgPodmanCompose = "podman-compose" // compose for podman
+	PkgDocker        = "docker"         // the Docker engine
+	PkgAMDCTK        = "amd-ctk"        // the AMD Container Toolkit (amd-ctk)
 	PkgPython        = "python"         // Python 3.12 with venv
 	PkgGit           = "git"            // git
 )
@@ -43,6 +45,12 @@ var packages = map[string]map[string][]string{
 	},
 	PkgPodmanCompose: {
 		"dnf": {"podman-compose"}, "apt": {"podman-compose"}, "pacman": {"podman-compose"}, "zypper": {"podman-compose"},
+	},
+	PkgDocker: {
+		"dnf": {"docker"}, "apt": {"docker.io"}, "pacman": {"docker"}, "zypper": {"docker"},
+	},
+	PkgAMDCTK: {
+		"dnf": {"amd-container-toolkit"}, "apt": {"amd-container-toolkit"}, "pacman": {"amd-container-toolkit"}, "zypper": {"amd-container-toolkit"},
 	},
 	PkgPython: {
 		"dnf": {"python3.12"}, "apt": {"python3.12", "python3.12-venv"}, "pacman": {"python"}, "zypper": {"python312"},

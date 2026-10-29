@@ -39,13 +39,13 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/serving/recipe` | the recipe and its launch plan | `Load`, `Resolve`, `Validate`, `CheckFit`, `List`, `Best`, `BuildPlan`, `Plan` | 2 |
 | `internal/serving/runner` | the run | `Prepare`, `Start`, `List`, `Stop`, `Logs`, `Get`, `OpenLog`, `Phase` | 2 |
 | `internal/serving/tuning` | the tuning rows and the power cap | `Profiles`, `Select`, `Materialize`, `Env`, `PowerStatus`, `LoadPowerDesired`, `SavePowerDesired`, `GeneratePowerUnits`, `ApplyPowerDesired` | 2 |
-| `internal/serving/vllm` | the vLLM client | `New`, `BaseURL`, `Health`, `Models`, `Tokenize`, `Complete`, `Metrics` | 2 |
+| `internal/serving/vllm` | the vLLM client | `New`, `BaseURL`, `Health`, `Models`, `Tokenize`, `Complete`, `Metrics`, `ParseMetrics`, `Summarize`, `Histograms`, `Stats`, `Latency`, `Window`, `Reading`, `Watcher`, `NewWatcher`, `DefaultWindow` | 2 |
 | `internal/serving/vllm/vllmtest` | the deterministic fake vLLM server for tests | `Config`, `Server`, `New`, `CountTokens`, `Prompts`, `ServeHTTP` | 2 |
 | `internal/serving/bench` | the benchmark | `Run`, `Save`, `List`, `Get`, `Options`, `Result` | 2 |
 | `internal/serving/bench/suite` | the bench suites | `Load`, `List`, `Get`, `Run`, `Compare`, `Judge`, `AB` | 2 |
 | `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `TelemetryFast`, `TelemetrySlow`, `MergeSlow`, `Archs`, `ArchMatch`, `ECC` | 1 |
 | `internal/machine/gpu/devices` | the device tables | `Lookup`, `LookupArch`, `CodeTargets`, `GFXName`, `Arch`, `Device` | 1 |
-| `internal/machine/host` | the OS facts | `Probe`, `Preferred`, `InstallCommand`, `GPUGroups`, `Info` | 1 |
+| `internal/machine/host` | the OS facts | `Probe`, `Preferred`, `InstallCommand`, `GPUGroups`, `Info`, `ProbeCDI`, `SpecStale`, `EngineCDISupport`, `ResolveDeviceAccess` | 1 |
 | `internal/machine/rocm` | the ROCm facts | `Probe`, `ProbeVenv`, `VenvLibPaths`, `FindROCBLAS`, `CompareVersions`, `RuntimeInstall` | 1 |
 | `internal/machine/topo` | the PCIe facts | `Discover`, `MeasureBandwidth`, `BestGroup`, `P2PChecklist` | 1 |
 | `internal/support/paths` | the XDG paths | `State`, `Config`, `Data`, `Cache`, `Ensure` | 0 |
@@ -111,6 +111,13 @@ func InstallCommand(pm, feature string) string               // package-manager 
 
 type DeviceGroup struct { Role string; GID int; Source string }
 func GPUGroups(ctx context.Context, root string) []DeviceGroup  // numeric ids of the GPU groups
+
+type CDISpec struct { Path, Kind, Version string; Devices []CDIDevice }
+type CDI struct { Toolkit bool; ToolkitPath, ToolkitVersion string; SpecDirs []string; Spec *CDISpec }
+func ProbeCDI(ctx context.Context, root, engine string) CDI     // amd-ctk and the amd.com/gpu spec
+func SpecStale(root string, s *CDISpec, gpuCount int) string   // why the spec does not fit the host
+func EngineCDISupport(e Engine, root string) (bool, string)   // can the engine use a CDI spec
+func ResolveDeviceAccess(req string, e Engine, c CDI, stale, why string) DeviceAccess
 ```
 
 ## machine/rocm
@@ -265,6 +272,10 @@ func (c *Client) Health(ctx) error
 func (c *Client) Models(ctx) ([]string, error)
 func (c *Client) Tokenize(ctx, model, text string) (int, error)
 func (c *Client) Metrics(ctx) (map[string]float64, error)   // flattened Prometheus samples
+func ParseMetrics(data []byte) (map[string]float64, error)
+func Summarize(m map[string]float64) Stats                   // the numbers of the server since it started
+func NewWatcher(baseURL string, window time.Duration) *Watcher
+func (w *Watcher) Sample(ctx) (Reading, error)               // the stats and the window of the server
 // bench
 func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error)
 func Save(r *Result) (string, error); func List() ([]Result, error); func Get(id string) (*Result, error)
