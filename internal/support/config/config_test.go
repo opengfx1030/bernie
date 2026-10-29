@@ -225,14 +225,24 @@ func TestFleetValidate(t *testing.T) {
 	}
 }
 
-func TestFleetDuplicateName(t *testing.T) {
+func TestFleetDuplicateIsUpsert(t *testing.T) {
 	c := Config{}
-	if err := c.SetKey("fleet", "add box http://h:1"); err != nil {
+	if err := c.SetKey("fleet", "add box http://h:1 tok1"); err != nil {
 		t.Fatal(err)
 	}
-	err := c.SetKey("fleet", "add box http://h:2")
-	if err == nil || !strings.Contains(err.Error(), "duplicate") {
-		t.Errorf("err = %v, want duplicate", err)
+	if err := c.SetKey("fleet", "add box http://h:2"); err != nil {
+		t.Fatalf("upsert same name: %v", err)
+	}
+	if len(c.Fleet) != 1 || c.Fleet[0].URL != "http://h:2" {
+		t.Errorf("upsert did not replace: %+v", c.Fleet)
+	}
+	if c.Fleet[0].Token != "tok1" {
+		t.Errorf("token not preserved on upsert: %q", c.Fleet[0].Token)
+	}
+	bad := c
+	bad.Fleet = append(bad.Fleet, c.Fleet[0])
+	if err := bad.validate(); err == nil || !strings.Contains(err.Error(), "duplicate") {
+		t.Errorf("validate duplicate: err = %v", err)
 	}
 }
 
