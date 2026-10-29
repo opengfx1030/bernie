@@ -73,6 +73,15 @@ function setupFactsFromHost(hw, doctor) {
       value: rocm ? rocm.status : "–",
       why: rocm ? (rocm.detail || rocm.title) : "The doctor could not read the host.",
     });
+    const virt = (doctor.checks || []).find((c) => c.id === "os.virtualization");
+    if (virt) {
+      facts.push({
+        id: "virtualization",
+        label: "Host",
+        value: virt.status === "ok" ? "bare metal" : (virt.status || "–"),
+        why: virt.detail || virt.title,
+      });
+    }
   }
   return facts;
 }

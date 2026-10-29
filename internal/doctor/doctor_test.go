@@ -194,6 +194,13 @@ func TestEvaluateStatuses(t *testing.T) {
 			in.venv = "/v"
 			in.venvRep = rocm.VenvReport{Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14", DeviceCount: 4, VLLM: "0.31.0", RDNAOps: 0}
 		}, "python.rdna_ops", Warn, "need > 10"},
+		{"os.virtualization bare metal", func(in *inputs) { in.host.Virtualization = "none" }, "os.virtualization", OK, "bare metal"},
+		{"os.virtualization unknown host probe", func(in *inputs) { in.host.Virtualization = "" }, "os.virtualization", Skip, "host probe did not run"},
+		{"os.virtualization inside docker", func(in *inputs) { in.host.Virtualization = "docker" }, "os.virtualization", Skip, "docker container"},
+		{"os.virtualization inside podman", func(in *inputs) { in.host.Virtualization = "podman" }, "os.virtualization", Skip, "podman container"},
+		{"os.virtualization kvm guest warns with GPU passthrough hint", func(in *inputs) { in.host.Virtualization = "kvm" }, "os.virtualization", Warn, "GPU passthrough"},
+		{"os.virtualization vmware guest warns", func(in *inputs) { in.host.Virtualization = "vmware" }, "os.virtualization", Warn, "IOMMU"},
+		{"os.virtualization is case-insensitive", func(in *inputs) { in.host.Virtualization = "KVM" }, "os.virtualization", Warn, "GPU passthrough"},
 	}
 	for _, c := range cases {
 		in := base()
