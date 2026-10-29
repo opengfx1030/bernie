@@ -1,0 +1,14 @@
+{
+  "kind": "vendor.com/gpu",
+  "cdiVersion": "0.6.0",
+  "devices": [
+    {
+      "name": "0",
+      "containerEdits": {
+        "deviceNodes": [
+          {"path": "/dev/nvidia0"}
+        ]
+      }
+    }
+  ]
+}

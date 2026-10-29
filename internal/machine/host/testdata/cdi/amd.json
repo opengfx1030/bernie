@@ -1,0 +1,54 @@
+{
+  "kind": "amd.com/gpu",
+  "cdiVersion": "0.6.0",
+  "devices": [
+    {
+      "name": "0",
+      "containerEdits": {
+        "deviceNodes": [
+          {"path": "/dev/kfd"},
+          {"path": "/dev/dri/renderD128"}
+        ]
+      }
+    },
+    {
+      "name": "1",
+      "containerEdits": {
+        "deviceNodes": [
+          {"path": "/dev/kfd"},
+          {"path": "/dev/dri/renderD129"}
+        ]
+      }
+    },
+    {
+      "name": "2",
+      "containerEdits": {
+        "deviceNodes": [
+          {"path": "/dev/kfd"},
+          {"path": "/dev/dri/renderD130"}
+        ]
+      }
+    },
+    {
+      "name": "3",
+      "containerEdits": {
+        "deviceNodes": [
+          {"path": "/dev/kfd"},
+          {"path": "/dev/dri/renderD131"}
+        ]
+      }
+    },
+    {
+      "name": "all",
+      "containerEdits": {
+        "deviceNodes": [
+          {"path": "/dev/kfd"},
+          {"path": "/dev/dri/renderD128"},
+          {"path": "/dev/dri/renderD129"},
+          {"path": "/dev/dri/renderD130"},
+          {"path": "/dev/dri/renderD131"}
+        ]
+      }
+    }
+  ]
+}
