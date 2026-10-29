@@ -56,6 +56,6 @@ command, and waits for `Re-check`.
 bernie smoke
 ```
 
-It sends one prompt to the server and prints the time to the first token, the number of tokens and the output speed. Then `bernie bench` (how fast is this host?), `bernie logs <name>` (what is the server saying?) and `bernie stop <name>`.
+It sends one prompt to the server and prints the URL, the model and the answer. Then `bernie bench` (how fast is this host? it prints the time to the first token, the number of tokens and the output speed), `bernie logs <name>` (what is the server saying?) and `bernie stop <name>`.
 
 When something is wrong, the page and the terminal name the command that fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`. `bernie --root DIR` reads another host tree (a captured host): use it for a demo or a test. `BERNIE_ROOT=DIR` does the same for a process that cannot take a flag (the MCP server, a service); the CLI, the dashboard and the MCP server all read that tree.
