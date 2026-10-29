@@ -74,6 +74,7 @@ func New(o Options) *Server {
 	registerRead(s)
 	registerWrite(s)
 	registerDashTools(s)
+	registerSetupTools(s)
 	return s
 }
 
