@@ -28,6 +28,13 @@ func withWhich(t *testing.T, bins ...string) {
 	t.Cleanup(func() { which = old })
 }
 
+// withProbe replaces the venv probe for the duration of a test.
+func withProbe(t *testing.T, rep rocm.VenvReport) {
+	old := probeVenv
+	probeVenv = func(context.Context, string) rocm.VenvReport { return rep }
+	t.Cleanup(func() { probeVenv = old })
+}
+
 // par1Venv mirrors venv-7.14.0 on par1-cs25: torch + device wheels for
 // gfx1030 and gfx1100 + the fork, no causal-conv1d, no flash-attn.
 func par1Venv(t *testing.T) string {
@@ -39,8 +46,25 @@ func par1Venv(t *testing.T) string {
 		sp + "rocm_sdk_device_gfx1030-7.14.0.dist-info/METADATA":           "",
 		sp + "rocm_sdk_device_gfx1100-7.14.0.dist-info/METADATA":           "",
 		sp + "vllm-0.31.0+rdna.rocm714.rocm714.rocm714.dist-info/METADATA": "",
+		sp + "vllm/_rocm_C.abi3.so":                                        "",
+		sp + "setuptools_scm-10.2.1.dist-info/METADATA":                    "",
+		sp + "setuptools_rust-1.13.0.dist-info/METADATA":                   "",
+		sp + "cmake-3.31.10.dist-info/METADATA":                            "",
+		sp + "ninja-1.13.0.dist-info/METADATA":                             "",
+		sp + "_rocm_sdk_libraries/lib/.keep":                               "",
+		sp + "torch/lib/.keep":                                             "",
 	})
 	return venv
+}
+
+// par1Probe is the report of the venv of par1-cs25: the fork registers its
+// ops and every library resolves.
+func par1Probe() rocm.VenvReport {
+	return rocm.VenvReport{
+		Python: "3.12.13", Torch: "2.12.0+rocm7.14.0", HIP: "7.14.60850", VLLM: "0.31.0+rdna",
+		DeviceCount: 10, ROCMOps: 83, RDNAOps: 68, AllReduce: true,
+		ROCBLAS: "/v/lib/python3.12/site-packages/rocm_sdk_libraries/lib/librocblas.so.5", ROCBLASWheel: true,
+	}
 }
 
 func par1Host() host.Info {
@@ -76,25 +100,26 @@ func idsOf(steps []Step) string {
 
 func TestPlanHostPar1(t *testing.T) {
 	withWhich(t, "uv")
+	withProbe(t, par1Probe())
 	venv := par1Venv(t)
 	steps := Plan(context.Background(), par1Host(), par1ROCm(), Options{Mode: "host", Venv: venv, SrcDir: "/src", GPUArchs: []string{"gfx1100", "gfx1100", "gfx1030"}})
-	if got, want := idsOf(steps), "groups rocm.runtime venv.create venv.torch causal-conv1d.build flash-attn.build vllm.build"; got != want {
+	if got, want := idsOf(steps), "groups rocm.runtime venv.create venv.torch causal-conv1d.build flash-attn.build vllm.build venv.verify"; got != want {
 		t.Fatalf("steps = %s, want %s", got, want)
 	}
 	m := stepMap(steps)
-	for id, done := range map[string]bool{"groups": true, "rocm.runtime": true, "venv.create": true, "venv.torch": true, "causal-conv1d.build": false, "flash-attn.build": false, "vllm.build": true} {
+	for id, done := range map[string]bool{"groups": true, "rocm.runtime": true, "venv.create": true, "venv.torch": true, "causal-conv1d.build": false, "flash-attn.build": false, "vllm.build": true, "venv.verify": true} {
 		if m[id].Done != done {
 			t.Errorf("%s done = %v, want %v", id, m[id].Done, done)
 		}
 	}
 	torch := strings.Join(m["venv.torch"].Commands, "\n")
-	for _, want := range []string{"uv pip install --python " + filepath.Join(venv, "bin/python"), WheelIndex, "torch==2.12.0+rocm7.14.0", "triton==3.7.1", "rocm-sdk-device-gfx1100==7.14.0", "amd-torch-device-gfx1030==2.12.0+rocm7.14.0"} {
+	for _, want := range []string{"uv pip install --python " + filepath.Join(venv, "bin/python"), WheelIndex, "torch==2.12.0+rocm7.14.0", "triton==3.7.1", "rocm-sdk-device-gfx1100==7.14.0", "amd-torch-device-gfx1030==2.12.0+rocm7.14.0", "setuptools-scm>=8", "setuptools-rust>=1.9", "cmake>=3.26", "ninja", "wheel", "jinja2"} {
 		if !strings.Contains(torch, want) {
 			t.Errorf("venv.torch commands lack %q:\n%s", want, torch)
 		}
 	}
 	build := strings.Join(m["vllm.build"].Commands, "\n")
-	for _, want := range []string{"git clone -b rdna_extras https://github.com/opengfx1030/vllm-rdna.git /src/vllm-rdna", "PYTORCH_ROCM_ARCH='gfx1100;gfx1030'", "ROCM_HOME=/opt/rocm-7.2.0/core-7.14", "HIP_ROOT_DIR=/opt/rocm-7.2.0/core-7.14", "CMAKE_HIP_COMPILER_ROCM_ROOT=/opt/rocm-7.2.0/core-7.14", "CMAKE_BUILD_TYPE=RelWithDebInfo", "MAX_JOBS=16", "SETUPTOOLS_SCM_PRETEND_VERSION=0.31.0+rdna", "-e . triton==3.7.1"} {
+	for _, want := range []string{"git clone -b rdna_extras https://github.com/opengfx1030/vllm-rdna.git /src/vllm-rdna", "PYTORCH_ROCM_ARCH='gfx1100;gfx1030'", "ROCM_HOME=/opt/rocm-7.2.0/core-7.14", "HIP_ROOT_DIR=/opt/rocm-7.2.0/core-7.14", "CMAKE_HIP_COMPILER_ROCM_ROOT=/opt/rocm-7.2.0/core-7.14", "CMAKE_BUILD_TYPE=RelWithDebInfo", "MAX_JOBS=16", "SETUPTOOLS_SCM_PRETEND_VERSION=0.31.0+rdna", "-r requirements/common.txt", "--no-build-isolation --no-deps -e . triton==3.7.1", "PATH=" + filepath.Join(venv, "bin") + ":$PATH"} {
 		if !strings.Contains(build, want) {
 			t.Errorf("vllm.build commands lack %q:\n%s", want, build)
 		}
@@ -102,6 +127,17 @@ func TestPlanHostPar1(t *testing.T) {
 	fa := strings.Join(m["flash-attn.build"].Commands, "\n")
 	if !strings.Contains(fa, "GPU_ARCHS=gfx1100 ") || strings.Contains(fa, "gfx1030") {
 		t.Errorf("flash-attn must target only allowlisted archs:\n%s", fa)
+	}
+	verify := strings.Join(m["venv.verify"].Commands, "\n")
+	for _, want := range []string{"BERNIE_VENV_STRICT=1", "LD_LIBRARY_PATH=", "-I - <<'PY'", "BERNIE_JSON:"} {
+		if !strings.Contains(verify, want) {
+			t.Errorf("venv.verify command lacks %q:\n%s", want, verify)
+		}
+	}
+	// The HIP compiler takes the targets separated by commas.
+	cc := strings.Join(m["causal-conv1d.build"].Commands, "\n")
+	if !strings.Contains(cc, "HIP_ARCHITECTURES=gfx1100,gfx1030") {
+		t.Errorf("causal-conv1d must list the HIP targets with commas:\n%s", cc)
 	}
 }
 

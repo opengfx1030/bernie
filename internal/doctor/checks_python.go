@@ -89,7 +89,50 @@ func pythonChecks(in inputs) []Check {
 			fmt.Sprintf("%d _rocm_C rdna ops (need > 10 for vllm-rdna recipes)", v.RDNAOps)).
 			with("bernie setup apply --step vllm.build", docHostVenv))
 	}
+	if v.ROCMOps > 0 {
+		out = append(out, allReduceCheck(v), libsCheck(v), rocblasCheck(v))
+	}
 	return out
+}
+
+// allReduceCheck fails when the fork registered no all_reduce op: the
+// build of the fork is then incomplete.
+func allReduceCheck(v rocm.VenvReport) Check {
+	const cat = "python"
+	if v.AllReduce {
+		return check(cat, "all_reduce", OK, "the fork registers all_reduce", "the _rocm_C namespace has an all_reduce op")
+	}
+	return check(cat, "all_reduce", Fail, "the fork registers all_reduce",
+		"no all_reduce op in the _rocm_C namespace: the build of the fork is incomplete").
+		with("bernie setup apply --step vllm.build", docHostVenv)
+}
+
+// libsCheck fails when the extension of the fork needs a library the
+// loader does not find: the ops of the fork are then not registered.
+func libsCheck(v rocm.VenvReport) Check {
+	const cat = "python"
+	if len(v.MissingLibs) == 0 {
+		return check(cat, "libs", OK, "the extension finds its libraries", "no missing library")
+	}
+	return check(cat, "libs", Fail, "the extension finds its libraries",
+		strings.Join(v.MissingLibs, "; ")).
+		with("bernie setup apply --step vllm.build", docHostVenv)
+}
+
+// rocblasCheck fails when rocBLAS does not come from the wheel of the
+// venv: the system rocBLAS has no code objects for the GPU.
+func rocblasCheck(v rocm.VenvReport) Check {
+	const cat = "python"
+	if v.ROCBLASWheel {
+		return check(cat, "rocblas", OK, "rocBLAS comes from the wheel", v.ROCBLAS)
+	}
+	if v.ROCBLAS == "" {
+		return check(cat, "rocblas", Fail, "rocBLAS comes from the wheel", "torch resolves no rocBLAS").
+			with("bernie setup apply --step venv.torch", docHostVenv)
+	}
+	return check(cat, "rocblas", Fail, "rocBLAS comes from the wheel",
+		v.ROCBLAS+" is not the copy of the wheel (_rocm_sdk_libraries)").
+		with("bernie setup apply --step venv.torch", docHostVenv)
 }
 
 func tritonVersion(site string) string {

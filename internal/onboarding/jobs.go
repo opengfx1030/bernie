@@ -344,7 +344,7 @@ func stepMarker(line string) (string, bool) {
 	}
 	id := strings.TrimSpace(rest[:i])
 	switch id {
-	case "venv.create", "venv.torch", "causal-conv1d.build", "flash-attn.build", "vllm.build":
+	case "venv.create", "venv.torch", "causal-conv1d.build", "flash-attn.build", "vllm.build", "venv.verify":
 		return StepPythonEnv, true
 	case "model.download":
 		return StepModel, true

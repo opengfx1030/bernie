@@ -22,7 +22,7 @@ var stepChecks = map[string][]string{
 }
 
 // pythonSetupSteps are the setup steps that build the host stack.
-var pythonSetupSteps = []string{"venv.create", "venv.torch", "causal-conv1d.build", "flash-attn.build", "vllm.build"}
+var pythonSetupSteps = []string{"venv.create", "venv.torch", "causal-conv1d.build", "flash-attn.build", "vllm.build", "venv.verify"}
 
 // hardwareStep: the GPUs are found and supported.
 func hardwareStep(f *Facts) Step {

@@ -36,6 +36,24 @@ func (p planner) venvCreate() Step {
 	}
 }
 
+// ForkBuildTools are the build backend and the build tools the fork's
+// setup.py imports at module level. The fork is built with
+// --no-build-isolation, so the packages have to be in the venv before the
+// build: without them the build stops with "No module named
+// setuptools_scm". They come from PyPI, the AMD index does not carry
+// them all.
+var ForkBuildTools = []string{
+	"setuptools>=77,<81", "setuptools-scm>=8", "setuptools-rust>=1.9",
+	"cmake>=3.26", "ninja", "wheel", "jinja2", "packaging>=24.2",
+}
+
+// forkBuildTools are the dist-info names of the build tools, used to
+// check that the venv holds them.
+var forkBuildTools = []string{
+	"setuptools_scm-*.dist-info", "setuptools_rust-*.dist-info",
+	"cmake-*.dist-info", "ninja-*.dist-info",
+}
+
 func (p planner) venvTorch() Step {
 	done := p.has("torch-*+rocm*.dist-info")
 	cmds := []string{
@@ -55,6 +73,13 @@ func (p planner) venvTorch() Step {
 	} else {
 		why += "no GPU was found, so no device wheels are planned. "
 	}
+	cmds = append(cmds, p.pipInstall()+" "+strings.Join(quoted(ForkBuildTools), " "))
+	for _, pat := range forkBuildTools {
+		if !p.has(pat) {
+			done = false
+		}
+	}
+	why += "The build tools of the fork (" + strings.Join(ForkBuildTools, ", ") + ") come from PyPI: the fork is built with --no-build-isolation, so the venv must hold them. "
 	why += "Triton is pinned to " + strings.TrimPrefix(TritonPin, "triton==") + "."
 	if a, ok := p.tritonDropped(); ok {
 		why += " Triton " + a.TritonBelow + " removed " + a.Label() + "."
@@ -63,6 +88,15 @@ func (p planner) venvTorch() Step {
 		ID: "venv.torch", Title: "Install ROCm " + ROCmWheel + " wheels and torch", Mode: "host",
 		Done: done, Commands: cmds, Why: why,
 	}
+}
+
+// quoted quotes every item of a list for the shell.
+func quoted(items []string) []string {
+	out := make([]string, 0, len(items))
+	for _, i := range items {
+		out = append(out, shq(i))
+	}
+	return out
 }
 
 // tritonDropped returns the arch of a host GPU whose generation newer Triton
@@ -111,19 +145,31 @@ func rocmAllTrees(ins []rocm.Install) []rocm.Install {
 
 func (p planner) archList() string { return strings.Join(p.targets, ";") }
 
+// hipArchList is the arch list of the HIP compiler. hipcc takes the
+// targets separated by commas; a semicolon ends the argument and the
+// build fails with "no input files".
+func (p planner) hipArchList() string { return strings.Join(p.targets, ",") }
+
+// venvBin is the bin directory of the venv. A build that runs in the venv
+// needs it on PATH: cmake and ninja live there.
+func (p planner) venvBin() string { return filepath.Join(p.o.Venv, "bin") }
+
+// venvPath is the PATH of a build that runs in the venv.
+func (p planner) venvPath() string { return "PATH=" + shq(p.venvBin()) + ":$PATH" }
+
 func (p planner) causalConv1D() Step {
 	build := ""
 	if len(p.targets) > 0 {
-		build = "HIP_ARCHITECTURES=" + shq(p.archList()) + " "
+		build = "HIP_ARCHITECTURES=" + shq(p.hipArchList()) + " "
 	}
 	return Step{
 		ID: "causal-conv1d.build", Title: "Build causal-conv1d from source", Mode: "host",
 		Done: p.has("causal_conv1d-*.dist-info"),
 		Commands: []string{
 			"CAUSAL_CONV1D_FORCE_BUILD=TRUE " + build + "ROCM_PATH=" + shq(p.rocmHome()) + " " +
-				p.pipInstall() + " --no-build-isolation " + shq(CausalConv1DRef),
+				p.venvPath() + " " + p.pipInstall() + " --no-build-isolation " + shq(CausalConv1DRef),
 		},
-		Why: "Mamba/GDN models need causal-conv1d; the PyPI wheels have no RDNA kernels.",
+		Why: "Mamba/GDN models need causal-conv1d; the PyPI wheels have no RDNA kernels. The HIP compiler takes the targets separated by commas.",
 	}
 }
 
@@ -162,6 +208,10 @@ func (p planner) vllmBuild() Step {
 		vars = append(vars, "PYTORCH_ROCM_ARCH="+shq(p.archList()))
 	}
 	env := strings.Join(append(vars,
+		// The build runs in the venv: its bin directory holds cmake and
+		// ninja, without them the build cannot start.
+		"VIRTUAL_ENV="+shq(p.o.Venv),
+		p.venvPath(),
 		"ROCM_HOME="+shq(rh), "ROCM_PATH="+shq(rh), "HIP_PATH="+shq(rh),
 		"CMAKE_HIP_COMPILER="+shq(rh+"/bin/hipcc"),
 		// cmake needs ROCM_HOME for FindHIP.cmake and the ROCm cmake
@@ -181,11 +231,45 @@ func (p planner) vllmBuild() Step {
 	), " ")
 	return Step{
 		ID: "vllm.build", Title: "Clone and build the vLLM fork (" + ForkBranch + ")", Mode: "host",
-		Done: p.has("vllm-*rdna*.dist-info") || p.has("vllm-*.dist-info") && isFile(filepath.Join(dir, "vllm", "_rocm_C.abi3.so")),
+		Done: p.vllmBuilt(dir),
 		Commands: []string{
 			"test -d " + shq(dir+"/.git") + " || git clone -b " + ForkBranch + " " + ForkRepo + " " + shq(dir),
-			"cd " + shq(dir) + " && " + env + " " + p.pipInstall() + " --no-build-isolation -e . " + shq(TritonPin),
+			// The runtime dependencies of the fork: the files in
+			// requirements/common.txt. They are installed here, without
+			// the ROCm-only extras of requirements/rocm.txt, so the venv
+			// holds what vLLM imports and nothing that needs a build.
+			"cd " + shq(dir) + " && " + p.pipInstall() + " -r requirements/common.txt",
+			"cd " + shq(dir) + " && " + env + " " + p.pipInstall() + " --no-build-isolation --no-deps -e . " + shq(TritonPin),
 		},
-		Why: "The fork carries the RDNA kernels (_rocm_C rdna ops). Editable install in " + dir + "; the Triton pin is kept.",
+		Why: "The fork carries the RDNA kernels (_rocm_C rdna ops). Editable install in " + dir + "; the Triton pin is kept. The install takes no dependencies: the runtime ones are in requirements/common.txt, the build ones in the venv.torch step.",
+	}
+}
+
+// vllmBuilt reports whether the fork of the venv is built and usable: the
+// package is installed, the extension is compiled and the venv passes the
+// checks of the gfx1030 wiki. A half-built fork is not done, so a re-run
+// rebuilds it.
+func (p planner) vllmBuilt(dir string) bool {
+	if !p.has("vllm-*rdna*.dist-info") && !p.has("vllm-*.dist-info") {
+		return false
+	}
+	so := isFile(filepath.Join(dir, "vllm", "_rocm_C.abi3.so")) || p.has("vllm/_rocm_C.abi3.so")
+	return so && p.venvOK
+}
+
+// venvVerify is the postcondition of the vllm.build step: the fork must
+// register its ops, its extension must find every library it needs and
+// rocBLAS must come from the wheel of the venv.
+func (p planner) venvVerify() Step {
+	ld := ""
+	if libs := rocm.VenvLibPaths(p.o.Venv); len(libs) > 0 {
+		ld = "LD_LIBRARY_PATH=" + strings.Join(libs, ":") + ":${LD_LIBRARY_PATH:-} "
+	}
+	cmd := ld + "BERNIE_VENV_STRICT=1 " + shq(p.python()) + " -I - <<'PY'\n" + rocm.VenvProbeScript + "PY"
+	return Step{
+		ID: "venv.verify", Title: "Verify the vLLM build in the venv", Mode: "host",
+		Done:     p.venvOK,
+		Commands: []string{cmd},
+		Why:      "The checks of the gfx1030 wiki: torch and vLLM import, the fork registers more than ten RDNA ops with an all_reduce, the extension finds every library and rocBLAS comes from the wheel of the venv.",
 	}
 }
