@@ -323,7 +323,7 @@ is.
 | G1 | The facts with their reasons on Setup | the onboarding document has no facts | add `facts` to the document of §3.3: `{"facts": [{"id": "gpus", "label": "GPUs", "value": "8 × Radeon PRO V620", "why": "Every card is gfx1030, so one recipe family fits them all."}]}`; the CLI prints the same array in `bernie status --steps`. The field is `id` and not `key`: every answer goes through `internal/support/redact`, and a member whose name ends in `key` names a secret, so the redactor would hide it |
 | G2 | The progress of the model download | the job document has no numbers | add `progress` to the job document: `{"progress": {"phase": "model.download", "bytes_done": 1800000000, "bytes_total": 2300000000, "rate_bps": 45200000, "files_done": 7, "files_total": 14, "eta_s": 11}}`; the existing `done`/`total` stay for the steps that count items. A number that is not measured is absent: the bytes, the rate and the time to finish are there for a download, the file counts are there when the step counts the files |
 | G3 | The "Try it" box on Setup and on the Dashboard | there is no endpoint for one prompt | new `POST /api/smoke`, body `{"prompt": "Hello", "run": "flashnext"}`: it calls the same `onboarding.Smoke` as `bernie smoke` with the prompt of the body, and answers `{"url": "http://127.0.0.1:8000", "model": "flash-next", "health": true, "reply": "…", "ttft_ms": 214, "output_tokens": 12, "tok_s": 56.1}`; `ttft_ms`, `output_tokens` and `tok_s` are new fields of `onboarding.SmokeResult`; the target is the running run or the one named by `run`, and a name that is not running is a 404 |
-| G4 | The history charts of the Dashboard | the telemetry stream holds one sample, no history | new `GET /api/gpus/history?window=15m`: `{"window": "15m", "interval_s": 2, "points": 450, "series": [{"hip_index": 0, "busy_pct": [0, 12, 30], "power_w": [11.2, 18.4, 22.0], "vram_used": [24117248, 24117248, 24117248], "tokens_per_s": [0, 0, 0]}]}`; the ring buffer holds one sample per GPU every 2 s for 30 minutes (900 points) in the hub; `window` is `5m`, `15m` or `1h`; `1h` is downsampled to one point per 10 s; the answer is at most 120 KB and is cached for 2 s; no series holds more than 240 points (a longer window is downsampled further: 15 m holds one point every 4 s, 1 h every 15 s); `tokens_per_s` is the output rate of the live run and `prompt_tok_s` is the prefill rate, both read from the hub's vLLM metrics sample; the rate is a property of the server, so every card carries the same number, and the fields are absent when no run serves |
+| G4 | The history charts of the Dashboard | the telemetry stream holds one sample, no history | new `GET /api/gpus/history?window=15m`: `{"window": "15m", "interval_s": 2, "points": 450, "series": [{"hip_index": 0, "busy_pct": [0, 12, 30], "power_w": [11.2, 18.4, 22.0], "vram_used": [24117248, 24117248, 24117248], "tokens_per_s": [0, 0, 0]}]}`; the ring buffer holds one sample per GPU every 2 s for 30 minutes (900 points) in the hub; `window` is `5m`, `15m` or `1h`; `1h` is downsampled to one point per 10 s; the answer is at most 120 KB and is cached for 2 s; no series holds more than 240 points (a longer window is downsampled further: 15 m holds one point every 4 s, 1 h every 15 s); `tokens_per_s` is the output rate of the live run and `prompt_tok_s` is the prefill rate, both read from the hub's vLLM metrics sample; the rate is a property of the server, so every card carries the same number, and the fields are absent when no run serves; the hub samples the host only while a page watches `/api/telemetry`, so the buffer fills while the dashboard is open |
 | G5 | The log viewer with levels and a search | the log stream sends plain lines | new `GET /api/runs/{name}/log?tail=2000&level=error&q=oom`: `{"name": "flashnext", "state": "exited", "total_lines": 8123, "truncated": false, "lines": [{"no": 4211, "level": "error", "text": "…"}]}`; `level` is `all`, `error`, `warn` or `info`; `q` is a case-insensitive substring; the lines are the tail of the log, newest last |
 | G6 | The findings of the log doctor for one run | the findings only ride on `ps --json` for an exited run | new `GET /api/runs/{name}/findings`: `{"name": "flashnext", "matches": [{"id": "memory.kv-too-small", "severity": "error", "cause": "…", "fix": "bernie up flashnext --set args.max-model-len=16384", "doc": "…", "line": "…", "line_no": 82}]}`; it is the scan of `doctor --run`, so the same rules and the same exit code apply |
 | G7 | The live progress of a benchmark | `POST /api/bench` runs to the end and answers the result | new `POST /api/bench/run` with the same body as `POST /api/bench`: it answers `202` and `{"id": "b-7f3a"}`; new `GET /api/bench/{id}` answers `{"id": "b-7f3a", "status": "running", "phase": "cell 2 of 6: 1k at concurrency 4", "done": 2, "total": 6, "result_id": ""}`; new `GET /api/bench/{id}/events` is a server-sent stream with `progress`, `log` and `done` or `failed` events; the old `POST /api/bench` stays as it is |
@@ -369,24 +369,70 @@ field in a domain struct changes `docs/spec.md` in the same commit.
 
 The budget is measured, not promised. The Go test in
 [`dashboard/assets_test.go`](../../dashboard/assets_test.go) (`TestPayloadBudget`,
-`TestGzipSizeBudget`, `TestFirstPaintRequests`) walks the embedded tree and
-fails the build when a number crosses a line; the lines below are the
-current targets and the measured values 2026-10-29.
+`TestFirstPaintPayload`, `TestGzipSizeBudget`, `TestFirstPaintRequests`)
+walks the embedded tree and fails the build when a number crosses a line;
+the lines below are the current targets and the measured values 2026-10-29.
+
+Two numbers matter. The **first paint** is what the reader waits for: it
+holds the shell and the Setup tab, and nothing else. The **whole tree** is
+what the binary carries: the code of the four tabs that are closed is in it
+too, and it arrives when the reader asks for it.
+
+#### The first paint
 
 | Budget | Target | Measured | Note |
 |---|---|---|---|
-| The whole page (HTML + CSS + JS, uncompressed) | ≤ 340 KB | **341 KB** (5.2 + 261 + 75) | the plan is to reach ≤ 240 KB JS (the heavy view code in `views/setup` and `views/dashboard`); the rest is in the budget |
-| HTML | ≤ 12 KB | **5.2 KB** | `index.html` |
-| CSS | ≤ 80 KB, in six files | **74.7 KB** (tokens, layout, components, views, bench, classic, `views/logs/logs.css`) | the design said four files; the split is `components.css` (the shared) + `views.css` (the per-tab) + `bench.css` + `classic.css` + `logs.css` |
-| JavaScript | ≤ 240 KB (plan); 280 KB hard ceiling | **261 KB** | the 240 KB plan: move the Setup and Dashboard view code into the components they own; the ceiling is the measured + 8 % |
-| Fonts | ≤ 130 KB, four woff2, OFL, `font-display: swap` | **128.5 KB**, four woff2, swap ✓, **no `unicode-range`** ⚠ | the license texts (24.5 KB) sit next to the files; they are not loaded by the page |
-| First-paint requests | ≤ 45 | **43** (1 HTML + 8 CSS + 30 scripts + 4 fonts) | the 40 the research cites is from a previous build; the cost is amortised over HTTP/1.1 keep-alive on a LAN (one connection, one round-trip per asset after the first). The 25 the research hints at needs fewer files or `rel=preload`; both would hurt the structure of the pages today |
-| Transferred text on the first paint (gzip) | ≤ 120 KB | **112.5 KB** (HTML + CSS + JS, 33 %) | the budget is met; the gzipped HTML alone is 1.8 KB |
+| The whole page (HTML + CSS + JS, uncompressed) | ≤ 360 KB | **345.3 KB** (4.3 + 265.8 + 75.2) | the whole tree; the first paint is 141.6 KB of it |
+| HTML | ≤ 12 KB | **4.3 KB** | `index.html` |
+| CSS | ≤ 80 KB, in eight files | **75.2 KB** | the design said four files; the split is `components.css` (the shared) + `views.css` (the per-tab) + `bench.css` + `classic.css` + `logs.css` + `dashboard.css` |
+| JavaScript | ≤ 280 KB | **265.8 KB** | plain, hand-written and unminified; five tabs of it |
+| JavaScript on the first paint | ≤ 110 KB | **101.4 KB** | the shell (46 KB) + the Setup tab (55 KB) |
+| CSS on the first paint | ≤ 40 KB | **37.0 KB** | `tokens.css`, `layout.css`, `components.css`, `views.css` |
+| Fonts | ≤ 130 KB, four woff2, OFL, `font-display: swap`, `unicode-range` | **128.4 KB**, four woff2, swap ✓, range ✓ | the license texts (24.5 KB) sit next to the files; they are not loaded by the page |
+| First-paint requests | ≤ 24 | **21** (1 HTML + 4 CSS + 12 scripts + 4 fonts) | the files of the other tabs come when their tab opens |
+| Transferred text on the first paint (gzip) | ≤ 60 KB | **45.1 KB** (HTML + CSS + JS, 32 %) | the gzipped HTML alone is 1.2 KB |
 | First paint on a loopback host | ≤ 1.0 s | **unmeasured** | the binary runs on this Mac; a measurement on the reference box (par1-cs25) lands in `dashboard/README.md` when the integrator pushes |
 | The live numbers | one stream: `GET /api/telemetry` at 1 Hz drives every tile, every ring, every meter and every sparkline | the stream | the poller pauses while `document.hidden` and reads once on return (`web/js/data.js`) |
 | The poller | one timer for the page, in `js/data.js`; no view opens its own timer | one timer | one `setTimeout` re-arms itself with a delay that grows on error (backoff, capped at 60 s) and shrinks on success |
 | The charts | the history is read once per window change and then appended from the telemetry stream; the view never re-reads it | the points are capped at 240 per chart (`web/components/charts.js`) | an update writes only the path `d`; the axes are built once |
 | The payload of the history | at most 120 KB for a 15-minute window; the ring buffer answers at most 900 points per GPU | the cap is 900 points (15 s × 60 s × 60 min × 2 s / 2) | the new `/api/gpus/history?window=…` (commit 6) honours it |
+
+#### What the page costs, before and after
+
+Measured on 2026-10-29. "Before" is the tree of `dfc99b4`, "after" is the
+tree of `a3bd238` (the files of a tab come when the tab opens) and `5154cbf`
+(the answers that read the host are held for a few seconds).
+
+| What | Before | After | How |
+|---|---|---|---|
+| Requests on the first paint | 43 | **21** | the manifest of `web/js/boot.js` names the files of a tab |
+| Text on the first paint | 341.8 KB | **141.6 KB** | the same |
+| Text on the first paint, gzipped | 110.3 KB | **45.1 KB** | the same |
+| JavaScript of the whole tree | 261.6 KB | 265.8 KB | the manifest adds 4 KB to `js/boot.js` |
+| A tab switch | 0 extra requests | 6–8 extra requests, one time | the bundle of the tab, once |
+| The probe of the host for one reader | 220–300 ms per answer | **the same answer for every reader of 5–15 s** | one cache per endpoint (`dashboard/internal/api/cache.go`) |
+| The probe of the host for three readers | 3 probes | **1 probe** | the read is single-flight |
+
+#### The cost of the server, measured on the 10 GPU box
+
+`par1-cs25`, ten Radeon PRO V620, `bernie dash` on a loopback port, the
+token of the dashboard. Every number is the median of two reads of the
+endpoint with `curl`.
+
+| Endpoint | Before | After | What the answer costs |
+|---|---|---|---|
+| `GET /api/hw` | 220–253 ms | **the first read only** | a probe of the host and of every card in `/sys` |
+| `GET /api/topo` | 28–29 ms | **the first read only** | the PCIe tree of `/sys` |
+| `GET /api/topo/check` | 226–303 ms | **the first read only** | the checklist of the peer-to-peer links |
+| `GET /api/doctor` | 229–297 ms | **the first read only** | every check of the doctor |
+| `GET /api/power` | 122–161 ms | **the first read only** | the status of the power service |
+| `GET /api/runs` | 74–77 ms | **74–77 ms, at most every 2 s** | the list of the runs |
+| `GET /api/onboarding` | 8–11 ms | 8–11 ms | the document is already cached (`internal/onboarding/cache.go`); the 20–25 s of the first report is gone |
+| `GET /api/gpus/history?window=15m` | 9–10 ms | 9–10 ms | the ring buffer of the hub |
+
+The sampler reads the cards once per second and the hub sends the sample to
+every open page, so ten open tabs cost the same as one (spec §11).
+
 
 ## 9. The old tabs, the commit plan and the owners
 
