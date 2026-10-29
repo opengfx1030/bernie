@@ -32,6 +32,9 @@ type Estimate struct {
 	Seconds int `json:"seconds,omitempty"`
 	// SizeBytes is the size the last run of the step moved.
 	SizeBytes int64 `json:"size_bytes,omitempty"`
+	// Text is the same estimate in words: "about 2 min, 1.2 GB". The CLI,
+	// the MCP server and the page print this one sentence.
+	Text string `json:"text,omitempty"`
 }
 
 // recommend derives the recommendation from the facts.
@@ -95,6 +98,7 @@ func estimateOf(f *Facts, step string) *Estimate {
 	if e.Seconds == 0 && e.SizeBytes == 0 {
 		return nil
 	}
+	e.Text = estimateSentence(e)
 	return e
 }
 

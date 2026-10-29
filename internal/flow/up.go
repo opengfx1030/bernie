@@ -84,7 +84,13 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		return nil, &Blocked{Reason: "no recipe fits this host", Commands: []string{"bernie recipe list --all"}}
 	}
 	if o.Recipe == "" {
-		fmt.Fprintf(log, "up: best recipe for this host: %s\n", id)
+		// The same sentence the dashboard and `status --steps` print: the
+		// recipe that fits this host and why it is the one.
+		if r := doc.Recommendation; r != nil {
+			fmt.Fprintf(log, "up: recipe: %s (%s) - %s\n", r.Name, r.ID, r.Why)
+		} else {
+			fmt.Fprintf(log, "up: best recipe for this host: %s\n", id)
+		}
 	}
 
 	// 3. Mode: an engine is optional (spec §2).
