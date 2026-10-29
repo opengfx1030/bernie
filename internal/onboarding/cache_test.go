@@ -90,3 +90,19 @@ func TestLoadKeepsTheOptionsApart(t *testing.T) {
 		t.Errorf("the host was probed %d times, want 2: other options are other facts", calls)
 	}
 }
+
+func TestLoadKeepsTheRootsApart(t *testing.T) {
+	t.Setenv("BERNIE_STATE_DIR", t.TempDir())
+	calls := 0
+	stubGather(t, &calls)
+
+	if _, err := Load(context.Background(), Options{Root: "/srv/one"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(context.Background(), Options{Root: "/srv/two"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Errorf("the host was probed %d times, want 2: another host tree is another fact", calls)
+	}
+}
