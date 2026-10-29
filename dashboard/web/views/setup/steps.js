@@ -65,6 +65,7 @@ function followSetupJob(step, job, options) {
     } else {
       previous.phase = "Failed: " + ((doc && doc.error) || "the step did not finish.");
       previous.failed = true;
+      previous.detail = "";
       if (doc && Array.isArray(doc.lines) && doc.lines.length) setupLogs[id] = doc.lines.slice();
     }
     setupProgress[id] = previous;
@@ -118,6 +119,7 @@ function setupJobStart(job) {
  *  not 0 %. */
 function setupApplyJobProgress(state, p) {
   if (!p) return;
+  if (state.failed) return; // the failure carries the message
   const pct = setupProgressPercent(p);
   if (pct !== null) {
     state.pct = pct;
@@ -125,7 +127,7 @@ function setupApplyJobProgress(state, p) {
   } else {
     state.detail = setupLiveDetail(state);
   }
-  if (p.phase) state.phase = p.phase;
+  if (p.phase && !state.failed) state.phase = p.phase;
 }
 
 /** setupProgressPercent is the fraction of the work that is done, in
@@ -242,6 +244,7 @@ async function attachSetupJob(step) {
   if (step.job_state === "failed") {
     state.phase = "Failed: " + (job.error || "the step did not finish.");
     state.failed = true;
+    state.detail = "";
   } else {
     state.pct = 100;
   }
