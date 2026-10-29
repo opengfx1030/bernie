@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -37,6 +38,15 @@ func v620s(n int, capW float64) []gpu.GPU {
 		g = append(g, gpu.GPU{HIPIndex: i, GFX: "gfx1030", DeviceID: "0x73a1", PowerCapW: capW, Link: gpu.Link{Gen: 4, Width: 16}})
 	}
 	return g
+}
+
+// cdiSpec is the CDI spec of n GPUs.
+func cdiSpec(n int) *host.CDISpec {
+	s := &host.CDISpec{Path: "/etc/cdi/amd.json", Kind: host.CDIKind, Version: "0.6.0"}
+	for i := range n {
+		s.Devices = append(s.Devices, host.CDIDevice{Name: strconv.Itoa(i), Nodes: []string{"/dev/dri/renderD12" + strconv.Itoa(i)}})
+	}
+	return s
 }
 
 // base is a healthy par1-like host; cases mutate it.
@@ -126,6 +136,33 @@ func TestEvaluateStatuses(t *testing.T) {
 		{"podman without compose", func(in *inputs) {
 			in.host.Engines = []host.Engine{{Name: "podman", Usable: true, Rootless: true}}
 		}, "container.compose", Warn, "podman-compose"},
+		{"no toolkit skips the CDI check", func(in *inputs) { in.cdi = host.CDI{} }, "container.cdi", Skip, "amd-ctk is not installed"},
+		{"toolkit without a spec warns", func(in *inputs) {
+			in.cdi = host.CDI{Toolkit: true, ToolkitVersion: "v1.3.0"}
+		}, "container.cdi", Warn, "sudo amd-ctk cdi generate --output=/etc/cdi/amd.json"},
+		{"the toolkit fix names the package", func(in *inputs) {
+			in.cdi = host.CDI{}
+		}, "container.cdi", Skip, "sudo dnf install -y amd-container-toolkit"},
+		{"a spec is found", func(in *inputs) {
+			in.cdi = host.CDI{Toolkit: true, ToolkitVersion: "v1.3.0", Spec: cdiSpec(4)}
+		}, "container.cdi", OK, "/etc/cdi/amd.json"},
+		{"a fresh spec fits the host", func(in *inputs) {
+			in.cdi = host.CDI{Toolkit: true, Spec: cdiSpec(4)}
+		}, "container.cdi.valid", OK, "matches the GPUs of this host"},
+		{"a stale spec warns", func(in *inputs) {
+			in.cdi = host.CDI{Toolkit: true, Spec: cdiSpec(4)}
+			in.cdiStale = "the spec names 2 GPUs, this host has 4"
+		}, "container.cdi.valid", Warn, "sudo amd-ctk cdi generate --output=/etc/cdi/amd.json && sudo amd-ctk cdi validate"},
+		{"no spec to check", func(in *inputs) { in.cdi = host.CDI{Toolkit: true} }, "container.cdi.valid", Skip, "no spec to check"},
+		{"the engine reads CDI", func(in *inputs) {}, "container.cdi.engine", OK, "docker 29.8.1 reads CDI"},
+		{"an old engine warns", func(in *inputs) { in.cdiWhy = "docker 24.0.9 does not support CDI (25.0.0 or later is needed)" },
+			"container.cdi.engine", Warn, "sudo dnf install -y docker"},
+		{"a daemon that switches CDI off warns", func(in *inputs) { in.cdiWhy = "/etc/docker/daemon.json disables CDI (features.cdi is false)" },
+			"container.cdi.engine", Warn, "systemctl restart docker"},
+		{"the device access mode", func(in *inputs) {}, "container.device_access", OK, "classic"},
+		{"the device access mode with a spec", func(in *inputs) {
+			in.cdi = host.CDI{Toolkit: true, Spec: cdiSpec(4)}
+		}, "container.device_access", OK, "cdi:"},
 		{"small shm", func(in *inputs) { in.host.ShmBytes = 2 * gib }, "resources.shm", Warn, "2.0 GiB"},
 		{"tiny disk", func(in *inputs) { in.hfFree = 5 * gib }, "resources.disk", Fail, "5 GiB"},
 		{"tunableop skipped without venv", func(*inputs) {}, "tuning.tunableop", Skip, "pass --venv to check the rocBLAS your server loads"},

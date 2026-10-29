@@ -14,7 +14,7 @@ import (
 // exactly or as a prefix.
 var stepChecks = map[string][]string{
 	StepHardware:  {"gpu.count", "gpu.supported.", "gpu.ecc.", "gpu.igpu"},
-	StepAccess:    {"gpu.kfd", "gpu.render", "gpu.groups"},
+	StepAccess:    {"gpu.kfd", "gpu.render", "gpu.groups", "container.cdi", "container.device_access"},
 	StepROCm:      {"kernel.", "rocm."},
 	StepPythonEnv: {"python."},
 	StepTuning:    {"tuning.tunableop"},

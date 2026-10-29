@@ -108,6 +108,12 @@ type inputs struct {
 	validated      []string       // gfx targets with validated recipes
 	groupGIDs      map[string]int // gid of video and render; a group missing here was not found
 	recipe         topo.RecipeEnv // environment of the recipe bernie would run
+	// cdi are the CDI facts of the host: the AMD Container Toolkit and
+	// its spec. cdiStale says why the spec does not fit this host, cdiWhy
+	// why the engine cannot use CDI (both empty when there is no problem).
+	cdi      host.CDI
+	cdiStale string
+	cdiWhy   string
 }
 
 // deviceNodes is the state of the GPU device nodes.
@@ -229,7 +235,29 @@ func gather(ctx context.Context, o Options, want map[string]bool) inputs {
 	if need("gpu") && in.host.User.Name != "" {
 		in.groupGIDs = resolveGroups(ctx, root, deviceGroups)
 	}
+	if need("container") {
+		in.cdi, in.cdiStale, in.cdiWhy = cdiFacts(ctx, root, in.host)
+	}
 	return in
+}
+
+// cdiFacts reads the CDI facts of the host for the engine bernie would
+// use: the toolkit, its spec, whether that spec still fits the host and
+// whether the engine can use CDI.
+func cdiFacts(ctx context.Context, root string, h host.Info) (host.CDI, string, string) {
+	eng, ok := host.Preferred(h.Engines, "")
+	name := ""
+	if ok {
+		name = eng.Name
+	}
+	cdi := host.ProbeCDI(ctx, root, name)
+	all, _ := gpu.List(root)
+	stale := host.SpecStale(root, cdi.Spec, len(all))
+	why := ""
+	if ok {
+		_, why = host.EngineCDISupport(eng, root)
+	}
+	return cdi, stale, why
 }
 
 func probeDevices(root string) deviceNodes {
