@@ -35,9 +35,11 @@ const setupState = {
   planBox: null,
   doctorBox: null,
   advanced: null,
-  primaryOwner: "headline",
   generation: 0,
   onRefresh: null,
+  pathBox: null,
+  pathJobID: "",
+  modules: {},
 };
 
 /** viewSetup draws the tab: the headline, the plan, the checklist, the
@@ -52,6 +54,7 @@ async function viewSetup(root) {
   head.append(actions);
   const banner = h("div.banner.warn", { hidden: true });
   const hero = h("div.setup-hero");
+  const pathBox = h("div.setup-path-box");
   const timeline = h("div.setup-timeline-body");
   const recipeBox = h("div.setup-recipe-chooser");
   const recipeHint = h("div.setup-recipe-hint");
@@ -63,11 +66,11 @@ async function viewSetup(root) {
   const advanced = setupAdvancedPanel();
 
   Object.assign(setupState, {
-    head, actions, banner, hero, timeline, recipeBox, recipeHint, recipeErrors, planBox, doctorBox, glossary, glossaryBox, advanced,
+    head, actions, banner, hero, pathBox, timeline, recipeBox, recipeHint, recipeErrors, planBox, doctorBox, glossary, glossaryBox, advanced,
     onRefresh: () => loadSetupDocument(),
   });
 
-  put(root, head, banner, hero,
+  put(root, head, banner, hero, pathBox,
     h("section.section", { id: "setup-path" },
       h("h2.section-label", "THE PATH TO A SERVING MODEL"),
       timeline),
@@ -92,6 +95,31 @@ async function viewSetup(root) {
   await paintSetupGlossary(root);
 }
 
+/** setupEnsureModule loads a file of the tab the first time it is needed
+ *  and answers when it is there. The first paint stays small: the reader
+ *  waits for the headline, not for the chooser. */
+function setupEnsureModule(src) {
+  if (!setupState.modules[src]) {
+    setupState.modules[src] = loadScript(src).catch((e) => {
+      delete setupState.modules[src];
+      throw e;
+    });
+  }
+  return setupState.modules[src];
+}
+
+/** setupStartPath starts the whole path. The module of the path comes with
+ *  the press. */
+async function setupStartPath() {
+  try {
+    await setupEnsureModule("views/setup/path.js");
+  } catch (e) {
+    toast("The setup could not start: " + (e.message || e));
+    return;
+  }
+  setupRunPath();
+}
+
 /** loadSetupDocument reads the onboarding checklist and paints the
  *  headline, the facts and the timeline. */
 async function loadSetupDocument(gen) {
@@ -110,15 +138,17 @@ async function loadSetupDocument(gen) {
   paintSetupTimeline(doc);
   await paintSetupFacts(doc);
   attachSetupJobs(doc.steps);
+  if (doc.path && doc.path.id) {
+    setupEnsureModule("views/setup/path.js")
+      .then(() => setupAttachPath(doc))
+      .catch(() => {});
+  }
 }
 
 /** paintSetupHead writes the state of the machine in one sentence and the
  *  actions that follow from it. */
 function paintSetupHead(doc) {
   const say = setupHeadline(doc);
-  // The filled primary is the control the reader can use now. On a host
-  // without a GPU the plan cannot be started, so the headline owns it.
-  setupState.primaryOwner = "headline";
   setHead(setupState.head, say.title, say.lede);
   put(setupState.actions, setupHeadActions(doc, say));
 }
@@ -176,6 +206,8 @@ function paintSetupTimeline(doc) {
     progress: setupProgress,
     logs: setupLogs,
     verify: setupVerifyBox,
+    // The headline carries the one filled button of the tab.
+    filled: !(doc.primary && doc.primary.kind === "setup"),
   }));
 }
 
@@ -191,7 +223,17 @@ function setupStepNote(step) {
   const wait = setupWaitSentence(step);
   if (wait) return wait;
   if (step.id === "recipe") return setupRecipeNote();
+  const estimate = setupEstimateNote(step);
+  if (estimate) return estimate;
   return null;
+}
+
+/** setupEstimateNote says what the step cost the last time it ran on this
+ *  host. The words come from the checklist (spec §3.3), so the CLI, the
+ *  MCP server and the page say the same thing. */
+function setupEstimateNote(step) {
+  const e = step.estimate;
+  return e && e.text ? "Last time here: " + e.text + "." : "";
 }
 
 /** loadSetupDoctor reads the doctor report and paints the findings. */
@@ -298,3 +340,4 @@ async function setupAskServer(prompt, answer) {
       h("p.try-reason", String(e.message || e)));
   }
 }
+

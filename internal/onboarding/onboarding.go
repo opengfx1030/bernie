@@ -64,6 +64,9 @@ type Document struct {
 	// presses. The CLI, the MCP server and the page read this one record,
 	// so they cannot disagree about what the reader does next.
 	Primary *Primary `json:"primary,omitempty"`
+	// Path is the job of the whole path when one runs. The page re-attaches
+	// to it after a reload and shows its progress and its Stop control.
+	Path *PathJob `json:"path,omitempty"`
 	// Stale is true when the document was served from the cache while it
 	// was past its time to live: a refresh is running (spec §3.3).
 	Stale bool `json:"stale"`
@@ -105,6 +108,16 @@ type Step struct {
 	// last time it ran on this host. It is absent when the step never ran
 	// here: the numbers are measured, never guessed.
 	Estimate *Estimate `json:"estimate,omitempty"`
+}
+
+// PathJob is the job that runs the whole path: its id, its state and the
+// step of the path it is on. The page re-attaches to it with the id.
+type PathJob struct {
+	ID       string       `json:"id"`
+	State    string       `json:"state"`
+	Step     string       `json:"step,omitempty"`
+	Phase    string       `json:"phase,omitempty"`
+	Progress *JobProgress `json:"progress,omitempty"`
 }
 
 // NextAction is the next step of the path in words: what to do, the
@@ -163,6 +176,7 @@ func Build(f *Facts) *Document {
 	doc.NextAction = nextAction(doc)
 	doc.Recommendation = recommend(f)
 	doc.Primary = primary(doc)
+	doc.Path = pathJob(f)
 	for i := range doc.Steps {
 		doc.Steps[i].Estimate = estimateOf(f, doc.Steps[i].ID)
 	}

@@ -49,6 +49,8 @@ const TIMELINE_PILL = {
  * options.progress   the live progress of a step, by step id
  * options.logs       the output of a step, by step id
  * options.verify     the verify box of the server, when it is available
+ * options.filled     false keeps the row button a ghost one, so a tab that
+ *                    has a filled button of its own has only one
  */
 function stepTimeline(steps, options = {}) {
   const list = Array.isArray(steps) ? steps : [];
@@ -187,7 +189,7 @@ function stepAction(step, state, options, optional, current) {
     }
     return h("div.step-actions", h("button", {
       type: "button",
-      class: "primary",
+      class: options.filled === false ? "" : "primary",
       onclick: () => options.onRun(step, options),
     }, label));
   }

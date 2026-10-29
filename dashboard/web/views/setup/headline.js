@@ -42,9 +42,12 @@ function setupHeadline(doc) {
   const current = setupCurrentStep(doc);
   let lede = "";
   const action = doc.next_action;
-  if (action && action.sentence) {
+  const primary = doc.primary;
+  if (primary && primary.sentence) {
     // The sentence comes from the checklist (spec §3.3): the CLI, the MCP
     // server and the page say the same thing.
+    lede = primary.sentence;
+  } else if (action && action.sentence) {
     lede = action.sentence;
   } else if (current && (current.root_commands || []).length) {
     lede = "Copy the command, run it as root in a terminal, then press Re-check.";
@@ -66,10 +69,12 @@ function setupServerEndpoint(serve) {
   return "the port of the plan";
 }
 
-/** setupHeadActions are the actions of the tab. The filled button names
- *  the step it starts: never only "Run" or "Next". */
+/** setupHeadActions are the actions of the tab. The filled button is the
+ *  one primary action of the checklist (spec §3.3): it names what it does,
+ *  never only "Run" or "Next". */
 function setupHeadActions(doc, say) {
   const out = [];
+  const primary = doc.primary;
   if (say.action === "doctor") {
     out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
     out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
@@ -78,6 +83,16 @@ function setupHeadActions(doc, say) {
   if (say.action === "continue") {
     out.push(h("button.primary", { type: "button", onclick: setupRunNextStep }, "Run the rest of the steps"));
     out.push(h("button", { type: "button", onclick: () => loadSetupDocument() }, "Re-check"));
+    return out;
+  }
+  // The one action of the checklist: it does everything bernie can do on
+  // this host. The words come from the checklist, so the CLI, the MCP
+  // server and the page say the same thing.
+  if (primary && primary.kind === "setup") {
+    out.push(h("button.primary", { type: "button", onclick: setupStartPath }, primary.label || "Set up this box"));
+    out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the command"));
+    out.push(h("button", { type: "button", onclick: () => loadSetupDocument() }, "Re-check"));
+    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
     return out;
   }
   if (say.action === "start") {
