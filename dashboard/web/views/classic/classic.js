@@ -530,7 +530,7 @@ function classicGpuCard(g, m) {
         h("div.stat-row",
           h("span", h("span.muted", "Temp"), " ", h("b" + (hot ? ".temp-hot" : ""), hot ? "! " : "", cfmt(g.temp) + "°C")),
           h("span", h("span.muted", "Mem"), " ", h("b", g.tempMem == null ? "–" : cfmt(g.tempMem) + "°C")),
-          h("span", h("span.muted", "Clock"), " ", h("b", g.sclk == null ? "–" : cfmt(g.sclk) + " MHz")))),
+          h("span", h("span.muted", "Clock"), " ", h("b", g.sclk == null ? "–" : cfmt(g.sclk) + " MHz"))))),
     h("div.gpu-spark", classicSpark(tail, "s1", 28)));
 }
 
