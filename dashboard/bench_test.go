@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"strings"
 	"testing"
@@ -74,12 +75,20 @@ func TestBenchAssetsAreServed(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("GET /: %d", w.Code)
 	}
-	body := w.Body.String()
-	if !strings.Contains(body, `href="css/bench.css"`) {
-		t.Error("the page does not link css/bench.css")
+	// The page carries the shell and the Setup tab. The files of the other
+	// tabs are named in the manifest of js/boot.js and come when the tab
+	// opens: the Benchmark tab brings css/bench.css and the two files of
+	// the view.
+	web, _ := fs.Sub(webFS, "web")
+	boot, err := fs.ReadFile(web, "js/boot.js")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(body, `src="views/benchmark/suites.js"`) {
-		t.Error("the page does not load views/benchmark/suites.js")
+	manifest := string(boot)
+	for _, name := range []string{"css/bench.css", "views/benchmark/suites.js"} {
+		if !strings.Contains(manifest, `"`+name+`"`) {
+			t.Errorf("the manifest of js/boot.js does not name %s", name)
+		}
 	}
 }
 
