@@ -40,7 +40,7 @@ func Apply(ctx context.Context, steps []Step, only []string, log io.Writer) erro
 			fmt.Fprintf(log, "== %s: %s\n", s.ID, s.Title)
 			if s.Download != nil {
 				if err := downloadModel(ctx, newHubClient(), s.Download, log); err != nil {
-					return fmt.Errorf("step %s: %w", s.ID, err)
+					return fmt.Errorf("step %s: %s", s.ID, downloadFailure(err, s.ID))
 				}
 				continue
 			}

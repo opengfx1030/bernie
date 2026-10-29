@@ -5,16 +5,55 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+// downloadFailure says why a step failed in words, with the command that
+// runs it again. A network failure is named as such: the files are not
+// broken, the connection is.
+func downloadFailure(err error, step string) string {
+	if err == nil {
+		return ""
+	}
+	if isNetworkError(err) {
+		return fmt.Sprintf("no network: the host did not answer (%s). Check the connection, then run: bernie setup apply --step %s", err, step)
+	}
+	return err.Error()
+}
+
+// isNetworkError reports whether the failure is the network.
+func isNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var dnsErr *net.DNSError
+	var opErr *net.OpError
+	if errors.As(err, &dnsErr) || errors.As(err, &opErr) {
+		return true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	for _, s := range []string{"no such host", "connection refused", "connection reset",
+		"i/o timeout", "network is unreachable", "no route to host", "tls handshake",
+		"temporary failure in name resolution"} {
+		if strings.Contains(msg, s) {
+			return true
+		}
+	}
+	return false
+}
 
 // Download is the model download of the model.download step.
 type Download struct {
