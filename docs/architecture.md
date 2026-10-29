@@ -317,12 +317,12 @@ every gap.
 | Start a run | `serve ID` | `serve` | `POST /api/runs` | `app.Serve` | built |
 | List the runs | `ps` | `ps` | `GET /api/runs` | `flow.Runs` | built |
 | Stop a run | `stop [NAME]` | `stop` (requires a name) | `DELETE /api/runs/{name}` | `app.Stop` | built |
-| Read a run log | `logs [NAME]` | `logs` | `GET /api/runs/{name}/logs`; `GET /api/runs/{name}/log` | `runner.Logs` | built |
+| Read a run log | `logs [NAME]` | `logs` | `GET /api/runs/{name}/logs`; `GET /api/runs/{name}/log` | `runner.Logs`, `runner.OpenLog` | built |
 | Smoke-test a server | `smoke` | `smoke` | `POST /api/smoke` | `app.Smoke` | built |
 | List the TunableOp profiles | `tune tunableop list` | not built: `tune tunableop list` tool | not built: `tune tunableop list` endpoint | `tuning.Profiles` | partial |
 | Read the TunableOp status | `tune tunableop status` | `tunableop_status` | not built: `tune tunableop status` endpoint | `app.TunableOpStatus` | partial |
 | Build the TunableOp environment | `tune tunableop env` | not built: `tune tunableop env` tool | not built: `tune tunableop env` endpoint | `app.TunableOpStatus`, `tuning.Select`, `tuning.Materialize`, `tuning.Env` | partial |
-| Read the actual power caps | `tune power status` | not built: `tune power status` tool | `GET /api/power` (returns the service status with the actual caps) | `app.PowerStatus` | partial |
+| Read the actual power caps | `tune power status` | not built: `tune power status` tool | `GET /api/power` (returns the service status with the actual caps) | `app.PowerStatus`, `app.ReadPowerServiceStatus` | partial |
 | Read the power service status | `tune power service status` | `power_status` | `GET /api/power` | `app.ReadPowerServiceStatus` | built |
 | Set the desired power caps | `tune power set` | `tune_power_set` | `PUT /api/power` | `app.PlanPowerDesired`, `app.PowerDesiredSet` | built |
 | Apply the desired power caps | `tune power apply` | not built: `tune power apply` tool | not built: `tune power apply` endpoint | `app.PowerApply` | partial |
