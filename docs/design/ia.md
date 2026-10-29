@@ -277,7 +277,7 @@ tab.
 | 27 | The reason behind every setting | (in `recipe plan --json`) | `recipe_plan` | Setup tab, `Settings and reasons` | Setup **S** | already shipped (spec §7.9) |
 | 28 | The mode switch (host / container) | `--mode host\|container` | `recipe_plan` (`mode`) | Setup tab, the mode switch | Setup **S** | |
 | 29 | Validate the recipe files | `bernie recipe validate` | — | not on the page | **A** | a maintainer command |
-| 30 | The recipe catalogue (11 recipes, 3 families) | `bernie recipe list --all` | `recipe_list` | Setup tab | Setup **S** | `recipes/`: flashnext ×6, qwen-dense ×3, deepseek ×1 (12 files; `_flashnext-common.yaml` is the shared base, not a recipe) |
+| 30 | The recipe catalogue (11 recipes, 3 families) | `bernie recipe list --all` | `recipe_list` | Setup tab | Setup **S** | `recipes/`: flashnext ×7, qwen-dense ×3, deepseek ×1; plus 12 `_`-prefixed fragments used only through `extends`. Seven recipes can run in a container; four are host-only (`container: null`) |
 
 ### 3.4 Runs
 
@@ -302,61 +302,62 @@ tab.
 | 42 | Run in a container | `bernie serve ID --mode container` | `serve` (`mode`) | Setup tab (the mode switch) | Setup **S** | |
 | 43 | The container plan (`docker run` argv) | `bernie recipe plan ID --mode container` | `recipe_plan` (`mode`) | Setup tab, the plan card | Setup **D** | `internal/serving/runner/command.go:148` |
 | 44 | A compose file for the plan | `bernie compose ID [-o FILE]` | — | not on the page | **A** | `internal/serving/runner/command.go:295` |
-| 45 | The GPU devices of the container | (in the plan) | (in the plan) | not on the page | **A** | today `--device /dev/kfd --device /dev/dri`; see D5 |
-| 46 | The GPU group ids of the container | (in the plan, `group_add`) | (in the plan) | not on the page | **A** | numeric ids, never names (spec §8.2) |
-| 47 | The container engine (Docker or Podman) | `bernie doctor --category container` | `doctor` | Setup tab, `DOCTOR` | Setup **D** | |
-| 48 | Rootless Podman (`--group-add keep-groups`) | (automatic) | — | not on the page | **A** | spec §8.2 |
-| 49 | How the container gets the GPU: `classic`, `cdi` or `auto` | `--device-access`, the config key `device_access`, the recipe field `device_access` | (in `recipe_plan`) | **not on the page** | Setup **D** + the doctor `container` category | the domain layer decides it and says why in one sentence (`internal/machine/host/cdi.go:340`); see D5 |
+| 45 | The static container files of the project: the dashboard's own compose file (`deploy/compose/compose.yml`, the image `ghcr.io/opengfx1030/bernie`), the Podman override, the reference vLLM compose file and the Dockerfile | — (files in the repo) | — | not on the page | **A** | `deploy/`; the dashboard can itself run in a container |
+| 46 | The GPU devices of the container | (in the plan) | (in the plan) | not on the page | **A** | today `--device /dev/kfd --device /dev/dri`; see D5 |
+| 47 | The GPU group ids of the container | (in the plan, `group_add`) | (in the plan) | not on the page | **A** | numeric ids, never names (spec §8.2) |
+| 48 | The container engine (Docker or Podman) | `bernie doctor --category container` | `doctor` | Setup tab, `DOCTOR` | Setup **D** | |
+| 49 | Rootless Podman (`--group-add keep-groups`) | (automatic) | — | not on the page | **A** | spec §8.2 |
+| 50 | How the container gets the GPU: `classic`, `cdi` or `auto` | `--device-access`, the config key `device_access`, the recipe field `device_access` | (in `recipe_plan`) | **not on the page** | Setup **D** + the doctor `container` category | the domain layer decides it and says why in one sentence (`internal/machine/host/cdi.go:340`); see D5 |
 
 ### 3.6 Tuning and power
 
 | # | Capability | CLI | MCP | Dashboard home today | Proposed home | Note |
 |---|---|---|---|---|---|---|
-| 50 | The TunableOp profiles | `bernie tune tunableop list` | — | not on the page | **A** | |
-| 51 | The loaded rocBLAS and its profile | `bernie tune tunableop status` | `tunableop_status` | Setup tab (the `tuning` extra step) | Setup **D** | |
-| 52 | The TunableOp env lines | `bernie tune tunableop env` | — | not on the page | **A** | materialises the rows |
-| 53 | Force a profile / no TunableOp | `--profile P`, `--no-tunableop`, `--tuning` | `recipe_plan` (`profile`, `no_tunableop`, `tuning`) | Setup tab, the plan card | Setup **D** | |
-| 54 | The power cap of every GPU | `bernie tune power status` | `power_status` | Advanced tab, `THE POWER CAPS` | Advanced **D** → **A** | the read moves to **A** |
-| 55 | Write the desired power cap | `bernie tune power set W [--gpu IDX]` | `tune_power_set` | Advanced tab (a write) | **A** | the only power write |
-| 56 | Apply the caps (needs root) | `bernie tune power apply` | — | not on the page (a root command) | **A** | prints the root command |
-| 57 | The power service (systemd pair) | `bernie tune power service print\|install-plan\|status\|remove-plan` | `power_status` (state only) | not on the page | **A** | spec §9.2 |
-| 58 | The power advice per card | (in the doctor `tuning` category) | `doctor` | Setup tab, `DOCTOR` | Setup **D** | |
+| 51 | The TunableOp profiles | `bernie tune tunableop list` | — | not on the page | **A** | |
+| 52 | The loaded rocBLAS and its profile | `bernie tune tunableop status` | `tunableop_status` | Setup tab (the `tuning` extra step) | Setup **D** | |
+| 53 | The TunableOp env lines | `bernie tune tunableop env` | — | not on the page | **A** | materialises the rows |
+| 54 | Force a profile / no TunableOp | `--profile P`, `--no-tunableop`, `--tuning` | `recipe_plan` (`profile`, `no_tunableop`, `tuning`) | Setup tab, the plan card | Setup **D** | |
+| 55 | The power cap of every GPU | `bernie tune power status` | `power_status` | Advanced tab, `THE POWER CAPS` | Advanced **D** → **A** | the read moves to **A** |
+| 56 | Write the desired power cap | `bernie tune power set W [--gpu IDX]` | `tune_power_set` | Advanced tab (a write) | **A** | the only power write |
+| 57 | Apply the caps (needs root) | `bernie tune power apply` | — | not on the page (a root command) | **A** | prints the root command |
+| 58 | The power service (systemd pair) | `bernie tune power service print\|install-plan\|status\|remove-plan` | `power_status` (state only) | not on the page | **A** | spec §9.2 |
+| 59 | The power advice per card | (in the doctor `tuning` category) | `doctor` | Setup tab, `DOCTOR` | Setup **D** | |
 
 ### 3.7 Benchmark
 
 | # | Capability | CLI | MCP | Dashboard home today | Proposed home | Note |
 |---|---|---|---|---|---|---|
-| 59 | Run a suite | `bernie bench [--suite]` | `bench_run` | Benchmark tab, `The suites` → `Run the suite` | Benchmark **S** | |
-| 60 | The built-in suites (3: `smoke`, `pr`, `long-context`) | `bernie bench suites` | `bench_suites` | Benchmark tab, the suite cards | Benchmark **S** | `bench/suites/*.yaml` |
-| 61 | The saved results | `bernie bench list` | `bench_list` | Benchmark tab, `The history` | Benchmark **S** | |
-| 62 | One saved result | `bernie bench show ID` | `bench_show` | Benchmark tab, `The result` | Benchmark **S** | |
-| 63 | Compare two results with a verdict | `bernie bench compare A B` | `bench_compare` | Benchmark tab, `The comparison` | Benchmark **S** | spec §10.3 |
-| 64 | The receipt of the comparison | `bernie bench compare A B --markdown` | — | Benchmark tab, `Copy the receipt` | Benchmark **S** | |
-| 65 | The A/B run | `bernie bench ab --base --cand` | `bench_ab` | Benchmark tab, `An A/B run` | Benchmark **S** | spec §10.4 |
-| 66 | The pass-key recall check | `bernie bench --recall` | `bench_run` (`recall`) | Benchmark tab, the suite options | Benchmark **S** | |
-| 67 | The length curve of a suite | (in `bench show --json`) | `bench_show` | Benchmark tab, `The result` | Benchmark **S** | |
+| 60 | Run a suite | `bernie bench [--suite]` | `bench_run` | Benchmark tab, `The suites` → `Run the suite` | Benchmark **S** | |
+| 61 | The built-in suites (3: `smoke`, `pr`, `long-context`) | `bernie bench suites` | `bench_suites` | Benchmark tab, the suite cards | Benchmark **S** | `bench/suites/*.yaml` |
+| 62 | The saved results | `bernie bench list` | `bench_list` | Benchmark tab, `The history` | Benchmark **S** | |
+| 63 | One saved result | `bernie bench show ID` | `bench_show` | Benchmark tab, `The result` | Benchmark **S** | |
+| 64 | Compare two results with a verdict | `bernie bench compare A B` | `bench_compare` | Benchmark tab, `The comparison` | Benchmark **S** | spec §10.3 |
+| 65 | The receipt of the comparison | `bernie bench compare A B --markdown` | — | Benchmark tab, `Copy the receipt` | Benchmark **S** | |
+| 66 | The A/B run | `bernie bench ab --base --cand` | `bench_ab` | Benchmark tab, `An A/B run` | Benchmark **S** | spec §10.4 |
+| 67 | The pass-key recall check | `bernie bench --recall` | `bench_run` (`recall`) | Benchmark tab, the suite options | Benchmark **S** | |
+| 68 | The length curve of a suite | (in `bench show --json`) | `bench_show` | Benchmark tab, `The result` | Benchmark **S** | |
 
 ### 3.8 The dashboard, the telemetry and the jobs
 
 | # | Capability | CLI | MCP | Dashboard home today | Proposed home | Note |
 |---|---|---|---|---|---|---|
-| 68 | The live sample of the host | — (no CLI) | — | Dashboard tab, the tiles and the charts (1 Hz SSE) | Dashboard **S** | `/api/telemetry` |
-| 69 | The history of the last minutes | — (no CLI) | — | Dashboard tab, the charts | Dashboard **S** (window) | `/api/gpus/history` |
-| 70 | The power service state | `bernie tune power service status` | `power_status` | `/api/power` | Advanced **A** | |
-| 71 | Write the power cap | `bernie tune power set` | `tune_power_set` | `PUT /api/power` | Advanced **A** | the only write on the Dashboard API besides runs |
-| 72 | The jobs of the host | — (no CLI) | `jobs` | Setup tab (the job of a step) | Setup **D** + **A** | |
-| 73 | One job and its output | — (no CLI) | — | Setup tab, under the step | Setup **S** (while it runs) | |
-| 74 | The event stream of a job | — | — | Setup tab, the job stream | Setup **S** | |
+| 69 | The live sample of the host | — (no CLI) | — | Dashboard tab, the tiles and the charts (1 Hz SSE) | Dashboard **S** | `/api/telemetry` |
+| 70 | The history of the last minutes | — (no CLI) | — | Dashboard tab, the charts | Dashboard **S** (window) | `/api/gpus/history` |
+| 71 | The power service state | `bernie tune power service status` | `power_status` | `/api/power` | Advanced **A** | |
+| 72 | Write the power cap | `bernie tune power set` | `tune_power_set` | `PUT /api/power` | Advanced **A** | the only write on the Dashboard API besides runs |
+| 73 | The jobs of the host | — (no CLI) | `jobs` | Setup tab (the job of a step) | Setup **D** + **A** | |
+| 74 | One job and its output | — (no CLI) | — | Setup tab, under the step | Setup **S** (while it runs) | |
+| 75 | The event stream of a job | — | — | Setup tab, the job stream | Setup **S** | |
 
 ### 3.9 The product surface itself
 
 | # | Capability | CLI | MCP | Dashboard home today | Proposed home | Note |
 |---|---|---|---|---|---|---|
-| 75 | Serve the dashboard | `bernie dash [--listen] [--token]` | — | the page | — | spec §11 |
-| 76 | The dashboard over MCP | — | `POST /mcp` on the dashboard | — | — | spec §13.10 |
-| 77 | The MCP server on stdio | `bernie mcp [--allow-write]` | — | — | — | spec §13.2 |
-| 78 | The user defaults | `bernie config show` / `config set K V` | — | not on the page | **A** | `venv`, `mode`, `engine`, `hf_home`, `set` |
-| 79 | The version | `bernie version` | — | not on the page | **A** | |
+| 76 | Serve the dashboard | `bernie dash [--listen] [--token]` | — | the page | — | spec §11 |
+| 77 | The dashboard over MCP | — | `POST /mcp` on the dashboard | — | — | spec §13.10 |
+| 78 | The MCP server on stdio | `bernie mcp [--allow-write]` | — | — | — | spec §13.2 |
+| 79 | The user defaults | `bernie config show` / `config set K V` | — | not on the page | **A** | `venv`, `mode`, `engine`, `hf_home`, `set` |
+| 80 | The version | `bernie version` | — | not on the page | **A** | |
 
 ### 3.10 The contract every front end shares
 
@@ -366,18 +367,18 @@ the *shape* of the dashboard's answers.
 
 | # | Capability | CLI | MCP | Dashboard home today | Proposed home | Note |
 |---|---|---|---|---|---|---|
-| 80 | One JSON document per command | `--json` on every command | every tool answers `structuredContent` | every `json` link | every `json` link | spec §3.2; AGENTS.md hard rule 4 |
-| 81 | The exit codes `0` / `1` / `2` / `3` | every command | — | — | — | spec §3.2; `3` = checks failed |
-| 82 | The error envelope `{"error", "exit_code"}` | with `--json` | every tool error | the `failed()` component | the `failed()` component | `dashboard/web/components/cards.js:90` |
-| 83 | The global `--venv` and `--root` flags | every command | the `venv` input of the tools that take one | — | — | spec §3.2 |
-| 84 | The write guard of the page | — | — | `X-Bernie: 1` + `Sec-Fetch-Site` + `Origin` | — | spec §11; `dashboard/internal/auth/auth.go` |
-| 85 | The token mode off loopback | `bernie dash --token` | `Authorization: Bearer` on `/mcp` | `/?token=` bootstrap | — | spec §11, §13.10 |
-| 86 | The redaction of secrets | — | every tool result | every answer | every answer | `internal/support/redact` |
-| 87 | The confirm token of a write | — | the two-call write gate | — | — | spec §13.5 |
-| 88 | The audit trail of the MCP calls | — | `<state>/mcp/audit.jsonl` | — | — | spec §13.9 |
-| 89 | The host safety rule: never `sudo` | every root step is printed | `setup_apply` returns the commands | every root step is a command block | every root step is a command block | AGENTS.md hard rule 5 |
-| 90 | The read-only default | every inspection command | the write gate is closed by default | every write is a guarded POST | — | spec §13.5 |
-| 91 | The paths under the state directory | `<state>/runs`, `<state>/jobs`, `<state>/mcp` | the same | — | **A** | spec §12 |
+| 81 | One JSON document per command | `--json` on every command | every tool answers `structuredContent` | every `json` link | every `json` link | spec §3.2; AGENTS.md hard rule 4 |
+| 82 | The exit codes `0` / `1` / `2` / `3` | every command | — | — | — | spec §3.2; `3` = checks failed |
+| 83 | The error envelope `{"error", "exit_code"}` | with `--json` | every tool error | the `failed()` component | the `failed()` component | `dashboard/web/components/cards.js:90` |
+| 84 | The global `--venv` and `--root` flags | every command | the `venv` input of the tools that take one | — | — | spec §3.2 |
+| 85 | The write guard of the page | — | — | `X-Bernie: 1` + `Sec-Fetch-Site` + `Origin` | — | spec §11; `dashboard/internal/auth/auth.go` |
+| 86 | The token mode off loopback | `bernie dash --token` | `Authorization: Bearer` on `/mcp` | `/?token=` bootstrap | — | spec §11, §13.10 |
+| 87 | The redaction of secrets | — | every tool result | every answer | every answer | `internal/support/redact` |
+| 88 | The confirm token of a write | — | the two-call write gate | — | — | spec §13.5 |
+| 89 | The audit trail of the MCP calls | — | `<state>/mcp/audit.jsonl` | — | — | spec §13.9 |
+| 90 | The host safety rule: never `sudo` | every root step is printed | `setup_apply` returns the commands | every root step is a command block | every root step is a command block | AGENTS.md hard rule 5 |
+| 91 | The read-only default | every inspection command | the write gate is closed by default | every write is a guarded POST | — | spec §13.5 |
+| 92 | The paths under the state directory | `<state>/runs`, `<state>/jobs`, `<state>/mcp` | the same | — | **A** | spec §12 |
 
 ### 3.11 The counts, checked
 
@@ -392,8 +393,9 @@ the *shape* of the dashboard's answers.
 | HTTP endpoints in total | 34 | the 33 above plus `POST /mcp`, mounted in `dashboard/server.go:141` |
 | Event streams | 4 | `/api/telemetry`, `/api/runs/{n}/logs`, `/api/jobs/{id}/events`, `/api/bench/{id}/events` |
 | Dashboard tabs | 8 | `dashboard/web/js/boot.js` `VIEWS` |
-| Recipes | 13 (+ fragments) | `recipes/` |
+| Recipes | 11 (+ 12 fragments) | `recipes/`; `bernie recipe list --all` answers 11 |
 | Doctor categories | 9 | `internal/doctor/doctor.go:32` |
+| Doctor checks | 45 fixed ids + 3 per-GPU families (`gpu.ecc.<hip>`, `gpu.supported.<gfx>`, `gpu.hsa_override.<gfx>`) | `internal/doctor/checks_*.go` |
 | P2P checklist items | 8 | spec §4.5 |
 | Benchmark suites | 3 | `bench/suites/` |
 | Onboarding steps | 8 + 3 | spec §3.3 |
