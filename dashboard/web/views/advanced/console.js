@@ -43,7 +43,10 @@ async function viewAdvanced(root) {
   put(root, head,
     h("section.section", { id: "advanced-gpus", "data-section": "gpus" },
       sectionLabel("The per-GPU values"),
-      h("div.card", cardHead("All GPU values", "/api/hw"), table.el)),
+      h("div.card",
+        cardHead("All GPU values", "/api/hw",
+          h("button.small", { type: "button", onclick: () => advCopyCardList() }, "Copy the card list")),
+        table.el)),
     h("section.section", { id: "advanced-power", "data-section": "power" },
       sectionLabel("The power caps"), power.el),
     h("section.section", { id: "advanced-doctor", "data-section": "doctor" },
@@ -166,7 +169,9 @@ function advRunsTable() {
         h("td.num", r.pid ? String(r.pid) : "–"),
         h("td", r.started_at ? ago(r.started_at) : "–")));
       put(card,
-        cardHead("The run record", "/api/runs", h("span.small.muted", list.length + " runs")),
+        cardHead("The run record", "/api/runs",
+          h("span.small.muted", list.length + " runs"),
+          h("a.small", { href: "#logs" }, "manage")),
         h("div.scroll", h("table",
           tableHead(["Run", "State", "Recipe", "Mode", { label: "Port", num: true },
             { label: "PID", num: true }, "Since"]),
@@ -174,6 +179,31 @@ function advRunsTable() {
     },
   };
   return view;
+}
+
+/** advCardListText writes the cards as plain text: one line per card, so
+ *  it can be pasted into a report or a ticket. */
+function advCardListText() {
+  const gpus = (adv.hw && adv.hw.gpus) || [];
+  const samples = (adv.tele && adv.tele.gpus) || [];
+  if (!samples.length && !gpus.length) return "";
+  return samples.map((s) => {
+    const g = gpus.find((x) => x.hip_index === s.hip_index) || {};
+    return ["GPU " + s.hip_index, g.name || g.gfx || "", num(s.busy_pct, 0) + " % busy",
+      num(s.temp_c, 0) + " °C", num(s.power_w, 1) + " W",
+      (s.vram_used ? bytes(s.vram_used) : "–") + " / " + (s.vram_total ? bytes(s.vram_total) : "–")].join("\t");
+  }).join("\n");
+}
+
+/** advCopyCardList puts the card list on the clipboard. */
+async function advCopyCardList() {
+  const text = advCardListText();
+  if (!text) {
+    toast("There are no cards to copy yet.");
+    return;
+  }
+  const ok = await copyText(text);
+  toast(ok ? "The card list is on the clipboard." : "Copy failed: select the text and copy it.", ok);
 }
 
 /** advServerMeasures is the table of what the server of the live run
