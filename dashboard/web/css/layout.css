@@ -246,6 +246,12 @@ body.shell {
   margin-top: var(--space-4);
 }
 
+/* The line under the one button: it takes a line of its own. */
+.state-head .head-actions .step-by-step {
+  flex-basis: 100%;
+  margin-top: var(--space-1);
+}
+
 /* ---------- sections, columns and facts ---------- */
 
 .section {
