@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -93,7 +94,7 @@ func TestSummarize(t *testing.T) {
 		{name: "empty", m: map[string]float64{}, want: vllm.Stats{}},
 	}
 	for _, tt := range tests {
-		if got := vllm.Summarize(tt.m); got != tt.want {
+		if got := vllm.Summarize(tt.m); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%s:\n got %+v\nwant %+v", tt.name, got, tt.want)
 		}
 	}

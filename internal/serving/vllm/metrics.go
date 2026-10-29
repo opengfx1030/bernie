@@ -11,7 +11,8 @@ import (
 )
 
 // vLLM metric names. Older releases expose the KV cache gauge as
-// gpu_cache_usage_perc; newer ones as kv_cache_usage_perc.
+// gpu_cache_usage_perc and the prefix cache counters as gpu_prefix_cache_*;
+// newer ones as kv_cache_usage_perc and prefix_cache_*.
 const (
 	MetricRequestsRunning   = "vllm:num_requests_running"
 	MetricRequestsWaiting   = "vllm:num_requests_waiting"
@@ -26,52 +27,29 @@ const (
 	// histograms of the server: they hold what the server itself measured.
 	MetricTimeToFirstToken  = "vllm:time_to_first_token_seconds"
 	MetricInterTokenLatency = "vllm:inter_token_latency_seconds"
+	// The prefix cache: the tokens the server looked up and the tokens it
+	// could serve from the cache. Older releases name them
+	// gpu_prefix_cache_*.
+	MetricPrefixCacheQueries    = "vllm:prefix_cache_queries_total"
+	MetricPrefixCacheQueriesOld = "vllm:gpu_prefix_cache_queries_total"
+	MetricPrefixCacheHits       = "vllm:prefix_cache_hits_total"
+	MetricPrefixCacheHitsOld    = "vllm:gpu_prefix_cache_hits_total"
+	// The cache of another instance (the KV connector).
+	MetricExternalPrefixCacheQueries = "vllm:external_prefix_cache_queries_total"
+	MetricExternalPrefixCacheHits    = "vllm:external_prefix_cache_hits_total"
+	// The prompt tokens the server took from a cache, and the prompt tokens
+	// per source.
+	MetricPromptTokensCached   = "vllm:prompt_tokens_cached_total"
+	MetricPromptTokensBySource = "vllm:prompt_tokens_by_source_total"
+	// The requests the engine took back and ran again.
+	MetricNumPreemptions = "vllm:num_preemptions_total"
+	// The waiting requests per reason and the finished requests per reason.
+	MetricWaitingByReason = "vllm:num_requests_waiting_by_reason"
+	MetricRequestSuccess  = "vllm:request_success_total"
+	// The latencies of the whole request and of its wait in the queue.
+	MetricE2ELatency = "vllm:e2e_request_latency_seconds"
+	MetricQueueTime  = "vllm:request_queue_time_seconds"
 )
-
-// Stats are the vLLM gauges and counters bernie shows, summed over all label
-// sets (for example several model_name values).
-type Stats struct {
-	RequestsRunning  float64 `json:"requests_running"`
-	RequestsWaiting  float64 `json:"requests_waiting"`
-	KVCacheUsage     float64 `json:"kv_cache_usage"` // fraction 0..1
-	PromptTokens     float64 `json:"prompt_tokens_total"`
-	GenerationTokens float64 `json:"generation_tokens_total"`
-	// Speculative decoding (MTP, EAGLE, ngram). Zero without speculation.
-	SpecDrafts         float64 `json:"spec_drafts_total"`
-	SpecDraftTokens    float64 `json:"spec_draft_tokens_total"`
-	SpecAcceptedTokens float64 `json:"spec_accepted_tokens_total"`
-	// SpecAcceptRate is accepted / draft tokens (0..1).
-	SpecAcceptRate float64 `json:"spec_accept_rate"`
-	// SpecMeanAcceptLen is the mean tokens emitted per draft step
-	// (1 + accepted / drafts).
-	SpecMeanAcceptLen float64 `json:"spec_mean_accept_len"`
-}
-
-// Summarize extracts Stats from flattened samples (see ParseMetrics).
-func Summarize(m map[string]float64) Stats {
-	s := Stats{
-		RequestsRunning:    Sum(m, MetricRequestsRunning),
-		RequestsWaiting:    Sum(m, MetricRequestsWaiting),
-		PromptTokens:       Sum(m, MetricPromptTokens),
-		GenerationTokens:   Sum(m, MetricGenerationTokens),
-		SpecDrafts:         Sum(m, MetricSpecDrafts),
-		SpecDraftTokens:    Sum(m, MetricSpecDraftTokens),
-		SpecAcceptedTokens: Sum(m, MetricSpecAcceptedToken),
-	}
-	// The KV cache gauge is a fraction per engine; report the highest one.
-	kv, ok := Max(m, MetricKVCacheUsage)
-	if !ok {
-		kv, _ = Max(m, MetricKVCacheUsageOld)
-	}
-	s.KVCacheUsage = kv
-	if s.SpecDraftTokens > 0 {
-		s.SpecAcceptRate = s.SpecAcceptedTokens / s.SpecDraftTokens
-	}
-	if s.SpecDrafts > 0 {
-		s.SpecMeanAcceptLen = 1 + s.SpecAcceptedTokens/s.SpecDrafts
-	}
-	return s
-}
 
 // Sum adds the samples of metric name over all its label sets.
 func Sum(m map[string]float64, name string) float64 {

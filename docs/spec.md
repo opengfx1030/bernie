@@ -1499,7 +1499,7 @@ as a dash with the words "n/a on this host".
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
 | GET | `/api/runs/{name}/log?tail=2000&level=all&info&warn&error&q=text` | the tail of the log of a run: `{name, state, total_lines, truncated, lines: [{no, level, text}]}`. Every line carries its number in the log and its level. `level` is `all` (the default), `info`, `warn` or `error`; `q` is a case-insensitive substring; `tail` is 2000 lines by default. The levels are the rules of the log doctor: a line with `ERROR`, `Traceback`, `RuntimeError`, `CUDA error` or `Error:` is an error, a line with `WARNING` or `WARN` is a warning, every other line is info. A line that a finding points at is an error. |
 | GET | `/api/runs/{name}/findings` | the known failures in the log of a run: `{name, matches: [{id, severity, cause, fix, doc, line, line_no}]}`. It is the scan of `doctor --run`, with the same rules. |
-| GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, slow_age_s, slow_interval_s, gpus: [Sample], runs: [{name, url, state, stats, gen_tok_s, prompt_tok_s, error}]}`. The sampler reads the cards of the host in two tiers: the fast fields every second, the slow fields every `slow_interval_s` seconds. `slow_age_s` is the age in seconds of the slow fields of this event. |
+| GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, slow_age_s, slow_interval_s, gpus: [Sample], runs: [{name, url, state, stats, window, gen_tok_s, prompt_tok_s, error}]}`. The sampler reads the cards of the host in two tiers: the fast fields every second, the slow fields every `slow_interval_s` seconds. `slow_age_s` is the age in seconds of the slow fields of this event. `stats` holds the numbers of the server of the run since it started, `window` what it did in the last minute (below). |
 | GET | `/api/gpus/history?window=5m\|15m\|1h` | the samples of the last minutes, one series per card: `{window, interval_s, points, series: [{hip_index, busy_pct, power_w, vram_used, tokens_per_s, prompt_tok_s, temp_c, sclk_mhz, mclk_mhz}]}`. The window is 15 m when the request names none; another window answers 400. The slow fields of a card (`temp_c`, `sclk_mhz`, `mclk_mhz`) are null at the points that hold no slow measurement: the ring never carries a slow value forward, and a gap is a gap. The ring buffer of the telemetry hub keeps 30 minutes at one point every 2 s; the hub samples the host only while a page watches `/api/telemetry`, so the buffer fills while the dashboard is open and the answer is empty (`points: 0`, no series) before the first sample; a window is downsampled so that no series holds more than 240 points: a window that fits the cap keeps every point of the ring (`points` is then the number of points of a series, 5 m: one point every 2 s), and a longer window is split into buckets of `interval_s` seconds; every bucket keeps its lowest and its highest value (MinMax) in the order of the window, so a peak that lasted one sample is never lost (15 m: every 8 s, 1 h: every 15 s). `tokens_per_s` and `prompt_tok_s` are the output and prefill rates of the live run, read from the hub's vLLM metrics sample; the rate is a property of the server, so every card carries the same number, and the values are zero (the fields absent from a sample without a scrape) when no run serves. The answer is cached for 2 s. |
 | POST | `/api/smoke` | one prompt to a run of this host: `{"prompt": "", "run": "", "model": ""}` → `{url, model, health, reply, ttft_ms, output_tokens, tok_s}`. The target is the run that serves, or the run named by `run`; a name that does not serve answers 404. The prompt is empty by default (then the prompt is "Hello"). The target is always a server of this host; a server that does not answer answers 502 with the reason. |
 | GET | `/api/power` | `tune power service status` JSON |
@@ -1571,6 +1571,53 @@ amdgpu attribute waits for its card:
 A sample holds the last value of the slow fields and `slow_age_s` says how
 old it is. The page shows the age of the slow fields when it passes twice
 their own interval; below that the age is not worth a word on the page.
+
+The `stats` of a run are the numbers of its server since it started. The
+`window` of a run is what that server did in the last minute: it is
+computed from two readings of the server, the counters it advanced and the
+observations it recorded in between. A server that restarted empties the
+window, because nothing can be measured across a restart.
+
+| Field of `stats` | Unit | Meaning |
+|---|---|---|
+| `requests_running` | requests | the requests the server answers now |
+| `requests_waiting` | requests | the requests that wait for a free slot |
+| `kv_cache_usage` | fraction (0..1) | the share of the KV cache in use |
+| `prompt_tokens_total` | tokens | the prompt tokens the server read |
+| `generation_tokens_total` | tokens | the tokens the server wrote |
+| `prefix_cache_queries_total` | tokens | the tokens the server looked up in its prefix cache |
+| `prefix_cache_hits_total` | tokens | the tokens it found there |
+| `prefix_cache_hit_rate` | fraction (0..1) | hits / queries since the server started |
+| `external_prefix_cache_queries_total` | tokens | the tokens it looked up in the cache of another instance |
+| `external_prefix_cache_hits_total` | tokens | the tokens it found there |
+| `prompt_tokens_cached_total` | tokens | the prompt tokens the server took from a cache |
+| `prompt_tokens_by_source` | tokens | the prompt tokens per source (`local_compute`, `local_cache_hit`, `external_kv_transfer`) |
+| `num_preemptions_total` | requests | the requests the engine took back and ran again |
+| `waiting_by_reason` | requests | the waiting requests per reason (`capacity`, `deferred`) |
+| `finished_by_reason` | requests | the finished requests per reason (`stop`, `length`, `abort`, `error`, `repetition`) |
+| `spec_drafts_total`, `spec_draft_tokens_total`, `spec_accepted_tokens_total` | tokens | the counters of the speculative decoding |
+| `spec_accept_rate` | fraction (0..1) | the accepted draft tokens / the draft tokens |
+| `spec_mean_accept_len` | tokens | the mean tokens written per draft step |
+| `ttft`, `itl`, `e2e`, `queue` | seconds | the latencies the server measured: `ttft` is the time to the first token, `itl` the time between two tokens, `e2e` the time of the whole request, `queue` the wait in the queue |
+
+A latency holds `p50`, `p95`, `mean` and `count`, the number of
+observations behind the numbers. A percentile is the upper bound of the
+bucket the observation lies in, not a precise value.
+
+A measure the server does not publish is absent. An old release names the
+prefix cache counters `gpu_prefix_cache_queries_total` and
+`gpu_prefix_cache_hits_total` and the KV cache gauge
+`gpu_cache_usage_perc`; bernie reads both names. A release without the
+cross-instance cache, without the prompt tokens per source and without the
+queue latency publishes no such measure: the page shows a dash and says
+why.
+
+The `window` of a run holds the same measures over the last minute:
+`seconds` (the length of the window), `prefix_cache_queries`,
+`prefix_cache_hits`, `prefix_cache_hit_rate` (absent when the window holds
+no query), `prompt_tokens`, `prompt_tokens_cached`, `generation_tokens`,
+`finished` and the four latencies. The first reading of a server has no
+window.
 
 Every card of the page carries a `json` link in its header. It opens the
 raw JSON of the endpoint behind the card in a new tab, so the document a
