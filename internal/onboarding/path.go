@@ -47,23 +47,27 @@ func PreparePath(f *Facts, o Options) (*PreparedStep, error) {
 }
 
 // runPath does the whole path: the setup steps, then the server, then the
-// check that proves the server answers.
+// check that proves the server answers. Every step it starts says so on a
+// line of its own, so the page can show which one runs now.
 func (a *Action) runPath(ctx context.Context, log io.Writer) error {
 	if len(a.Steps) > 0 {
 		ids := make([]string, len(a.Steps))
 		for i, s := range a.Steps {
 			ids[i] = s.ID
 		}
-		fmt.Fprintf(log, "setup: %s\n", a.Steps[0].Title)
+		fmt.Fprintf(log, "== %s: %s\n", StepPythonEnv, "Build the Python environment")
 		if err := setup.Apply(ctx, a.Steps, ids, log); err != nil {
 			return err
 		}
+		fmt.Fprintf(log, "== %s: %s\n", StepModel, "Download the model")
 	}
 	if a.Recipe == "" {
 		return ErrNoAction
 	}
+	fmt.Fprintf(log, "== %s: %s\n", StepServe, "Start the server")
 	if err := a.serve(ctx, log); err != nil {
 		return err
 	}
+	fmt.Fprintf(log, "== %s: %s\n", StepVerify, "Ask the server a question")
 	return a.verify(ctx, log)
 }

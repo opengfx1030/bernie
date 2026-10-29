@@ -48,7 +48,10 @@ type Job struct {
 // of the work. The numbers are there when the step counts them; a step that
 // only counts items keeps the done and the total of the step.
 type JobProgress struct {
-	Phase      string `json:"phase"`
+	Phase string `json:"phase"`
+	// Step is the step of the path the job is on now. A job that runs the
+	// whole path names the step it is on.
+	Step       string `json:"step,omitempty"`
 	BytesDone  int64  `json:"bytes_done,omitempty"`
 	BytesTotal int64  `json:"bytes_total,omitempty"`
 	RateBPS    int64  `json:"rate_bps,omitempty"`
@@ -231,6 +234,12 @@ func (w *jobWriter) progress(text string) {
 		p = &JobProgress{Phase: w.job.Step}
 		w.job.Progress = p
 	}
+	// A line that names a step ("== model.download: Download ...") says
+	// which step of the path the job is on.
+	if id, ok := stepMarker(text); ok {
+		p.Step = id
+		p.Phase = id
+	}
 	if !strings.HasPrefix(text, "model.download: ") {
 		return
 	}
@@ -243,6 +252,20 @@ func (w *jobWriter) progress(text string) {
 	if rate > 0 && total > done {
 		p.ETAS = int((total - done) / rate)
 	}
+}
+
+// stepMarker reads the step id of a line that names one:
+// "== model.download: Download ..." gives "model.download".
+func stepMarker(line string) (string, bool) {
+	if !strings.HasPrefix(line, "== ") {
+		return "", false
+	}
+	rest := strings.TrimPrefix(line, "== ")
+	i := strings.Index(rest, ":")
+	if i <= 0 {
+		return "", false
+	}
+	return strings.TrimSpace(rest[:i]), true
 }
 
 // parseDownload reads the numbers of a download line:

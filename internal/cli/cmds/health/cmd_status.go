@@ -43,16 +43,32 @@ func printChecklist(w io.Writer, doc *onboarding.Document) {
 		return
 	}
 	fmt.Fprintln(w, "onboarding")
+	if p := doc.Primary; p != nil {
+		fmt.Fprintf(w, "  do       %s: %s\n", p.Label, p.Sentence)
+		if p.Command != "" {
+			fmt.Fprintf(w, "           %s\n", p.Command)
+		}
+	}
 	for _, f := range doc.Facts {
 		fmt.Fprintf(w, "  %-8s %s\n", f.Label, f.Value)
 		if f.Why != "" {
 			fmt.Fprintf(w, "           %s\n", f.Why)
 		}
 	}
+	if r := doc.Recommendation; r != nil {
+		fmt.Fprintf(w, "  recipe   %s (%s)\n", r.Name, r.ID)
+		if r.Description != "" {
+			fmt.Fprintf(w, "           %s\n", r.Description)
+		}
+		fmt.Fprintf(w, "           %s\n", r.Why)
+	}
 	for _, s := range doc.Steps {
 		fmt.Fprintf(w, "  %-8s %-12s %s\n", s.State, s.ID, s.Summary)
 		if s.Progress != nil && s.Progress.Phase != "" {
 			fmt.Fprintf(w, "           %s\n", s.Progress.Phase)
+		}
+		if e := s.Estimate; e != nil {
+			fmt.Fprintf(w, "           last time: %s\n", e.Text)
 		}
 		for _, p := range s.Problems {
 			fmt.Fprintf(w, "           [%s] %s\n", p.Status, p.Title)
@@ -145,8 +161,41 @@ func printStatus(w io.Writer, s *flow.Summary) {
 			}
 		}
 	}
+	for _, sv := range s.Serving {
+		fmt.Fprintf(w, "serving %s\n", servingLine(sv))
+	}
 	fmt.Fprintln(w, "\nnext:")
 	for _, n := range s.Next {
 		fmt.Fprintf(w, "  %s\n", n)
 	}
+}
+
+// servingLine writes what the server of a run measures: the requests it
+// answers, the cache it uses, the time to the first token and the share of
+// the prompt that came from the cache. A measure the server does not
+// publish is a dash.
+func servingLine(sv flow.Serving) string {
+	if sv.Stats == nil {
+		if sv.Error != "" {
+			return sv.Name + ": the server does not answer (" + sv.Error + ")"
+		}
+		return sv.Name + ": the server does not answer yet"
+	}
+	st := sv.Stats
+	parts := []string{
+		fmt.Sprintf("%d running, %d waiting", int(st.RequestsRunning), int(st.RequestsWaiting)),
+		fmt.Sprintf("KV cache %d %%", int(st.KVCacheUsage*100)),
+	}
+	if st.TTFT != nil {
+		parts = append(parts, fmt.Sprintf("first token p50 %.3f s p95 %.3f s", st.TTFT.P50, st.TTFT.P95))
+	} else {
+		parts = append(parts, "first token -")
+	}
+	if st.PrefixCacheQueries > 0 {
+		parts = append(parts, fmt.Sprintf("prefix cache %.1f %% (%d of %d prompt tokens from the cache)",
+			st.PrefixCacheHitRate*100, int(st.PromptTokensCached), int(st.PromptTokens)))
+	} else {
+		parts = append(parts, "prefix cache -")
+	}
+	return sv.Name + ": " + strings.Join(parts, ", ")
 }
