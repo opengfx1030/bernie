@@ -84,9 +84,11 @@ that exist today; the ones marked **today: X** are the collisions to fix.
 | **run** | one served model: a process or a container, with a name | a job | `<state>/runs/<name>/run.json`, spec §8.3 |
 | **job** | one background action bernie runs now (a setup step) | a run | `<state>/jobs/<id>`, spec §3.3 |
 | **recipe** | a model plus the flags, the mode and the way it is served | a profile, a preset | `recipes/*.yaml`, spec §7 |
+| **recipe** (the second sense) | the **merged** document after `extends` | the file on disk | `bernie recipe show ID`; spec §7.2 |
 | **profile** (TunableOp profile) | a table of tuned settings for one rocBLAS build | the host profile | `tunableop/<arch>/<profile>/`, spec §9.1 |
 | **step** | one entry of the onboarding checklist | a job, a setup step of the plan | spec §3.3 (`hardware`, `access`, `rocm`, `python-env`, `model`, `recipe`, `serve`, `verify`, plus `bench`, `tuning`, `power`) |
 | **setup step** | one install action of `setup plan` (`venv.create`, `model.download`, …) | a checklist step | `internal/setup/steps_*.go` |
+| **setup step id** | the ten ids of `setup apply --step`: `groups`, `rocm.runtime`, `container.engine`, `image.pull`, `venv.create`, `venv.torch`, `causal-conv1d.build`, `flash-attn.build`, `vllm.build`, `model.download` | a checklist step id | `internal/setup/steps_*.go` |
 | **check** | one doctor check | a P2P checklist item | `internal/doctor`, spec §5.2 |
 | **finding** | one known failure matched in a log | a check | `internal/logdoc`, spec §5.3 |
 | **suite** | one benchmark suite (`smoke`, `pr`, `long-context`) | a bench run | `bench/suites/*.yaml` |
@@ -97,6 +99,10 @@ that exist today; the ones marked **today: X** are the collisions to fix.
 | **fix** | the exact command that repairs a check or a finding | advice | spec §5.1, §5.3 |
 | **plan** | the resolved environment and command of a recipe | a preview | spec §7.2 |
 | **mode** | `host` or `container` | an engine | spec §8.2 |
+| **fit** | whether a recipe suits this host: `fits`, `no` (with the reason), `unknown` (no GPU data) | the recipe's status | `internal/serving/recipe/fit.go:13-15` |
+| **status of a recipe** | its maturity: `validated`, `experimental`, `reference` | the fit | `internal/serving/recipe/recipe.go:21`; only `validated` recipes count as supporting an arch |
+| **verdict** | the outcome of comparing two results: `better`, `same`, `worse`, `noisy` | a score | `internal/serving/bench/suite/verdict.go:13-21` |
+| **venv source** | where the venv came from: `flag`, `$BERNIE_VENV`, `config`, `$VIRTUAL_ENV`, `conventional`, `ambiguous`, `none` | the venv path | `internal/support/config/venv.go:14-21` |
 
 ### 2.1 The three state vocabularies, and why they are three
 
@@ -141,6 +147,27 @@ The doctor already does this: `{"id", "category", "status", "title", "detail",
 The dashboard's finding card uses the same shape
 (`dashboard/web/views/logs/findings.js`).
 
+The CLI already writes the pattern down. These are the exact strings, so the
+page can copy the shape rather than invent one:
+
+| Kind | The exact shape | An example |
+|---|---|---|
+| A failed check | `[STATUS] TITLE: DETAIL`, then `fix:` and `doc:` | `[FAIL] /dev/kfd is readable and writable: permission denied` · `fix: sudo usermod -aG video,render $USER` |
+| A problem in `status` | `[STATUS] TITLE → FIX` | `[FAIL] ROCm is installed → sudo dnf install -y rocm rocm-hip-runtime-devel` |
+| A log finding | `[SEVERITY] ID (line N)`, then `cause:`, `fix:`, `doc:`, `line:` | `[error] memory.kv-too-small (line 82)` |
+| A run conflict | the subject, its state, then the next step | `run flashnext is running (pid 1234); stop it first (bernie stop flashnext) or use --name` |
+| A run that exited | the subject, then the pointer | `run flashnext exited during startup; see: bernie logs flashnext` |
+| A run that did not become healthy | the subject, the limit, then the pointer | `flashnext is not healthy after 30m0s; see: bernie logs flashnext` |
+| A blocked `up` | `up: stopped: REASON`, then the indented commands | `up: stopped: confirmation required; re-run with --yes` |
+| A step that needs root | the exact command, then who acts | `needs root: run the command above` |
+| A bad value | the flag, the value, and the set of valid values | `--mode must be host or container, not "gpu"` · `unknown category "bios" (have os, gpu, kernel, …)` |
+| A missing object | the object and where it looked | `no run named "flashnext" (looked in /home/x/.local/state/bernie/runs)` |
+
+**The rule for the page**: every problem card has the same four fields in
+the same order — what happened, why, the fix, the doc link — and the fix is
+a command with a copy button, never advice. The CLI's `cause:` / `fix:` /
+`doc:` / `line:` labels are the names of the fields on both front ends.
+
 Two rules the page breaks today, both in the Setup tab:
 
 - The rule "no `invalid`, `illegal`, `wrong`, `incorrect` in the user-visible
@@ -158,26 +185,36 @@ Two rules the page breaks today, both in the Setup tab:
 ### 2.3 The step names, one list
 
 The eight checklist steps and the three extras are the spine of the product.
-They are named in spec §3.3 and must never be renamed per front end.
+They are named in spec §3.3 and must never be renamed per front end. The
+titles below are the **code's** titles (`internal/onboarding/steps.go:29`
+and `steps_extra.go:9`), which the CLI's `status --steps` prints and the
+dashboard's Setup tab renders.
 
-| # | Id | Title (the words of the row) | One-line job |
-|---|---|---|---|
-| 1 | `hardware` | The cards are there | the `gpu` category passes |
-| 2 | `access` | The groups are right | the user can open the device nodes |
-| 3 | `rocm` | The ROCm tools work | the `rocm` and `kernel` categories pass |
-| 4 | `python-env` | The Python environment is ready | the `python` category passes in the venv |
-| 5 | `model` | The model is on the disk | the weights are downloaded |
-| 6 | `recipe` | A recipe fits | a validated recipe matches the GPUs |
-| 7 | `serve` | The server answers | a run serves |
-| 8 | `verify` | The server answers a request | one prompt comes back |
-| 9 | `bench` | The speed is measured | optional: a suite has run |
-| 10 | `tuning` | The kernels are tuned | optional: a TunableOp profile is loaded |
-| 11 | `power` | The power caps are set | optional: the caps are written |
+| # | Id | Title (the words of the row) | The action word | One-line job |
+|---|---|---|---|---|
+| 1 | `hardware` | GPUs found and supported | Check the cards | the `gpu.count`, `gpu.supported.*`, `gpu.ecc.*` and `gpu.igpu` checks pass |
+| 2 | `access` | Device access and groups | Fix the device access | the `gpu.kfd`, `gpu.render` and `gpu.groups` checks pass |
+| 3 | `rocm` | ROCm runtime and kernel | Install the ROCm tools | the `kernel.*` and `rocm.*` checks pass |
+| 4 | `python-env` | Python environment (torch and vLLM) | Build the Python environment | the `python.*` checks pass in the venv |
+| 5 | `model` | Model files | Download the model | the weights are on the disk |
+| 6 | `recipe` | Recipe | Pick the recipe | a validated recipe matches the GPUs |
+| 7 | `serve` | Serve the model | Start the server | a run serves |
+| 8 | `verify` | The server answers a request | Ask the server | one prompt comes back |
+| 9 | `bench` | Measure the speed (optional) | Measure the speed | optional: a suite has run |
+| 10 | `tuning` | TunableOp profile (optional) | Tune the kernels | optional: a TunableOp profile is loaded |
+| 11 | `power` | Power cap (optional) | Set the power cap | optional: the caps are written |
 
-The dashboard's Setup tab already renders these as `THE PATH TO A SERVING
-MODEL` (`dashboard/web/views/setup/setup.js:72`) and the tab sheet
-[setup.md](setup.md) gives each row its title. The CLI's `status --steps`
-must print the same titles.
+**A naming drift to fix.** The tab sheet [setup.md](setup.md) gives the rows
+different titles: *"The cards are there"*, *"The groups are right"*, *"The
+ROCm tools work"*, *"The Python environment is ready"*, *"The model is on
+the disk"*, *"A recipe fits"*, *"The server answers"*. The code says
+*"GPUs found and supported"*, *"Device access and groups"* and so on. One of
+the two has to go; the code's titles are shorter and they name the check
+that holds the step, so the code's win. The sheet is updated in C2.
+
+The dashboard's Setup tab renders the path as `THE PATH TO A SERVING MODEL`
+(`dashboard/web/views/setup/setup.js:72`). The CLI's `status --steps` prints
+the same steps and the same titles; that is the check for this table.
 
 ---
 
@@ -187,7 +224,7 @@ Every user-visible capability, where it lives today, and where it should
 live. **89 rows**: 77 capabilities (§3.1 to §3.9) plus the 12 promises the
 three front ends make to each other (§3.10). Sources: `bernie --help` and
 `bernie <cmd> --help`
-(19 top-level commands, 25 leaf commands), `internal/mcp/tools_read.go` and
+(19 top-level commands, 38 runnable paths), `internal/mcp/tools_read.go` and
 `tools_write.go` (19 read tools, 6 write tools), `dashboard/internal/api/api.go`
 (31 routes), `dashboard/README.md` (the tab table), spec §3.2, §4, §5, §7,
 §8, §9, §10, §11, §13.
@@ -344,7 +381,8 @@ the *shape* of the dashboard's answers.
 | What | Count | Where it was checked |
 |---|---|---|
 | Top-level CLI commands | 19 | `bernie --help` |
-| Leaf CLI commands | 25 | `bernie <family> --help` for the 6 families |
+| Runnable CLI paths | 38 | `bernie <path> --help` for every path; 8 of them are routers (`setup`, `recipe`, `config`, `bench`, `tune`, `tune tunableop`, `tune power`, `tune power service`) and `bench` is both |
+| CLI paths that answer `--json` with a document | 36 | `logs` and `mcp` accept `--json` and ignore it (a text stream and a protocol) |
 | MCP read tools | 19 | `internal/mcp/server_test.go:106` |
 | MCP write tools | 6 | `internal/mcp/tools_write.go:105-122` |
 | HTTP routes under `/api` | 31 | `dashboard/internal/api/api.go:60-90` |
@@ -389,6 +427,17 @@ them.
 | X12 | The endpoints with no page | — | `POST /api/bench` (the synchronous form) and `GET /api/jobs` have no web consumer; the `level` and `q` parameters of `/api/runs/{name}/log` are filtered in the browser instead | `dashboard/internal/api/bench.go:165`, `onboarding.go:75`, `views/logs/tail.js:62-66` |
 | X13 | The Chat placeholder | — | its text says "use the endpoint on the Dashboard tab"; the endpoint is rendered on Setup | `views/chat/chat.js`, `views/setup/headline.js:17` |
 | X14 | The empty view folders | — | `dashboard/web/views/{runs,gpus,recipes,home}/` are empty directories left over from the old tabs | `dashboard/web/views/` |
+| X15 | `bernie --json` with no command | "bare `bernie` runs `status`" | it is **not** status: the usage goes to stderr, stdout gets `{"error": "missing subcommand", "exit_code": 2}`, exit 2 | `internal/cli/cli.go:101` |
+| X16 | `help <cmd>` | "explicit help is printed on stdout and exits 0" | the topic is **ignored**; the top-level help is printed | `internal/cli/cli.go`, `dispatch` |
+| X17 | `bernie bench` with no arguments | "bench sends requests" | it runs a benchmark with the defaults (it is not help) | `internal/cli/cmds/benchcmd/cmd_bench.go:23` |
+| X18 | `up --json` | "step 7: it starts the dashboard" | under `--json` the dashboard is **never** started | `internal/cli/cmds/health/cmd_up.go` |
+| X19 | `setup apply --json` | "the CLI, the MCP server and the page print this one record" | `setup apply` still **prompts** on stderr when stdin is a TTY and `--yes` is absent; without a TTY it aborts with exit 1 | `internal/cli/cmds/health/cmd_setup.go:76-79` |
+| X20 | `smoke` | "the answer carries the time to the first token, the number of tokens and the output speed" | the human output prints only the server, the model and the answer; `ttft_ms`, `output_tokens` and `tok_s` appear **only** under `--json` | `internal/cli/cmds/serving/cmd_smoke.go:24-30` |
+| X21 | `status --steps --json` | "`--steps` prints the checklist" | `--steps` changes only the human text; the JSON is the full document either way | `internal/cli/cmds/health/cmd_status.go` |
+| X22 | `bench ab` | marked `no*` in the command table | it starts and stops a server for a recipe arm (spec §10.4 says so; the table does not) | `internal/cli/cmds/benchcmd/cmd_bench_ab.go` |
+| X23 | The launch flags | the spec lists a subset | the code also accepts `--engine`, `--profile`, `--no-tunableop` and `--tuning` on `serve`, `recipe plan` and `compose`; `setup` accepts `--venv`, `--image` and `--model` | `internal/cli/cmds/serving/cmd_recipe.go:118` |
+| X24 | Positional arguments | not specified | they are **silently ignored** by `hw`, `status`, `doctor`, `topo`, `setup plan`, `setup apply`, `recipe list`, `ps`, `config show`, `tune tunableop *`, `tune power status`, `tune power apply`, `tune power service *`, `bench list`, `bench suites` and `smoke`; `version` ignores all arguments and flags | the `Parse` call sites |
+| X25 | The `incomplete` cell state | spec §10.2 names it | the literal `incomplete` appears in no non-test code under `internal/serving` or `internal/app` | spec §10.2 |
 
 **The write gate is not the same on the two front ends.** A REST write on the
 page acts immediately behind `X-Bernie: 1` and the origin checks. An MCP
@@ -838,7 +887,7 @@ ordered so that every one of them is safe to stop after.
 | # | Commit | Files | What moves | Acceptance check |
 |---|---|---|---|---|
 | **C1** | `docs: record the information architecture and the inventory` | `docs/design/ia.md` | this file | the file reads; every row of the inventory names a command, a tool or a route that exists |
-| **C2** | `spec: fix the drift the inventory found` | `docs/spec.md`, `docs/mcp.md`, `internal/mcp/server.go`, `internal/cli/cmds/mcpcmd/cmd_mcp.go` | the 14 rows of §3.12: the missing `GET /api/bench/suites` row, the Advanced tab and `/api/gpus/history`, the redaction rule, the `clamped` field, the query parameters, `bench_ab` in the MCP instructions | `make check`; the API table of spec §11 has 32 rows and matches `dashboard/internal/api/api.go` line for line; the MCP catalog of spec §13.4 matches `internal/mcp/tools_read.go` and `tools_write.go` |
+| **C2** | `spec: fix the drift the inventory found` | `docs/spec.md`, `docs/mcp.md`, `docs/design/setup.md`, `internal/mcp/server.go`, `internal/cli/cmds/mcpcmd/cmd_mcp.go` | the 25 rows of §3.12: the missing `GET /api/bench/suites` row, the Advanced tab and `/api/gpus/history`, the redaction rule, the `clamped` field, the query parameters, `bernie --json` alone, `help <cmd>`, `up --json`, `setup apply --json`, `smoke` in human output, `bench ab`'s host effect, the launch flags, the step titles of [setup.md](setup.md) | `make check`; the API table of spec §11 has 32 rows and matches `dashboard/internal/api/api.go` line for line; the MCP catalog of spec §13.4 matches `internal/mcp/tools_read.go` and `tools_write.go`; `bernie status --steps` prints the titles of §2.3 and they match [setup.md](setup.md) |
 | **C3** | `web: one section label, one pill, one empty state` | `dashboard/web/components/cards.js`, `dashboard/web/views/**` | the `sectionLabel()` and `statePill()` helpers; every tab uses them; every `emptyState` carries a command | no `h2.lg-section-title` and no `h2.section-label` outside `cards.js`; every `emptyState(` call has three arguments; `make check` |
 | **C4** | `web: call the disclosures "Show details"` | `dashboard/web/index.html`, `dashboard/web/views/setup/advanced.js`, `views/logs/advanced.js`, `views/topology/advanced.js`, `views/benchmark/suites.js`, `dashboard/web/js/shell.js` | the summary of every disclosure reads `Show details`; the head `Advanced` button of the Benchmark tab goes; the Setup head button opens its own disclosure | the rail button and the four disclosures agree; no string `Advanced` outside the tab name; `make check` |
 | **C5** | `web: give the Dashboard tab its details` | `dashboard/web/views/dashboard/*`, `dashboard/web/components/cards.js` | the Dashboard details disclosure: the per-GPU table, the history window, the power read-out, the raw documents | the Dashboard tab has a `Show details` disclosure that opens the four documents; `make check` |
