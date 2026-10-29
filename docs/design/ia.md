@@ -357,12 +357,53 @@ the *shape* of the dashboard's answers.
 | Benchmark suites | 3 | `bench/suites/` |
 | Onboarding steps | 8 + 3 | spec §3.3 |
 | Glossary words | 26 | `internal/glossary/glossary.go` |
+| MCP tools with no REST endpoint | 5 | `status`, `recipe_show`, `bench_show`, `tunableop_status`, `setup_apply` |
+| REST endpoints with no MCP tool | 10 | `topo/check`, `glossary`, `telemetry`, `gpus/history`, `runs/{n}/log`, `onboarding/{step}/run`, `bench/{id}`, `bench/{id}/events`, `jobs/{id}`, `jobs/{id}/events` |
 
 **Two gaps found while counting.** The API table in spec §11 is missing
 `GET /api/bench/suites`, and the spec's claim that the Advanced tab reads
 `/api/gpus/history` is wrong: the Dashboard tab reads it, the Advanced tab
 does not (`dashboard/web/views/dashboard/` vs `dashboard/web/views/advanced/`).
 Both go into the commit plan as spec fixes.
+
+### 3.12 The drift between the spec, the code and the page
+
+Fourteen places where the three disagree. They are listed because a
+information architecture that ignores them will be built on a contract that
+is already wrong. Each one is a one-line fix in a spec or a doc; C2 carries
+them.
+
+| # | What | The spec says | The code does | Where |
+|---|---|---|---|---|
+| X1 | `GET /api/bench/suites` | not in the API table | the route exists and the Benchmark tab calls it | `api.go:79`, `views/benchmark/benchmark.js:192` |
+| X2 | `/api/gpus/history` | "the Advanced tab reads it" | only the Dashboard tab reads it (`?window=5m`) | spec §11 vs `views/dashboard/dashboard.js:160` |
+| X3 | The "Try it" box | `smoke.go` says it is on Setup **and** Dashboard | only Setup calls `POST /api/smoke` | `dashboard/internal/api/smoke.go`, `views/setup/setup.js:288` |
+| X4 | The `Host` check | "on a loopback address the `Host` header must be a loopback name" | the Host is checked only when no token is set | `dashboard/internal/auth/auth.go:109` |
+| X5 | The random token | "a random token printed at start" | one is generated only for a non-loopback listen address | `internal/cli/cmds/dashcmd/cmd_dash.go:29-33` |
+| X6 | The redaction | "anything sent to the browser goes through `internal/support/redact`" (`dashboard/AGENTS.md` hard rule 6) | only seven handlers redact; every other JSON handler uses `httpjson.Write` without it, and the four SSE streams make no redaction call at all | `dashboard/internal/httpjson/httpjson.go:13` vs `:45` |
+| X7 | `tune_power_set` | the result is `{"changed", "file", "watts", "gpu_indexes", "selectors"}` | the code also returns `clamped`, and spec §11 says so | spec §13.4 vs `internal/app/power.go:45` |
+| X8 | The MCP write gate | "a mutating tool runs in two calls" and the first call "changes nothing" | `serve` calls `app.Plan` before the token check, and `recipe plan` may write TunableOp rows | `internal/mcp/mutate.go`, `internal/mcp/tools_write.go:132` |
+| X9 | `bench_ab` | listed as a mutating tool | it is mutating but missing from the server's `instructions` text and from the `--allow-write` help | `internal/mcp/server.go:20-31`, `internal/cli/cmds/mcpcmd/cmd_mcp.go:19` |
+| X10 | The endpoints MCP does not expose | `docs/mcp.md` lists `runs/{name}/findings` as not exposed | `doctor_log` returns the same matches | `docs/mcp.md`, `internal/mcp/tools_read.go` |
+| X11 | The query parameters | `/api/doctor` and `/api/recipes/{id}/plan` have no parameters in the table | `doctor` takes `category` and `venv`; the plan takes `name` | spec §11 vs `dashboard/internal/api/doctor.go:14`, `recipes.go:25` |
+| X12 | The endpoints with no page | — | `POST /api/bench` (the synchronous form) and `GET /api/jobs` have no web consumer; the `level` and `q` parameters of `/api/runs/{name}/log` are filtered in the browser instead | `dashboard/internal/api/bench.go:165`, `onboarding.go:75`, `views/logs/tail.js:62-66` |
+| X13 | The Chat placeholder | — | its text says "use the endpoint on the Dashboard tab"; the endpoint is rendered on Setup | `views/chat/chat.js`, `views/setup/headline.js:17` |
+| X14 | The empty view folders | — | `dashboard/web/views/{runs,gpus,recipes,home}/` are empty directories left over from the old tabs | `dashboard/web/views/` |
+
+**The write gate is not the same on the two front ends.** A REST write on the
+page acts immediately behind `X-Bernie: 1` and the origin checks. An MCP
+write needs the write flag, a token over HTTP, and the two-call confirm
+token. That difference is deliberate (spec §13.10) and it is the one place
+where the dashboard is *more* permissive than the agent. It is worth one
+sentence in the page's own vocabulary, because a reader of the page and an
+agent calling `/mcp` are doing the same thing with different friction.
+
+**The cache behind the answers.** The dashboard holds the host answers for
+a few seconds: the host 5 s, the checks 15 s, the runs 2 s, the history 2 s
+(`dashboard/internal/api/cache.go:19-31`). The onboarding document is cached
+15 s and is served with `stale` while it refreshes. This is the reason the
+Setup tab's `Re-check` must ask the server for a fresh read and not only
+reload the document (I15).
 
 ---
 
@@ -766,10 +807,11 @@ The rest of the list below is read out of the source of the tabs.
 | I11 | The Dashboard tab has no details disclosure, while Setup, Logs, Topology and Benchmark all have one | `views/dashboard/**` | one disclosure per tab | add the Dashboard disclosure (per §4.3) |
 | I12 | The Advanced tab reads no `/api/gpus/history`, but spec §11 says it does | `views/advanced/**` vs spec §11 | the spec is the contract | fix the spec (the Dashboard tab reads it) |
 | I13 | The API table of spec §11 has no `GET /api/bench/suites`, but the route exists and the Benchmark tab calls it | spec §11 vs `dashboard/internal/api/api.go:79` | the spec is the contract | add the row |
-| I14 | The tab bar's counts exist for Setup, Dashboard and Topology only; Benchmark and Logs have no count even though they have failures (a failed bench, a finding) | `web/index.html:26-34` | a tab shows the number of things that wait | add the count for Logs (the findings) and for Benchmark (the failed runs) |
-| I15 | The Setup tab's `Re-check` button reloads the onboarding document but does not re-read the host; the reference's `Re-check this box` does | `views/setup/headline.js:80`, `views/setup/setup.js` (`loadSetupDocument`) | the button says what it does | the button re-reads the host (the doctor and the setup plan), then the document |
+| I14 | The tab bar's counts exist for Setup, Dashboard and Topology only; Benchmark and Logs have no count even though they have failures (a failed bench, a finding) | `web/index.html:26-34`, `js/data.js:353`, `:362`, `:363` | a tab shows the number of things that wait | add the count for Logs (the findings) and for Benchmark (the failed runs) |
+| I15 | The Setup tab's `Re-check` button reloads the onboarding document but does not re-read the host; the reference's `Re-check this box` does. The dashboard caches the host answers (the host 5 s, the checks 15 s, the runs 2 s), so a reload alone can answer with the old host | `views/setup/headline.js:80`, `views/setup/setup.js` (`loadSetupDocument`), `dashboard/internal/api/cache.go:19-31` | the button says what it does | the button asks the server for a fresh read of the host (the doctor and the setup plan), then the document |
 | I16 | The tab order of the rail and the keyboard shortcuts disagree: the shortcuts are `g` then `s d b t l c`, which is Setup, Dashboard, Benchmark, Topology, Logs, Advanced — Chat and Fleet have no shortcut | `js/shell.js:140-152` | every tab is reachable | add `g` then `h` for Chat and `g` then `f` for Fleet, or leave the two planned tabs without one on purpose and say so |
 | I17 | The same disclosure behaves three different ways: the Setup summary calls the **page-wide** switch (`toggleAdvanced`), the Topology and Logs summaries open only their own panel, and the Benchmark panel is opened by a **button in the head** | `views/setup/advanced.js:16-21`, `views/topology/advanced.js:35`, `views/logs/advanced.js:18`, `views/benchmark/benchmark.js:135`, `views/benchmark/suites.js:224-226` | one control, one effect | every disclosure is a plain `details` that opens its own panel; the page-wide switch in the rail opens and closes them all, and a `MutationObserver` (`js/boot.js:296`) keeps the state right when a tab's files arrive |
+| I18 | The rules that reach the page are not the same as the rules that reach the agent: the dashboard's `dashboard/AGENTS.md` hard rule 6 says everything sent to the browser goes through `internal/support/redact`, but only seven handlers do; the four event streams make no redaction call at all | `dashboard/internal/httpjson/httpjson.go:13` vs `:45`; `dashboard/internal/sse/sse.go` | one redaction rule for the browser and the agent | one `httpjson.Redacted` for every handler and a redaction step in the SSE writer |
 
 ### 7.2 The rules that already hold, and must keep holding
 
@@ -796,7 +838,7 @@ ordered so that every one of them is safe to stop after.
 | # | Commit | Files | What moves | Acceptance check |
 |---|---|---|---|---|
 | **C1** | `docs: record the information architecture and the inventory` | `docs/design/ia.md` | this file | the file reads; every row of the inventory names a command, a tool or a route that exists |
-| **C2** | `spec: fix the two API gaps the inventory found` | `docs/spec.md` | the missing `GET /api/bench/suites` row; the claim about the Advanced tab and `/api/gpus/history`; the run states of the rail pill | `make check`; the API table of spec §11 has 32 rows and matches `dashboard/internal/api/api.go` line for line |
+| **C2** | `spec: fix the drift the inventory found` | `docs/spec.md`, `docs/mcp.md`, `internal/mcp/server.go`, `internal/cli/cmds/mcpcmd/cmd_mcp.go` | the 14 rows of §3.12: the missing `GET /api/bench/suites` row, the Advanced tab and `/api/gpus/history`, the redaction rule, the `clamped` field, the query parameters, `bench_ab` in the MCP instructions | `make check`; the API table of spec §11 has 32 rows and matches `dashboard/internal/api/api.go` line for line; the MCP catalog of spec §13.4 matches `internal/mcp/tools_read.go` and `tools_write.go` |
 | **C3** | `web: one section label, one pill, one empty state` | `dashboard/web/components/cards.js`, `dashboard/web/views/**` | the `sectionLabel()` and `statePill()` helpers; every tab uses them; every `emptyState` carries a command | no `h2.lg-section-title` and no `h2.section-label` outside `cards.js`; every `emptyState(` call has three arguments; `make check` |
 | **C4** | `web: call the disclosures "Show details"` | `dashboard/web/index.html`, `dashboard/web/views/setup/advanced.js`, `views/logs/advanced.js`, `views/topology/advanced.js`, `views/benchmark/suites.js`, `dashboard/web/js/shell.js` | the summary of every disclosure reads `Show details`; the head `Advanced` button of the Benchmark tab goes; the Setup head button opens its own disclosure | the rail button and the four disclosures agree; no string `Advanced` outside the tab name; `make check` |
 | **C5** | `web: give the Dashboard tab its details` | `dashboard/web/views/dashboard/*`, `dashboard/web/components/cards.js` | the Dashboard details disclosure: the per-GPU table, the history window, the power read-out, the raw documents | the Dashboard tab has a `Show details` disclosure that opens the four documents; `make check` |
