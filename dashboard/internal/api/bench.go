@@ -185,7 +185,7 @@ func (h *handler) postBench(w http.ResponseWriter, r *http.Request) {
 	var saveErr *app.SaveError
 	switch {
 	case errors.Is(err, app.ErrBenchBusy):
-		httpjson.Error(w, http.StatusConflict, err.Error())
+		benchBusy(w, err)
 	case errors.Is(err, app.ErrAllFailed):
 		httpjson.Error(w, http.StatusBadGateway, err.Error()+app.FirstCellError(res))
 	case errors.As(err, &saveErr):

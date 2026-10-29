@@ -25,7 +25,7 @@ layer() {
 	"$module/internal/support"/*) echo 0 ;;
 	"$module/internal/machine"/*) echo 1 ;;
 	"$module/internal/serving"/*|"$module/internal/doctor"|"$module/internal/setup"|"$module/internal/logdoc") echo 2 ;;
-	"$module/internal/app"|"$module/internal/flow"|"$module/internal/onboarding") echo 3 ;;
+	"$module/internal/app"|"$module/internal/flow"|"$module/internal/onboarding"|"$module/internal/bench/job") echo 3 ;;
 	"$module/internal/cli"|"$module/internal/cli"/*|"$module/internal/mcp"|"$module/dashboard"|"$module/dashboard"/*|"$module/cmd/bernie") echo 4 ;;
 	*) echo -1 ;;
 	esac
