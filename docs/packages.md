@@ -52,6 +52,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/support/pyenv` | the venv layout | `HasModule`, `SearchPaths`, `SitePackages` | 0 |
 | `internal/support/factcache` | the cached host facts | `Get`, `Load`, `Save` | 0 |
 | `internal/support/fixture` | the test fixtures | `Root`, `Write` | 0 |
+| `internal/glossary` | the words a reader may not know | `Words`, `Terms`, `Meaning` | data |
 | `internal/support/netx` | the shared network checks | `Loopback` | 0 |
 | `recipes`, `tunableop`, `tuned-moe`, `bench` | the embedded data | `FS` | data |
 

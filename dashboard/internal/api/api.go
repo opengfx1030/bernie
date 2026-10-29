@@ -61,6 +61,7 @@ func Register(mux *http.ServeMux, o Options) {
 	mux.HandleFunc("GET /api/topo", h.getTopo)
 	mux.HandleFunc("GET /api/topo/check", h.getTopoCheck)
 	mux.HandleFunc("GET /api/doctor", h.getDoctor)
+	mux.HandleFunc("GET /api/glossary", h.getGlossary)
 	mux.HandleFunc("GET /api/recipes", h.getRecipes)
 	mux.HandleFunc("GET /api/recipes/{id}/plan", h.getPlan)
 	mux.HandleFunc("GET /api/runs", h.getRuns)
