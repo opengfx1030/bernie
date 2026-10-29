@@ -57,5 +57,4 @@ the number of tokens and the output speed. Then `bernie bench` (how fast is
 this host?), `bernie logs <name>` (what is the server saying?) and
 `bernie stop <name>`.
 
-When something is wrong, the page and the terminal name the command that
-fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`.
+When something is wrong, the page and the terminal name the command that fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`.
