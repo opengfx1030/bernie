@@ -221,7 +221,7 @@ function setupPlanActions(recipe, plan) {
   }
   return h("div.recipe-plan-actions",
     h("button", attrs, "Start the server"),
-    ready ? null : h("span.small.muted", "The plan is not ready: " + setupFitLine(recipe) + "."));
+    ready ? null : h("span.small.muted", "The plan is not ready: " + setupFitLine(recipe)));
 }
 
 /** setupPlanReady says whether the plan can be started here. */
