@@ -73,7 +73,7 @@ function dashCard(hip) {
     where.textContent = (hw ? hw.pci : "") + (hw && hw.gfx ? " · " + hw.gfx : "");
     const run = dashLiveRun();
     const inUse = !!run && run.state !== "exited";
-    state.replaceChildren(dashPill(inUse ? "ok" : "skip", inUse ? "In use" : "Idle"));
+    state.replaceChildren(statePill(inUse ? "ok" : "skip", inUse ? "In use" : "Idle"));
     ringBox.update(card ? card.busy : null);
     mem.update(card ? card.mem : null, card ? card.total : null);
     pow.update(card ? card.pow : null, card ? card.cap : null);
@@ -108,10 +108,10 @@ function dashEcc(hip) {
   const checks = (dash.doctor && dash.doctor.checks) || [];
   const c = checks.find((x) => x.id === "gpu.ecc." + hip);
   if (!c) {
-    return { pill: dashPill("skip", "unknown"), note: "The doctor has not checked the ECC counters yet." };
+    return { pill: statePill("skip", "unknown"), note: "The doctor has not checked the ECC counters yet." };
   }
   const kind = c.status === "ok" ? "ok" : c.status === "warn" ? "warn" : c.status === "fail" ? "fail" : "skip";
-  return { pill: dashPill(kind, c.status === "skip" ? "unknown" : c.status), note: c.detail || "" };
+  return { pill: statePill(kind, c.status === "skip" ? "unknown" : c.status), note: c.detail || "" };
 }
 
 // dashCards is the section with one card per card of the host.

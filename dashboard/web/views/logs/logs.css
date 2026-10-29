@@ -6,11 +6,6 @@
 
 [hidden] { display: none !important; }
 
-/* ---- the sections ------------------------------------------------------ */
-.lg-section { border-top: 1px solid var(--border); padding: 24px 0 0; margin-top: 24px; }
-.lg-section-title { font: 600 13px/1 var(--font-body); letter-spacing: .05em; text-transform: uppercase;
-  color: var(--muted); margin: 0 0 12px; }
-
 /* ---- the pills --------------------------------------------------------- */
 .lg-pill { gap: 5px; }
 .lg-pill-icon { font-weight: 700; }

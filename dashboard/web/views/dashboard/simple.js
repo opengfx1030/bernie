@@ -59,7 +59,7 @@ function dashSimpleHero() {
       const starting = active && !serving;
       const kind = serving ? "ok" : starting ? "running" : "skip";
       const label = serving ? "Serving" : starting ? "Starting" : "No run";
-      pill.replaceChildren(dashPill(kind, label));
+      pill.replaceChildren(statePill(kind, label));
       layout.textContent = active
         ? [run.name, run.mode || "host", run.port ? "port " + run.port : null].filter(Boolean).join(" · ")
         : "no run on this host";

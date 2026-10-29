@@ -14,7 +14,7 @@ const benchState = {
 
 /** benchSection is one section of the tab: its label and what it holds. */
 function benchSection(label, ...body) {
-  return h("section.section", h("h2.section-label", label), ...body);
+  return h("section.section", sectionLabel(label), ...body);
 }
 
 /** benchFailed says what could not be read and offers to read it again. */
@@ -101,7 +101,7 @@ function benchHeadline(head, results) {
  *  cell the headline names, so its row is tagged and the caption says which
  *  row it is. */
 function benchResultBody(r, mark) {
-  if (!r) return emptyState("No result yet.", "Run a suite above to fill this table.");
+  if (!r) return emptyState("No result yet.", "Run a suite above to fill this table.", "bernie bench --suite smoke");
   return h("div",
     h("p.bench-result-title", "Result " + r.id),
     h("p.small.muted", benchSuiteLine(r)),
@@ -241,7 +241,7 @@ async function viewBenchmark(root) {
       put(resultCard, benchResultBody(pick, pick === list[0] ? headline : null));
       const curve = pick ? curveSmallMultiples(pick.cells) : null;
       put(curveCard, curve || emptyState("This suite has no ladder.",
-        "Run the long-context suite to see the curve."));
+        "Run the long-context suite to see the curve.", "bernie bench --suite long-context"));
       put(historyCard, benchHistory(list, null, (r) => {
         cand.value = r.id;
         compare();
@@ -257,7 +257,8 @@ async function viewBenchmark(root) {
   async function compare() {
     const a = base.value, b = cand.value;
     if (!a || !b || a === b) {
-      put(cmpOut, emptyState("Pick two results to compare."));
+      put(cmpOut, emptyState("Pick two results to compare.",
+        "Two saved results side by side, with a verdict on every cell.", "bernie bench list"));
       return;
     }
     cmpBtn.disabled = true;

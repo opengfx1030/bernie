@@ -215,7 +215,8 @@ function compareChart(cmp) {
       if (v && !VERDICTS[v.verdict]) noVerdict.push(m.label);
     }
   }
-  if (!blocks.length) return emptyState("Pick two results to compare.");
+  if (!blocks.length) return emptyState("Pick two results to compare.",
+    "Two saved results side by side, with a verdict on every cell.", "bernie bench list");
   const legend = h("div.bench-legend",
     h("span", h("i.key.s1"), "baseline"),
     h("span", h("i.key.s2"), "candidate"),

@@ -51,7 +51,8 @@ function logFindings(matches, options) {
   const list = matches || [];
   if (!list.length) {
     return emptyState("No known failure in this log.",
-      "bernie knows the failures of this server; none of them is in this log.");
+      "bernie knows the failures of this server; none of them is in this log.",
+      "bernie doctor --run NAME");
   }
   return h("div.findings", list.map((f) => logFinding(f, o)));
 }

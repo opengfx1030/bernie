@@ -49,7 +49,8 @@ function benchSuiteCard(s, picked, onPick) {
 function benchSuiteCards(list, picked, onPick) {
   if (!list || !list.length) {
     return emptyState("There is no suite to run.",
-      "The built-in suites live in bench/suites/. One of them is the set of cells a pull request must pass.");
+      "The built-in suites live in bench/suites/. One of them is the set of cells a pull request must pass.",
+      "bernie bench suites");
   }
   return h("div.bench-suites", list.map((s) => benchSuiteCard(s, s.id === picked, onPick)));
 }
@@ -154,7 +155,8 @@ function benchHistoryRow(r, verdict, onPick) {
 function benchHistory(list, verdicts, onPick) {
   if (!list || !list.length) {
     return emptyState("No saved result yet.",
-      "Every benchmark is saved with its workload, so two results can be compared only when they measured the same thing.");
+      "Every benchmark is saved with its workload, so two results can be compared only when they measured the same thing.",
+      "bernie bench --suite smoke");
   }
   return h("div.scroll", h("table.bench-table",
     h("thead", h("tr",

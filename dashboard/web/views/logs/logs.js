@@ -15,7 +15,7 @@ function stopLogs() {
 
 /** logSection is one section of the tab: a rule, a label and the content. */
 function logSection(title, ...kids) {
-  return h("section.lg-section", h("h2.lg-section-title", title), ...kids);
+  return h("section.section", sectionLabel(title), ...kids);
 }
 
 /** logRuns is the list of the runs of the API answer, the newest first. */
@@ -132,7 +132,7 @@ async function viewLogs(root) {
       doc = await api("/api/runs");
     } catch (e) {
       put(runsBox, failed(e));
-      put(findBox, emptyState("The findings could not be read.", "Try again."));
+      put(findBox, emptyState("The findings could not be read.", "Try again.", "bernie doctor --run NAME"));
       headKind = "error";
       setHead(head, "THE RUNS COULD NOT BE READ.", "Try again.");
       return;
@@ -143,7 +143,8 @@ async function viewLogs(root) {
         "A run is a model server on this host: it loads the model and then answers requests.",
         "bernie serve <recipe>"));
       put(findBox, emptyState("No known failure in this log.",
-        "bernie knows the failures of this server; none of them is in this log."));
+        "bernie knows the failures of this server; none of them is in this log.",
+        "bernie doctor --run NAME"));
       logsRun = "";
       tail.close();
       download.disabled = true;

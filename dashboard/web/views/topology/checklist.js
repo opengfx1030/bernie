@@ -32,7 +32,7 @@ function topoChecklist(data) {
     verdict = "Multi-GPU copies will work on this host.";
   }
   box.append(h("div.topo-verdict",
-    topoPill(kind, kind === "fail" ? "not ready" : kind === "skip" ? "nothing to check" : "ready"),
+    statePill(kind, kind === "fail" ? "not ready" : kind === "skip" ? "nothing to check" : "ready"),
     h("span.topo-verdict-text", verdict)));
   if (!items.length) {
     box.append(h("div.topo-note", "Nothing to check on this host."));
@@ -41,7 +41,7 @@ function topoChecklist(data) {
   for (const it of items) {
     const kind = it.status === "ok" ? "ok" : it.status === "warn" ? "warn" : it.status === "fail" ? "fail" : "skip";
     box.append(h("div.topo-check-row",
-      h("div.topo-check-head", topoPill(kind, it.status === "skip" ? "skip" : it.status),
+      h("div.topo-check-head", statePill(kind, it.status === "skip" ? "skip" : it.status),
         h("b.topo-check-title", it.title || it.id)),
       it.detail ? h("div.topo-check-detail", it.detail) : null,
       it.fix ? h("div.topo-check-fix", cmdBlock(it.fix, "Copy the fix")) : null,

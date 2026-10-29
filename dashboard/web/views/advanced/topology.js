@@ -21,7 +21,8 @@ function advViewTopology(root) {
             "The tree shows how the cards are wired to each other. It appears once the host has GPUs.");
           put(root, head, h("div", advP2pCard(check), h("div.gap"),
             h("div.card", cardHead("Topology", "/api/topo"),
-              emptyState("There is no PCIe tree to show.", "The tree is the way the cards are wired to each other. It needs at least one GPU."))));
+              emptyState("There is no PCIe tree to show.", "The tree is the way the cards are wired to each other. It needs at least one GPU.",
+                "bernie hw"))));
           return;
         }
         const switches = new Set(nodes.map((n) => n.switch || "")).size;
@@ -85,7 +86,8 @@ function advP2pCard(data) {
   const items = data.checklist || [];
   const sum = data.summary || {};
   const counts = ["ok", "warn", "fail", "skip"].map((s) => (sum[s] || 0) + " " + s).join(" · ");
-  const empty = emptyState("Nothing to check.", "The checklist says whether two cards on this host may copy between each other over the PCIe bus. It needs at least one GPU.");
+  const empty = emptyState("Nothing to check.", "The checklist says whether two cards on this host may copy between each other over the PCIe bus. It needs at least one GPU.",
+    "bernie topo --check");
   let label = "ready", cls = "b-ok";
   if (sum.fail) { label = "not ready"; cls = "b-fail"; }
   else if (!sum.ok && !sum.warn) { label = "nothing to check"; cls = "b-skip"; }

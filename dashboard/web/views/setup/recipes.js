@@ -19,7 +19,8 @@ async function loadSetupRecipes() {
   const errors = list.errors || [];
   if (!recipes.length) {
     put(box, emptyState("There is no recipe to serve.",
-      "A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository."));
+      "A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository.",
+      "bernie recipe list --all"));
   } else {
     // The recipe bernie recommends comes first, with its name and what it
     // is. The other recipes wait behind "Choose another".
