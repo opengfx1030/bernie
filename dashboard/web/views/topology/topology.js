@@ -118,7 +118,7 @@ function topoSetHead(nodes, pairs, direct) {
   const fails = topo.check && topo.check.summary ? (topo.check.summary.fail || 0) : 0;
   const warns = topo.check && topo.check.summary ? (topo.check.summary.warn || 0) : 0;
   if (nodes.length < 2) {
-    setHead(head, "THIS HOST HAS NOT ENOUGH CARDS TO COMPARE.",
+    setHead(head, "THIS HOST HAS TOO FEW CARDS TO COMPARE.",
       "A topology compares the cards with each other. This host has " +
       (nodes.length === 1 ? "one card." : "no card.") +
       " Add a card and press Check readiness.");

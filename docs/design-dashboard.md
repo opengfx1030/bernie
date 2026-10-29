@@ -81,16 +81,18 @@ column on the right.
 | Padding | `22px 14px` |
 | Brand | the mark of the reference (a 22 px bar in the accent and the key) and the word `bernie` in italic 900 20 px; the host name under it in 13 px `--muted` |
 | Links | one per tab, a glyph and the word, `border-radius: 8px`, `padding: 9px 10px`, `gap: 2px` between them, 13 px 600; the open one has a `--surface-2` background, a 2 px `--accent` bar on the left, the key-coloured glyph and a heavier word: the marker is a shape, not only a colour |
-| Counts | a tab that has something to look at shows the number: the failed or blocked steps on Setup, the failing checks of the doctor on the Dashboard |
+| Counts | a tab that has something to look at shows the number: the failed or blocked steps on Setup, the failing checks of the doctor on the Dashboard, the failed P2P readiness checks on Topology |
 | Footer | the run status pill with the phase sentence, then the theme button, the Advanced button and the `?` mark with the shortcuts; `margin-top: auto` |
-| Keyboard | `g` and then `s`, `d`, `b`, `l` or `c` opens a tab; the `?` mark lists the shortcuts |
+| Keyboard | `g` and then `s`, `d`, `b`, `t`, `l` or `c` opens a tab; the `?` mark lists the shortcuts |
 | Width | fixed at 220 px, not collapsible; under 720 px it becomes a tab bar at the bottom of the page (§8.1) |
 
 ### 2.2 The tab bar
 
-Five tabs, in this order: **Setup**, **Dashboard**, **Benchmark**, **Logs**,
-**Advanced**. The first four are the questions of §6. The fifth is the
-reference-parity port: the old pages, the whole of them, under one tab.
+Eight tabs, in this order: **Setup**, **Dashboard**, **Chat**, **Benchmark**,
+**Topology**, **Fleet**, **Logs**, **Advanced**. Six of them are the questions
+of §6. Chat and Fleet are planned: their entry in the rail carries the word
+"Soon" and their panel holds one honest sentence and no control. Advanced is
+the reference-parity port: the old pages, the whole of them, under one tab.
 
 The rail links are a real tablist: `role="tablist"` on the container,
 `role="tab"` on each link, `aria-controls` pointing at the panel,
@@ -296,13 +298,16 @@ at the end. It is drawn with the current design — the tokens, the fonts and
 the shared components of the shell — and it reads the same answers as every
 other tab. It adds no endpoint. The old route `#classic` still lands on it.
 
-## 6. The four tabs
+## 6. The tabs
 
 | Tab | Question | Sheet | Wireframes |
 |---|---|---|---|
 | Setup | What do I do to make this box serve? | [design/setup.md](design/setup.md) | `design/setup-1280.svg`, `design/setup-390.svg`, `design/setup-blocked-1280.svg` |
 | Dashboard | Is it serving, and how fast? | [design/dashboard.md](design/dashboard.md) | `design/dashboard-1280.svg`, `design/dashboard-390.svg`, `design/dashboard-empty-1280.svg` |
+| Chat | What will I ask the model? (planned) | — | — |
 | Benchmark | How fast is it, and does it read the whole prompt? | [design/benchmark.md](design/benchmark.md) | `design/benchmark-1280.svg`, `design/benchmark-390.svg`, `design/benchmark-empty-1280.svg` |
+| Topology | Can the cards copy to each other? | [design/topology.md](design/topology.md) | — (not drawn yet) |
+| Fleet | What do the other hosts do? (planned) | — | — |
 | Logs | What did the server say? | [design/logs.md](design/logs.md) | `design/logs-1280.svg`, `design/logs-390.svg`, `design/logs-empty-1280.svg` |
 
 Every tab opens with a state headline: one sentence that says what the
@@ -346,8 +351,8 @@ field in a domain struct changes `docs/spec.md` in the same commit.
 | ≥ 1280 px | the rail is 220 px, the content is at most 1240 px, the hero is two columns, the KPI tiles are six across |
 | 960–1279 px | the tiles are four across, the GPU cards three |
 | 640–959 px | the rail is 200 px, the hero stacks, the columns are two |
-| ≤ 639 px | the rail becomes a horizontal scrolling bar under the brand, the tiles are two across, the charts and the GPU cards are full width, a table scrolls inside its card, the hero number is 40 px |
-| 390 px | the page never scrolls sideways; a table scrolls inside its card; nothing is hidden |
+| ≤ 639 px | the rail becomes a bottom bar: the brand and the three buttons on the first row, the eight tabs in a grid of four columns and two rows under them; the tiles are two across, the charts and the GPU cards are full width, a table scrolls inside its card, the hero number is 40 px |
+| 390 px | the page never scrolls sideways; every tab of the bar is whole (89 × 44 px), no word is cut off; a table scrolls inside its card; nothing is hidden |
 
 ### 8.2 Accessibility checklist
 
@@ -444,7 +449,7 @@ every open page, so ten open tabs cost the same as one (spec §11).
 |---|---|---|
 | Home (`#home`, `#overview`) | Setup | the headline, the facts, the step timeline, the doctor card, the run card |
 | GPUs (`#gpus`) | Dashboard | the tiles, the per-GPU cards, the power caps |
-| Topology (`#topology`) | Dashboard | the PCIe tree, the link classes, the readiness checklist, in a section of their own |
+| Topology (`#topology`) | Topology | the PCIe tree, the link classes and the readiness checklist: a tab of their own, not a section of the Dashboard tab |
 | Recipes (`#recipes`) | Setup | the recipe list, the fit, the plan, the settings with their reasons, the mode switch |
 | Runs (`#runs`) | Dashboard | the run card: state, phase, endpoint, uptime, stop, restart, the findings of the log doctor |
 | Runs, the log | Logs | the live tail, the filter, the findings, the download |
