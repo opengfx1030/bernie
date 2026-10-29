@@ -45,6 +45,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/machine/rocm` | the ROCm facts | `Probe`, `ProbeVenv`, `VenvLibPaths`, `FindROCBLAS`, `CompareVersions` | 1 |
 | `internal/machine/topo` | the PCIe facts | `Discover`, `MeasureBandwidth`, `BestGroup`, `P2PChecklist` | 1 |
 | `internal/support/paths` | the XDG paths | `State`, `Config`, `Data`, `Cache`, `Ensure` | 0 |
+| `internal/support/hostroot` | the root of the host tree bernie reads | `Root`, `Set`, `EnvVar` | 0 |
 | `internal/support/execx` | the bounded exec | `Result`, `Which`, `FirstLine` | 0 |
 | `internal/support/config` | the config file | `Config`, `Path`, `Save`, `Keys` | 0 |
 | `internal/support/redact` | the secret redaction | `JSON`, `Text` | 0 |

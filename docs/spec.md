@@ -191,6 +191,10 @@ other file, script or compose file is required.
 - `--venv DIR` is global too. It can come before the command, between a
   command family and its subcommand, or after the command. It names the
   host-mode venv for commands that use one.
+- `--root DIR` is global too, in the same places. It names the root of the
+  host tree bernie reads: `/` by default, another tree when it points at a
+  captured host. `BERNIE_ROOT` holds the same value for a process that
+  cannot take a flag (the MCP server, a service).
 - Explicit help (`--help`, `-h`, `help`) is printed on stdout and exits 0.
 - Diagnostics and progress go to stderr.
 - Flags and positional arguments can be in any order.
@@ -391,6 +395,13 @@ information. A missing tool is a `skip`, not an error.
 `gfx_target_version` `100300` is `gfx1030`. The rule: major = v/10000,
 minor = (v/100)%100, step = v%100; name = `gfx` + major + minor + step, with
 minor and step in hex.
+
+The paths above are read under the root of the host tree: `/` on the real
+host. `BERNIE_ROOT` (or the global flag `--root`, see [§3.2](#32-rules))
+points bernie at another tree, a captured host snapshot. Then `hw`, `doctor`,
+`status`, the dashboard and the MCP server read that tree instead of the
+machine, and every path above is read under it. bernie never writes there.
+The flag is for demos and for tests.
 
 ### 4.2 Link classes
 

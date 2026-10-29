@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 )
 
 // Exit codes.
@@ -56,6 +58,9 @@ type Context struct {
 	// Venv is the global --venv value. It may be set before or after the
 	// command.
 	Venv string
+	// Root is the global --root value: the root of the host tree bernie
+	// reads. Empty means the real host ("/").
+	Root string
 	// Path is the command path, e.g. "bernie recipe show".
 	Path string
 	// root is the Context Main created; a --json parsed by a command's own
@@ -189,6 +194,26 @@ func takeVenv(args []string) (rest []string, venv string, err error) {
 	return args, "", nil
 }
 
+// takeRoot removes a leading global --root flag from a group command.
+func takeRoot(args []string) (rest []string, root string, err error) {
+	if len(args) == 0 {
+		return args, "", nil
+	}
+	if args[0] == "--root" {
+		if len(args) < 2 || args[1] == "" {
+			return nil, "", Usagef("--root needs a directory")
+		}
+		return args[2:], args[1], nil
+	}
+	if v, ok := strings.CutPrefix(args[0], "--root="); ok {
+		if v == "" {
+			return nil, "", Usagef("--root needs a directory")
+		}
+		return args[1:], v, nil
+	}
+	return args, "", nil
+}
+
 func dispatch(c *Context, cmd *Command, args []string) error {
 	if len(cmd.Subs) > 0 {
 		rest, venv, err := takeVenv(args)
@@ -197,6 +222,15 @@ func dispatch(c *Context, cmd *Command, args []string) error {
 		}
 		if venv != "" {
 			c.Venv = venv
+			args = rest
+		}
+		rest, root, err := takeRoot(args)
+		if err != nil {
+			return err
+		}
+		if root != "" {
+			c.Root = root
+			hostroot.Set(root)
 			args = rest
 		}
 		if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
@@ -248,6 +282,7 @@ func (c *Context) Flags(cmd *Command) *flag.FlagSet {
 	fs.SetOutput(io.Discard)
 	fs.Var(jsonFlag{c}, "json", "print one JSON document on stdout")
 	fs.Var(venvFlag{c}, "venv", "host-mode venv directory")
+	fs.Var(rootFlag{c}, "root", "root of the host tree to read (default /)")
 	fs.Usage = func() {
 		w := fs.Output()
 		if cmd.Summary != "" {
@@ -286,6 +321,21 @@ func (v venvFlag) Set(s string) error {
 		return errors.New("venv path must not be empty")
 	}
 	v.c.Venv = s
+	return nil
+}
+
+// rootFlag is the global --root flag: the root of the host tree bernie
+// reads. It points bernie at a captured host snapshot.
+type rootFlag struct{ c *Context }
+
+func (rootFlag) String() string   { return "" }
+func (rootFlag) IsBoolFlag() bool { return false }
+func (r rootFlag) Set(s string) error {
+	if s == "" {
+		return errors.New("root path must not be empty")
+	}
+	r.c.Root = s
+	hostroot.Set(s)
 	return nil
 }
 

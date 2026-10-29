@@ -14,6 +14,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
 	"github.com/opengfx1030/bernie/internal/support/config"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 )
 
 // PrepareOptions are the inputs of Prepare: the same as `serve` and
@@ -54,13 +55,13 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 	var gpus []gpu.GPU
 	var tp *topo.Topology
 	// Only the GPUs the environment leaves visible are used (spec §7.7).
-	vis, verr := gpu.Visible("/")
+	vis, verr := gpu.Visible(hostroot.Root())
 	if gpu.Restricted(verr) {
 		return nil, verr // the restriction names a GPU this host does not have
 	}
 	if vis.GPUs != nil {
 		gpus = vis.GPUs
-		if t, err := topo.Discover("/", gpus); err == nil {
+		if t, err := topo.Discover(hostroot.Root(), gpus); err == nil {
 			tp = &t
 		}
 	}

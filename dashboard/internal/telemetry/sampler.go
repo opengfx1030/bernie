@@ -13,10 +13,12 @@ import (
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/serving/vllm"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 )
 
-// root is the host filesystem root the probes read ("/" in production).
-const root = "/"
+// root is the host filesystem root the probes read. It is "/" on the real
+// host; BERNIE_ROOT points it at a captured host tree (spec §4).
+var root = hostroot.Root()
 
 // document is one event of GET /api/telemetry.
 type document struct {
