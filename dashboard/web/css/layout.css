@@ -15,8 +15,7 @@ body.shell {
   min-height: 100vh;
 }
 
-/* A hidden element stays hidden. The rule of the browser for [hidden] is the
-   weakest one, so a class that sets a display would bring the element back. */
+/* A hidden element stays hidden. */
 [hidden] { display: none !important; }
 
 /* ---------- the rail ---------- */
