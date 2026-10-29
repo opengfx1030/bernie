@@ -386,3 +386,6 @@ details.advanced > summary:hover { color: var(--text); }
   padding-top: var(--space-2);
   border-top: 1px solid var(--border);
 }
+
+
+.recipe-plan-compose { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--border); }

@@ -156,8 +156,7 @@ function setupPlanView(plan, recipe) {
     h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, recipe ? setupFitLine(recipe) : "fit: unknown"),
     setupPlanOverrides(recipe),
     (plan.warnings || []).map((w) => h("p.recipe-warning", w)),
-    h("h4", "The launch command"),
-    cmdBlock(setupPlanCommand(plan), "Copy the launch command"),
+    setupPlanLaunchBox(plan),
     h("div.recipe-gpus",
       h("span.recipe-gpus-label", "GPUs"),
       h("span.recipe-gpus-value", (plan.gpus || []).length ? (plan.gpus || []).join(", ") : "–"),
@@ -166,6 +165,15 @@ function setupPlanView(plan, recipe) {
     setupPlanAdjustments(plan),
     setupPlanActions(recipe, plan));
   return card;
+}
+
+/** setupPlanLaunchBox is the placeholder of the "Show the exact launch
+ *  command" disclosure. The detail block is loaded lazily so the first
+ *  paint stays under budget. See ia.md §5 R42. */
+function setupPlanLaunchBox(plan) {
+  const box = h("div.recipe-plan-launch-box");
+  setupEnsureModule("views/setup/launch-disclosure.js").then(() => put(box, setupPlanLaunchDisclosure(plan)));
+  return box;
 }
 /** setupPlanActions is the command of the plan and the copy button. The
  *  start of the plan is the one primary action of the tab, in the hero. */
