@@ -43,9 +43,10 @@ type History struct {
 
 // point is one sample of every card.
 type point struct {
-	at    time.Time
-	cards []cardPoint
-	tokS  float64
+	at         time.Time
+	cards      []cardPoint
+	tokS       float64
+	promptTokS float64
 }
 
 // cardPoint is what the history keeps of one card.
@@ -58,11 +59,12 @@ type cardPoint struct {
 
 // HistorySeries is the history of one card: one value per point.
 type HistorySeries struct {
-	HIPIndex   int       `json:"hip_index"`
-	BusyPct    []float64 `json:"busy_pct"`
-	PowerW     []float64 `json:"power_w"`
-	VRAMUsed   []uint64  `json:"vram_used"`
-	TokensPerS []float64 `json:"tokens_per_s"`
+	HIPIndex         int       `json:"hip_index"`
+	BusyPct          []float64 `json:"busy_pct"`
+	PowerW           []float64 `json:"power_w"`
+	VRAMUsed         []uint64  `json:"vram_used"`
+	TokensPerS       []float64 `json:"tokens_per_s"`
+	PromptTokensPerS []float64 `json:"prompt_tok_s"`
 }
 
 // HistoryDocument is the answer of GET /api/gpus/history.
@@ -80,8 +82,9 @@ func NewHistory() *History {
 
 // Add records a sample of the cards. It keeps one point every historyStep;
 // the samples in between are dropped. tokS is the output rate of the live
-// run: the rate is a property of the server, so every card carries it.
-func (h *History) Add(at time.Time, gpus []gpu.Sample, tokS float64) {
+// run and promptTokS its prefill rate: the rates are properties of the
+// server, so every card carries them, and they are zero when no run serves.
+func (h *History) Add(at time.Time, gpus []gpu.Sample, tokS, promptTokS float64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if !h.last.IsZero() && at.Sub(h.last) < historyStep {
@@ -97,7 +100,11 @@ func (h *History) Add(at time.Time, gpus []gpu.Sample, tokS float64) {
 			vram:  g.VRAMUsed,
 		})
 	}
-	h.pts[h.head] = point{at: at, cards: cards, tokS: round1(tokS)}
+	h.pts[h.head] = point{
+		at: at, cards: cards,
+		tokS:       round1(tokS),
+		promptTokS: round1(promptTokS),
+	}
 	h.head = (h.head + 1) % historyCapacity
 	if h.n < historyCapacity {
 		h.n++
@@ -154,11 +161,12 @@ func (h *History) build(name string, dur, step time.Duration, now time.Time) His
 	}
 	for _, hip := range hips {
 		s := HistorySeries{
-			HIPIndex:   hip,
-			BusyPct:    make([]float64, 0, len(sel)),
-			PowerW:     make([]float64, 0, len(sel)),
-			VRAMUsed:   make([]uint64, 0, len(sel)),
-			TokensPerS: make([]float64, 0, len(sel)),
+			HIPIndex:         hip,
+			BusyPct:          make([]float64, 0, len(sel)),
+			PowerW:           make([]float64, 0, len(sel)),
+			VRAMUsed:         make([]uint64, 0, len(sel)),
+			TokensPerS:       make([]float64, 0, len(sel)),
+			PromptTokensPerS: make([]float64, 0, len(sel)),
 		}
 		var busy, power float64
 		var vram uint64
@@ -176,6 +184,7 @@ func (h *History) build(name string, dur, step time.Duration, now time.Time) His
 			s.PowerW = append(s.PowerW, power)
 			s.VRAMUsed = append(s.VRAMUsed, vram)
 			s.TokensPerS = append(s.TokensPerS, p.tokS)
+			s.PromptTokensPerS = append(s.PromptTokensPerS, p.promptTokS)
 		}
 		doc.Series = append(doc.Series, s)
 	}
