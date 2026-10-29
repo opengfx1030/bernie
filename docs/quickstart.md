@@ -29,9 +29,10 @@ up: stopped: No AMD GPU is visible to bernie.
 
 ## 3. Open the dashboard
 
-`up` prints the address on its first line: `dashboard: http://127.0.0.1:7860/`.
-Open it in a browser. On a host that is not only yours the address carries
-a token (`http://host:7860/?token=…`). Keep it to yourself.
+`up` prints the address of the dashboard when it is up:
+`dashboard: http://127.0.0.1:7860/`. Open it in a browser. On a host that is
+not only yours the address carries a token (`http://host:7860/?token=…`).
+Keep it to yourself.
 
 ## 4. What you see
 
@@ -42,9 +43,12 @@ it changes and holds the command that does it.
 | The step says | What it means | What you do |
 |---|---|---|
 | `blocked` | Only you can fix it | Copy the command, run it as root, press `Re-check` |
-| `todo` | bernie can do it | Press the button that names the step |
-| `running` | It is working now | Watch the phase and the log under the row |
+| `todo` | bernie can do it | Press `Set up this box`: it does every step bernie can do here, in one run |
+| `running` | It is working now | Watch the phase and the log under the row; `Stop` ends the run |
 | `done` | It is finished | Nothing |
+
+One step of the path may need root. The run stops there, shows the exact
+command, and waits for `Re-check`.
 
 ## 5. First success
 
@@ -54,4 +58,4 @@ bernie smoke
 
 It sends one prompt to the server and prints the time to the first token, the number of tokens and the output speed. Then `bernie bench` (how fast is this host?), `bernie logs <name>` (what is the server saying?) and `bernie stop <name>`.
 
-When something is wrong, the page and the terminal name the command that fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`. `bernie --root DIR` reads another host tree (a captured host): use it for a demo or a test.
+When something is wrong, the page and the terminal name the command that fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`. `bernie --root DIR` reads another host tree (a captured host): use it for a demo or a test. `BERNIE_ROOT=DIR` does the same for a process that cannot take a flag (the MCP server, a service); the CLI, the dashboard and the MCP server all read that tree.
