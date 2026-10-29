@@ -103,7 +103,7 @@ async function advLoad() {
  *  resolved or a cable that changed shows up at once (spec §11, ia.md R27). */
 async function advReload() {
   adv.errors = {};
-  try { await api("/api/refresh", { method: "POST" }); } catch { /* the cache drop is best-effort */ }
+  try { await refreshHost(); } catch { /* the cache drop is best-effort */ }
   await advLoad();
   toast("The host was read again.");
 }

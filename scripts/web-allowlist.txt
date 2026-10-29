@@ -20,3 +20,4 @@ dashboard/web/js/data.js	411	the one data path: the fetches, the streams and the
 dashboard/web/views/benchmark/benchmark.js	401	benchmark owner: the suites, the result, the comparison, the history and the A/B run; the 1024 line cap holds
 internal/onboarding/jobs.go	458	onboarding owner: the jobs, their state machine and the progress of the work; the 1024 line cap holds
 internal/setup/download.go	416	setup owner: the model download, its limit and its progress sentence; the 1024 line cap holds
+dashboard/web/views/setup/setup.js	428	setup owner: the orchestrator, the paint functions, the doctor findings and the verify box; a split would push the first paint past the 24-request cap
