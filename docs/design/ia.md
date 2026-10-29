@@ -1,6 +1,15 @@
 # Information architecture
 
-Status: design proposal, 2026-10-29. Nothing in this file is implemented yet.
+Status: design of 2026-10-29, kept as the contract of the shape. C1–C8 are
+implemented: the spec drift (`6edefa5`), the shared web helpers (`9fdccb8`),
+the "Show details" word (`06c0879`), the details of the Dashboard tab
+(`490f95a`), the operator's console on the Advanced tab (`e9e7e72`), the
+one-button Setup path (`b3b07d7`), the Chat tab (`e945f2f`, `6566750`), the
+device access (`5374ef0`–`638346a`), the server metrics (`4615a64`–`eeb2357`)
+and the charts (`2bfbd36`, `e06bddc`); the redaction and the write gate of
+the inventory landed with them (`b289c76`, `10afc78`). C9 — the redacted
+share report and the preferences panel — is still open. The Fleet tab stays
+planned (D2).
 
 This file is the contract for the *shape* of bernie: which capability lives
 where, what a tab is for, what "more information" means, and the words the
@@ -408,10 +417,10 @@ Both go into the commit plan as spec fixes.
 
 ### 3.12 The drift between the spec, the code and the page
 
-Fourteen places where the three disagree. They are listed because a
+The places where the three disagree. They are listed because a
 information architecture that ignores them will be built on a contract that
 is already wrong. Each one is a one-line fix in a spec or a doc; C2 carries
-them.
+them. A row marked **closed** names the commit that closed it.
 
 | # | What | The spec says | The code does | Where |
 |---|---|---|---|---|
@@ -420,9 +429,9 @@ them.
 | X3 | The "Try it" box | `smoke.go` says it is on Setup **and** Dashboard | only Setup calls `POST /api/smoke` | `dashboard/internal/api/smoke.go`, `views/setup/setup.js:288` |
 | X4 | The `Host` check | "on a loopback address the `Host` header must be a loopback name" | the Host is checked only when no token is set | `dashboard/internal/auth/auth.go:109` |
 | X5 | The random token | "a random token printed at start" | one is generated only for a non-loopback listen address | `internal/cli/cmds/dashcmd/cmd_dash.go:29-33` |
-| X6 | The redaction | "anything sent to the browser goes through `internal/support/redact`" (`dashboard/AGENTS.md` hard rule 6) | only seven handlers redact; every other JSON handler uses `httpjson.Write` without it, and the four SSE streams make no redaction call at all | `dashboard/internal/httpjson/httpjson.go:13` vs `:45` |
+| X6 | The redaction — **closed** (`b289c76`) | "anything sent to the browser goes through `internal/support/redact`" (`dashboard/AGENTS.md` hard rule 6) | the code does: every JSON answer goes through `httpjson.Write`, which redacts, and the SSE writer redacts every line it sends | `dashboard/internal/httpjson/httpjson.go`, `dashboard/internal/sse/sse.go`, `dashboard/internal/api/redact_test.go` |
 | X7 | `tune_power_set` | the result is `{"changed", "file", "watts", "gpu_indexes", "selectors"}` | the code also returns `clamped`, and spec §11 says so | spec §13.4 vs `internal/app/power.go:45` |
-| X8 | The MCP write gate | "a mutating tool runs in two calls" and the first call "changes nothing" | `serve` calls `app.Plan` before the token check, and `recipe plan` may write TunableOp rows | `internal/mcp/mutate.go`, `internal/mcp/tools_write.go:132` |
+| X8 | The MCP write gate — **closed** (`10afc78`) | "a mutating tool runs in two calls" and the first call "changes nothing" | the code does: the confirm token is verified before the plan is computed, so a refused call never plans; the plan call still has the side effects of the command it plans (`recipe plan` may write TunableOp rows) | `internal/mcp/mutate.go`, `internal/mcp/confirm.go`, `internal/mcp/write_test.go` |
 | X9 | `bench_ab` | listed as a mutating tool | it is mutating but missing from the server's `instructions` text and from the `--allow-write` help | `internal/mcp/server.go:20-31`, `internal/cli/cmds/mcpcmd/cmd_mcp.go:19` |
 | X10 | The endpoints MCP does not expose | `docs/mcp.md` lists `runs/{name}/findings` as not exposed | `doctor_log` returns the same matches | `docs/mcp.md`, `internal/mcp/tools_read.go` |
 | X11 | The query parameters | `/api/doctor` and `/api/recipes/{id}/plan` have no parameters in the table | `doctor` takes `category` and `venv`; the plan takes `name` | spec §11 vs `dashboard/internal/api/doctor.go:14`, `recipes.go:25` |
@@ -651,6 +660,9 @@ Legend: **present** = in bernie today (with the place); **partial** = the
 core is there, the reference's version has more; **absent** = not in bernie.
 Effort: S = under a day, M = a few days, L = a week or more.
 
+The statuses below were re-read from the tree on 2026-10-29, after C1–C8
+landed.
+
 ### 5.1 The reference's own structure
 
 | # | Reference feature | Reference endpoint / file | Status in bernie | Proposed home | Effort | Commit |
@@ -676,12 +688,12 @@ Effort: S = under a day, M = a few days, L = a week or more.
 
 | # | Reference feature | Reference endpoint / file | Status in bernie | Proposed home | Effort | Commit |
 |---|---|---|---|---|---|---|
-| R17 | **"Set everything up"** — one button that runs the whole path, with the line under it "or go step by step below." | `POST /api/autopilot`, `rdna_dash/jobs.py`, `rdna_dash/web/app.js:291-292` | **partial** — the endpoint and the domain logic exist (`POST /api/onboarding/path/run`, `internal/onboarding/path.go`), but the Setup tab still runs one step at a time and the primary button names only the next step | Setup **S**: the primary button, with "or go step by step below" | S | C6 |
+| R17 | **"Set everything up"** — one button that runs the whole path, with the line under it "or go step by step below." | `POST /api/autopilot`, `rdna_dash/jobs.py`, `rdna_dash/web/app.js:291-292` | **present** — the Setup tab has one primary button that runs the whole path (`POST /api/onboarding/path/run`, `dashboard/web/views/setup/path.js`), with the step-by-step path below it | Setup **S**: the primary button, with "or go step by step below" | S | C6 |
 | R18 | **Re-check without a reload** — "Re-check this box" | `POST /api/profile/refresh` | **partial** — the Setup tab has a `Re-check` button that reloads the onboarding document; there is no *profile* refresh | Setup **S**: `Re-check` re-reads the host in place and updates the step states | S | C5 |
-| R19 | **The root-command pause** — the autopilot stops and says "Some things need you first" | `rdna_dash/jobs.py` | **partial** — the step shows the root command, but the path does not stop there in one place | Setup **S**: the path stops at the root step and the headline names it | S | C6 |
+| R19 | **The root-command pause** — the autopilot stops and says "Some things need you first" | `rdna_dash/jobs.py` | **present** — the path stops at the step that needs root, shows the exact command and a `Re-check` (`dashboard/web/views/setup/path.js`) | Setup **S**: the path stops at the root step and the headline names it | S | C6 |
 | R20 | **The progress sentence with bytes, rate and ETA** ("88% · 53.7 of 61.4 GB · 112 MB/s · about 4s left · file 7 of 14") | `rdna_dash/jobs.py` | **partial** — the job carries `progress` (spec §3.3) but the page shows the phase sentence only | Setup **S**: the sentence under the progress bar of the `model` step | S | C5 |
 | R21 | **The download speed limit** ("Changes take effect within a second") | `POST /api/download/limit`, `rdna_dash/download.py` | **absent** — bernie's downloader has no limit | Setup **D**: a field on the `model` step | M | C7 |
-| R22 | **The Chat tab** | `POST /api/chat`, `rdna_dash/serve.py` | **absent** — the tab is a placeholder by the owner's order | Chat **S**: one prompt box, one streaming reply | M | C8 |
+| R22 | **The Chat tab** | `POST /api/chat`, `rdna_dash/serve.py` | **present** — the Chat tab has one prompt box and one streamed answer (`POST /api/chat`, `dashboard/web/views/chat/chat.js`) | Chat **S**: one prompt box, one streaming reply | M | C8 |
 | R23 | **The Fleet tab** — the other boxes, a share button, a remove button | `GET /api/fleet`, `POST /api/fleet/remove`, `rdna_dash/profile.py` | **absent** — the tab is a placeholder by the owner's order; spec §14 says multi-host fleet control is out of scope | Fleet **S** (planned): the list of the other bernie hosts and their state | L | C9 |
 | R24 | **The redacted share report** ("Copies a report with no hostname, username or tokens") | `POST /api/profile/share` | **absent** — the doctor has no `--report`; roadmap item 8 wants one | Advanced **A**: a `Copy a redacted report` button | M | C7 |
 | R25 | **The server start / stop / restart from the page** | `POST /api/server/start`, `/stop`, `/restart` | **present** — `POST /api/runs`, `DELETE /api/runs/{name}`; the Dashboard hero has `Stop` and `Start a run` | Dashboard **S** | — | — |
@@ -691,7 +703,7 @@ Effort: S = under a day, M = a few days, L = a week or more.
 | R29 | **The attach action** (attach to the running server) | `POST /api/attach` | **absent** — bernie starts its own runs and does not attach to a foreign server | Advanced **A**, or **not at all**: bernie's model is "bernie owns the run" | S | — (decision) |
 | R30 | **The benchmark start / cancel / delete** | `POST /api/bench/start`, `/cancel`, `/delete`, `rdna_dash/bench.py` | **partial** — bernie has `POST /api/bench`, `/api/bench/run`, `/api/bench/ab` with a 409 while one runs; there is no cancel and no delete | Benchmark **S**: a `Stop` on the running suite; the history keeps its results (no delete — a saved result is an artefact) | M | C7 |
 | R31 | **The models list** | `GET /api/models/` | **partial** — `bernie smoke --model` defaults to the first id of `/v1/models`; there is no list command | Dashboard **D**: the model the run serves | S | C7 |
-| R32 | **The topology bandwidth heatmap** | `GET /api/topology/bandwidth`, `rdna_dash/topology.py` | **partial** — `bernie topo --bandwidth` measures it; the page says the dashboard never measures it and shows the last result as a table | Topology **D**: the matrix, drawn as a heatmap | M | C7 |
+| R32 | **The topology bandwidth heatmap** | `GET /api/topology/bandwidth`, `rdna_dash/topology.py` | **partial** — the Topology tab has a matrix with the measured `GB/s` per pair (`dashboard/web/views/topology/matrix.js`), but the page never measures the bandwidth itself and the matrix is not a heatmap | Topology **D**: the matrix, drawn as a heatmap | M | C7 |
 | R33 | **The install scripts** (`install.sh`, `install-host.sh`) | `~/.cache/minimax-researcher/vllm-rdna-dash/install.sh` | **absent** — bernie is one binary; `scripts/install.sh` in this repo installs bernie, not the host | not a feature of the dashboard; the *host* install is the Setup path (the `access`, `rocm`, `container` steps) | — | — |
 | R34 | **The Dockerfile and compose.yml of the dashboard itself** | `Dockerfile`, `compose.yml` of the reference | **absent** — bernie's dashboard ships inside the binary; `bernie compose` writes a compose file for a *run*, not for the dashboard | not applicable; the product surface is one binary | — | — |
 | R35 | **The example recipes and the `recipes/` JSON files** | `examples/`, `recipes/*.json` of the reference | **present** — bernie's `recipes/` is YAML with 11 recipes and the same families (flashnext, qwen 27B, deepseek) | Setup **S** | — | — |
@@ -704,7 +716,7 @@ Effort: S = under a day, M = a few days, L = a week or more.
 | R42 | **"Show the exact launch command"** — the launch command and the generated `compose.yml`, in one disclosure | `rdna_dash/web/app.js:302` | **partial** — `bernie compose` writes the file; the Setup plan shows the host command only | Setup **D**: the launch command and the compose file of the container plan | M | C6 |
 | R43 | **The settings form** — model and layout, how to install, PLE table, port, max context, install folder, name for this box, "share the model on my network", and "Save and re-tune" | `rdna_dash/web/app.js:372-385` (`changeForm`) | **partial** — bernie has the overrides (`--set`) and the mode switch on the Setup tab and the config defaults in the CLI, but no form | Setup **D**: the overrides form; the port and the max context are `--set` values | M | C7 |
 | R44 | **The GPU selection** (`HIP_VISIBLE_DEVICES`, "Which GPUs vLLM is allowed to use, by index") | `rdna_dash/web/app.js:34` | **partial** — bernie selects the GPUs by recipe (spec §7.7) and the plan carries the selection; the page does not let a reader narrow it | Setup **D**: the GPU selection of the plan | M | C7 |
-| R45 | **The "Cancel" button on a running job and on the autopilot** | `rdna_dash/web/app.js:190`, `:195`, `:328` | **partial** — `POST /api/jobs/{id}/stop` exists and the job document carries `stopped`, but the page has no `Stop` control on a running step | Setup **S**: a `Stop` on the running step and on the running path | S | C6 |
+| R45 | **The "Cancel" button on a running job and on the autopilot** | `rdna_dash/web/app.js:190`, `:195`, `:328` | **partial** — the running path has a `Stop` that calls `POST /api/jobs/{id}/stop` (`dashboard/web/views/setup/path.js`); the reference also cancels a single job | Setup **S**: a `Stop` on the running step and on the running path | S | C6 |
 | R46 | **"Compare up to four runs"** — the comparison picks up to four saved runs | `rdna_dash/web/app.js:637`, `:668` | **partial** — bernie compares exactly two (`bench compare A B`) | Benchmark **S**: keep two. The verdict of spec §10.3 is defined for a pair; four would need a new rule | — | — (decision) |
 | R47 | **The benchmark table of ten columns** (Case, Prompt tok, TTFT p50, p95, Prefill tok/s, Decode tok/s, ITL p95, All users tok/s, Recall, Errors) and the **fingerprint line** | `rdna_dash/web/app.js:656-657` | **present** — the metric table of `dashboard/web/components/metrics.js` has the same measures (spec §10.1) | Benchmark **S** | — | — |
 | R48 | **The topology bandwidth heatmap** and the **"Bare metal" / "Not a VM."** check | `rdna_dash/web/app.js:726` | **partial** — the check does not exist in bernie (the doctor has `virtualization` in the host document, not a check) | Topology **D**: the matrix as a heatmap; the VM check in the doctor's `os` category | M | C7 |
