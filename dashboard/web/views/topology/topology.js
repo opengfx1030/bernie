@@ -71,7 +71,7 @@ async function topoLoad() {
 async function topoCheck() {
   const btn = topo.live.head && topo.live.head.querySelector("button.primary");
   if (btn) btn.disabled = true;
-  try { await refreshHost(); } catch { /* the cache drop is best-effort */ }
+  try { await api("/api/refresh", { method: "POST" }); } catch { /* the cache drop is best-effort */ }
   await topoLoad();
   if (btn) btn.disabled = false;
 }

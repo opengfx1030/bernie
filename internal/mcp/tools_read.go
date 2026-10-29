@@ -162,6 +162,12 @@ func registerRead(s *Server) {
 	addTool[noIn, app.ModelsReport](s, ro("models", "Models the running server serves (GET /v1/models) and repos the Hugging Face cache on this host holds (bernie models). A server that fails to answer does not fail the call: live_error carries the reason."), nil,
 		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.Models(ctx) })
 
+	addTool[noIn, app.PrefsReport](s, ro("prefs_get", "The user defaults of this host: every key with its current value, the source (config, $VAR, default), the resolved value when one applies and the file that holds them (bernie config show). Secrets are stripped."), nil,
+		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.Prefs(ctx) })
+
+	addTool[noIn, app.ShareReport](s, ro("report", "The redacted share report of this host: the OS, the kernel, the CPU, the memory, the cards and the checks that did not pass (bernie doctor --report). It carries no hostname, no username, no token and no path with the name of the user, so it is safe to paste into an issue."), nil,
+		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.BuildShareReport(ctx) })
+
 	addTool[idIn, *recipe.Recipe](s, ro("recipe_show", "The merged recipe after extends (bernie recipe show)."), patternOf("id"),
 		func(_ context.Context, _ *call, in idIn) (any, error) { return recipe.Load().Resolve(in.ID) })
 

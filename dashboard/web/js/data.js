@@ -70,17 +70,6 @@ async function loadHW(force) {
 function runsOf(data) { return Array.isArray(data) ? data : (data && data.runs) || []; }
 function runURL(r) { return "http://" + (r.host || "127.0.0.1") + ":" + r.port; }
 
-/** refreshHost drops every cached answer of the host: hw, topo, doctor,
- *  onboarding, power, runs. The next reader of one of those endpoints
- *  re-probes the host. The Re-check buttons of the Setup, Topology,
- *  Advanced and Logs tabs call this before they reload, so a cable that
- *  changed or a check that just resolved shows up without a page reload
- *  (spec §11, ia.md R27). The function returns the request promise so the
- *  caller can chain the reload after the cache is dropped. */
-async function refreshHost() {
-  return request("/api/refresh", { method: "POST" });
-}
-
 /* ---------- the history of the live numbers ---------- */
 
 function pushHist(key, v) {

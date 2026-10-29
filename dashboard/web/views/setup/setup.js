@@ -137,7 +137,7 @@ async function setupStartPath() {
  *  and the reader's wait stays one round-trip. */
 async function loadSetupDocument(gen) {
   if (gen && gen !== setupState.generation) return;
-  try { await refreshHost(); } catch { /* the cache drop is best-effort */ }
+  try { await api("/api/refresh", { method: "POST" }); } catch { /* the cache drop is best-effort */ }
   if (gen && gen !== setupState.generation) return;
   let doc = null;
   try {

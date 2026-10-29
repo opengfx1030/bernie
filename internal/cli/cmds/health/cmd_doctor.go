@@ -21,8 +21,22 @@ func init() {
 		fs.Var(&cats, "category", "limit to a category: "+strings.Join(doctor.Categories, ", ")+" (repeatable)")
 		logFlag := fs.String("log", "", "match a vLLM log file against the known-failure catalog instead of running host checks (- reads stdin)")
 		runFlag := fs.String("run", "", "like --log, for the log of the run NAME")
+		reportFlag := fs.Bool("report", false, "print the redacted share report of this host: no hostname, no username, no token, no path with the name of the user")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
+		}
+		if *reportFlag {
+			if *logFlag != "" || *runFlag != "" {
+				return cli.Usagef("--report is a report of the host, not of a log")
+			}
+			if len(cats) > 0 {
+				return cli.Usagef("--category and --report do not go together: the report holds every check")
+			}
+			rep, err := app.BuildShareReport(c.Ctx)
+			if err != nil {
+				return err
+			}
+			return c.Emit(rep, func(w io.Writer) { fmt.Fprint(w, rep.Report) })
 		}
 		if *logFlag != "" || *runFlag != "" {
 			if *logFlag != "" && *runFlag != "" {
