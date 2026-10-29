@@ -339,30 +339,3 @@ details.advanced > summary:hover { color: var(--text); }
 .setup-glossary-word dt { font-weight: 700; color: var(--text); }
 .setup-glossary-word dd { margin: 0; color: var(--text-2); }
 
-/* ---------- the operator's console (the Advanced tab) ---------- */
-
-.adv-doctor-group { margin-top: var(--space-4); }
-.adv-doctor-cat {
-  font: 800 13px/1.2 var(--font-display);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  margin: 0 0 var(--space-2);
-  color: var(--text-2);
-}
-.adv-doctor-list { display: grid; gap: var(--space-2); }
-
-.adv-documents-body { margin-top: var(--space-3); }
-.adv-document { margin-bottom: var(--space-4); }
-.adv-document-head {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-  flex-wrap: wrap;
-  margin-bottom: var(--space-1);
-}
-.adv-document-path { font-family: var(--font-mono); font-size: var(--small); color: var(--text-2); }
-.adv-document-json {
-  max-height: 340px;
-  overflow: auto;
-  margin: 0;
-}
