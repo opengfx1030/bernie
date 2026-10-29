@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // gitBlobID is the name of a small file in the cache of the Hub: the sha1
@@ -280,5 +281,70 @@ func TestHumanBytes(t *testing.T) {
 		if got := humanBytes(in); got != want {
 			t.Errorf("humanBytes(%d) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestProgressSentence builds the sentence the dashboard and the CLI
+// show (R20). The percent, the bytes, the rate, the ETA and the file
+// count are all there; a missing ETA before a rate exists is silently
+// omitted.
+func TestProgressSentence(t *testing.T) {
+	pr := &progress{total: 1000, start: time.Now().Add(-time.Second), limit: 0}
+	pr.done = 880
+	pr.filesDone, pr.filesTotal = 7, 14
+	got := pr.sentence(false)
+	// The exact rate depends on the elapsed time which rounds to the
+	// nearest second: assert the shape, not the byte.
+	for _, want := range []string{
+		"88% \u00b7 880 B of 1.0 kB \u00b7 ",
+		"about 0s left",
+		"\u00b7 file 7 of 14",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("sentence %q is missing %q", got, want)
+		}
+	}
+	// No rate yet: ETA is hidden.
+	pr.done = 0
+	pr.filesDone = 0
+	got = pr.sentence(false)
+	if strings.Contains(got, "left") {
+		t.Errorf("sentence without a rate must not carry an ETA: %q", got)
+	}
+}
+
+// TestProgressFileDone increments the file count and writes the file
+// marker line so the job writer can keep the count (R20).
+func TestProgressFileDone(t *testing.T) {
+	var buf bytes.Buffer
+	pr := &progress{log: &buf, total: 1000, filesTotal: 14, start: time.Now(), last: time.Now()}
+	pr.fileDone()
+	pr.fileDone()
+	pr.fileDone()
+	if pr.filesDone != 3 {
+		t.Errorf("filesDone = %d, want 3", pr.filesDone)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "model.download: file 1 of 14") {
+		t.Errorf("no first file marker: %q", out)
+	}
+	if !strings.Contains(out, "model.download: file 3 of 14") {
+		t.Errorf("no third file marker: %q", out)
+	}
+}
+
+// TestCurrentDownloadLimitReadsConfig exercises the live-change rule of
+// R21: a value written with SetDownloadLimit reaches the next read.
+func TestCurrentDownloadLimitReadsConfig(t *testing.T) {
+	prev := CurrentDownloadLimit()
+	defer SetDownloadLimit(prev)
+	if _, err := SetDownloadLimit(5_000_000); err != nil {
+		t.Fatal(err)
+	}
+	if got := CurrentDownloadLimit(); got != 5_000_000 {
+		t.Errorf("CurrentDownloadLimit = %d, want 5_000_000", got)
+	}
+	if _, err := SetDownloadLimit(-1); err == nil {
+		t.Error("negative limit must be rejected")
 	}
 }

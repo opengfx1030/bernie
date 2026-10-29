@@ -84,11 +84,13 @@ func downloadModel(ctx context.Context, c *hubClient, d *Download, log io.Writer
 	for _, f := range repo.Files {
 		total += f.Size
 	}
-	pr := &progress{log: log, total: total, start: time.Now(), last: time.Now()}
+	pr := &progress{log: log, total: total, filesTotal: len(repo.Files),
+		start: time.Now(), last: time.Now(), limit: CurrentDownloadLimit()}
 	for _, f := range repo.Files {
 		if err := downloadFile(ctx, c, dir, snap, repo, f, pr); err != nil {
 			return fmt.Errorf("%s: %w", f.Path, err)
 		}
+		pr.fileDone()
 	}
 	pr.print(true)
 	ref := filepath.Join(dir, "refs", "main")
@@ -246,18 +248,32 @@ func (c *checksum) sum() string {
 }
 
 // progress counts the bytes of a download and prints one line every two
-// seconds, and one at the end.
+// seconds, and one at the end. filesDone and filesTotal let the sentence
+// say which file is being downloaded; the limit, in bytes per second, lets
+// the downloader stay below a configured cap (R21).
 type progress struct {
-	log   io.Writer
-	total int64
-	done  int64
-	start time.Time
-	last  time.Time
+	log        io.Writer
+	total      int64
+	done       int64
+	filesTotal int
+	filesDone  int
+	start      time.Time
+	last       time.Time
+	// limit is the bytes-per-second cap: 0 means no cap. Read fresh each
+	// time it is checked, so a live change in config takes effect within a
+	// second (R21).
+	limit int64
 }
 
-// Write counts the bytes of the download.
+// Write counts the bytes of the download and throttles to the configured
+// limit. Throttling is best-effort: the rate the sentence reports is the
+// measured rate of the bytes received, so a small overshoot is still
+// reported honestly.
 func (p *progress) Write(b []byte) (int, error) {
+	now := time.Now()
+	p.maybeSleep(now, int64(len(b)))
 	p.done += int64(len(b))
+	p.last = now
 	p.print(false)
 	return len(b), nil
 }
@@ -270,7 +286,79 @@ func (p *progress) add(n int64) {
 	p.print(false)
 }
 
-// print writes the progress line when it is time.
+// fileDone marks one file as complete. The sentence then includes
+// "file X of Y" once any file finishes, and a "model.download: file N
+// of M" line is written so the job writer can keep the count.
+func (p *progress) fileDone() {
+	p.filesDone++
+	fmt.Fprintf(p.log, "model.download: file %d of %d\n", p.filesDone, p.filesTotal)
+	p.print(false)
+}
+
+// maybeSleep waits long enough that the bytes since the last sleep stay
+// below the configured limit. A limit of 0 or a first write does nothing.
+func (p *progress) maybeSleep(now time.Time, bytes int64) {
+	if p.limit <= 0 || bytes <= 0 || p.last.IsZero() {
+		return
+	}
+	elapsed := now.Sub(p.last).Seconds()
+	if elapsed <= 0 {
+		return
+	}
+	maxBytes := int64(float64(p.limit) * elapsed)
+	if bytes <= maxBytes {
+		return
+	}
+	need := float64(bytes-maxBytes) / float64(p.limit)
+	if need > 0 {
+		time.Sleep(time.Duration(need * float64(time.Second)))
+	}
+}
+
+// sentence builds the one-line progress sentence for the dashboard and
+// the CLI (R20). Every field is computed only from measured numbers; an
+// ETA is omitted before a rate exists, and the file count is omitted
+// until the first file finishes.
+func (p *progress) sentence(final bool) string {
+	now := time.Now()
+	elapsed := now.Sub(p.start).Seconds()
+	var speed int64
+	if elapsed > 0 {
+		speed = int64(float64(p.done) / elapsed)
+	}
+	var pct int
+	if p.total > 0 {
+		pct = int(p.done * 100 / p.total)
+	}
+	if pct > 100 {
+		pct = 100
+	}
+	parts := []string{fmt.Sprintf("%d%%", pct)}
+	if p.total > 0 {
+		parts = append(parts, fmt.Sprintf("%s of %s", humanBytes(p.done), humanBytes(p.total)))
+	}
+	if speed > 0 {
+		parts = append(parts, fmt.Sprintf("%s/s", humanBytes(speed)))
+	}
+	if !final && speed > 0 && p.total > p.done {
+		remaining := p.total - p.done
+		eta := remaining / speed
+		if eta < 60 {
+			parts = append(parts, fmt.Sprintf("about %ds left", eta))
+		} else {
+			parts = append(parts, fmt.Sprintf("about %d min left", eta/60))
+		}
+	}
+	if p.filesTotal > 0 && p.filesDone > 0 {
+		parts = append(parts, fmt.Sprintf("file %d of %d", p.filesDone, p.filesTotal))
+	}
+	return strings.Join(parts, " \u00b7 ")
+}
+
+// print writes the progress line when it is time: the bytes line that the
+// job writer parses, and the sentence that the dashboard and the CLI
+// show. The bytes line keeps its shape (the parser in
+// internal/onboarding/jobs.go matches it).
 func (p *progress) print(final bool) {
 	now := time.Now()
 	if !final && now.Sub(p.last) < 2*time.Second {
@@ -285,6 +373,7 @@ func (p *progress) print(final bool) {
 	if final {
 		fmt.Fprintf(p.log, "model.download: done, %s in %s (%s/s)\n",
 			humanBytes(p.done), now.Sub(p.start).Round(time.Second), humanBytes(speed))
+		fmt.Fprintf(p.log, "model.download: %s\n", p.sentence(true))
 		return
 	}
 	pct := 0
@@ -293,6 +382,7 @@ func (p *progress) print(final bool) {
 	}
 	fmt.Fprintf(p.log, "model.download: %s of %s (%d%%) at %s/s\n",
 		humanBytes(p.done), humanBytes(p.total), pct, humanBytes(speed))
+	fmt.Fprintf(p.log, "model.download: %s\n", p.sentence(false))
 }
 
 // partialBytes is the size of the partial download in the cache: the

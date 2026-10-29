@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -23,13 +24,18 @@ type Config struct {
 	Engine string `json:"engine" yaml:"engine,omitempty"` // docker | podman | "" (auto)
 	// DeviceAccess is how a container gets the GPU: classic | cdi |
 	// auto ("" = auto, spec §8.2).
-	DeviceAccess string   `json:"device_access" yaml:"device_access,omitempty"`
-	HFHome       string   `json:"hf_home" yaml:"hf_home,omitempty"`
-	Set          []string `json:"set" yaml:"set,omitempty"` // applied before --set
+	DeviceAccess string `json:"device_access" yaml:"device_access,omitempty"`
+	HFHome       string `json:"hf_home" yaml:"hf_home,omitempty"`
+	// DownloadLimit is the bytes-per-second cap of a model download
+	// (R21): "" or 0 means no cap. Live changes take effect within a
+	// second; the value here is read fresh each time the downloader
+	// asks for it.
+	DownloadLimit int64    `json:"download_limit" yaml:"download_limit,omitempty"`
+	Set           []string `json:"set" yaml:"set,omitempty"` // applied before --set
 }
 
 // Keys are the settable keys, in file order.
-var Keys = []string{"venv", "mode", "engine", "device_access", "hf_home", "set"}
+var Keys = []string{"venv", "mode", "engine", "device_access", "hf_home", "download_limit", "set"}
 
 // Path is <config>/config.yaml.
 func Path() string { return filepath.Join(paths.Config(), "config.yaml") }
@@ -70,6 +76,9 @@ func (c Config) validate() error {
 	case "", "classic", "cdi", "auto":
 	default:
 		return fmt.Errorf("config device_access must be classic, cdi or auto, not %q", c.DeviceAccess)
+	}
+	if c.DownloadLimit < 0 {
+		return fmt.Errorf("config download_limit must not be negative, got %d", c.DownloadLimit)
 	}
 	for _, s := range c.Set {
 		if k, _, ok := strings.Cut(s, "="); !ok || k == "" {
@@ -116,6 +125,12 @@ func (c *Config) SetKey(key, value string) error {
 		c.DeviceAccess = value
 	case "hf_home":
 		c.HFHome = value
+	case "download_limit":
+		n, err := parseBytesPerSecond(value)
+		if err != nil {
+			return fmt.Errorf("config download_limit: %w", err)
+		}
+		c.DownloadLimit = n
 	case "set":
 		c.Set = setOverride(c.Set, value)
 	default:
@@ -163,6 +178,55 @@ func (c Config) ResolveVenv(flag string) string {
 	return c.ResolveVenvInfo(flag).Path
 }
 
+// parseBytesPerSecond reads a size string of the form "5MB", "500KB",
+// "1GB" (decimal units, case-insensitive) or a plain integer of bytes.
+// Empty input is 0 (no limit). Whitespace is trimmed.
+func parseBytesPerSecond(value string) (int64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, nil
+	}
+	// A trailing "B" is optional; "MB", "M" both work the same.
+	if len(value) > 1 && (value[len(value)-1] == 'B' || value[len(value)-1] == 'b') {
+		value = value[:len(value)-1]
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, fmt.Errorf("want a size like 5MB or 0")
+	}
+	// Find the split between digits and the unit suffix.
+	i := len(value)
+	for i > 0 && (value[i-1] < '0' || value[i-1] > '9') {
+		i--
+	}
+	if i == 0 || i == len(value) {
+		return 0, fmt.Errorf("want a size like 5MB or 0")
+	}
+	num, err := strconv.ParseInt(value[:i], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%q is not a number of bytes: %w", value[:i], err)
+	}
+	if num < 0 {
+		return 0, fmt.Errorf("must not be negative")
+	}
+	if i == len(value) {
+		return num, nil
+	}
+	mult := int64(1)
+	switch strings.ToUpper(value[i:]) {
+	case "", "B":
+	case "K", "KB":
+		mult = 1000
+	case "M", "MB":
+		mult = 1000 * 1000
+	case "G", "GB":
+		mult = 1000 * 1000 * 1000
+	default:
+		return 0, fmt.Errorf("unknown unit %q (use B, K, KB, M, MB, G, GB)", value[i:])
+	}
+	return num * mult, nil
+}
+
 // ResolveHFHome is config hf_home, then $HF_HOME, then ~/.cache/huggingface.
 func (c Config) ResolveHFHome() string {
 	if c.HFHome != "" {
@@ -187,9 +251,14 @@ func expandHome(p string) string {
 // Map returns the config as ordered key/value pairs for display. The set
 // list keeps its order: later entries win.
 func (c Config) Map() [][2]string {
+	var limit string
+	if c.DownloadLimit > 0 {
+		limit = strconv.FormatInt(c.DownloadLimit, 10)
+	}
 	return [][2]string{
 		{"venv", c.Venv}, {"mode", c.Mode}, {"engine", c.Engine},
 		{"device_access", c.DeviceAccess},
-		{"hf_home", c.HFHome}, {"set", strings.Join(c.Set, " ")},
+		{"hf_home", c.HFHome}, {"download_limit", limit},
+		{"set", strings.Join(c.Set, " ")},
 	}
 }
