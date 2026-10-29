@@ -83,8 +83,8 @@ function dashPush(doc) {
     mem += g.vram_used || 0;
     cap += g.power_cap_w || 0;
     total += g.vram_total || 0;
-    if (g.temp_c != null && (hot == null || g.temp_c > hot)) { hot = g.temp_c; hotName = dashCardName(g.hip_index); }
-    if (g.sclk_mhz != null && (clk == null || g.sclk_mhz > clk)) { clk = g.sclk_mhz; clkName = dashCardName(g.hip_index); }
+    if (g.temp_c != null && (hot == null || g.temp_c > hot)) { hot = g.temp_c; hotName = dashCardLabel(g.hip_index); }
+    if (g.sclk_mhz != null && (clk == null || g.sclk_mhz > clk)) { clk = g.sclk_mhz; clkName = dashCardLabel(g.hip_index); }
     return { hip: g.hip_index, busy: g.busy_pct, pow: g.power_w, mem: g.vram_used,
       tmp: g.temp_c, jtmp: g.temp_junction_c, mtmp: g.temp_mem_c,
       clk: g.sclk_mhz, mclk: g.mclk_mhz, cap: g.power_cap_w, total: g.vram_total };
@@ -129,6 +129,14 @@ function dashCardName(hip) {
   const g = ((dash.hw && dash.hw.gpus) || []).find((x) => x.hip_index === hip);
   if (!g) return "GPU " + hip;
   return g.name || g.gfx || ("GPU " + hip);
+}
+
+// dashCardLabel names a card for a line that says which card a number comes
+// from: the index of the card and its name. Eight cards of the same model
+// share a name, so the index is what tells them apart.
+function dashCardLabel(hip) {
+  const name = dashCardName(hip);
+  return name === "GPU " + hip ? name : "GPU " + hip + " · " + name;
 }
 
 // dashLiveRun is the run the tab talks about.
