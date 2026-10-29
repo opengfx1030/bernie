@@ -106,7 +106,7 @@ that exist today; the ones marked **today: X** are the collisions to fix.
 | **profile** (TunableOp profile) | a table of tuned settings for one rocBLAS build | the host profile | `tunableop/<arch>/<profile>/`, spec §9.1 |
 | **step** | one entry of the onboarding checklist | a job, a setup step of the plan | spec §3.3 (`hardware`, `access`, `rocm`, `python-env`, `model`, `recipe`, `serve`, `verify`, plus `bench`, `tuning`, `power`) |
 | **setup step** | one install action of `setup plan` (`venv.create`, `model.download`, …) | a checklist step | `internal/setup/steps_*.go` |
-| **setup step id** | the ten ids of `setup apply --step`: `groups`, `rocm.runtime`, `container.engine`, `image.pull`, `venv.create`, `venv.torch`, `causal-conv1d.build`, `flash-attn.build`, `vllm.build`, `model.download` | a checklist step id | `internal/setup/steps_*.go` |
+| **setup step id** | the eleven ids of `setup apply --step`: `groups`, `rocm.runtime`, `container.engine`, `image.pull`, `venv.create`, `venv.torch`, `causal-conv1d.build`, `flash-attn.build`, `vllm.build`, `venv.verify`, `model.download` | a checklist step id | `internal/setup/steps_*.go` |
 | **check** | one doctor check | a P2P checklist item | `internal/doctor`, spec §5.2 |
 | **finding** | one known failure matched in a log | a check | `internal/logdoc`, spec §5.3 |
 | **suite** | one benchmark suite (`smoke`, `pr`, `long-context`) | a bench run | `bench/suites/*.yaml` |
