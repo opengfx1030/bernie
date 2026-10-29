@@ -63,10 +63,13 @@ async function viewSetup(root) {
   const doctorBox = h("div.doctor-findings");
   const glossaryBox = h("div.setup-glossary-body");
   const glossary = h("details.advanced.setup-glossary", h("summary", "The words on this page"), glossaryBox);
-  const advanced = setupAdvancedPanel();
+  // The raw documents are the last thing of the tab: their module comes with
+  // the first press, so the first paint does not carry it.
+  const advancedBox = h("div");
 
   Object.assign(setupState, {
-    head, actions, banner, hero, pathBox, timeline, recipeBox, recipeHint, recipeErrors, planBox, doctorBox, glossary, glossaryBox, advanced,
+    head, actions, banner, hero, pathBox, timeline, recipeBox, recipeHint, recipeErrors, planBox, doctorBox, glossary, glossaryBox,
+    advanced: null, advancedBox,
     onRefresh: () => loadSetupDocument(),
   });
 
@@ -82,7 +85,13 @@ async function viewSetup(root) {
         h("button.small", { type: "button", onclick: loadSetupDoctor }, "Re-run")),
       doctorBox),
     glossary,
-    advanced);
+    advancedBox);
+
+  setupEnsureModule("views/setup/advanced.js").then(() => {
+    if (!advancedBox.isConnected) return;
+    if (!setupState.advanced) setupState.advanced = setupAdvancedPanel();
+    put(advancedBox, setupState.advanced);
+  }).catch((e) => put(advancedBox, failed(e)));
 
   setHead(head, "BERNIE IS CHECKING THE HOST.", "Reading the host. The checklist arrives in a moment.");
   put(hero, loading());
