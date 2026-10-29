@@ -184,7 +184,9 @@ must print the same titles.
 ## 3. The inventory of bernie today
 
 Every user-visible capability, where it lives today, and where it should
-live. **89 rows.** Sources: `bernie --help` and `bernie <cmd> --help`
+live. **89 rows**: 77 capabilities (§3.1 to §3.9) plus the 12 promises the
+three front ends make to each other (§3.10). Sources: `bernie --help` and
+`bernie <cmd> --help`
 (19 top-level commands, 25 leaf commands), `internal/mcp/tools_read.go` and
 `tools_write.go` (19 read tools, 6 write tools), `dashboard/internal/api/api.go`
 (31 routes), `dashboard/README.md` (the tab table), spec §3.2, §4, §5, §7,
@@ -236,7 +238,7 @@ tab.
 | 26 | The reason behind every setting | (in `recipe plan --json`) | `recipe_plan` | Setup tab, `Settings and reasons` | Setup **S** | already shipped (spec §7.9) |
 | 27 | The mode switch (host / container) | `--mode host\|container` | `recipe_plan` (`mode`) | Setup tab, the mode switch | Setup **S** | |
 | 28 | Validate the recipe files | `bernie recipe validate` | — | not on the page | **A** | a maintainer command |
-| 29 | The recipe catalogue (13 recipes, 4 families) | `bernie recipe list --all` | `recipe_list` | Setup tab | Setup **S** | `recipes/`: flashnext ×6, qwen-dense ×3, deepseek ×1, + fragments |
+| 29 | The recipe catalogue (11 recipes, 3 families) | `bernie recipe list --all` | `recipe_list` | Setup tab | Setup **S** | `recipes/`: flashnext ×6, qwen-dense ×3, deepseek ×1 (12 files; `_flashnext-common.yaml` is the shared base, not a recipe) |
 
 ### 3.4 Runs
 
@@ -316,7 +318,28 @@ tab.
 | 76 | The user defaults | `bernie config show` / `config set K V` | — | not on the page | **A** | `venv`, `mode`, `engine`, `hf_home`, `set` |
 | 77 | The version | `bernie version` | — | not on the page | **A** | |
 
-### 3.10 The counts, checked
+### 3.10 The contract every front end shares
+
+These twelve are not a feature of one tab: they are the promises the three
+front ends make to each other. They have no dashboard home because they are
+the *shape* of the dashboard's answers.
+
+| # | Capability | CLI | MCP | Dashboard home today | Proposed home | Note |
+|---|---|---|---|---|---|---|
+| 78 | One JSON document per command | `--json` on every command | every tool answers `structuredContent` | every `json` link | every `json` link | spec §3.2; AGENTS.md hard rule 4 |
+| 79 | The exit codes `0` / `1` / `2` / `3` | every command | — | — | — | spec §3.2; `3` = checks failed |
+| 80 | The error envelope `{"error", "exit_code"}` | with `--json` | every tool error | the `failed()` component | the `failed()` component | `dashboard/web/components/cards.js:90` |
+| 81 | The global `--venv` and `--root` flags | every command | the `venv` input of the tools that take one | — | — | spec §3.2 |
+| 82 | The write guard of the page | — | — | `X-Bernie: 1` + `Sec-Fetch-Site` + `Origin` | — | spec §11; `dashboard/internal/auth/auth.go` |
+| 83 | The token mode off loopback | `bernie dash --token` | `Authorization: Bearer` on `/mcp` | `/?token=` bootstrap | — | spec §11, §13.10 |
+| 84 | The redaction of secrets | — | every tool result | every answer | every answer | `internal/support/redact` |
+| 85 | The confirm token of a write | — | the two-call write gate | — | — | spec §13.5 |
+| 86 | The audit trail of the MCP calls | — | `<state>/mcp/audit.jsonl` | — | — | spec §13.9 |
+| 87 | The host safety rule: never `sudo` | every root step is printed | `setup_apply` returns the commands | every root step is a command block | every root step is a command block | AGENTS.md hard rule 5 |
+| 88 | The read-only default | every inspection command | the write gate is closed by default | every write is a guarded POST | — | spec §13.5 |
+| 89 | The paths under the state directory | `<state>/runs`, `<state>/jobs`, `<state>/mcp` | the same | — | **A** | spec §12 |
+
+### 3.11 The counts, checked
 
 | What | Count | Where it was checked |
 |---|---|---|
@@ -325,6 +348,7 @@ tab.
 | MCP read tools | 19 | `internal/mcp/server_test.go:106` |
 | MCP write tools | 6 | `internal/mcp/tools_write.go:105-122` |
 | HTTP routes under `/api` | 31 | `dashboard/internal/api/api.go:60-90` |
+| HTTP endpoints in total | 32 | the 31 above plus `POST /mcp`, mounted in `dashboard/server.go:141` |
 | Event streams | 4 | `/api/telemetry`, `/api/runs/{n}/logs`, `/api/jobs/{id}/events`, `/api/bench/{id}/events` |
 | Dashboard tabs | 8 | `dashboard/web/js/boot.js` `VIEWS` |
 | Recipes | 13 (+ fragments) | `recipes/` |
@@ -578,7 +602,7 @@ Effort: S = under a day, M = a few days, L = a week or more.
 
 | # | Reference feature | Reference endpoint / file | Status in bernie | Proposed home | Effort | Commit |
 |---|---|---|---|---|---|---|
-| R17 | **"Set everything up"** — one button that runs the whole path | `POST /api/autopilot`, `rdna_dash/jobs.py` | **absent** — the Setup tab runs one step at a time | Setup **S**: the primary button, with "or go step by step below" | M | C6 |
+| R17 | **"Set everything up"** — one button that runs the whole path, with the line under it "or go step by step below." | `POST /api/autopilot`, `rdna_dash/jobs.py`, `rdna_dash/web/app.js:291-292` | **absent** — the Setup tab runs one step at a time | Setup **S**: the primary button, with "or go step by step below" | M | C6 |
 | R18 | **Re-check without a reload** — "Re-check this box" | `POST /api/profile/refresh` | **partial** — the Setup tab has a `Re-check` button that reloads the onboarding document; there is no *profile* refresh | Setup **S**: `Re-check` re-reads the host in place and updates the step states | S | C5 |
 | R19 | **The root-command pause** — the autopilot stops and says "Some things need you first" | `rdna_dash/jobs.py` | **partial** — the step shows the root command, but the path does not stop there in one place | Setup **S**: the path stops at the root step and the headline names it | S | C6 |
 | R20 | **The progress sentence with bytes, rate and ETA** ("88% · 53.7 of 61.4 GB · 112 MB/s · about 4s left · file 7 of 14") | `rdna_dash/jobs.py` | **partial** — the job carries `progress` (spec §3.3) but the page shows the phase sentence only | Setup **S**: the sentence under the progress bar of the `model` step | S | C5 |
@@ -596,10 +620,21 @@ Effort: S = under a day, M = a few days, L = a week or more.
 | R32 | **The topology bandwidth heatmap** | `GET /api/topology/bandwidth`, `rdna_dash/topology.py` | **partial** — `bernie topo --bandwidth` measures it; the page says the dashboard never measures it and shows the last result as a table | Topology **D**: the matrix, drawn as a heatmap | M | C7 |
 | R33 | **The install scripts** (`install.sh`, `install-host.sh`) | `~/.cache/minimax-researcher/vllm-rdna-dash/install.sh` | **absent** — bernie is one binary; `scripts/install.sh` in this repo installs bernie, not the host | not a feature of the dashboard; the *host* install is the Setup path (the `access`, `rocm`, `container` steps) | — | — |
 | R34 | **The Dockerfile and compose.yml of the dashboard itself** | `Dockerfile`, `compose.yml` of the reference | **absent** — bernie's dashboard ships inside the binary; `bernie compose` writes a compose file for a *run*, not for the dashboard | not applicable; the product surface is one binary | — | — |
-| R35 | **The example recipes and the `recipes/` JSON files** | `examples/`, `recipes/*.json` of the reference | **present** — bernie's `recipes/` is YAML with 13 recipes and the same families (flashnext, qwen 27B, deepseek) | Setup **S** | — | — |
+| R35 | **The example recipes and the `recipes/` JSON files** | `examples/`, `recipes/*.json` of the reference | **present** — bernie's `recipes/` is YAML with 11 recipes and the same families (flashnext, qwen 27B, deepseek) | Setup **S** | — | — |
 | R36 | **The ECC and power tools** (`tools/ecc.sh`, `tools/power.sh`) | `tools/` of the reference | **partial** — bernie has the doctor checks `gpu.ecc.*` and `tuning.power` and the power service; the root commands are printed, not scripted | Setup **S** (the `access` and `power` steps) | — | — |
-| R37 | **The log doctor** | `rdna_dash/logdoctor.py` | **present and stronger** — bernie's catalog has 58 rules with an id, a cause, a fix and a doc link (spec §5.3) | Logs **S** | — | — |
+| R37 | **The log doctor** | `rdna_dash/logdoctor.py` | **present and stronger** — bernie's catalog has 61 rules with an id, a cause, a fix and a doc link (spec §5.3) | Logs **S** | — | — |
 | R38 | **The demo mode** | `rdna_dash/demo.py` | **absent** — the reference's demo replaces every step script with a canned output, so the whole UI can be tried with no hardware | **not planned.** bernie's fixtures (`internal/support/fixture/testdata/*.tar.gz`) cover the tests. A demo mode for the *page* is a product decision the owner has not made | L | — (decision) |
+| R39 | **The blocked state**: "Fix the items below first, then Re-check." and the headline "A few things first." | `rdna_dash/web/app.js:278`, `:292` | **partial** — the Setup headline names the blocked step, but the sentence and the "first." headline are not there | Setup **S** | S | C6 |
+| R40 | **"Needs you"** — a section of the checks that only the operator can do, above the step timeline | `rdna_dash/web/app.js:296` | **partial** — the doctor findings are on the Setup tab, but they are not separated from the checks that pass | Setup **S**: a "Needs you" block above the path | M | C6 |
+| R41 | **"Other good options"** — the recipes that also fit, as buttons, each with the reason in its tooltip | `rdna_dash/web/app.js:301` | **present** — the recipe chooser with the fit and the reason | Setup **S** | — | — |
+| R42 | **"Show the exact launch command"** — the launch command and the generated `compose.yml`, in one disclosure | `rdna_dash/web/app.js:302` | **partial** — `bernie compose` writes the file; the Setup plan shows the host command only | Setup **D**: the launch command and the compose file of the container plan | M | C6 |
+| R43 | **The settings form** — model and layout, how to install, PLE table, port, max context, install folder, name for this box, "share the model on my network", and "Save and re-tune" | `rdna_dash/web/app.js:372-385` (`changeForm`) | **partial** — bernie has the overrides (`--set`) and the mode switch on the Setup tab and the config defaults in the CLI, but no form | Setup **D**: the overrides form; the port and the max context are `--set` values | M | C7 |
+| R44 | **The GPU selection** (`HIP_VISIBLE_DEVICES`, "Which GPUs vLLM is allowed to use, by index") | `rdna_dash/web/app.js:34` | **partial** — bernie selects the GPUs by recipe (spec §7.7) and the plan carries the selection; the page does not let a reader narrow it | Setup **D**: the GPU selection of the plan | M | C7 |
+| R45 | **The "Cancel" button on a running job and on the autopilot** | `rdna_dash/web/app.js:190`, `:195`, `:328` | **absent** — bernie has no way to stop a running setup job | Setup **S**: a `Stop` on the running step | M | C6 |
+| R46 | **"Compare up to four runs"** — the comparison picks up to four saved runs | `rdna_dash/web/app.js:637`, `:668` | **partial** — bernie compares exactly two (`bench compare A B`) | Benchmark **S**: keep two. The verdict of spec §10.3 is defined for a pair; four would need a new rule | — | — (decision) |
+| R47 | **The benchmark table of ten columns** (Case, Prompt tok, TTFT p50, p95, Prefill tok/s, Decode tok/s, ITL p95, All users tok/s, Recall, Errors) and the **fingerprint line** | `rdna_dash/web/app.js:656-657` | **present** — the metric table of `dashboard/web/components/metrics.js` has the same measures (spec §10.1) | Benchmark **S** | — | — |
+| R48 | **The topology bandwidth heatmap** and the **"Bare metal" / "Not a VM."** check | `rdna_dash/web/app.js:726` | **partial** — the check does not exist in bernie (the doctor has `virtualization` in the host document, not a check) | Topology **D**: the matrix as a heatmap; the VM check in the doctor's `os` category | M | C7 |
+| R49 | **"Delete this run?"** — a saved benchmark result can be deleted | `rdna_dash/web/app.js:212` | **absent** — bernie keeps every result | **not copied.** A saved result is the evidence of a measurement | — | — |
 
 ### 5.3 The reference's features bernie deliberately does not copy
 
