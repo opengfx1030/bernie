@@ -367,3 +367,7 @@ form.f .hint { grid-column: 2; font-size: var(--small); color: var(--muted); mar
   color: var(--text);
   font-weight: 700;
 }
+
+/* The exact per-GPU table: every column carries a unit, so the table keeps
+   its width and scrolls on a narrow window. */
+.gpu-value-table { min-width: 920px; }

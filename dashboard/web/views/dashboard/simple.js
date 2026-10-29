@@ -237,7 +237,8 @@ function dashBuildSimple(root) {
   const gpus = dashSection("GPUs", "gpus");
   gpus.id = "dashboard-gpus";
   const bottom = h("div.dash-simple-bottom");
-  put(root, hero.el, tiles, minutes, gpus, bottom);
+  const details = dashDetails();
+  put(root, hero.el, tiles, minutes, gpus, bottom, details.el);
   const api = {
     hero: hero,
     tiles: tiles,
@@ -245,6 +246,7 @@ function dashBuildSimple(root) {
     cards: dashCards(gpus),
     machine: dashSimpleMachine(bottom),
     connect: dashSimpleConnect(bottom),
+    details: details,
   };
   dash.live.simple = api;
   return api;

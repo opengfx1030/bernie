@@ -138,3 +138,18 @@
 .dash-power-service { font-size: 13px; color: var(--text-2); margin-bottom: 12px; }
 .dash-warn-13 { color: var(--warn); font-size: 13px; }
 .dash-stat-serious { color: var(--serious); }
+
+/* The details of the Dashboard tab: the per-GPU table, the history window,
+   the power read-out and the raw documents. */
+.dash-details-body { margin-top: var(--space-3); }
+.dash-details-documents { margin-top: var(--space-4); }
+.dash-details-document { margin-bottom: var(--space-4); }
+.dash-details-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-1);
+}
+.dash-details-path { font-family: var(--font-mono); font-size: var(--small); color: var(--text-2); }
+.dash-details-json { max-height: 340px; overflow: auto; margin: 0; }

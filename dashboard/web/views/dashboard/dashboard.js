@@ -157,6 +157,7 @@ function dashUpdateSimple() {
   api.cards.update();
   api.machine.update();
   api.connect.update();
+  if (api.details) api.details.update();
 }
 
 // dashHistory reads the five minutes of history that the Simple charts show.

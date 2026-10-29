@@ -96,6 +96,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/components/charts.js` | `chartMinMax`, `chartNumbers`, `chartSame`, `chartPaths`, `chartPointer`, `chartNice`, `sparkDomain`, `chartDataTable`, `spark`, `areaChart`, `ring`, `meter` |
 | `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock`, `connectEndpoint`, `connectSnippet` |
 | `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `ladderPoints`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart`, `curveSmallMultiples`, `curveTable` |
+| `dashboard/web/components/gputable.js` | `gpuValueTable` |
 | `dashboard/web/components/metrics.js` | `METRIC_HELP`, `VERDICTS`, `METRIC_COLS`, `COMPARE_METRICS`, `benchNum`, `benchDist`, `benchRate`, `benchDigits`, `SPREAD_STEADY`, `benchSpreadText`, `cellLens`, `cellFlags`, `metricHead`, `cellRow`, `cellsTable`, `verdictChip` |
 | `dashboard/web/components/timeline.js` | `TIMELINE_STATE_WORD`, `TIMELINE_MARK`, `TIMELINE_PILL`, `stepTimeline`, `stepCurrentID`, `stepRow`, `stepPill`, `stepMark`, `stepSummary`, `stepActionLabel`, `stepAction`, `stepProgressNode`, `stepBar`, `stepProblem`, `stepToggleLog` |
 | `dashboard/web/js/boot.js` | `VIEWS`, `OLD_ROUTES`, `TAB_SCRIPTS`, `TAB_CSS`, `tabReady`, `tabLoading`, `loadScript`, `loadStyle`, `openTab`, `parseHash`, `route`, `preparePanel`, `focusSection`, `tabsKey`, `pendingG`, `shortcutsKey`, `boot` |
@@ -109,6 +110,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/advanced/topology.js` | `advViewTopology`, `advGpuName`, `advP2pCard`, `advP2pRow` |
 | `dashboard/web/views/chat/chat.js` | `viewChat` |
 | `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashSection`, `dashInfo`, `dashGroup`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashLiveRun`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
+| `dashboard/web/views/dashboard/details.js` | `DASH_DETAIL_WINDOWS`, `dashDetails`, `dashLoadDetails`, `dashDetailsRead`, `dashDetailsWindow`, `dashWindowMinutes`, `dashDetailsPower`, `dashDetailsDocuments` |
 | `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe` |
 | `dashboard/web/views/dashboard/simple.js` | `dashSimpleHero`, `dashStopRun`, `dashMeaning`, `dashSimpleTiles`, `dashSimpleCharts`, `dashSimpleMachine`, `dashBuildSimple`, `dashSimpleConnect` |
 | `dashboard/web/views/fleet/fleet.js` | `viewFleet` |
