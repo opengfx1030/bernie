@@ -45,7 +45,7 @@ func (h *handler) postSmoke(w http.ResponseWriter, r *http.Request) {
 		smokeError(w, err)
 		return
 	}
-	httpjson.Redacted(w, http.StatusOK, res)
+	httpjson.Write(w, http.StatusOK, res)
 }
 
 // smokeError maps the failure of the smoke check to a status: a run that is

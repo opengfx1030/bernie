@@ -96,7 +96,7 @@ func (h *handler) getRunLog(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	httpjson.Redacted(w, http.StatusOK, doc)
+	httpjson.Write(w, http.StatusOK, doc)
 }
 
 // GET /api/runs/{name}/findings — the known failures in the log of a run:
@@ -112,7 +112,7 @@ func (h *handler) getRunFindings(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	httpjson.Redacted(w, http.StatusOK, findingsDoc{Name: name, Matches: rep.Matches})
+	httpjson.Write(w, http.StatusOK, findingsDoc{Name: name, Matches: rep.Matches})
 }
 
 // findRun returns the run with this name and its state.

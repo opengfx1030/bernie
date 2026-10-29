@@ -1549,6 +1549,31 @@ Rules for responses and tokens:
 - On other paths a query token is ignored. It sets no cookie.
 - The server writes no per-request log, so a query string never reaches the
   log. The start line prints the bootstrap URL once.
+- Every answer is redacted before it leaves the process. The JSON documents
+  go through `internal/support/redact` — `httpjson.Write` is the one writer of
+  the API — and the event streams redact every line they send. A secret never
+  reaches the browser: the value of every secret name (`*_TOKEN`, `*_KEY`,
+  `*_SECRET`, `*_PASSWORD`) in an environment, an argument or a log line, and
+  every credential that is secret by shape (`hf_...`, `sk-...`, a bearer
+  token). The routes that carry host, run, log or config text are the ones
+  where the rule has something to remove: `GET /api/recipes/{id}/plan` (the
+  environment and the command of the run), `GET /api/runs`, `POST /api/runs`
+  and `DELETE /api/runs/{name}` (the run record), `GET /api/runs/{name}/log`,
+  `GET /api/runs/{name}/findings` and `GET /api/runs/{name}/logs` (the log of
+  the run), `GET /api/topo/check` (the environment of the recipe of the
+  check), `GET /api/doctor` (the checks and the commands they name),
+  `GET /api/onboarding`, `GET /api/jobs/{id}`,
+  `POST /api/onboarding/{step}/run` and `POST /api/onboarding/path/run` (the
+  checklist and the output of a step), `POST /api/smoke` and `POST /api/chat`
+  (the answer of the model). The other routes carry only numbers, identifiers
+  and the static words of the catalogue — `GET /api/hw`, `GET /api/topo`,
+  `GET /api/glossary`, `GET /api/recipes`, `GET /api/gpus/history`,
+  `GET /api/telemetry`, `GET /api/power`, `PUT /api/power`, `GET /api/bench`,
+  `GET /api/bench/suites`, `GET /api/bench/compare`, `POST /api/bench`,
+  `POST /api/bench/run`, `POST /api/bench/ab`, `GET /api/bench/{id}`,
+  `GET /api/jobs` and `POST /api/jobs/{id}/stop` — so there is no secret in
+  them for the rule to remove. They go through the same rule all the same, so
+  a route that is added later cannot forget it.
 
 The page has eight tabs: Setup, Dashboard, Chat, Benchmark, Topology, Fleet,
 Logs and Advanced. The Topology tab is the tab of the PCIe tree, of the link
@@ -1945,9 +1970,10 @@ schema or catalog entry is built from log text.
 The server redacts every result and every progress message before it leaves
 the process. It uses the rules of the dashboard: values of secret names
 (`*_TOKEN`, `*_KEY`, `*_SECRET`, `*_PASSWORD`) in environments, arguments and
-log lines, and credentials by shape (`hf_...`, `sk-...`, bearer tokens).
-`doctor_log` is the preferred way to diagnose a run: it returns catalog
-matches, not raw log text.
+log lines, and credentials by shape (`hf_...`, `sk-...`, bearer tokens). A
+credential that is secret by shape is removed from every string of a result,
+so a log line that carries one loses it. `doctor_log` is the preferred way to
+diagnose a run: it returns catalog matches, not raw log text.
 
 ### 13.8 Progress
 

@@ -31,7 +31,9 @@ func secretName(name string) bool {
 // JSON returns v as generic JSON with secret values replaced:
 //   - object members whose name is a secret and whose value is a string;
 //   - "KEY=VALUE" strings whose KEY is a secret (env lists, `-e K=V` argv);
-//   - "--flag=VALUE" and "--flag VALUE" in string lists when the flag is a secret.
+//   - "--flag=VALUE" and "--flag VALUE" in string lists when the flag is a secret;
+//   - the credentials that are secret by shape in every string (a log line
+//     that carries one loses it).
 //
 // Plans and run records carry the operator's environment; the dashboard and
 // the MCP server may be reachable from the network, so they never return
@@ -83,7 +85,7 @@ func value(v any) any {
 		}
 		return t
 	case string:
-		return keyValue(t)
+		return keyValue(shapes(t))
 	}
 	return v
 }
@@ -108,7 +110,7 @@ var (
 // Text redacts free text such as a run log: credentials by shape, and the
 // value of every `name=value` or `name: value` whose name is a secret name.
 func Text(s string) string {
-	s = secretToken.ReplaceAllString(s, redacted)
+	s = shapes(s)
 	return assignment.ReplaceAllStringFunc(s, func(m string) string {
 		g := assignment.FindStringSubmatch(m)
 		if !secretName(g[2]) || g[4] == redacted {
@@ -116,4 +118,11 @@ func Text(s string) string {
 		}
 		return g[1] + g[2] + g[3] + redacted
 	})
+}
+
+// shapes replaces the credentials that are secret by shape: Hugging Face and
+// OpenAI-style keys and bearer tokens. Every string of a document goes
+// through it, so a log line that carries one loses it.
+func shapes(s string) string {
+	return secretToken.ReplaceAllString(s, redacted)
 }

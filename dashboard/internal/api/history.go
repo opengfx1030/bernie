@@ -38,7 +38,7 @@ func (h *handler) getHistory(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	httpjson.Redacted(w, http.StatusOK, val)
+	httpjson.Write(w, http.StatusOK, val)
 }
 
 // history returns the ring buffer of the samples, or nil when the dashboard

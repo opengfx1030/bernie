@@ -41,7 +41,11 @@ Every rule carries its check. The tags:
    text. **[lint]**
 5. **Writes are guarded.** Every POST and DELETE keeps the `X-Bernie` header
    check and the token rules in `internal/auth`. Never loosen them. **[test]**
-6. **Redact.** Anything sent to the browser goes through `internal/support/redact`.
+6. **Redact.** Anything sent to the browser goes through `internal/support/redact`:
+   `httpjson.Write` is the one writer of the JSON answers and the SSE writer
+   redacts every line it sends. → Check: **[test]** `TestEveryRouteRedacts` in
+   `dashboard/internal/api/redact_test.go` walks every route of the router and
+   finds no secret in the answer.
 7. **One question per tab.** Do not add a tab for a feature that fits
    an existing one. Do not put two questions in one tab. The Advanced tab is
    the one exception: it is the operator's console, the things about the host

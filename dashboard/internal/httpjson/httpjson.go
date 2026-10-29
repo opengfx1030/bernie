@@ -10,8 +10,23 @@ import (
 	"github.com/opengfx1030/bernie/internal/support/redact"
 )
 
-// Write writes one indented JSON document.
+// Write writes one indented JSON document. The document is redacted before it
+// leaves the process: everything the browser sees goes through
+// internal/support/redact (dashboard/AGENTS.md, hard rule 6). Every handler
+// of the API writes with this function, so a route that is added later cannot
+// forget the rule.
 func Write(w http.ResponseWriter, code int, v any) {
+	g, err := redact.JSON(v)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	write(w, code, g)
+}
+
+// write writes the document as it is. It is the one place that touches the
+// wire.
+func write(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(code)
@@ -39,14 +54,4 @@ func Decode(w http.ResponseWriter, r *http.Request, v any) bool {
 		return false
 	}
 	return true
-}
-
-// Redacted writes a document after removing secrets.
-func Redacted(w http.ResponseWriter, code int, v any) {
-	g, err := redact.JSON(v)
-	if err != nil {
-		Error(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	Write(w, code, g)
 }
