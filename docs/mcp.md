@@ -12,6 +12,32 @@ Protocol revision: `2026-07-28`. Clients that start with `initialize` work
 too. The server is built on the official Go SDK
 ([third-party.md](third-party.md)).
 
+## One line, then browser
+
+The dashboard is one line away on a bare GPU host:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --start
+```
+
+The installer installs the binary, starts the dashboard as a service and
+prints the URL to open. The same capabilities exist in the three front
+ends, and each one is the same operation:
+
+| What | CLI | MCP tool |
+|---|---|---|
+| Start the dashboard service | `bernie dash start` | `dash_start` |
+| Read its state | `bernie dash status` | `dash_status` |
+| Stop it | `bernie dash stop` | `dash_stop` |
+| Read the install steps | `bernie setup plan` | `setup_plan` |
+| Read the checklist | `bernie status --steps` | `onboarding_status` |
+| Run the checks | `bernie doctor` | `doctor` |
+
+`dash_start` and `dash_stop` are mutating tools: they need the write
+gate (`bernie mcp --allow-write`) and the two-call confirmation of
+[§13.5](spec.md#135-write-gate). `dash_status` is read-only and redacts
+the bearer token unless `show_token` is true.
+
 ## Quick start: stdio
 
 The client starts `bernie mcp` and talks to it on stdin and stdout. There is
