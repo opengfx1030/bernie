@@ -92,7 +92,7 @@ function setupHeadActions(doc, say) {
     out.push(h("button.primary", { type: "button", onclick: setupStartPath }, primary.label || "Set up this box"));
     out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the command"));
     out.push(h("button", { type: "button", onclick: () => loadSetupDocument() }, "Re-check"));
-    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
     return out;
   }
   if (say.action === "start") {
@@ -275,9 +275,14 @@ function focusSetupVerify() {
 
 /** setupShowDetails opens or closes the raw documents of the tab. It acts on
  *  this tab only: the rail button is the page-wide switch. */
-function setupShowDetails() {
-  const panel = setupState.advanced;
-  if (!panel) return;
+async function setupShowDetails() {
+  await setupEnsureModule("views/setup/advanced.js");
+  let panel = setupState.advanced;
+  if (!panel) {
+    panel = setupAdvancedPanel();
+    setupState.advanced = panel;
+    if (setupState.advancedBox) put(setupState.advancedBox, panel);
+  }
   setupState.detailsOpen = !setupState.detailsOpen;
   panel.open = !!setupState.detailsOpen;
   panel.dataset.local = "1";
