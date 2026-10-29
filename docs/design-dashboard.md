@@ -391,6 +391,7 @@ too, and it arrives when the reader asks for it.
 | Fonts | ≤ 130 KB, four woff2, OFL, `font-display: swap`, `unicode-range` | **128.4 KB**, four woff2, swap ✓, range ✓ | the license texts (24.5 KB) sit next to the files; they are not loaded by the page |
 | First-paint requests | ≤ 24 | **21** (1 HTML + 4 CSS + 12 scripts + 4 fonts) | the files of the other tabs come when their tab opens |
 | Transferred text on the first paint (gzip) | ≤ 60 KB | **46.4 KB** (HTML + CSS + JS, 32 %) | the gzipped HTML alone is 1.2 KB |
+| Text of the whole tree (gzip) | ≤ 125 KB | **113.4 KB** (32 %) | the five tabs of plain JavaScript; the same text compresses worse in four files than in one, so the split of the Setup tab costs 1.2 KB of gzip |
 | First paint on a loopback host | ≤ 1.0 s | **unmeasured** | the binary runs on this Mac; a measurement on the reference box (par1-cs25) lands in `dashboard/README.md` when the integrator pushes |
 | The live numbers | one stream: `GET /api/telemetry` at 1 Hz drives every tile, every ring, every meter and every sparkline | the stream | the poller pauses while `document.hidden` and reads once on return (`web/js/data.js`) |
 | The poller | one timer for the page, in `js/data.js`; no view opens its own timer | one timer | one `setTimeout` re-arms itself with a delay that grows on error (backoff, capped at 60 s) and shrinks on success |

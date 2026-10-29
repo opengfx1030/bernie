@@ -345,6 +345,7 @@ for the first time (the manifest of `web/js/boot.js`).
 | Fonts | ≤ 130 KB, ≤ 4 files, woff2, `font-display:swap`, `unicode-range` | 128.4 KB, 4 files, swap, range ✓ | **[budget]** |
 | Requests on the first paint | ≤ 24 | 21 | **[budget]** |
 | Transferred text on the first paint (gzip) | ≤ 60 KB | 46.4 KB | **[budget]** |
+| Text of the whole tree (gzip) | ≤ 125 KB | 113.4 KB | **[budget]** |
 | Points drawn per chart | ≤ 240 | unbounded | **[review]** |
 | Pollers | 1 | 1 poller + 1 extra 1 Hz timer | **[review]** |
 | Live streams | 1 SSE at 1 Hz | 1 SSE | **[review]** |
