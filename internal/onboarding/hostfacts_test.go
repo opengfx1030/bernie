@@ -46,7 +46,7 @@ func TestFactsOfTheHost(t *testing.T) {
 	if gpus.Why != "Every card is gfx1030, so one recipe family fits them all." {
 		t.Errorf("the reason of the gpus is %q", gpus.Why)
 	}
-	if mem := seen["memory"]; mem.Value != "64.0 GB" {
+	if mem := seen["memory"]; mem.Value != "64.0 GiB" {
 		t.Errorf("the memory is %q", mem.Value)
 	}
 	if py := seen["python"]; py.Value != "/opt/venv (config)" {
