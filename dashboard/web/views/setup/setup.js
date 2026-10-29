@@ -55,6 +55,7 @@ async function viewSetup(root) {
   const banner = h("div.banner.warn", { hidden: true });
   const hero = h("div.setup-hero");
   const pathBox = h("div.setup-path-box");
+  const needsYou = h("section.section.needs-you", { id: "setup-needs-you", hidden: true });
   const timeline = h("div.setup-timeline-body");
   const recipeBox = h("div.setup-recipe-chooser");
   const recipeHint = h("div.setup-recipe-hint");
@@ -68,12 +69,12 @@ async function viewSetup(root) {
   const advancedBox = h("div");
 
   Object.assign(setupState, {
-    head, actions, banner, hero, pathBox, timeline, recipeBox, recipeHint, recipeErrors, planBox, doctorBox, glossary, glossaryBox,
+    head, actions, banner, hero, pathBox, needsYou, timeline, recipeBox, recipeHint, recipeErrors, planBox, doctorBox, glossary, glossaryBox,
     advanced: null, advancedBox,
     onRefresh: () => loadSetupDocument(),
   });
 
-  put(root, head, banner, hero, pathBox,
+  put(root, head, banner, hero, pathBox, needsYou,
     h("section.section", { id: "setup-path" },
       sectionLabel("The path to a serving model"),
       timeline),
@@ -150,6 +151,7 @@ async function loadSetupDocument(gen) {
   setupState.doc = doc;
   paintSetupHead(doc);
   paintSetupStale(doc);
+  paintSetupNeedsYou(doc);
   paintSetupTimeline(doc);
   await paintSetupFacts(doc);
   attachSetupJobs(doc.steps);
@@ -230,6 +232,18 @@ function paintSetupTimeline(doc) {
     // The headline carries the one filled button of the tab.
     filled: !(doc.primary && doc.primary.kind === "setup"),
   }));
+}
+
+/** paintSetupNeedsYou writes the "Needs you" section: the items only the
+ *  operator can do, above the path. The section is hidden when there is
+ *  nothing to do; the timeline below carries the routine steps.
+ *  See ia.md §5 R40. The module is lazy so the first paint stays small. */
+function paintSetupNeedsYou(doc) {
+  const box = setupState.needsYou;
+  if (!box) return;
+  setupEnsureModule("views/setup/needs-you.js")
+    .then(() => paintSetupNeedsYouRender(doc))
+    .catch(() => {});
 }
 
 /** setupStepLink is the link of an optional step. */

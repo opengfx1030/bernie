@@ -339,3 +339,50 @@ details.advanced > summary:hover { color: var(--text); }
 .setup-glossary-word dt { font-weight: 700; color: var(--text); }
 .setup-glossary-word dd { margin: 0; color: var(--text-2); }
 
+
+
+/* The "Needs you" section: only-operator items, above the path. */
+.needs-you-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.needs-you-item {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  background: var(--surface-1);
+}
+
+.needs-you-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.needs-you-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.needs-you-summary {
+  margin: 0 0 var(--space-2);
+  color: var(--text-2);
+}
+
+.needs-you-command {
+  margin-top: var(--space-2);
+}
+
+.needs-you-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
