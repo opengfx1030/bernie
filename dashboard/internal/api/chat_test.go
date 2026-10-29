@@ -281,3 +281,45 @@ func TestChatNeedsTheToken(t *testing.T) {
 		t.Fatalf("the answer is %d %s", w.Code, w.Body.String())
 	}
 }
+
+// TestChatRefusesASecondAnswer checks that one answer runs at a time: the
+// second request waits for nothing, it is refused with 409.
+func TestChatRefusesASecondAnswer(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"object": "list", "data": []map[string]any{{"id": "fake-model"}},
+			})
+		case "/v1/chat/completions":
+			close(started)
+			<-release
+		}
+	}))
+	defer upstream.Close()
+	port := upstream.Listener.Addr().(*net.TCPAddr).Port
+
+	h := smokeHandler(t)
+	chatRun(t, "flashnext", "127.0.0.1", port)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		r := httptest.NewRequest(http.MethodPost, "/api/chat", strings.NewReader(`{"prompt":"Hello"}`))
+		h.ServeHTTP(httptest.NewRecorder(), r)
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the first answer did not reach the server")
+	}
+	w := post(t, h, "/api/chat", `{"prompt":"Hello"}`)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("the answer is %d %s", w.Code, w.Body.String())
+	}
+	close(release)
+	<-done
+}
