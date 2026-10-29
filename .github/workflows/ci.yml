@@ -28,6 +28,12 @@ jobs:
           go mod tidy -diff
       - name: test
         run: go test -race ./...
+      - name: installer (fake release server)
+        run: make installtest
+      - name: shellcheck
+        run: |
+          sudo apt-get install -y --no-install-recommends shellcheck >/dev/null
+          shellcheck scripts/install.sh scripts/test-install.sh
       - name: linux static build
         run: make linux
       - name: version stamp
