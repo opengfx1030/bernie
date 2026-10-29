@@ -1,12 +1,17 @@
 package mcp
 
 import (
+	"context"
 	"errors"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
 )
 
 func TestWriteToolsOnlyInWriteMode(t *testing.T) {
@@ -94,27 +99,35 @@ func TestConfirmToken(t *testing.T) {
 		}
 		return tok
 	}
-	if err := ts.consume(issue(), "stop", "a1", "p1"); err != nil {
+	// A valid token verifies and gives back the digest of the plan it is
+	// bound to.
+	bound, err := ts.verify(issue(), "stop", "a1")
+	if err != nil {
 		t.Errorf("valid token: %v", err)
 	}
-	tok := issue()
-	if err := ts.consume(tok, "stop", "a1", "p1"); err != nil {
-		t.Fatal(err)
+	if bound != "p1" {
+		t.Errorf("the plan digest is %q, want p1", bound)
 	}
-	if err := ts.consume(tok, "stop", "a1", "p1"); !errors.Is(err, errTokenUnknown) {
+	// A token works once.
+	tok := issue()
+	if _, err := ts.verify(tok, "stop", "a1"); err != nil {
+		t.Errorf("valid token: %v", err)
+	}
+	if _, err := ts.verify(tok, "stop", "a1"); !errors.Is(err, errTokenUnknown) {
 		t.Errorf("reused token: %v", err)
 	}
-	for _, c := range [][3]string{{"serve", "a1", "p1"}, {"stop", "a2", "p1"}, {"stop", "a1", "p2"}} {
-		if err := ts.consume(issue(), c[0], c[1], c[2]); !errors.Is(err, errTokenBinding) {
+	// A token is bound to the tool and to the arguments.
+	for _, c := range [][3]string{{"serve", "a1", "p1"}, {"stop", "a2", "p1"}} {
+		if _, err := ts.verify(issue(), c[0], c[1]); !errors.Is(err, errTokenBinding) {
 			t.Errorf("token for %v: %v", c, err)
 		}
 	}
 	tok = issue()
 	now = now.Add(TokenTTL + time.Second)
-	if err := ts.consume(tok, "stop", "a1", "p1"); !errors.Is(err, errTokenExpired) {
+	if _, err := ts.verify(tok, "stop", "a1"); !errors.Is(err, errTokenExpired) {
 		t.Errorf("expired token: %v", err)
 	}
-	if err := ts.consume("nope", "stop", "a1", "p1"); !errors.Is(err, errTokenUnknown) {
+	if _, err := ts.verify("nope", "stop", "a1"); !errors.Is(err, errTokenUnknown) {
 		t.Errorf("unknown token: %v", err)
 	}
 	if es, _ := os.ReadDir(ts.dir); len(es) != 0 {
@@ -150,5 +163,51 @@ func TestServePlanThenConfirm(t *testing.T) {
 	}
 	if res := callTool(t, cs, "serve", args(tok)); !res.IsError {
 		t.Error("a burnt token was accepted")
+	}
+}
+
+// TestRefusedCallDoesNotPlan checks that a call the gate refuses never
+// computes a plan: the plan of a recipe writes the TunableOp rows of the
+// host, so a call without a valid token must not have that side effect.
+func TestRefusedCallDoesNotPlan(t *testing.T) {
+	isolate(t)
+	cs := connect(t, Options{Write: true})
+	old := planOf
+	calls := 0
+	planOf = func(ctx context.Context, o runner.PrepareOptions) (*recipe.Plan, error) {
+		calls++
+		return old(ctx, o)
+	}
+	t.Cleanup(func() { planOf = old })
+
+	// A token that was never issued: the call is refused, and nothing is
+	// planned.
+	res := callTool(t, cs, "serve", map[string]any{"id": "27b-awq", "confirm_token": strings.Repeat("a", 43)})
+	if !res.IsError {
+		t.Fatalf("a call with an unknown token was accepted: %s", resultText(res))
+	}
+	if calls != 0 {
+		t.Errorf("the plan was computed %d times for a refused call", calls)
+	}
+
+	// The plan call plans once and gives a token.
+	res = callTool(t, cs, "serve", map[string]any{"id": "27b-awq"})
+	m, _ := res.StructuredContent.(map[string]any)
+	tok, _ := m["confirm_token"].(string)
+	if res.IsError || tok == "" {
+		t.Fatalf("plan call: %s", resultText(res))
+	}
+	if calls != 1 {
+		t.Errorf("the plan was computed %d times for the plan call", calls)
+	}
+
+	// The token is bound to the arguments: a call with other arguments is
+	// refused, and it plans nothing.
+	res = callTool(t, cs, "serve", map[string]any{"id": "other", "confirm_token": tok})
+	if !res.IsError {
+		t.Fatalf("a token was accepted for other arguments: %s", resultText(res))
+	}
+	if calls != 1 {
+		t.Errorf("the plan was computed %d times for a refused call", calls)
 	}
 }

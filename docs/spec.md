@@ -1921,6 +1921,8 @@ A mutating tool runs in two calls:
 2. The second call repeats the same arguments and adds the token. The server
    verifies the token, runs the action and returns
    `{"executed": true, "result": {...}}`, with the CLI document in `result`.
+   The token is verified before the plan is computed, so a call the gate
+   refuses never has the side effects of a plan.
 
 The `plan` is the document the operator confirms: the resolved plan for
 `serve`, `{name, recipe, state, mode, pid, container, url}` for `stop`, the
@@ -1955,7 +1957,9 @@ desired power file. It never writes hwmon. The power service applies that
 file as root.
 
 A plan call changes nothing on the host, except the TunableOp rows that
-`recipe plan` writes to the data directory.
+`recipe plan` writes to the data directory. A call that the gate refuses — a
+token that is unknown, expired, or bound to another tool or to other
+arguments — computes no plan at all and changes nothing.
 
 A request cancelled by the client stops `setup_apply` and `bench_run`.
 `serve` and `stop` finish once they started, like the dashboard.

@@ -30,8 +30,11 @@ type mutation[R any] struct {
 	tool  string
 	token string // the confirm_token argument; "" for the plan call
 	args  any    // the normalized arguments, without the token
-	plan  any    // what the operator confirms
-	lock  *sync.Mutex
+	// plan computes the plan the operator confirms. It is called once, after
+	// the token is verified: a call that the gate refuses never computes a
+	// plan, and never has the side effects of one.
+	plan func() (any, error)
+	lock *sync.Mutex
 	// busy is the error of a busy lock. It is errBusy unless the tool has
 	// its own sentence: a benchmark shares the busy answer of the other
 	// front ends.
@@ -51,22 +54,30 @@ func (m *mutation[R]) busyError() error {
 // execute plans, or verifies the token and runs. It never changes the host
 // without a valid token: the plan call has no side effect, and a token is
 // bound to the tool, the arguments, the plan digest and the host.
+//
+// The confirm call verifies the token before it computes the plan: a call the
+// gate refuses never touches the host.
 func execute[R any](s *Server, c *call, m mutation[R]) (any, error) {
-	g, err := redact.JSON(m.plan)
-	if err != nil {
-		return nil, err
-	}
 	argsDigest, err := digest(m.args)
-	if err != nil {
-		return nil, err
-	}
-	planDigest, err := digest(g)
 	if err != nil {
 		return nil, err
 	}
 	c.digest = argsDigest[:16]
 
 	if m.token == "" {
+		// The plan call: the plan is computed and the token is bound to it.
+		raw, err := m.plan()
+		if err != nil {
+			return nil, err
+		}
+		g, err := redact.JSON(raw)
+		if err != nil {
+			return nil, err
+		}
+		planDigest, err := digest(g)
+		if err != nil {
+			return nil, err
+		}
 		tok, exp, err := s.tokens.issue(m.tool, argsDigest, planDigest)
 		if err != nil {
 			c.result, c.class = "failed", "error"
@@ -84,9 +95,26 @@ func execute[R any](s *Server, c *call, m mutation[R]) (any, error) {
 		}
 		defer m.lock.Unlock()
 	}
-	if err := s.tokens.consume(m.token, m.tool, argsDigest, planDigest); err != nil {
+	bound, err := s.tokens.verify(m.token, m.tool, argsDigest)
+	if err != nil {
 		c.result, c.class = "rejected", "token"
 		return nil, err
+	}
+	raw, err := m.plan()
+	if err != nil {
+		return nil, err
+	}
+	g, err := redact.JSON(raw)
+	if err != nil {
+		return nil, err
+	}
+	planDigest, err := digest(g)
+	if err != nil {
+		return nil, err
+	}
+	if planDigest != bound {
+		c.result, c.class = "rejected", "token"
+		return nil, errTokenBinding
 	}
 	res, err := m.run(c.ctx)
 	if err != nil {

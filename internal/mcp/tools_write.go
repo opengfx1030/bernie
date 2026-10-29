@@ -12,6 +12,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/bench"
 	"github.com/opengfx1030/bernie/internal/serving/bench/suite"
+	"github.com/opengfx1030/bernie/internal/serving/recipe"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 	"github.com/opengfx1030/bernie/internal/setup"
 	"github.com/opengfx1030/bernie/internal/support/netx"
@@ -128,14 +129,24 @@ func registerWrite(s *Server) {
 		}, s.powerSet)
 }
 
+// planOf is the plan of a recipe on this host. The tests count the calls: a
+// call that the gate refuses must not plan.
+var planOf = app.Plan
+
 func (s *Server) serve(ctx context.Context, c *call, in serveIn) (any, error) {
-	p, err := app.Plan(ctx, in.prepare())
-	if err != nil {
-		return nil, err
+	// The plan is computed once: the digest the token is bound to and the run
+	// use the same plan.
+	var p *recipe.Plan
+	plan := func() (any, error) {
+		var err error
+		if p, err = planOf(ctx, in.prepare()); err != nil {
+			return nil, err
+		}
+		return p, nil
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[runner.Record]{tool: "serve", token: token, args: in, plan: p, lock: &s.mutate,
+	return execute(s, c, mutation[runner.Record]{tool: "serve", token: token, args: in, plan: plan, lock: &s.mutate,
 		run: func(ctx context.Context) (*runner.Record, error) {
 			// The run outlives this request: only a cancel before the start aborts it.
 			if err := ctx.Err(); err != nil {
@@ -149,22 +160,26 @@ func (s *Server) serve(ctx context.Context, c *call, in serveIn) (any, error) {
 }
 
 func (s *Server) stop(ctx context.Context, c *call, in stopIn) (any, error) {
-	runs, err := runner.List(ctx)
-	if err != nil {
-		return nil, err
-	}
 	var plan *stopPlan
-	for _, r := range runs {
-		if r.Name == in.Name {
-			plan = &stopPlan{Name: r.Name, Recipe: r.Recipe, State: r.State, Mode: r.Mode, PID: r.PID, Container: r.Container, URL: r.URL()}
+	build := func() (any, error) {
+		runs, err := runner.List(ctx)
+		if err != nil {
+			return nil, err
 		}
-	}
-	if plan == nil {
-		return nil, fmt.Errorf("no run named %q (ps lists the runs)", in.Name)
+		plan = nil
+		for _, r := range runs {
+			if r.Name == in.Name {
+				plan = &stopPlan{Name: r.Name, Recipe: r.Recipe, State: r.State, Mode: r.Mode, PID: r.PID, Container: r.Container, URL: r.URL()}
+			}
+		}
+		if plan == nil {
+			return nil, fmt.Errorf("no run named %q (ps lists the runs)", in.Name)
+		}
+		return plan, nil
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[app.StopResult]{tool: "stop", token: token, args: in, plan: plan, lock: &s.mutate,
+	return execute(s, c, mutation[app.StopResult]{tool: "stop", token: token, args: in, plan: build, lock: &s.mutate,
 		run: func(ctx context.Context) (*app.StopResult, error) {
 			if err := ctx.Err(); err != nil {
 				return nil, err
@@ -201,7 +216,7 @@ func (s *Server) benchRun(_ context.Context, c *call, in benchRunIn) (any, error
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[bench.Result]{tool: "bench_run", token: token, args: o, plan: o, lock: &s.benchM,
+	return execute(s, c, mutation[bench.Result]{tool: "bench_run", token: token, args: o, plan: func() (any, error) { return o, nil }, lock: &s.benchM,
 		busy: app.ErrBenchBusy,
 		run: func(ctx context.Context) (*bench.Result, error) {
 			if o.Suite != "" {
@@ -249,7 +264,7 @@ func (s *Server) benchAB(_ context.Context, c *call, in benchABIn) (any, error) 
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[suite.ABResult]{tool: "bench_ab", token: token, args: o, plan: o, lock: &s.benchM,
+	return execute(s, c, mutation[suite.ABResult]{tool: "bench_ab", token: token, args: o, plan: func() (any, error) { return o, nil }, lock: &s.benchM,
 		busy: app.ErrBenchBusy,
 		run: func(ctx context.Context) (*suite.ABResult, error) {
 			o.Progress = c.progress()
@@ -289,7 +304,7 @@ func (s *Server) setupApply(ctx context.Context, c *call, in setupIn) (any, erro
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[[]setup.Step]{tool: "setup_apply", token: token, args: in, plan: plan, lock: &s.mutate,
+	return execute(s, c, mutation[[]setup.Step]{tool: "setup_apply", token: token, args: in, plan: func() (any, error) { return plan, nil }, lock: &s.mutate,
 		run: func(ctx context.Context) (*[]setup.Step, error) {
 			after, err := app.SetupApply(ctx, steps, opts, in.Steps, c.progress())
 			return &after, err
@@ -307,7 +322,7 @@ func (s *Server) powerSet(_ context.Context, c *call, in powerIn) (any, error) {
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[app.PowerDesiredResult]{tool: "tune_power_set", token: token, args: in, plan: plan, lock: &s.mutate,
+	return execute(s, c, mutation[app.PowerDesiredResult]{tool: "tune_power_set", token: token, args: in, plan: func() (any, error) { return plan, nil }, lock: &s.mutate,
 		run: func(context.Context) (*app.PowerDesiredResult, error) {
 			r, err := app.PowerDesiredSet(in.GPUIndexes, in.Watts)
 			return &r, err
