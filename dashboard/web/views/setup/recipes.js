@@ -21,20 +21,14 @@ async function loadSetupRecipes() {
     put(box, emptyState("There is no recipe to serve.",
       "A recipe is a model, the flags it needs and the way it is served. The recipes live in the recipes/ directory of the repository."));
   } else {
-    // The recipe that fits this host comes first: it is the recommended
-    // choice, and the reader sees it before the others.
-    put(box, h("div.recipe-chooser", setupRecipeOrder(recipes).map(setupRecipeCard)));
-  }
-  if (setupState.recipeErrors) {
-    put(setupState.recipeErrors, errors.length
-      ? [h("h3", "LOAD ERRORS"), errors.map(setupRecipeError)]
-      : null);
+    // The recipe bernie recommends comes first, with its name and what it
+    // is. The other recipes wait behind "Choose another".
+    put(box, setupRecommendedCard(recipes));
   }
   if (!setupState.recipeID || !recipes.some((r) => r.id === setupState.recipeID)) {
     const best = setupRecommendedRecipe(recipes);
     setupState.recipeID = best ? best.id : (recipes[0] ? recipes[0].id : "");
   }
-  setupPaintRecipeSelection();
   await loadSetupPlan();
 }
 
@@ -54,63 +48,56 @@ function setupRecipeOrder(recipes) {
   });
 }
 
-/** setupRecommendedRecipe is the recipe bernie recommends: the one that
- *  fits this host. */
-function setupRecommendedRecipe(recipes) {
-  const list = recipes || (setupState.recipes && setupState.recipes.recipes) || [];
-  return list.find((r) => setupFitStatus(r) === "fits") || null;
-}
-
-/** setupRecommendedWhy says why a recipe is the recommended one. */
-function setupRecommendedWhy(recipe) {
-  if (!recipe) return "";
-  const reasons = (recipe.fit && recipe.fit.reasons) || [];
-  const need = (recipe.arch || []).join(", ") || "any architecture";
-  const gpus = recipe.gpus ? recipe.gpus + " GPUs" : "any number of GPUs";
-  return "it fits this host: " + need + ", " + gpus + (reasons.length ? " - " + reasons.join("; ") : "");
-}
-
-/** setupRecipeNote is the line under the recipe step of the checklist: the
- *  recommended choice and why it is recommended. */
-function setupRecipeNote() {
-  const recipe = setupRecommendedRecipe();
-  if (!recipe) return null;
-  return "Recommended: " + (recipe.name || recipe.id) + " - " + setupRecommendedWhy(recipe) + ".";
-}
-
-/** setupRecipeCard is one radio card of the chooser: the name, the status,
- *  the cards it wants, its architecture and its fit. */
-function setupRecipeCard(recipe) {
-  const input = h("input", {
-    type: "radio",
-    name: "setup-recipe",
-    value: recipe.id,
-    checked: recipe.id === setupState.recipeID,
-    onchange: () => setupSelectRecipe(recipe.id),
-  });
-  const recommended = setupRecommendedRecipe() && setupRecommendedRecipe().id === recipe.id;
-  return h("label.recipe-card", { class: "recipe-card" + (recipe.id === setupState.recipeID ? " picked" : "") },
-    input,
-    h("h3", recipe.name || recipe.id, recommended ? h("span.pill", "recommended") : null),
-    h("div.recipe-meta",
-      h("span.recipe-status", recipe.status || ""),
-      h("span.recipe-need", recipe.gpus ? recipe.gpus + " GPUs" : "any number of GPUs"),
-      h("span.recipe-arch", (recipe.arch || []).join(", ") || "any architecture")),
-    h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, setupFitLine(recipe)),
-    recommended ? h("p.small.muted", "recommended: " + setupRecommendedWhy(recipe) + ".") : null);
-}
-
 /** setupRecipeError is one recipe file that did not load. */
 function setupRecipeError(error) {
   return h("div.recipe-error", h("span.recipe-error-source", error.source || "recipe"),
     h("span.recipe-error-text", error.error || error.err || "the file did not load"));
 }
 
+/** setupRecommendedCard is the recipe bernie recommends for this host: its
+ *  name, what it is and why it is the one. The other recipes wait behind
+ *  "Choose another". */
+function setupRecommendedCard(recipes) {
+  const best = setupRecommendedRecipe(recipes);
+  const others = setupRecipeOrder(recipes).filter((r) => !best || r.id !== best.id);
+  const list = h("div.recipe-chooser");
+  const out = [];
+  if (best) {
+    out.push(h("div.recipe-card.picked", h("h3", setupRecipeLabel(best)),
+      h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(best) }, setupFitLine(best))));
+    out.push(h("p.small.muted", setupRecommendationWhy(best)));
+  }
+  if (others.length) {
+    out.push(h("details.advanced", {
+      id: "setup-recipes-other",
+      ontoggle: (ev) => {
+        if (!ev.target.open || list.childElementCount) return;
+        // The list of the recipes comes with the disclosure that opens it.
+        setupEnsureModule("views/setup/chooser.js")
+          .then(() => setupPaintRecipeList(list, others))
+          .catch((e) => put(list, h("p", "The list could not be read: " + (e.message || e))));
+      },
+    },
+      h("summary", "Choose another recipe (" + others.length + ")"),
+      list));
+  }
+  return h("div", out);
+}
+/** setupRecommendedRecipe is the recipe bernie recommends: the one the
+ *  checklist names (spec §3.3), else the one that fits this host. */
+function setupRecommendedRecipe(recipes) {
+  const rec = setupState.doc && setupState.doc.recommendation;
+  const list = recipes || (setupState.recipes && setupState.recipes.recipes) || [];
+  if (rec && rec.id) {
+    const found = list.find((r) => r.id === rec.id);
+    if (found) return found;
+  }
+  return list.find((r) => setupFitStatus(r) === "fits") || null;
+}
 /** setupFitStatus is the fit of a recipe: fits, no or unknown. */
 function setupFitStatus(recipe) {
   return (recipe.fit && recipe.fit.status) || "unknown";
 }
-
 /** setupFitLine is the fit of a recipe in one line, with the reason. */
 function setupFitLine(recipe) {
   const status = setupFitStatus(recipe);
@@ -123,29 +110,6 @@ function setupFitLine(recipe) {
   if (reasons.length) line += " - " + reasons.join("; ");
   return line;
 }
-
-/** setupSelectRecipe picks a recipe and builds its plan again. */
-async function setupSelectRecipe(id) {
-  setupState.recipeID = id;
-  const recipe = (setupState.recipes && setupState.recipes.recipes || []).find((r) => r.id === id);
-  const modes = (recipe && recipe.modes) || ["host"];
-  setupState.mode = modes.includes(setupState.mode) ? setupState.mode : modes[0];
-  setupState.sets = [];
-  setupPaintRecipeSelection();
-  await loadSetupPlan();
-}
-
-/** setupPaintRecipeSelection marks the picked recipe in the chooser. */
-function setupPaintRecipeSelection() {
-  const cards = setupState.recipeBox ? setupState.recipeBox.querySelectorAll(".recipe-card") : [];
-  cards.forEach((card) => {
-    const input = card.querySelector("input");
-    const picked = input && input.value === setupState.recipeID;
-    card.classList.toggle("picked", picked);
-    if (input) input.checked = picked;
-  });
-}
-
 /** loadSetupPlan reads the plan of the picked recipe and paints it. */
 async function loadSetupPlan() {
   const box = setupState.planBox;
@@ -168,13 +132,11 @@ async function loadSetupPlan() {
   setupState.plan = plan;
   put(box, setupPlanView(plan, recipe));
 }
-
 /** setupRecipe is the picked recipe of the listing. */
 function setupRecipe() {
   const recipes = (setupState.recipes && setupState.recipes.recipes) || [];
   return recipes.find((r) => r.id === setupState.recipeID) || null;
 }
-
 /** setupPlanView is the plan card: the recipe, its fit, the mode, the
  *  command, the cards it uses, the settings with their reasons and the
  *  button that starts the server. */
@@ -204,31 +166,18 @@ function setupPlanView(plan, recipe) {
     setupPlanActions(recipe, plan));
   return card;
 }
-
-/** setupPlanActions is the start of the plan. The button waits until the
- *  plan is ready: a recipe that does not fit this host cannot be served
- *  from here. */
+/** setupPlanActions is the command of the plan and the copy button. The
+ *  start of the plan is the one primary action of the tab, in the hero. */
 function setupPlanActions(recipe, plan) {
   const ready = setupPlanReady(recipe);
-  const attrs = {
-    type: "button",
-    class: setupState.primaryOwner === "plan" ? "primary" : "",
-    onclick: startSetupRecipe,
-  };
-  if (!ready) {
-    attrs.disabled = true;
-    attrs["aria-disabled"] = "true";
-  }
   return h("div.recipe-plan-actions",
-    h("button", attrs, "Start the server"),
+    h("button", { type: "button", onclick: setupCopyText.bind(null, setupPlanCommand(plan)) }, "Copy the launch command"),
     ready ? null : h("span.small.muted", "The plan is not ready: " + setupFitLine(recipe)));
 }
-
 /** setupPlanReady says whether the plan can be started here. */
 function setupPlanReady(recipe) {
   return setupFitStatus(recipe) === "fits";
 }
-
 /** setupPlanCommand is the exact command of the plan. */
 function setupPlanCommand(plan) {
   if (plan.command) return plan.command;
@@ -236,13 +185,11 @@ function setupPlanCommand(plan) {
   if (Array.isArray(exec.argv) && exec.argv.length) return exec.argv.map(setupQuote).join(" ");
   return "bernie serve " + (plan.recipe || setupState.recipeID) + " --mode " + (plan.mode || setupState.mode);
 }
-
 /** setupQuote makes one argument safe for a terminal. */
 function setupQuote(arg) {
   const text = String(arg == null ? "" : arg);
   return /^[A-Za-z0-9_@%+=:,./-]+$/.test(text) ? text : "'" + text.replace(/'/g, "'\\''") + "'";
 }
-
 /** setupPlanSettings lists every setting of the plan with its reason. */
 function setupPlanSettings(plan) {
   const settings = plan.settings || [];
@@ -254,7 +201,6 @@ function setupPlanSettings(plan) {
       h("span.recipe-setting-value", s.value == null || s.value === "" ? "–" : String(s.value)),
       s.why ? h("span.recipe-setting-why", s.why) : null)));
 }
-
 /** setupPlanAdjustments lists what the plan changed to fit this host. */
 function setupPlanAdjustments(plan) {
   const adjustments = plan.adjustments || [];
@@ -269,7 +215,6 @@ function setupPlanAdjustments(plan) {
         a.why ? h("span.recipe-adjustment-why", a.why) : null);
     }));
 }
-
 /** setupPlanOverrides are the inputs of the recipe and the extra settings
  *  the operator wants. A change builds the plan again. */
 function setupPlanOverrides(recipe) {
@@ -296,20 +241,17 @@ function setupPlanOverrides(recipe) {
   return h("div.recipe-overrides", fields,
     h("label.recipe-input", h("span.recipe-input-name", "Overrides"), extra));
 }
-
 /** setupSetValue is the value of one input of the recipe. */
 function setupSetValue(name, fallback) {
   const prefix = name + "=";
   const found = setupState.sets.find((s) => s.startsWith(prefix));
   return found ? found.slice(prefix.length) : fallback;
 }
-
 /** setupExtraSets are the overrides that are not an input of the recipe. */
 function setupExtraSets(inputs) {
   const names = Object.keys(inputs || {});
   return setupState.sets.filter((s) => !names.some((n) => s.startsWith(n + "=")));
 }
-
 /** setupApplyOverrides reads the fields of the plan and builds it again. */
 async function setupApplyOverrides() {
   const box = setupState.planBox;
@@ -328,14 +270,12 @@ async function setupApplyOverrides() {
   setupState.sets = sets;
   await loadSetupPlan();
 }
-
 /** setupSwitchMode changes the mode of the plan and builds it again. */
 async function setupSwitchMode(mode) {
   if (mode === setupState.mode) return;
   setupState.mode = mode;
   await loadSetupPlan();
 }
-
 /** startSetupRecipe starts the server of the picked recipe. */
 async function startSetupRecipe() {
   const recipe = setupRecipe();
@@ -351,7 +291,6 @@ async function startSetupRecipe() {
     toast("Start failed: " + (e.message || e));
   }
 }
-
 /** paintSetupRecipeHint says what to do when no recipe fits this host: the
  *  reason, the next step and the command (Setup rule 11). */
 function paintSetupRecipeHint() {
@@ -371,4 +310,28 @@ function paintSetupRecipeHint() {
   put(box, emptyState("No recipe fits this host yet.",
     why + " A recipe is a model and the way it is served. Fix the steps above, then press Re-check.",
     "bernie recipe list --all"));
+}
+
+/** setupRecommendationWhy is the one sentence that says why this recipe is
+ *  the recommended one. The words come from the checklist (spec §3.3), so
+ *  the CLI, the MCP server and the page say the same thing. */
+function setupRecommendationWhy(recipe) {
+  const rec = setupState.doc && setupState.doc.recommendation;
+  if (rec && rec.id === recipe.id && rec.why) return rec.why + ".";
+  return setupFitLine(recipe);
+}
+
+/** setupRecipeNote is the line under the recipe step of the checklist: the
+ *  recommended choice and why it is recommended. */
+function setupRecipeNote() {
+  const rec = setupState.doc && setupState.doc.recommendation;
+  if (!rec) return null;
+  return "Recommended: " + setupRecipeLabel(rec) + " - " + rec.why + ".";
+}
+
+/** setupRecipeLabel is the human name of a recipe and the one line that
+ *  says what it is. The id is for the terminal, not for the reader. */
+function setupRecipeLabel(recipe) {
+  const name = recipe.name || recipe.id;
+  return recipe.description ? name + " - " + recipe.description : name;
 }

@@ -254,8 +254,9 @@ func (w *jobWriter) progress(text string) {
 	}
 }
 
-// stepMarker reads the step id of a line that names one:
-// "== model.download: Download ..." gives "model.download".
+// stepMarker reads the step of the path a line names:
+// "== model.download: Download ..." gives the model step. The setup steps
+// of the venv are the Python environment step.
 func stepMarker(line string) (string, bool) {
 	if !strings.HasPrefix(line, "== ") {
 		return "", false
@@ -265,7 +266,14 @@ func stepMarker(line string) (string, bool) {
 	if i <= 0 {
 		return "", false
 	}
-	return strings.TrimSpace(rest[:i]), true
+	id := strings.TrimSpace(rest[:i])
+	switch id {
+	case "venv.create", "venv.torch", "causal-conv1d.build", "flash-attn.build", "vllm.build":
+		return StepPythonEnv, true
+	case "model.download":
+		return StepModel, true
+	}
+	return id, true
 }
 
 // parseDownload reads the numbers of a download line:

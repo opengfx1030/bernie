@@ -30,6 +30,9 @@ func PathAction(f *Facts, o Options) *Action {
 	return a
 }
 
+// StepPath is the id of the job that runs the whole path.
+const StepPath = "path"
+
 // PreparePath prepares the action of the whole path from facts that were
 // already gathered. It returns the root commands when the operator must act
 // first, and the action when bernie can do everything that is missing.
@@ -38,12 +41,29 @@ func PreparePath(f *Facts, o Options) (*PreparedStep, error) {
 		if s.Done || !s.Root {
 			continue
 		}
-		return &PreparedStep{Step: "path", RootCommands: s.Commands}, nil
+		return &PreparedStep{Step: StepPath, RootCommands: s.Commands}, nil
 	}
 	if f.Recipe == "" {
 		return nil, ErrNoAction
 	}
-	return &PreparedStep{Step: "path", Action: PathAction(f, o)}, nil
+	return &PreparedStep{Step: StepPath, Action: PathAction(f, o)}, nil
+}
+
+// pathJob is the job of the whole path when one runs now, or when one has
+// just finished. The page re-attaches to it with the id.
+func pathJob(f *Facts) *PathJob {
+	j := lastJob(f.Jobs, StepPath)
+	if j == nil {
+		return nil
+	}
+	if j.State != JobRunning && !recentJob(j) {
+		return nil
+	}
+	p := &PathJob{ID: j.ID, State: j.State, Phase: j.Phase, Progress: j.Progress}
+	if j.Progress != nil {
+		p.Step = j.Progress.Step
+	}
+	return p
 }
 
 // runPath does the whole path: the setup steps, then the server, then the
