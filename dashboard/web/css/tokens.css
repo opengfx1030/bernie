@@ -10,8 +10,9 @@
    smallest step that passes; the original and the adjusted value are written
    down in docs/design/tokens.md.
 
-   The dark palette is the default. The light one is the override: the theme
-   button sets data-theme on <html>. The fonts are self-hosted (no CDN): the
+   The dark palette is the base of the stylesheet. The light one is the
+   override: the theme control sets data-theme on <html> before the first
+   paint (js/theme.js). The fonts are self-hosted (no CDN): the
    Latin subsets of Montserrat, Inter and JetBrains Mono, all under the SIL
    Open Font License. See web/fonts/. */
 
@@ -170,7 +171,7 @@
 }
 
 /* The light palette: the same names, the light values. The dark palette is
-   the default, like the reference; the theme button sets data-theme. */
+   the base, like the reference; the theme control sets data-theme. */
 :root[data-theme="light"] {
   color-scheme: light;
   --bg: #fafaf8;

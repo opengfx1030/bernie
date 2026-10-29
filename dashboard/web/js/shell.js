@@ -4,7 +4,6 @@
 // the run status pill. The views only call these.
 "use strict";
 
-const THEME_KEY = "bernie.theme";
 const ADVANCED_KEY = "bernie.advanced";
 
 /* ---------- the toast ---------- */
@@ -183,40 +182,6 @@ function shortcutsText() {
     h("dl", SHORTCUTS.flatMap(([k, v]) => [h("dt", h("kbd", k)), h("dd", v)])),
     h("div.row", toggle),
     h("p.small.muted", "The letter shortcuts are off until you turn them on."));
-}
-
-/* ---------- the theme ---------- */
-
-function themeChoice() {
-  try { return localStorage.getItem(THEME_KEY) || ""; } catch (e) { return ""; }
-}
-
-/** darkNow says which palette the page shows right now. The dark palette is
- *  the default, like the reference; the reader picks the light one. */
-function darkNow() {
-  return themeChoice() !== "light";
-}
-
-/** applyTheme shows the palette the reader picked. An empty choice is the
- *  dark palette. */
-function applyTheme(choice) {
-  const root = document.documentElement;
-  if (choice === "light") root.dataset.theme = "light";
-  else delete root.dataset.theme;
-  const btn = $("#themeBtn");
-  if (btn) {
-    const dark = darkNow();
-    btn.textContent = dark ? "Light" : "Dark";
-    btn.setAttribute("aria-pressed", String(dark));
-    btn.setAttribute("aria-label", dark ? "Switch to the light palette" : "Switch to the dark palette");
-  }
-}
-
-/** toggleTheme flips the palette and remembers the choice. */
-function toggleTheme() {
-  const next = darkNow() ? "light" : "dark";
-  try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* the page still works */ }
-  applyTheme(next);
 }
 
 /* ---------- the advanced panels ---------- */

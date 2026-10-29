@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
 <title>bernie</title>
+<!-- The theme of the reader, set before the stylesheets paint: the page
+     never shows the other palette for a moment. -->
+<script src="js/theme.js"></script>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/layout.css">
 <link rel="stylesheet" href="css/components.css">
@@ -36,10 +39,15 @@
       <span id="runpill" class="pill skip" role="status" title="No run is serving on this host." aria-label="idle — No run is serving on this host."><span class="pill-icon">–</span><span class="pill-word">idle</span></span>
       <span id="pillage" class="pill-age muted">no data yet</span>
       <div class="rail-buttons">
-        <button id="themeBtn" class="ghost small" type="button" aria-pressed="false" aria-label="Switch to the light palette">Light</button>
+        <div class="segmented-control" role="group" aria-label="The theme of the page">
+          <button type="button" data-theme-choice="auto" aria-pressed="true">Auto</button>
+          <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+        </div>
         <button id="advancedBtn" class="ghost small" type="button" aria-pressed="false" aria-label="Show the details of every tab" title="Show the technical detail inside every tab">Show details</button>
         <button id="helpBtn" class="ghost small" type="button" aria-label="The keyboard shortcuts">?</button>
       </div>
+      <span id="themeLive" class="sr-only" role="status" aria-live="polite"></span>
     </div>
   </aside>
   <main id="main" class="content" tabindex="-1">

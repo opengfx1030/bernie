@@ -277,8 +277,10 @@ function boot() {
   applyTheme(themeChoice());
   applyAdvanced(advancedOn());
 
-  const themeBtn = $("#themeBtn");
-  if (themeBtn) themeBtn.addEventListener("click", toggleTheme);
+  for (const btn of document.querySelectorAll("[data-theme-choice]")) {
+    btn.addEventListener("click", () => setTheme(btn.dataset.themeChoice));
+  }
+  watchSystemTheme();
   const advancedBtn = $("#advancedBtn");
   if (advancedBtn) advancedBtn.addEventListener("click", toggleAdvanced);
   const helpBtn = $("#helpBtn");

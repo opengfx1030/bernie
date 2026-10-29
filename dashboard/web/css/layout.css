@@ -165,6 +165,9 @@ body.shell {
   flex-wrap: wrap;
 }
 
+/* the theme control keeps its width: a control that shrinks cannot be read */
+.rail-buttons .segmented-control { flex: 0 0 auto; }
+
 /* ---------- the skip link and the data age ---------- */
 
 .skip {

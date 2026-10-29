@@ -69,7 +69,7 @@ column on the right.
 │   Logs     │                                                  │
 │            │                                                  │
 │ ● running  │                                                  │
-│ [Dark][Ad] │                                                  │
+│ [Auto][Ad] │                                                  │
 └────────────┴──────────────────────────────────────────────────┘
 ```
 
@@ -82,7 +82,7 @@ column on the right.
 | Brand | the mark of the reference (a 22 px bar in the accent and the key) and the word `bernie` in italic 900 20 px; the host name under it in 13 px `--muted` |
 | Links | one per tab, a glyph and the word, `border-radius: 8px`, `padding: 9px 10px`, `gap: 2px` between them, 13 px 600; the open one has a `--surface-2` background, a 2 px `--accent` bar on the left, the key-coloured glyph and a heavier word: the marker is a shape, not only a colour |
 | Counts | a tab that has something to look at shows the number: the failed or blocked steps on Setup, the failing checks of the doctor on the Dashboard, the failed P2P readiness checks on Topology |
-| Footer | the run status pill with the phase sentence, then the theme button, the Advanced button and the `?` mark with the shortcuts; `margin-top: auto` |
+| Footer | the run status pill with the phase sentence, then the theme control (`Auto`, `Dark`, `Light`), the Advanced button and the `?` mark with the shortcuts; `margin-top: auto` |
 | Keyboard | `g` and then `s`, `d`, `b`, `t`, `l` or `c` opens a tab; the `?` mark lists the shortcuts |
 | Width | fixed at 220 px, not collapsible; under 720 px it becomes a tab bar at the bottom of the page (§8.1) |
 
@@ -135,10 +135,17 @@ sentence is always written out in the state headline of the tab.
 
 ### 2.4 Theme and Advanced
 
-- **Theme.** The button reads `Dark` in the light palette and `Light` in the
-  dark one. The dark palette is the default, like the reference; the button
-  sets `data-theme="light"` on `<html>` and stores the choice in
-  `localStorage` (`bernie.theme`). The button has `aria-pressed`.
+- **Theme.** The rail holds a segmented control with the three choices, in
+  words: `Auto`, `Dark` and `Light`. `Auto` is the default: the page follows
+  the system (`prefers-color-scheme`) and follows it live, so a laptop that
+  changes its palette at sunset changes the page with it. `Dark` and `Light`
+  are the two palettes of the reference, as overrides. The choice is stored
+  in `localStorage` (`bernie.theme`) and the palette goes on `<html>` as
+  `data-theme="dark"` or `data-theme="light"`. The three buttons carry
+  `aria-pressed`, and the choice is said out loud in a live region
+  (`role="status"`): `The theme follows the system.` or `The theme is dark.`
+  The palette is set before the first paint — `js/theme.js` is loaded in the
+  head of the page — so the page never shows the other palette for a moment.
 - **Advanced.** The button opens or closes every Advanced panel of every tab
   at once and stores the state (`bernie.advanced`). It has `aria-pressed`.
   Each tab also has its own Advanced panel with its own toggle, so a tab can
@@ -194,7 +201,7 @@ the places where we did not copy it, and the reason of each.
 |---|---|
 | The palette is the reference's, with the values AA needs | the reference's light palette fails 4.5:1 for the status colours and 3:1 for the edge of a control. Every value that failed was moved by the smallest step that passes; the original and the adjusted value are written down in [design/tokens.md](design/tokens.md) |
 | The fonts are self-hosted | the reference loads Montserrat, Inter and JetBrains Mono from a CDN, which this repository forbids. The Latin subsets are 128 KB, carry the OFL and are embedded in the binary |
-| The dark palette is the default | the reference is dark first. The button switches to the light palette and the choice is remembered |
+| The dark palette is the default | the reference is dark first. The theme control follows the system by default and remembers the choice of the reader |
 | The four questions come first, the first dashboard sits in the Advanced tab | a reader arrives with one question at a time. The Advanced tab keeps the first dashboard reachable, and the old hash routes still land on the tab that answers them (§2.2) |
 | Every link carries a glyph and the word | the word says what the tab is; the glyph is a landmark for the eye, never the meaning |
 | The open tab has a bar, a background, a heavier word and the key-coloured glyph | the marker cannot be a colour alone: the page has to be readable without the colours and in the dark palette |
@@ -212,7 +219,7 @@ spacing, the radii, the elevation, the motion and the chart colours are in
 
 | Group | Rule |
 |---|---|
-| Surfaces | `--bg` `#f4f5f7`, `--surface` `#ffffff`, `--surface-2` `#eef1f5`, `--surface-3` `#e4e8ee` in the light palette; `#0f1216`, `#171b21`, `#10141a`, `#21262e` in the dark one. The dark palette is the system preference; the light one is the override. |
+| Surfaces | `--bg` `#f4f5f7`, `--surface` `#ffffff`, `--surface-2` `#eef1f5`, `--surface-3` `#e4e8ee` in the light palette; `#0f1216`, `#171b21`, `#10141a`, `#21262e` in the dark one. The dark palette is the base of the stylesheet; the light one is the override. The theme control picks between them (§2.4). |
 | Lines | `--border` is a decorative hairline; `--border-strong` is the edge of a control and holds 3:1 (`#828a93` light, `#5a6778` dark). |
 | Text | `--text`, `--text-2`, `--muted`. `--muted` holds 4.5:1 on every surface. |
 | Identity | `--accent` (`#b3122c` light, `#ff5c6c` dark) and `--on-accent`; `--key` (`#8a4f00` light, `#f5c451` dark) is the one number that matters on a screen. |
