@@ -264,6 +264,15 @@ short time to live (`dashboard/internal/api/cache.go`). On the 10 GPU box
 the first read of `/api/doctor` costs 348 ms and every read inside the
 time to live costs 10 ms.
 
+The telemetry stream is the one thing that costs while the page is open:
+the sampler reads the cards of the host once per second, and every read of
+an amdgpu attribute talks to the card. On the 10 GPU box that is 150 reads
+of `/sys` per sample, 15–219 ms per sample (median 146 ms), and **16.7 % of
+one core** of `bernie dash` while a page watches `/api/telemetry`. The
+dashboard with no page open costs nothing: the sampler runs only while a
+page watches the stream, and three pages cost the same as one (the hub
+shares the sample).
+
 The rules and the numbers are in [AGENTS.md](AGENTS.md) (the budget table)
 and in [../docs/design-dashboard.md §8.3](../docs/design-dashboard.md#83-performance)
 (the measured before and after).
