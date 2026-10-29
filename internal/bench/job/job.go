@@ -61,14 +61,15 @@ type Request struct {
 
 // Doc is the state of a job: the answer of GET /api/bench/{id}.
 type Doc struct {
-	ID       string      `json:"id"`
-	Status   string      `json:"status"`
-	Phase    string      `json:"phase"`
-	Event    bench.Event `json:"event"`
-	Done     int         `json:"done"`
-	Total    int         `json:"total"`
-	ResultID string      `json:"result_id"`
-	Error    string      `json:"error,omitempty"`
+	ID         string      `json:"id"`
+	Status     string      `json:"status"`
+	Phase      string      `json:"phase"`
+	Event      bench.Event `json:"event"`
+	Done       int         `json:"done"`
+	Total      int         `json:"total"`
+	ResultID   string      `json:"result_id"`
+	Error      string      `json:"error,omitempty"`
+	Incomplete bool        `json:"incomplete,omitempty"`
 }
 
 // Store holds the benchmark jobs of this process.
@@ -82,23 +83,26 @@ func NewStore() *Store { return &Store{jobs: map[string]*Job{}} }
 
 // Start puts a new job in the store and runs it in the background. One job
 // runs at a time; a second call gets app.ErrBenchBusy: the busy answer of
-// every front end that starts a benchmark.
+// every front end that starts a benchmark. The cancel function of the
+// job outlives Start: it lets the caller stop the job later with Cancel.
 func (s *Store) Start(ctx context.Context, req Request) (*Job, error) {
 	s.mu.Lock()
 	if s.running() {
 		s.mu.Unlock()
 		return nil, app.ErrBenchBusy
 	}
+	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	j := &Job{
 		id:        newID(),
 		kind:      req.Kind,
 		status:    StatusRunning,
 		total:     req.total(),
 		startedAt: time.Now().UTC(),
+		cancel:    cancel,
 	}
 	s.jobs[j.id] = j
 	s.mu.Unlock()
-	go s.run(context.WithoutCancel(ctx), j, req)
+	go s.run(runCtx, j, req)
 	return j, nil
 }
 
@@ -133,11 +137,28 @@ func (s *Store) running() bool {
 }
 
 // run does the work of a job and records its end. The store drops the
-// oldest finished job when it keeps too many of them.
+// oldest finished job when it keeps too many of them. A cancellation
+// from the Cancel method leaves the job marked incomplete: the partial
+// result is kept (when one was saved) and the row in the history tells
+// the reader why the cells are not all there.
 func (s *Store) run(ctx context.Context, j *Job, req Request) {
+	defer func() {
+		j.mu.Lock()
+		j.cancel = nil
+		j.mu.Unlock()
+	}()
 	p := &Progress{job: j}
 	id, res, err := j.work(ctx, req, p)
+	cancelled := errors.Is(err, context.Canceled)
 	switch {
+	case cancelled:
+		// The Cancel method ended the run. The partial result, when
+		// one was saved, stays for the record; the row in the history
+		// shows the reason and the incomplete flag.
+		j.mu.Lock()
+		j.Incomplete = true
+		j.mu.Unlock()
+		j.finish(StatusFailed, errors.New("the run was stopped"))
 	case errors.Is(err, app.ErrAllFailed):
 		j.finish(StatusFailed, errors.New(err.Error()+app.FirstCellError(res)))
 	case err != nil:
@@ -147,6 +168,25 @@ func (s *Store) run(ctx context.Context, j *Job, req Request) {
 		j.finish(StatusDone, nil)
 	}
 	s.evict()
+}
+
+// Cancel stops the job with this id, if it is running in this process.
+// It returns false when no job of this id is running here (the job has
+// already finished, lives in another process, or never existed): a job
+// of another process cannot be stopped from here.
+func (s *Store) Cancel(id string) bool {
+	s.mu.Lock()
+	j, ok := s.jobs[id]
+	var cancel context.CancelFunc
+	if ok {
+		cancel = j.cancel
+	}
+	s.mu.Unlock()
+	if !ok || cancel == nil {
+		return false
+	}
+	cancel()
+	return true
 }
 
 // evict drops the oldest finished jobs until at most MaxFinished of them

@@ -100,6 +100,48 @@ func (h *handler) postBenchAB(w http.ResponseWriter, r *http.Request) {
 	httpjson.Write(w, http.StatusAccepted, map[string]string{"id": j.ID()})
 }
 
+// POST /api/bench/{id}/cancel — stop the running benchmark of this id.
+// A job that already finished answers with `cancelled=false`; a job of
+// another process answers 404. The cancelled run ends as failed and is
+// marked incomplete: the partial result, when one was saved, stays for
+// the record (R30).
+func (h *handler) postBenchCancel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	j, ok := h.bench.Get(id)
+	if !ok {
+		httpjson.Error(w, http.StatusNotFound, "no benchmark run named "+strconv.Quote(id))
+		return
+	}
+	cancelled := h.bench.Cancel(id)
+	httpjson.Write(w, http.StatusOK, map[string]any{"id": id, "cancelled": cancelled, "status": j.Status()})
+}
+
+// DELETE /api/bench/{id} — remove a saved benchmark result with
+// confirmation. The page that calls it reads the run first and asks the
+// reader to confirm; the body is `{"confirm": true}` to make a stray
+// click harmless (R30).
+func (h *handler) deleteBench(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Confirm bool `json:"confirm"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if !body.Confirm {
+		httpjson.Error(w, http.StatusBadRequest, "pass {\"confirm\": true} to delete a saved result")
+		return
+	}
+	id := r.PathValue("id")
+	deleted, err := app.BenchDelete(id)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, app.ErrBenchResultNotFound) {
+			status = http.StatusNotFound
+		}
+		httpjson.Error(w, status, err.Error())
+		return
+	}
+	httpjson.Write(w, http.StatusOK, map[string]any{"id": id, "deleted": deleted})
+}
+
 // GET /api/bench/{id} — the state of a benchmark run.
 func (h *handler) getBenchJob(w http.ResponseWriter, r *http.Request) {
 	j, ok := h.bench.Get(r.PathValue("id"))

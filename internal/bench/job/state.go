@@ -29,6 +29,15 @@ type Job struct {
 	lines      []string
 	startedAt  time.Time
 	finishedAt time.Time
+	// cancel stops the running job. Set by the store in Start; cleared
+	// by run when the work ends. A job of another process has no cancel
+	// here.
+	cancel context.CancelFunc
+	// Incomplete is true when the job ended without measuring every cell
+	// of its run (a cancellation, a network failure, an interrupted
+	// download): the partial result is kept for the record but the row
+	// in the history tells the reader why.
+	Incomplete bool
 }
 
 // ID returns the id of the job.
@@ -62,6 +71,7 @@ func (j *Job) doc() Doc {
 	return Doc{
 		ID: j.id, Status: j.status, Phase: j.phase, Event: j.event,
 		Done: j.done, Total: j.total, ResultID: j.resultID, Error: j.err,
+		Incomplete: j.Incomplete,
 	}
 }
 
