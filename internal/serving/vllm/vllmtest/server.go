@@ -1,8 +1,9 @@
 // Package vllmtest is a deterministic fake of the vLLM OpenAI-compatible
-// server for tests: /health, /v1/models, /tokenize, /metrics and streaming
-// /v1/completions with controlled delays, multi-token chunks (as with MTP
-// speculative decoding), failure injection and a mode that answers or
-// ignores the hidden fact of a recall prompt.
+// server for tests: /health, /v1/models, /tokenize, /metrics, streaming
+// /v1/completions and streaming /v1/chat/completions with controlled
+// delays, multi-token chunks (as with MTP speculative decoding), failure
+// injection and a mode that answers or ignores the hidden fact of a recall
+// prompt.
 package vllmtest
 
 import (
@@ -43,27 +44,33 @@ type Config struct {
 	// "correct" repeats it, "wrong" answers another number. Empty means
 	// the fake ignores the fact.
 	RecallMode string
+	// Reasoning makes the fake send a reasoning delta before the answer.
+	Reasoning bool
+	// ChatReply is the answer of the fake to a chat prompt. Empty means
+	// the default sentence.
+	ChatReply string
 }
 
 // Server is an http.Handler. Use it with httptest.NewServer.
 type Server struct {
 	cfg Config
 
-	mu       sync.Mutex
-	prompts  []string
-	requests int
-	running  int
-	genTotal int
-	prompt   int // the prompt tokens the server read
-	cached   int // the prompt tokens it served from its prefix cache
-	queries  int // the tokens it looked up in the prefix cache
-	hits     int // the tokens it found in the prefix cache
-	finished map[string]int
-	last     string    // the last prompt, for the prefix cache
-	ttft     []float64 // observed time to first token, in seconds
-	itl      []float64 // observed inter-token latency, in seconds
-	e2e      []float64 // observed time of the whole request, in seconds
-	queue    []float64 // observed wait in the queue, in seconds
+	mu          sync.Mutex
+	prompts     []string
+	chatPrompts []string
+	requests    int
+	running     int
+	genTotal    int
+	prompt      int // the prompt tokens the server read
+	cached      int // the prompt tokens it served from its prefix cache
+	queries     int // the tokens it looked up in the prefix cache
+	hits        int // the tokens it found in the prefix cache
+	finished    map[string]int
+	last        string    // the last prompt, for the prefix cache
+	ttft        []float64 // observed time to first token, in seconds
+	itl         []float64 // observed inter-token latency, in seconds
+	e2e         []float64 // observed time of the whole request, in seconds
+	queue       []float64 // observed wait in the queue, in seconds
 }
 
 // New returns a fake server.
@@ -122,6 +129,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.metrics(w)
 	case r.URL.Path == "/v1/completions" && r.Method == http.MethodPost:
 		s.completions(w, r)
+	case r.URL.Path == "/v1/chat/completions" && r.Method == http.MethodPost:
+		s.chat(w, r)
 	default:
 		writeJSON(w, http.StatusNotFound, map[string]any{"detail": "Not Found"})
 	}
