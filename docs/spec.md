@@ -690,7 +690,7 @@ Steps (filtered by mode and host):
 | ID | Root | Mode | Content |
 |---|---|---|---|
 | `groups` | yes | both | `usermod -aG video,render $USER`. |
-| `rocm.runtime` | yes | host | Install the ROCm runtime with the package manager. |
+| `rocm.runtime` | yes | host | Install the ROCm runtime and the HIP SDK from the AMD repository of the distribution ([§6.3](#63-the-rocm-repository)). |
 | `container.engine` | yes | container | Install Docker or Podman and compose. |
 | `venv.create` | no | host | Create the venv (`uv` if present, else `python3 -m venv`). |
 | `venv.torch` | no | host | Install `rocm-sdk`, `torch` and one `rocm-sdk-device-<gfx>` + `amd-torch-device-<gfx>` wheel per code target from the AMD multi-arch index `https://repo.amd.com/rocm/whl-multi-arch/`. The code target of a GPU is its gfx target, or the target of its `hsa_override` ([§4.4](#44-device-tables)): gfx1031 to gfx1036 use the gfx1030 wheels. |
@@ -699,6 +699,9 @@ Steps (filtered by mode and host):
 | `vllm.build` | no | host | Clone the fork and build it in the venv. |
 | `image.pull` | no | container | Pull the recipe image. |
 | `model.download` | no | both | The files of the repo into the Hugging Face cache ([§6.1](#61-the-model-download)). |
+
+`setup plan` and `setup apply` take `--rocm VERSION`: the ROCm line to
+install, `7.14` (the default) or `7.2`.
 
 ### 6.1 The model download
 
@@ -756,6 +759,56 @@ DIR`.
 `doctor` and `status` say which venv they used and where it came from:
 `flag`, `$BERNIE_VENV`, `config`, `$VIRTUAL_ENV` or `conventional`. An
 ambiguous choice has the source `ambiguous` and lists the candidates.
+
+### 6.3 The ROCm repository
+
+AMD publishes ROCm in two repository shapes. The multi-arch repository
+carries one package per GPU architecture (`amdrocm-core-sdk7.14-gfx1030`)
+and serves ROCm 7.13 and later. The per-release repository carries the
+packages of one ROCm release, serves ROCm 7.2 and earlier, and names no
+architecture.
+
+bernie picks the repository of the distribution from `/etc/os-release`:
+
+| Distribution | Multi-arch directory | Per-release directory |
+|---|---|---|
+| Fedora 42 and later | `rhel10` | `el10` |
+| Fedora 39 to 41 | `rhel9` | `el9` |
+| Fedora 8 to 38 | `rhel8` | `el8` |
+| RHEL 10, Rocky 10, AlmaLinux 10 | `rhel10` | `el10` |
+| RHEL 9, Rocky 9, AlmaLinux 9 | `rhel9` | `el9` |
+| RHEL 8, Rocky 8, AlmaLinux 8 | `rhel8` | `el8` |
+| Ubuntu 22.04 | `ubuntu2204` | `jammy` |
+| Ubuntu 24.04 | `ubuntu2404` | `noble` |
+| Ubuntu 26.04 | `ubuntu2604` | none |
+| Debian 12 | `debian12` | `bookworm` |
+| Debian 13 | `debian13` | `trixie` |
+
+The multi-arch directory is a directory of
+`https://repo.amd.com/rocm/packages-multi-arch/`. The per-release directory
+is an "elN" directory of `https://repo.radeon.com/rocm/` or an apt suite of
+`https://repo.radeon.com/rocm/apt/7.2`.
+
+The step installs, for every code target of the host
+([§4.4](#44-device-tables)):
+
+- ROCm 7.14: `amdrocm-core-sdk7.14-<gfx>`, `amdrocm-core7.14-<gfx>` and
+  `amdrocm-blas7.14-<gfx>`.
+- ROCm 7.2: `rocm-core`, `rocm-hip-sdk`, `hipcc`, `rocminfo`,
+  `rocm-smi-lib`, `amd-smi-lib`, `rocblas`, `rocm-device-libs` and
+  `rocm-developer-tools`.
+
+The step is done when the host has a ROCm tree with `hipcc`. Three layouts
+count: the versioned tree (`/opt/rocm-7.2.0`), the TheRock tree
+(`/opt/rocm/core-7.14`) and the plain tree (`/opt/rocm`).
+
+The step prints the command that writes
+`/etc/ld.so.conf.d/10-rocm-<version>.conf` only when the tree is there and
+the file is not: the ROCm 7.14 packages ship it, the ROCm 7.2 packages do
+not.
+
+A distribution without an AMD repository (Arch, for example) gets the link
+to the AMD install guide instead of a command.
 
 ## 7. Recipes
 

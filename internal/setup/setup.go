@@ -52,11 +52,15 @@ type Step struct {
 // (default <data>/src) and the Hugging Face cache root (default $HF_HOME,
 // else ~/.cache/huggingface). GPUArchs are the host gfx targets (from
 // gpu.List), used for device wheels and build targets. Without GPUs the plan
-// has no device wheels and no build target.
+// has no device wheels and no build target. ROCm is the ROCm line to
+// install ("7.14" or "7.2"), default the newest one. Root is the root of
+// the host tree ("/" in production).
 type Options struct {
 	Mode, Venv, Image, ModelRepo string
 	SrcDir, HFHome               string
 	GPUArchs                     []string
+	ROCm                         string
+	Root                         string
 }
 
 // DefaultVenv is the venv used when none is configured.
@@ -73,6 +77,12 @@ func Plan(ctx context.Context, h host.Info, r rocm.Report, o Options) []Step {
 	}
 	if o.SrcDir == "" {
 		o.SrcDir = filepath.Join(paths.Data(), "src")
+	}
+	if o.ROCm == "" {
+		o.ROCm = host.ROCmVersion714
+	}
+	if o.Root == "" {
+		o.Root = "/"
 	}
 	o.GPUArchs = uniq(o.GPUArchs)
 	pl := planner{ctx: ctx, h: h, r: r, o: o, site: sitePackages(o.Venv), targets: devices.CodeTargets(o.GPUArchs)}
