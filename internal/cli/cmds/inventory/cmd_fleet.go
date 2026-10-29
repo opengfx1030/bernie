@@ -5,6 +5,7 @@ import (
 	"io"
 	"text/tabwriter"
 
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/cli"
 	"github.com/opengfx1030/bernie/internal/support/config"
 )
@@ -29,18 +30,11 @@ func init() {
 		if len(pos) < 2 {
 			return cli.Usagef("fleet add needs NAME and URL")
 		}
-		name, url := pos[0], pos[1]
-		cfg, err := config.Load()
+		entry, err := app.FleetAdd(pos[0], pos[1], *token)
 		if err != nil {
-			return err
-		}
-		if err := cfg.SetKey("fleet", "add "+name+" "+url+" "+*token); err != nil {
 			return cli.Usagef("%v", err)
 		}
-		if err := config.Save(cfg); err != nil {
-			return err
-		}
-		return c.Emit(map[string]any{"path": config.Path(), "entry": fleetForJSON(cfg, name)},
+		return c.Emit(map[string]any{"path": config.Path(), "entry": fleetEntry(entry)},
 			func(w io.Writer) {
 				fmt.Fprintf(w, "saved %s\n", config.Path())
 			})
@@ -59,64 +53,64 @@ func init() {
 		if len(pos) != 1 {
 			return cli.Usagef("fleet rm needs NAME")
 		}
-		name := pos[0]
-		cfg, err := config.Load()
-		if err != nil {
-			return err
+		if err := app.FleetRemove(pos[0]); err != nil {
+			return cli.Usagef("%v", err)
 		}
-		if !cfg.RemoveFleet(name) {
-			return cli.Usagef("no fleet entry named %q", name)
-		}
-		if err := config.Save(cfg); err != nil {
-			return err
-		}
-		return c.Emit(map[string]any{"path": config.Path(), "removed": name},
+		return c.Emit(map[string]any{"path": config.Path(), "removed": pos[0]},
 			func(w io.Writer) {
-				fmt.Fprintf(w, "forgot %s\n", name)
+				fmt.Fprintf(w, "forgot %s\n", pos[0])
 			})
 	}
 
-	ls := &cli.Command{Name: "ls", Summary: "List the configured fleet hosts (names and URLs)."}
+	ls := &cli.Command{Name: "ls", Summary: "List the fleet hosts and what they are doing."}
 	ls.Run = func(c *cli.Context, args []string) error {
 		if _, err := cli.Parse(c.Flags(ls), args); err != nil {
 			return err
 		}
-		cfg, err := config.Load()
+		doc, err := app.Fleet(c.Ctx)
 		if err != nil {
 			return err
 		}
-		// JSON carries every field except the token; the human output
-		// prints name and URL only (the token never leaves the file).
-		entries := make([]map[string]any, 0, len(cfg.Fleet))
-		for _, e := range cfg.Fleet {
-			entries = append(entries, fleetForJSON(cfg, e.Name))
-		}
-		return c.Emit(map[string]any{"path": config.Path(), "entries": entries},
-			func(w io.Writer) {
-				if len(cfg.Fleet) == 0 {
-					fmt.Fprintln(w, "no fleet entries; add one with: bernie fleet add NAME URL")
-					return
+		return c.Emit(doc, func(w io.Writer) {
+			if len(doc.Hosts) <= 1 {
+				fmt.Fprintln(w, "no fleet entries; add one with: bernie fleet add NAME URL")
+				return
+			}
+			tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(tw, "NAME\tURL\tSTATE\tMODEL\tTOK/S")
+			for _, h := range doc.Hosts {
+				url := h.URL
+				if h.Self {
+					url = "this box"
 				}
-				tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-				fmt.Fprintln(tw, "NAME\tURL")
-				for _, e := range cfg.Fleet {
-					fmt.Fprintf(tw, "%s\t%s\n", e.Name, e.URL)
+				state := h.State
+				if !h.Reachable {
+					state = "unreachable"
 				}
-				tw.Flush()
-			})
+				tok := "-"
+				if h.GenTokS != nil {
+					tok = fmt.Sprintf("%.1f", *h.GenTokS)
+				}
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", h.Name, url, state, dashIfEmpty(h.Recipe), tok)
+			}
+			tw.Flush()
+		})
 	}
 
 	cmd.Subs = []*cli.Command{add, rm, ls}
 	cli.Register(cmd)
 }
 
-// fleetForJSON returns one entry for a JSON document: name and URL, never
+// fleetEntry returns one entry for a JSON document: name and URL, never
 // the token. The dashboard reads this shape; the token stays in the file.
-func fleetForJSON(cfg config.Config, name string) map[string]any {
-	for _, e := range cfg.Fleet {
-		if e.Name == name {
-			return map[string]any{"name": e.Name, "url": e.URL}
-		}
+func fleetEntry(e config.FleetEntry) map[string]any {
+	return map[string]any{"name": e.Name, "url": e.URL}
+}
+
+// dashIfEmpty writes a dash for a missing value.
+func dashIfEmpty(s string) string {
+	if s == "" {
+		return "-"
 	}
-	return nil
+	return s
 }
