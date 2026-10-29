@@ -203,7 +203,10 @@ async function viewBenchmark(root) {
     runBtn.disabled = false;
     for (const card of suitesCard.querySelectorAll(".bench-suite")) {
       const radio = card.querySelector("input");
-      if (radio) card.classList.toggle("picked", radio.value === id);
+      if (radio) {
+        radio.checked = radio.value === id;
+        card.classList.toggle("picked", radio.checked);
+      }
     }
   }
 
