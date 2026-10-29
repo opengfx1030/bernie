@@ -16,7 +16,7 @@ no `innerHTML`, no image and no dependency. The SVG of each component is in
 | `web/js/data.js` | the state, the fetches, the streams | `api(path, opts)`, `state`, `openTelemetry()`, `openRunLogs()`, `openJobEvents()` |
 | `web/components/command.js` | the command block and the copy button | `cmdBlock(text, label)`, `copyBtn(text, label)` |
 | `web/components/cards.js` | the frames | `cardHead(title, path, ...rest)`, `stateHead(eyebrow, action)`, `setHead(head, title, lede)`, `emptyState(what, next, command)`, `loading()`, `failed(e)`, `factRow(label, value, why)` |
-| `web/components/charts.js` | the drawings | `spark(values, max, label)`, `areaChart(series, opts)`, `ring(pct, label)`, `meter(value, max, opts)` |
+| `web/components/charts.js` | the drawings | `spark(values, max, label, opts)`, `areaChart(input, opts)`, `ring(pct, label, opts)`, `meter(value, max, opts)` |
 | `web/components/metrics.js` | the numbers of a benchmark | `metricTable(cell)`, `verdictChip(v)`, `barCompare(a, b)`, `lengthCurve(cells)` |
 | `web/components/timeline.js` | the steps of the checklist | `stepTimeline(steps, options)` |
 
@@ -145,7 +145,7 @@ the job document while the step runs.
 | Label | the name of the number, with an `i` mark that opens a tooltip |
 | Number | 30 px 900 with the unit in 13 px `--muted` |
 | Sub | one line of context: `1-min avg 44.0 tok/s` |
-| Spark | a 34 px sparkline of the last minute |
+| Spark | a 34 px sparkline of the last minute, with its numbers in a table under it |
 
 A missing number shows `–` and the unit greyed. The tile never grows a
 second line of numbers. Data: the label, the value, the unit, the sub-line
@@ -168,13 +168,25 @@ The chart is an inline SVG, `overflow: visible`, with the grid lines in
 `--border`. A measure with no data draws an empty axis with the sentence
 `No samples yet.`. Data: the series of the history (G4) and the window.
 
+The chart is built once: the grid, the two axes, the paths, the crosshair
+and the dot stay in the DOM. An update writes the path of a series and
+moves the labels; it never builds a node again, and a frame whose document
+did not change writes nothing at all. A series holds at most 240 points:
+the cap keeps the lowest and the highest value of every bucket, so a peak
+of one sample is never lost.
+
+Under the chart the same numbers are in a table, in a `details` element:
+`The numbers of the chart`. One row per point, the unit in the head, the
+caption in words. The rows are written, never built again.
+
 ## The busy ring
 
 `design/busy-ring.svg`
 
-An 84 px SVG ring: the track in `--surface-3`, the arc in `--series-1`, the
-number in the middle at 900, and a caption under it: `GPU 0`. The number is
-the load of the card in percent; a card that does not report one shows `–`.
+A horizontal 0–100 % bar: the track in `--surface-3`, the fill in
+`--series-1`, the number above it at 900, and a caption under it: `GPU 0`.
+The number is the load of the card in percent; a card that does not report
+one shows `–`.
 
 Data: the load of the card and its name.
 
