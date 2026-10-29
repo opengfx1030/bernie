@@ -163,9 +163,8 @@ function sparkDomain(values, max) {
 
 /** chartDataTable builds the table that holds the numbers of a chart: one
  *  row per point, the unit in the head and the caption in words. The rows
- *  are written when the chart is drawn and again when the reader opens the
- *  table: a frame never builds a row, and the reader always sees the
- *  numbers of the last frame. */
+ *  are built once and then written: a frame never builds a node, and the
+ *  numbers of the chart are always in the page as text. */
 function chartDataTable(caption, head, summary) {
   const box = h("details", { class: "chart-data" });
   const table = h("table", { class: "chart-data-table" });
@@ -175,25 +174,49 @@ function chartDataTable(caption, head, summary) {
   table.append(h("caption", { class: "chart-data-caption" }, caption),
     h("thead", row), body);
   box.append(h("summary", { class: "chart-data-summary" }, summary || "The numbers of the chart"), table);
-  let pending = null;
+  // The cells of the table: they are written, never built again.
+  const cells = [];
+  let width = 0;
   const fill = (rows) => {
-    const frag = document.createDocumentFragment();
-    for (const r of rows) {
-      const tr = h("tr");
-      for (let i = 0; i < r.length; i++) {
-        tr.append(i === 0 ? h("th", { scope: "row" }, r[i]) : h("td", { class: "num" }, r[i]));
-      }
-      frag.append(tr);
+    const cols = rows.length ? rows[0].length : 0;
+    if (cols !== width) {
+      // The number of the columns changed: the rows are built again.
+      body.replaceChildren();
+      cells.length = 0;
+      width = cols;
     }
-    body.replaceChildren(frag);
+    // The rows are built in twos: a series that grows by one point does
+    // not build a row, and the rows that the series does not need yet are
+    // hidden.
+    if (rows.length > cells.length) {
+      let size = cells.length > 0 ? cells.length : 1;
+      while (size < rows.length) size *= 2;
+      while (cells.length < size) {
+        const tr = h("tr");
+        const texts = [];
+        for (let i = 0; i < width; i++) {
+          const cell = i === 0 ? h("th", { scope: "row" }) : h("td", { class: "num" });
+          const text = document.createTextNode("");
+          cell.append(text);
+          texts.push(text);
+          tr.append(cell);
+        }
+        body.append(tr);
+        cells.push({ row: tr, texts: texts });
+      }
+    }
+    for (let r = 0; r < cells.length; r++) {
+      const hide = r >= rows.length;
+      if (cells[r].row.hidden !== hide) cells[r].row.hidden = hide;
+      if (hide) continue;
+      const texts = cells[r].texts;
+      for (let c = 0; c < texts.length; c++) {
+        const v = String(rows[r][c]);
+        if (texts[c].nodeValue !== v) texts[c].nodeValue = v;
+      }
+    }
   };
-  box.update = (rows) => {
-    if (box.open) { fill(rows); pending = null; }
-    else pending = rows;
-  };
-  box.addEventListener("toggle", () => {
-    if (box.open && pending) { fill(pending); pending = null; }
-  });
+  box.update = fill;
   return box;
 }
 
@@ -283,7 +306,7 @@ function spark(values, max, label, opts) {
     mark.setAttribute("opacity", "1");
     show(i);
   });
-  let shown = values2;
+  let shown = null;
   wrap.update = (next, nextMax) => {
     const vals = next || [];
     const same = chartSame(vals, shown) && (!nextMax || nextMax === max);
@@ -517,6 +540,7 @@ function areaChart(input, opts) {
   series = seriesOf(input);
   paint();
   chartPointer(svg, () => (series[0] ? series[0].points.length : 0), show);
+  let first = true;
   box.update = (next, mins) => {
     if (mins) options.windowMinutes = mins;
     const nextSeries = seriesOf(next);
@@ -529,7 +553,8 @@ function areaChart(input, opts) {
       for (let k = 0; k < one.points.length; k++) if (one.points[k].v !== old.points[k].v) return false;
       return true;
     });
-    if (same && (options.windowMinutes || 5) === windowM) return;
+    if (!first && same && (options.windowMinutes || 5) === windowM) return;
+    first = false;
     series = nextSeries;
     paint();
     const last = series[0] && series[0].points.length ? series[0].points.length - 1 : -1;
