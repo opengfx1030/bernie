@@ -47,6 +47,20 @@ func osChecks(in inputs) []Check {
 	default:
 		out = append(out, check(cat, "kernel", OK, "Kernel version", h.Kernel))
 	}
+	switch virt := strings.ToLower(strings.TrimSpace(h.Virtualization)); {
+	case virt == "":
+		out = append(out, check(cat, "virtualization", Skip, "Host is bare metal", "host probe did not run"))
+	case virt == "none":
+		out = append(out, check(cat, "virtualization", OK, "Host is bare metal", "bare metal"))
+	case virt == "docker" || virt == "podman":
+		// Running in a container is expected for the bernie container itself;
+		// the GPU checks below answer whether the container sees the GPU.
+		out = append(out, check(cat, "virtualization", Skip, "Host is bare metal", "running inside a "+virt+" container"))
+	default:
+		out = append(out, check(cat, "virtualization", Warn, "Host is bare metal",
+			"running in a virtual machine ("+virt+"); GPU passthrough needs IOMMU/VFIO on the host").
+			with("Enable IOMMU and VFIO on the host and assign the GPU to this VM.", docGotchas))
+	}
 	return out
 }
 
