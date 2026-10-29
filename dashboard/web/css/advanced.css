@@ -73,6 +73,14 @@
   margin-top: 8px;
 }
 
+.adv-gpu-table {
+  margin-top: 16px;
+}
+
+.adv-gpu-table table {
+  min-width: 920px;
+}
+
 .switch {
   margin: 0 0 14px;
 }

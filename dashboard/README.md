@@ -92,7 +92,7 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 |---|---|
 | `dashboard/web/components/cards.js` | `jsonLink`, `cardHead`, `stateHead`, `setHead`, `factRow`, `tableHead`, `tableCaption`, `emptyState`, `loading`, `failed` |
 | `dashboard/web/components/charts.js` | `downsample`, `chartNumbers`, `chartPaths`, `chartPointer`, `spark`, `areaChart`, `chartClock`, `ring`, `meter` |
-| `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock` |
+| `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock`, `connectEndpoint`, `connectSnippet` |
 | `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `ladderPoints`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart`, `curveSmallMultiples`, `curveTable` |
 | `dashboard/web/components/metrics.js` | `METRIC_HELP`, `VERDICTS`, `METRIC_COLS`, `COMPARE_METRICS`, `benchNum`, `benchDist`, `benchRate`, `benchDigits`, `SPREAD_STEADY`, `benchSpreadText`, `cellLens`, `cellFlags`, `metricHead`, `cellRow`, `cellsTable`, `verdictChip` |
 | `dashboard/web/components/timeline.js` | `TIMELINE_STATE_WORD`, `TIMELINE_MARK`, `TIMELINE_PILL`, `stepTimeline`, `stepCurrentID`, `stepRow`, `stepPill`, `stepMark`, `stepSummary`, `stepActionLabel`, `stepAction`, `stepProgressNode`, `stepBar`, `stepProblem`, `stepToggleLog` |
@@ -103,13 +103,11 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchCards`, `benchCellName`, `benchBestCell`, `benchHeadline`, `benchResultBody`, `benchCopy`, `benchReceipt`, `benchStartError`, `viewBenchmark` |
 | `dashboard/web/views/benchmark/suites.js` | `benchSuiteCells`, `benchSuiteEstS`, `benchMinutes`, `benchSuiteCard`, `benchSuiteCards`, `benchSentence`, `benchProgress`, `benchBest`, `benchSuiteOf`, `benchHistoryRow`, `benchHistory`, `benchAB`, `benchAdvanced` |
 | `dashboard/web/views/advanced/advanced.js` | `adv`, `viewAdvanced`, `advLoad`, `advSubscribe`, `advRunsOverview`, `advRunsTable` |
-| `dashboard/web/views/advanced/gpus.js` | `advViewGPUs`, `advGpuHeadline`, `advRenderTiles`, `advGpuCard`, `advUpdateGpuCard`, `advCardListText`, `advCopyCardList`, `advRenderPower`, `advPowerRow`, `advSavePower` |
+| `dashboard/web/views/advanced/gpus.js` | `advViewGPUs`, `advGpuHeadline`, `advRenderTiles`, `advGpuCard`, `advUpdateGpuCard`, `advRenderGpuTable`, `advCardListText`, `advCopyCardList`, `advRenderPower`, `advPowerRow`, `advSavePower` |
 | `dashboard/web/views/advanced/topology.js` | `advViewTopology`, `advGpuName`, `advP2pCard`, `advP2pRow` |
-| `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashGrid`, `dashSection`, `dashInfo`, `dashGroup`, `DASH_PILL_ICON`, `dashPill`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashCardLabel`, `dashLiveRun`, `dashPhase`, `dashSetHead`, `dashAdvanced`, `dashLoad`, `dashHistory`, `dashWindowPrompt`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
-| `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashTiles`, `dashHero`, `dashTilesPaint`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe`, `dashCharts` |
-| `dashboard/web/views/dashboard/overview.js` | `dashRunState`, `dashRunCard`, `dashFindings`, `dashProblems`, `dashStopRun`, `dashRestartRun`, `dashAsk` |
-| `dashboard/web/views/dashboard/power.js` | `dashPower`, `dashPowerRow`, `dashPowerAll`, `dashSavePower` |
-| `dashboard/web/views/dashboard/topology.js` | `DASH_CLASS_COLOR`, `dashTopology`, `dashTree`, `dashMatrix`, `dashChecklist` |
+| `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashSection`, `dashInfo`, `dashGroup`, `DASH_PILL_ICON`, `dashPill`, `dashPush`, `dashSeries`, `dashCardSeries`, `dashCardName`, `dashLiveRun`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
+| `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashCard`, `dashEcc`, `dashCards`, `renderGPUs`, `dashSubscribe` |
+| `dashboard/web/views/dashboard/simple.js` | `dashSimpleHero`, `dashStopRun`, `dashMeaning`, `dashSimpleTiles`, `dashSimpleCharts`, `dashSimpleMachine`, `dashBuildSimple`, `dashSimpleConnect` |
 | `dashboard/web/views/logs/advanced.js` | `logsJsonLink`, `logsAdvanced` |
 | `dashboard/web/views/logs/findings.js` | `logPill`, `logSeverityPill`, `logFixIsCommand`, `logFinding`, `logFindings` |
 | `dashboard/web/views/logs/levels.js` | `LOG_ERROR_MARKS`, `LOG_WARN_MARKS`, `LOG_LEVEL_WORDS`, `logLevel`, `logLevelWord` |
@@ -182,7 +180,7 @@ Each tab answers one question. Keep it that way.
 | Tab | Question it answers | Data | Actions |
 |---|---|---|---|
 | Setup | Is this host ready, what do I do next, and what can it serve? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/recipes`, `.../plan` | run a step, start a run |
-| Dashboard | How busy is the host, how is it wired, and what is serving? | `/api/telemetry`, `/api/hw`, `/api/power`, `/api/topo`, `/api/topo/check`, `/api/runs` | copy the card list, set a power cap |
+| Dashboard | Is it serving, how fast is it, and how does an app connect? | `/api/telemetry`, `/api/hw`, `/api/runs`, `/api/glossary`, `/api/gpus/history` | copy the URL, stop the run, copy a curl or Python request |
 | Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
 | Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
 | Advanced | What did the first bernie dashboard show on this host? | `/api/telemetry`, `/api/gpus/history`, `/api/hw`, `/api/runs`, `/api/doctor`, `/api/power`, `/api/topo` | read only: stop the run, restart it, ask it one question |
@@ -213,12 +211,17 @@ what bernie is checking and the card names the phase. A checklist that is
 older than its time to live is shown with the note that bernie is checking
 the host again.
 
-The Dashboard tab opens with five tiles: the load, the power, the memory, the
-hottest card and the highest clock, each with the last minute of it as a
-sparkline. Every card shows its load as a ring and its power as a meter
-against the cap the card may draw. A number that was not measured shows `–`.
-The PCIe topology and the power service follow as sections, and the run
-overview closes the tab.
+The Dashboard tab is the clear operational view. It opens with one hero:
+the state in one big word, the plain sentence, the endpoint with **Copy
+URL**, the Stop action and the output speed with its unit. Six plain-language
+tiles follow: prompt reading, active requests, first token, KV cache, prefix
+cache hits and draft accepted. Every tile has an `(i)` explanation from the
+shared glossary and a human subtitle; a value this host cannot measure is `–`
+and says `n/a on this host`. Two five-minute charts show the output and
+prompt rates, then come one card per GPU, **This machine** and **Connect an
+app** with copyable curl and Python requests. The Advanced tab keeps the
+fleet telemetry, the exact per-GPU table, the power controls, the topology
+and the raw documents.
 
 A step that bernie can do has a Run button. The step runs in the background
 and its output goes under the step. A step that needs root has the command

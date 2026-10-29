@@ -1,0 +1,185 @@
+/* The Dashboard tab in SIMPLE mode: the operational reading order of the
+   Classic reference, drawn with bernie's own components. The colours are
+   tokens; this file writes no colour of its own. */
+
+.dash-simple-hero {
+  margin: 0 0 24px;
+  padding: 24px 26px;
+  max-width: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.dash-simple-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, .75fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+.dash-simple-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.dash-simple-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.dash-simple-hero .display {
+  color: var(--key);
+  font-size: clamp(44px, 6vw, 72px);
+  margin-bottom: 8px;
+}
+
+.dash-simple-hero .lede {
+  margin-bottom: 14px;
+}
+
+.dash-simple-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 24px;
+}
+
+.dash-simple-endpoint code {
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.dash-simple-speed {
+  border-left: 1px solid var(--border);
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dash-simple-speed .dash-hero-num {
+  font-size: clamp(48px, 6vw, 68px);
+}
+
+.dash-simple-speed .dash-hero-spark {
+  margin-top: auto;
+}
+
+.dash-simple-tiles {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dash-simple-tiles .tile {
+  display: flex;
+  flex-direction: column;
+  min-height: 148px;
+}
+
+.dash-simple-tiles .dash-tile-spark {
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.dash-simple-chart-grid,
+.dash-simple-bottom {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dash-simple-chart-grid .chart-figure {
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.dash-simple-panel {
+  min-height: 100%;
+}
+
+.dash-machine-facts {
+  margin: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-machine-facts > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-machine-facts > div:last-child {
+  border-bottom: 0;
+}
+
+.dash-connect-text {
+  color: var(--text-2);
+}
+
+.dash-connect-text code {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.dash-connect-command .cmd {
+  margin-top: 10px;
+}
+
+@media (max-width: 1100px) {
+  .dash-simple-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .dash-simple-hero {
+    padding: 20px;
+  }
+
+  .dash-simple-hero-grid,
+  .dash-simple-chart-grid,
+  .dash-simple-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dash-simple-speed {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding: 18px 0 0;
+  }
+
+  .dash-simple-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-simple-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .dash-simple-hero .display {
+    font-size: 42px;
+  }
+
+  .dash-simple-tiles .tile {
+    min-height: 142px;
+    padding: 11px 12px;
+  }
+}

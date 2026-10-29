@@ -38,9 +38,7 @@ const TAB_SCRIPTS = {
     "components/charts.js",
     "views/dashboard/dashboard.js",
     "views/dashboard/gpus.js",
-    "views/dashboard/power.js",
-    "views/dashboard/topology.js",
-    "views/dashboard/overview.js",
+    "views/dashboard/simple.js",
   ],
   benchmark: [
     "components/metrics.js",
@@ -67,7 +65,7 @@ const TAB_SCRIPTS = {
 // The stylesheets of the tabs that are not open yet.
 const TAB_CSS = {
   setup: [],
-  dashboard: ["views/dashboard/dashboard.css"],
+  dashboard: ["views/dashboard/dashboard.css", "views/dashboard/simple.css"],
   benchmark: ["css/bench.css"],
   logs: ["views/logs/logs.css"],
   advanced: ["css/advanced.css"],

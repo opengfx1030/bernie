@@ -1,63 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-label="The Dashboard tab with nothing serving">
-<title>The Dashboard tab with nothing serving</title>
-<desc>The empty states of the tab.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-label="The Dashboard tab in Simple mode with nothing serving">
+<title>The Dashboard tab in Simple mode with nothing serving</title>
+<desc>The hero says NOT RUNNING, every unmeasured serving value is a dash, and the Connect an app block teaches how to start a run.</desc>
 <defs><style>
-.bg{fill:#f4f5f7}.sf{fill:#ffffff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}
-.ln{stroke:#dfe3e8;fill:none}.ed{stroke:#828a93;fill:none}.accln{stroke:#b3122c;fill:none}
-.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}
-.mn{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}
-.h1{font-size:30px;font-weight:900;letter-spacing:-.02em}.h2{font-size:14px;font-weight:800;letter-spacing:.14em;fill:#5f6874}
-.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}
-.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}
-.num{font-size:30px;font-weight:900}.hnum{font-size:52px;font-weight:900}
-.key{fill:#8a4f00}.acc{fill:#b3122c}.onacc{fill:#ffffff}
-.ok{fill:#1a7a33}.warn{fill:#8a6100}.ser{fill:#c2410c}.fail{fill:#b42318}.skip{fill:#5f6874}.info{fill:#2a5fb4}
-.s1{fill:#2a78d6}.s2{fill:#12795a}.s3{fill:#9a6200}.s4{fill:#c0392b}.s5{fill:#7c5cff}.s6{fill:#0f766e}
-.s1s{stroke:#2a78d6;fill:none}.s2s{stroke:#12795a;fill:none}
+.bg{fill:#f4f5f7}.sf{fill:#fff}.sf2{fill:#eef1f5}.sf3{fill:#e4e8ee}.ln{stroke:#dfe3e8}.ed{stroke:#828a93}.t{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#14181d}.m{font-family:ui-monospace,Menlo,Consolas,monospace;fill:#14181d}.lbl{font-size:11px;font-weight:800;letter-spacing:.08em;fill:#5f6874}.h2{font-size:13px;font-weight:800;letter-spacing:.14em;fill:#5f6874}.bd{font-size:13px}.sm{font-size:11px;fill:#5f6874}.sb{font-size:12px;fill:#47505c}.num{font-size:28px;font-weight:900}.key{fill:#8a4f00}.skip{fill:#5f6874}
 </style></defs>
-<rect x="0" y="0" width="1280" height="760" rx="0" class="bg"/>
-<line x1="220" y1="0" x2="220" y2="900" class="ln"/>
-<text x="24" y="44" class="t bd" text-anchor="start" style="font-size:15px;font-weight:800">bernie</text>
-<text x="24" y="64" class="t sm" text-anchor="start">gpu-box</text>
-<line x1="24" y1="92" x2="196" y2="92" class="ln"/>
-<text x="24" y="116" class="t sb" text-anchor="start" style="font-size:13px">Setup</text>
-<rect x="14" y="128" width="192" height="30" rx="8" class="sf3"/>
-<rect x="14" y="128" width="3" height="30" rx="0" class="acc"/>
-<text x="24" y="150" class="t bd" text-anchor="start" style="font-size:13px;font-weight:700">Dashboard</text>
-<text x="24" y="184" class="t sb" text-anchor="start" style="font-size:13px">Benchmark</text>
-<text x="24" y="218" class="t sb" text-anchor="start" style="font-size:13px">Logs</text>
-<line x1="24" y1="100" x2="196" y2="100" class="ln"/>
-<rect x="24" y="122" width="86" height="22" rx="11" class="sf" stroke="#1a7a33" stroke-width="1"/>
-<circle cx="36" cy="133" r="4" class="ok"/>
-<text x="46" y="138" class="t ok" text-anchor="start" style="font-size:11px">serving</text>
-<rect x="24" y="154" width="52" height="24" rx="6" class="sf" stroke="#828a93"/>
-<text x="50" y="170" class="t sb" text-anchor="middle" style="font-size:11px">Dark</text>
-<rect x="84" y="154" width="80" height="24" rx="6" class="sf" stroke="#828a93"/>
-<text x="124" y="170" class="t sb" text-anchor="middle" style="font-size:11px">Advanced</text>
-<text x="276" y="56" class="t h2" text-anchor="start">DASHBOARD</text>
-<text x="279" y="108.0" class="t acc" text-anchor="start" style="font-size:34px;font-weight:900;letter-spacing:-.02em">NOTHING IS SERVING.</text>
-<text x="276" y="108.0" class="t h1" text-anchor="start" style="font-size:34px">NOTHING IS SERVING.</text>
-<text x="276" y="136.0" class="t sb" text-anchor="start" style="font-size:15px">Start a model server on this host, then this tab fills with its numbers.</text>
-<rect x="276" y="180" width="948" height="200" rx="18" class="sf" stroke="#dfe3e8"/>
-<text x="296" y="220" class="t bd" text-anchor="start" style="font-size:16px;font-weight:700">No run is serving.</text>
-<text x="296" y="242" class="t sb" text-anchor="start">A run is a model server on this host: it loads the model and then answers requests.</text>
-<text x="296" y="262" class="t sm" text-anchor="start">Start one from the Setup tab, or run it in a terminal:</text>
-<rect x="296" y="278" width="420" height="34" rx="8" class="sf2" stroke="#dfe3e8"/>
-<text x="307" y="299" class="mn sb" text-anchor="start">bernie serve flashnext-mtp2</text>
-<rect x="654" y="284" width="52" height="22" rx="6" class="sf" stroke="#828a93" stroke-width="1"/>
-<text x="680" y="299" class="t sb" text-anchor="middle" style="font-size:11px">Copy</text>
-<line x1="276" y1="420" x2="1224" y2="420" class="ln"/>
-<text x="276" y="442" class="t lbl" text-anchor="start">THE CARDS</text>
-<rect x="276" y="460" width="948" height="150" rx="18" class="sf" stroke="#dfe3e8"/>
-<text x="296" y="494" class="t bd" text-anchor="start" style="font-size:15px;font-weight:700">No AMD GPU is visible to bernie.</text>
-<text x="296" y="516" class="t sb" text-anchor="start">The amdgpu driver has to be loaded and /dev/kfd has to exist.</text>
-<text x="296" y="540" class="t sm" text-anchor="start">The doctor checks every part of that.</text>
-<rect x="296" y="556" width="420" height="34" rx="8" class="sf2" stroke="#dfe3e8"/>
-<text x="307" y="577" class="mn sb" text-anchor="start">sudo modprobe amdgpu</text>
-<rect x="654" y="562" width="52" height="22" rx="6" class="sf" stroke="#828a93" stroke-width="1"/>
-<text x="680" y="577" class="t sb" text-anchor="middle" style="font-size:11px">Copy</text>
-<line x1="276" y1="640" x2="1224" y2="640" class="ln"/>
-<text x="276" y="662" class="t lbl" text-anchor="start">KNOWN PROBLEMS</text>
-<rect x="276" y="680" width="948" height="60" rx="18" class="sf" stroke="#dfe3e8"/>
-<text x="296" y="716" class="t sb" text-anchor="start">Nothing is wrong on this host. Every check of the host passed.</text>
+<rect width="1280" height="760" class="bg"/><rect width="220" height="760" class="sf"/><line x1="220" y1="0" x2="220" y2="760" class="ln"/><text x="24" y="44" class="t bd" font-weight="800">bernie</text><text x="24" y="64" class="t sm">gpu-box</text><rect x="14" y="94" width="192" height="32" rx="8" class="sf3"/><text x="26" y="115" class="t bd" font-weight="700">Dashboard</text><text x="24" y="156" class="t sb">Setup</text><text x="24" y="196" class="t sb">Benchmark</text><text x="24" y="236" class="t sb">Logs</text><text x="24" y="276" class="t sb">Advanced</text>
+<rect x="270" y="72" width="950" height="188" rx="18" class="sf" stroke="#dfe3e8"/><rect x="294" y="94" width="66" height="24" rx="12" class="sf3"/><text x="327" y="110" class="t skip" text-anchor="middle" font-size="11">No run</text><text x="374" y="110" class="t sm">no run on this host</text><text x="294" y="176" class="t key" font-size="62" font-style="italic" font-weight="900">NOT RUNNING</text><text x="296" y="204" class="t sb">The model server is not running.</text><rect x="686" y="222" width="112" height="30" rx="7" fill="#b3122c"/><text x="742" y="242" class="t" fill="#fff" text-anchor="middle" font-size="11" font-weight="800">START A RUN</text><line x1="900" y1="94" x2="900" y2="238" class="ln"/><text x="928" y="116" class="t lbl">OUTPUT SPEED</text><text x="928" y="182" class="t key" font-size="62" font-weight="900">–</text><text x="954" y="182" class="t sb">tok/s</text><text x="928" y="208" class="t sm">No run is serving.</text>
+<g>
+<rect x="270" y="278" width="146" height="142" rx="16" class="sf" stroke="#dfe3e8"/><text x="286" y="304" class="t lbl">PROMPT READING</text><text x="286" y="350" class="t num">–</text><text x="302" y="350" class="t sm">tok/s</text><text x="286" y="374" class="t sm">n/a on this host</text>
+<rect x="432" y="278" width="146" height="142" rx="16" class="sf" stroke="#dfe3e8"/><text x="448" y="304" class="t lbl">ACTIVE REQUESTS</text><text x="448" y="350" class="t num">–</text><text x="464" y="350" class="t sm">requests</text><text x="448" y="374" class="t sm">n/a on this host</text>
+<rect x="594" y="278" width="146" height="142" rx="16" class="sf" stroke="#dfe3e8"/><text x="610" y="304" class="t lbl">FIRST TOKEN</text><text x="610" y="350" class="t num">–</text><text x="626" y="350" class="t sm">s</text><text x="610" y="374" class="t sm">n/a on this host</text>
+<rect x="756" y="278" width="146" height="142" rx="16" class="sf" stroke="#dfe3e8"/><text x="772" y="304" class="t lbl">KV CACHE</text><text x="772" y="350" class="t num">–</text><text x="788" y="350" class="t sm">%</text><text x="772" y="374" class="t sm">n/a on this host</text>
+<rect x="918" y="278" width="146" height="142" rx="16" class="sf" stroke="#dfe3e8"/><text x="934" y="304" class="t lbl">PREFIX CACHE HITS</text><text x="934" y="350" class="t num">–</text><text x="950" y="350" class="t sm">%</text><text x="934" y="374" class="t sm">n/a on this host</text>
+<rect x="1080" y="278" width="140" height="142" rx="16" class="sf" stroke="#dfe3e8"/><text x="1096" y="304" class="t lbl">DRAFT ACCEPTED</text><text x="1096" y="350" class="t num">–</text><text x="1112" y="350" class="t sm">%</text><text x="1096" y="374" class="t sm">no draft tokens yet</text>
+</g>
+<rect x="270" y="440" width="468" height="200" rx="16" class="sf" stroke="#dfe3e8"/><text x="294" y="472" class="t bd" font-weight="700">Output speed</text><text x="400" y="472" class="t sm">tok/s, last 5 min</text><text x="294" y="512" class="t sb">No samples yet.</text><text x="294" y="530" class="t sm">The chart fills after the first minute.</text>
+<rect x="754" y="440" width="466" height="200" rx="16" class="sf" stroke="#dfe3e8"/><text x="778" y="472" class="t bd" font-weight="700">Prompt reading</text><text x="892" y="472" class="t sm">tok/s, last 5 min</text><text x="778" y="512" class="t sb">No samples yet.</text><text x="778" y="530" class="t sm">The chart fills after the first minute.</text>
+<line x1="270" y1="670" x2="1220" y2="670" class="ln"/><text x="270" y="700" class="t h2">GPUS</text><text x="340" y="700" class="t sm">No AMD GPU is visible to bernie.</text><rect x="270" y="718" width="950" height="42" rx="12" class="sf" stroke="#dfe3e8"/><text x="294" y="744" class="t sb">The amdgpu driver has to be loaded and /dev/kfd has to exist.</text>
 </svg>

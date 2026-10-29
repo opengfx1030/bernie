@@ -1,7 +1,6 @@
 "use strict";
-// ---------- The fleet tiles and the cards of the cards ----------
-// The hero (the output speed of the live run), the eight tiles of the fleet
-// and one card per card of the host.
+// ---------- Dashboard tiles and GPU cards ----------
+// One reusable tile and one card per AMD GPU on the host.
 //
 // Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
 
@@ -31,100 +30,7 @@ function dashTile(spec) {
   return el;
 }
 
-// dashTiles is the eight tiles of the fleet, in the order of the design.
-function dashTiles() {
-  const box = h("div.tiles", { class: "dash-tiles" });
-  const defs = [
-    { key: "busy", label: "Load", unit: "%", tip: "The mean load of the cards, in percent. The load is the share of the time the card was busy." },
-    { key: "pow", label: "Power", unit: "W", tip: "The sum of the power of the cards. The card cannot draw more than its cap." },
-    { key: "mem", label: "Memory", unit: "GiB", tip: "The sum of the video memory in use on the cards." },
-    { key: "hot", label: "Hottest card", unit: "°C", tip: "The highest edge temperature of the cards. The line names the card that is hottest." },
-    { key: "clk", label: "Clock", unit: "MHz", tip: "The highest shader clock of the cards. The line names the card that runs fastest." },
-    { key: "gen", label: "Tokens per second", unit: "tok/s", tip: "The output speed of the live run: the tokens the server writes every second." },
-    { key: "running", label: "Running requests", unit: "", tip: "The requests the server is answering right now. The line counts the ones that wait." },
-    { key: "kv", label: "KV cache", unit: "%", tip: "The share of the key-value cache the engine holds. A full cache slows the server down." },
-  ];
-  const tiles = defs.map((d) => {
-    const t = dashTile({ label: d.label, unit: d.unit, tip: d.tip, value: "–", sub: "" });
-    t.key = d.key;
-    box.append(t);
-    return t;
-  });
-  box.items = tiles;
-  box.update = () => dashTilesPaint(box);
-  box.update();
-  return box;
-}
-
-// dashHero is the block at the top of the tab: the output speed of the live
-// run on the left, the tiles of the fleet on the right.
-function dashHero() {
-  const el = h("div.dashboard-hero", { class: "dash-hero-start" });
-  const left = h("div", { class: "dash-min0" });
-  const eyebrow = h("div.eyebrow", "Output speed");
-  const value = h("div", { class: "dash-hero-num" });
-  const amount = h("span", "–");
-  const unit = h("small", { class: "dash-hero-unit" }, "tok/s");
-  value.append(amount, unit);
-  const note = h("div", { class: "dash-hero-note" }, "No run is serving.");
-  const chartBox = h("div", { class: "dash-hero-spark" });
-  const chart = spark([], null, "the output speed of the live run", { unit: "tok/s" });
-  chartBox.append(chart);
-  left.append(eyebrow, value, note, chartBox);
-  const tiles = dashTiles();
-  el.append(left, tiles);
-  dashGrid(el, "minmax(190px,320px) minmax(0,1fr)", "minmax(0,1fr)");
-  const paint = () => {
-    const last = dash.samples[dash.samples.length - 1];
-    const agg = last ? last.agg : null;
-    const gen = agg ? agg.gen : null;
-    amount.textContent = gen == null ? "–" : num(gen);
-    unit.style.opacity = gen == null ? ".55" : "1";
-    const series = dashSeries("gen").filter((v) => v != null);
-    const avg = series.length ? series.reduce((a, b) => a + b, 0) / series.length : null;
-    note.textContent = gen == null ? "No run is serving." : (avg == null ? "the live run" : "1-min avg " + num(avg) + " tok/s");
-    chart.update(dashSeries("gen"));
-  };
-  paint();
-  tiles.update = () => {
-    dashTilesPaint(tiles);
-    paint();
-  };
-  return { el: el, tiles: tiles, paint: paint };
-}
-
-// dashTilesPaint repaints the tiles with the samples of the buffer.
-function dashTilesPaint(box) {
-  const tiles = box.items || [];
-  const last = dash.samples[dash.samples.length - 1];
-  const agg = last ? last.agg : null;
-  const count = last ? last.cards.length : 0;
-  const gen = dashSeries("gen").filter((v) => v != null);
-  const avgGen = gen.length ? gen.reduce((a, b) => a + b, 0) / gen.length : null;
-  for (const t of tiles) {
-    const k = t.key;
-    let value = "–", sub = "", max = null;
-    if (agg) {
-      if (k === "busy") { value = agg.busy == null ? "–" : num(Math.round(agg.busy)); sub = count ? "the mean of " + count + " cards" : "no card"; max = 100; }
-      else if (k === "pow") { value = agg.pow == null ? "–" : dashGroup(agg.pow); sub = agg.cap ? "of " + dashGroup(agg.cap) + " W allowed" : "the power of the cards"; max = agg.cap || null; }
-      else if (k === "mem") { value = agg.mem == null ? "–" : num(agg.mem / (1024 * 1024 * 1024)); sub = agg.total ? "of " + num(agg.total / (1024 * 1024 * 1024)) + " GiB" : "the memory of the cards"; max = agg.total || null; }
-      else if (k === "hot") { value = agg.hot == null ? "–" : num(agg.hot); sub = agg.hotName || "no card"; }
-      else if (k === "clk") { value = agg.clk == null ? "–" : dashGroup(agg.clk); sub = agg.clkName || "no card"; }
-      else if (k === "gen") {
-        value = agg.gen == null ? "–" : num(agg.gen);
-        sub = avgGen == null ? "the live run" : "1-min avg " + num(avgGen) + " tok/s";
-        if (agg.prompt != null) sub += " · prompt " + num(agg.prompt) + " tok/s";
-      }
-      else if (k === "running") { value = agg.running == null ? "–" : num(agg.running, 0); sub = agg.waiting == null ? "no live run" : num(agg.waiting, 0) + " waiting"; }
-      else if (k === "kv") { value = agg.kv == null ? "–" : num(agg.kv * 100, 0); sub = agg.kv == null ? "the server does not publish it" : "of the cache of the engine"; max = 100; }
-    } else {
-      sub = k === "kv" ? "the server does not publish it" : "waiting for the first sample";
-    }
-    t.update({ value: value, sub: sub, series: dashSeries(k), max: max });
-  }
-}
-
-// dashCard is the card of one card of the host: its name, the ring of its
+// dashCard is the card of one GPU: its name, its state, the ring of its
 // load, the memory and the power meters, the temperatures, the clocks, the
 // ECC state and the last minute of its load.
 function dashCard(hip) {
@@ -134,8 +40,9 @@ function dashCard(hip) {
   const names = h("div", { class: "dash-min0" });
   const name = h("h3", { class: "dash-card-name" }, dashCardName(hip));
   const where = h("div.small-t", { class: "dash-card-where" }, (hw ? hw.pci : "") + (hw && hw.gfx ? " · " + hw.gfx : ""));
+  const state = h("span.dash-pill-wrap");
   names.append(name, where);
-  top.append(names);
+  top.append(names, state);
   const mid = h("div.gpu-mid", { class: "dash-card-mid" });
   const ringBox = ring(null, "GPU " + hip);
   const stats = h("div.gpu-stats", { class: "dash-card-stats" });
@@ -164,6 +71,9 @@ function dashCard(hip) {
     const limit = limits.edge != null ? limits.edge : (hw && hw.power_cap_w ? null : null);
     name.textContent = dashCardName(hip);
     where.textContent = (hw ? hw.pci : "") + (hw && hw.gfx ? " · " + hw.gfx : "");
+    const run = dashLiveRun();
+    const inUse = !!run && run.state !== "exited";
+    state.replaceChildren(dashPill(inUse ? "ok" : "skip", inUse ? "In use" : "Idle"));
     ringBox.update(card ? card.busy : null);
     mem.update(card ? card.mem : null, card ? card.total : null);
     pow.update(card ? card.pow : null, card ? card.cap : null);
@@ -236,8 +146,7 @@ function dashCards(section) {
 // its own. One stream, one frame per sample, for the whole page. A hidden
 // tab paints nothing: data.js pauses the poller and skips the frame.
 function renderGPUs() {
-  for (const f of dash.grids) f();
-  if (dash.live.cards) dash.live.cards.update();
+  if (dash.live.simple) dash.live.simple.cards.update();
 }
 
 // dashSubscribe registers the repaint of this tab on the shared stream. The
@@ -249,46 +158,4 @@ function dashSubscribe() {
   dash.subscribed = true;
   if (typeof onTabFrame !== "function") return;
   onTabFrame("dashboard", (doc) => { if (doc) dashSample(doc); });
-}
-
-// dashCharts is the section with the four charts of the last minutes and the
-// control that picks the window.
-function dashCharts(section) {
-  const head = h("div", { class: "dash-section-head" });
-  const seg = h("div.segmented-control", { role: "group", "aria-label": "The window of the charts" });
-  const buttons = {};
-  for (const w of [{ id: "5m", label: "5 min" }, { id: "15m", label: "15 min" }, { id: "1h", label: "1 h" }]) {
-    const b = h("button", { type: "button", "aria-pressed": String(dash.window === w.id) }, w.label);
-    b.addEventListener("click", () => { dash.window = w.id; paintSeg(); dashHistory(); });
-    buttons[w.id] = b;
-    seg.append(b);
-  }
-  const paintSeg = () => {
-    for (const [id, b] of Object.entries(buttons)) b.setAttribute("aria-pressed", String(id === dash.window));
-  };
-  paintSeg();
-  head.append(seg);
-  const grid = h("div", { class: "dash-cards-grid" });
-  const charts = {
-    busy: areaChart([], { title: "Utilisation", unit: "%", windowMinutes: 5 }),
-    pow: areaChart([], { title: "Power", unit: "W", windowMinutes: 5 }),
-    mem: areaChart([], { title: "Memory", unit: "GiB", windowMinutes: 5 }),
-    gen: areaChart([], { title: "Tokens per second", unit: "tok/s", windowMinutes: 5 }),
-  };
-  for (const c of Object.values(charts)) grid.append(c);
-  section.append(head, grid);
-  const api = {
-    update: () => {
-      const mins = dash.window === "1h" ? 60 : dash.window === "15m" ? 15 : 5;
-      charts.busy.update(dashWindowSeries("busy"), mins);
-      charts.pow.update(dashWindowSeries("pow"), mins);
-      charts.mem.update(dashWindowSeries("mem"), mins);
-      charts.gen.update([
-        { values: dashWindowSeries("gen"), label: "output" },
-        { values: dashWindowPrompt(), label: "prompt", dash: true },
-      ], mins);
-    },
-  };
-  api.update();
-  return api;
 }

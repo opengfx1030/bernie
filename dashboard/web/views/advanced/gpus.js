@@ -10,7 +10,8 @@ function advViewGPUs(root) {
   const head = stateHead("GPUs", h("button.primary", { type: "button", onclick: advCopyCardList }, "Copy the card list"));
   const tiles = h("div.adv-tiles");
   const grid = h("div.grid.gpus");
-  put(root, head, tiles, grid);
+  const table = h("div.card.adv-gpu-table");
+  put(root, head, tiles, grid, table);
   const api = {
     update: () => {
       const gpus = (adv.hw && adv.hw.gpus) || [];
@@ -24,7 +25,7 @@ function advViewGPUs(root) {
       }
       setHead(head, advGpuHeadline(gpus, samples),
         "The cards, the PCIe link behind them, and what the telemetry stream measures every second: the load, the memory, the power and the temperature.");
-      put(root, head, tiles, grid);
+      put(root, head, tiles, grid, table);
       advRenderTiles(tiles, gpus, samples);
       const ids = gpus.length ? gpus.map((g) => g.hip_index) : [...samples.keys()];
       for (const i of ids) {
@@ -32,6 +33,7 @@ function advViewGPUs(root) {
         if (!card) grid.append(card = advGpuCard(i));
         advUpdateGpuCard(card, i, samples.get(i));
       }
+      advRenderGpuTable(table, gpus, samples);
       advRenderPower(root);
     },
   };
@@ -128,6 +130,43 @@ function advUpdateGpuCard(card, i, sample) {
       return one ? one.busy_pct : null;
     }), 100);
   }
+}
+
+/** advRenderGpuTable paints the exact values of every card. It is the text
+ * form of the cards: every number carries its unit and a missing value is a
+ * dash. */
+function advRenderGpuTable(box, gpus, samples) {
+  const ids = gpus.length ? gpus.map((g) => g.hip_index) : [...samples.keys()];
+  const checks = (adv.doctor && adv.doctor.checks) || [];
+  const rows = ids.map((i) => {
+    const sample = samples.get(i) || null;
+    const hw = gpus.find((g) => g.hip_index === i) || {};
+    const check = checks.find((c) => c.id === "gpu.ecc." + i);
+    const ecc = check ? badge(check.status) : h("span.badge.b-skip", "unknown");
+    const temp = (v) => v == null ? "–" : num(v) + " °C";
+    const clock = (v) => v == null ? "–" : num(v) + " MHz";
+    return h("tr",
+      h("td", h("b", "GPU " + i), h("div.small.muted", hw.name || "")),
+      h("td.num", sample && sample.busy_pct != null ? num(sample.busy_pct) + " %" : "–"),
+      h("td.num", sample && sample.vram_total != null
+        ? num(sample.vram_used / GiB) + " / " + num(sample.vram_total / GiB) + " GiB" : "–"),
+      h("td.num", sample && sample.power_w != null
+        ? num(sample.power_w) + (sample.power_cap_w != null ? " / " + num(sample.power_cap_w) : "") + " W" : "–"),
+      h("td.num", temp(sample && sample.temp_c)),
+      h("td.num", temp(sample && sample.temp_junction_c)),
+      h("td.num", temp(sample && sample.temp_mem_c)),
+      h("td.num", clock(sample && sample.sclk_mhz)),
+      h("td.num", clock(sample && sample.mclk_mhz)),
+      h("td", ecc));
+  });
+  put(box, cardHead("All GPU values", "/api/hw"),
+    h("div.scroll", h("table",
+      tableCaption("Every measured value of every AMD GPU on this host."),
+      tableHead(["GPU", { label: "Load", num: true }, { label: "Memory", num: true },
+        { label: "Power", num: true }, { label: "Edge", num: true },
+        { label: "Junction", num: true }, { label: "Memory temp", num: true },
+        { label: "SCLK", num: true }, { label: "MCLK", num: true }, "ECC"]),
+      h("tbody", rows))));
 }
 
 /** advCardListText writes the cards as plain text: one line per card, so it
