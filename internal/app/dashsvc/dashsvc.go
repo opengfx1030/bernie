@@ -11,57 +11,30 @@
 //	dash.pid    the PID of the dashboard process. The child writes it
 //	            after it forks; `stop` reads it and sends the signal.
 //	dash.log    combined stdout+stderr of the child.
-//	startup.json the URL the dashboard ended up listening on (token
-//	            redacted). The child writes it once the socket binds,
-//	            so the parent knows the URL even though it has already
-//	            returned. `status` reads it to print the URLs.
+//	startup.json the URL the dashboard ended up listening on. The child
+//	            writes it once the socket binds, so the parent knows the
+//	            URL even though it has already returned. `status` reads
+//	            it to print the URLs.
 //
-// Nothing goes under /tmp; the state dir is XDG.
+// Nothing goes under /tmp; the state dir is XDG. The files live in
+// dashsvc_state.go, the child in dashsvc_child.go and the systemd unit
+// in dashsvc_systemd.go.
 package dashsvc
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
-
-	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
 // dashDefaultListen is the loopback address of spec §11. The dashboard
 // package owns this constant; we inline it here to avoid a dashboard →
 // mcp → dashsvc → dashboard cycle (the dashboard server wires /mcp).
 const dashDefaultListen = "127.0.0.1:7860"
-
-// dashNewToken is the dashboard token generator (a 128-bit hex string).
-func dashNewToken() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		panic("dashsvc: crypto/rand: " + err.Error())
-	}
-	return hex.EncodeToString(b)
-}
-
-// File names in the state directory.
-const (
-	DirName     = "dashboard"
-	TokenFile   = "token"
-	PidFile     = "dash.pid"
-	LogFile     = "dash.log"
-	StartupFile = "startup.json"
-	UnitFile    = "bernie-dash.service"
-	UnitName    = "bernie-dash.service"
-)
 
 // Errors returned by the service functions.
 var (
@@ -71,163 +44,6 @@ var (
 	// ErrNotRunning is returned by Stop when no dashboard is up.
 	ErrNotRunning = errors.New("dashboard is not running")
 )
-
-// Paths holds the file paths the service uses. The fields are absolute and
-// always live under the XDG state dir (spec §12). Nothing is ever under
-// /tmp.
-type Paths struct {
-	State   string // <state>/dashboard
-	Token   string // <state>/dashboard/token
-	Pid     string // <state>/dashboard/dash.pid
-	Log     string // <state>/dashboard/dash.log
-	Startup string // <state>/dashboard/startup.json
-	Unit    string // <state>/dashboard/bernie-dash.service
-}
-
-// ServicePaths returns the file paths the service uses. The state dir is
-// created lazily by EnsureDir; this function does not touch the disk.
-func ServicePaths() Paths {
-	base := filepath.Join(paths.State(), DirName)
-	return Paths{
-		State:   base,
-		Token:   filepath.Join(base, TokenFile),
-		Pid:     filepath.Join(base, PidFile),
-		Log:     filepath.Join(base, LogFile),
-		Startup: filepath.Join(base, StartupFile),
-		Unit:    filepath.Join(base, UnitFile),
-	}
-}
-
-// EnsureDir creates the state dir (mode 0700) if it does not exist and
-// returns the Paths.
-func EnsureDir() (Paths, error) {
-	p := ServicePaths()
-	if err := os.MkdirAll(p.State, 0o700); err != nil {
-		return p, err
-	}
-	return p, nil
-}
-
-// ReadToken returns the persisted token, generating one and persisting it
-// when the file is missing. The file is mode 0600.
-func ReadToken() (string, Paths, error) {
-	p, err := EnsureDir()
-	if err != nil {
-		return "", p, err
-	}
-	data, err := os.ReadFile(p.Token)
-	if err == nil {
-		tok := strings.TrimSpace(string(data))
-		if tok != "" {
-			return tok, p, nil
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return "", p, err
-	}
-	tok := dashNewToken()
-	if err := os.WriteFile(p.Token, []byte(tok+"\n"), 0o600); err != nil {
-		return "", p, err
-	}
-	return tok, p, nil
-}
-
-// WriteToken overwrites the persisted token.
-func WriteToken(tok string) (Paths, error) {
-	p, err := EnsureDir()
-	if err != nil {
-		return p, err
-	}
-	if err := os.WriteFile(p.Token, []byte(tok+"\n"), 0o600); err != nil {
-		return p, err
-	}
-	return p, nil
-}
-
-// ReadableToken returns the persisted token when this process can read the
-// token file. The file is mode 0600, so the owner (and root) read it and
-// nobody else. The second answer is false when the file is missing or the
-// process has no access: the caller then redacts the token.
-func ReadableToken() (string, bool) {
-	p := ServicePaths()
-	data, err := os.ReadFile(p.Token)
-	if err != nil {
-		return "", false
-	}
-	tok := strings.TrimSpace(string(data))
-	if tok == "" {
-		return "", false
-	}
-	return tok, true
-}
-
-// IsAlive reports whether pid is a live process (signal 0 succeeds).
-func IsAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	return syscall.Kill(pid, 0) == nil
-}
-
-// ReadPid reads the pidfile.
-func ReadPid(p Paths) (int, error) {
-	data, err := os.ReadFile(p.Pid)
-	if err != nil {
-		return 0, err
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil {
-		return 0, fmt.Errorf("dash pidfile: %w", err)
-	}
-	return pid, nil
-}
-
-// WritePid writes the PID file with the running dashboard's PID.
-func WritePid(p Paths, pid int) error {
-	return os.WriteFile(p.Pid, []byte(strconv.Itoa(pid)+"\n"), 0o644)
-}
-
-// RemovePid removes the PID file when present.
-func RemovePid(p Paths) error {
-	err := os.Remove(p.Pid)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	return err
-}
-
-// StartupInfo is the document the child writes when it starts listening.
-// Status reads it back to print the URLs.
-type StartupInfo struct {
-	Listen    string    `json:"listen"`
-	URL       string    `json:"url"`
-	PID       int       `json:"pid"`
-	StartedAt time.Time `json:"started_at"`
-	Version   string    `json:"version"`
-	Manager   string    `json:"manager"` // "process" or "systemd"
-}
-
-// WriteStartup writes the startup document (mode 0600).
-func WriteStartup(p Paths, info StartupInfo) error {
-	data, err := json.Marshal(info)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(p.Startup, data, 0o600)
-}
-
-// ReadStartup reads the startup document. Returns os.ErrNotExist when the
-// child has not written one yet.
-func ReadStartup(p Paths) (*StartupInfo, error) {
-	data, err := os.ReadFile(p.Startup)
-	if err != nil {
-		return nil, err
-	}
-	var info StartupInfo
-	if err := json.Unmarshal(data, &info); err != nil {
-		return nil, fmt.Errorf("dash startup: %w", err)
-	}
-	return &info, nil
-}
 
 // StartOptions configure Start.
 type StartOptions struct {
@@ -319,15 +135,6 @@ func resolveToken(p Paths, o StartOptions) (string, error) {
 	return tok, err
 }
 
-// RemoveStartup deletes the startup file when present.
-func RemoveStartup(p Paths) error {
-	err := os.Remove(p.Startup)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	return err
-}
-
 // Stop sends SIGTERM to the running dashboard, waits up to five seconds,
 // then SIGKILL if it is still alive. The pidfile is removed. The function
 // returns ErrNotRunning when no dashboard is up.
@@ -397,8 +204,8 @@ func GetStatus() (*Status, error) {
 			st.Manager = info.Manager
 		}
 		st.Hostname, _ = os.Hostname()
-		st.LoopbackURL = loopbackURL(st.Listen, info)
-		st.LANURLs = lanURLs(st.Listen, info)
+		st.LoopbackURL = loopbackURL(st.Listen)
+		st.LANURLs = lanURLs(st.Listen)
 	case perr == nil:
 		st.State = "stale"
 		st.PID = pid
@@ -412,8 +219,8 @@ func GetStatus() (*Status, error) {
 				st.Version = info.Version
 				st.Manager = info.Manager
 				st.Hostname, _ = os.Hostname()
-				st.LoopbackURL = loopbackURL(st.Listen, info)
-				st.LANURLs = lanURLs(st.Listen, info)
+				st.LoopbackURL = loopbackURL(st.Listen)
+				st.LANURLs = lanURLs(st.Listen)
 			}
 		}
 	}
@@ -422,7 +229,7 @@ func GetStatus() (*Status, error) {
 
 // loopbackURL returns the URL on the loopback interface of the running
 // dashboard. Empty when the listener is not known.
-func loopbackURL(listen string, info *StartupInfo) string {
+func loopbackURL(listen string) string {
 	host, port, err := net.SplitHostPort(listen)
 	if err != nil {
 		return ""
@@ -430,17 +237,12 @@ func loopbackURL(listen string, info *StartupInfo) string {
 	if host == "" || host == "0.0.0.0" || host == "::" {
 		host = "127.0.0.1"
 	}
-	url := "http://" + net.JoinHostPort(host, port) + "/"
-	if info != nil {
-		// Token is not embedded in startup.json; status is redacted by
-		// default. The CLI re-renders with --show-token.
-	}
-	return url
+	return "http://" + net.JoinHostPort(host, port) + "/"
 }
 
 // lanURLs returns the LAN URLs of the running dashboard, one per non-loopback
 // interface address. Empty when the listener is loopback only or unknown.
-func lanURLs(listen string, _ *StartupInfo) []string {
+func lanURLs(listen string) []string {
 	host, port, err := net.SplitHostPort(listen)
 	if err != nil {
 		return nil
@@ -500,8 +302,8 @@ func waitReady(ctx context.Context, p Paths, manager string) (*Status, error) {
 				StartedAt:   info.StartedAt,
 				Version:     info.Version,
 				Manager:     manager,
-				LoopbackURL: loopbackURL(info.Listen, info),
-				LANURLs:     lanURLs(info.Listen, info),
+				LoopbackURL: loopbackURL(info.Listen),
+				LANURLs:     lanURLs(info.Listen),
 				LogPath:     p.Log,
 				TokenPath:   p.Token,
 			}, nil
@@ -518,230 +320,4 @@ func waitReady(ctx context.Context, p Paths, manager string) (*Status, error) {
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
-}
-
-// --- detached process ---------------------------------------------------
-
-// startDetached spawns a bernie child process with setsid so it outlives
-// the parent shell, redirects stdio to the log file and writes the pidfile
-// before exec.
-func startDetached(ctx context.Context, p Paths, listen, token, version string) error {
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	logF, err := os.OpenFile(p.Log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	// The child must outlive this process: exec.Command (not
-	// CommandContext) keeps it alive when the parent returns and the
-	// CLI context is cancelled.
-	cmd := exec.Command(exe, dashChildArgs(listen, token, version)...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	cmd.Stdin = nil
-	cmd.Stdout = logF
-	cmd.Stderr = logF
-	// The child reads the same directories as the parent: the BERNIE_*
-	// and XDG_* variables travel with it.
-	cmd.Env = childEnv()
-	if err := cmd.Start(); err != nil {
-		_ = logF.Close()
-		return err
-	}
-	_ = logF.Close()
-	// Wait briefly for the child to write its pidfile; failure here
-	// just means status will fall back to the startup document.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if pid, err := ReadPid(p); err == nil && pid == cmd.Process.Pid {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(50 * time.Millisecond):
-		}
-	}
-	return nil
-}
-
-// dashChildArgs is the argument list of the detached child. The CLI sees
-// the same args (foreground mode) and is the only thing that knows how to
-// run the dashboard service.
-func dashChildArgs(listen, token, version string) []string {
-	return []string{
-		"dash", "--child",
-		"--listen", listen,
-		"--token", token,
-	}
-}
-
-// childEnv is the env passed to the detached child. The child must see the
-// same bernie directories as the parent: BERNIE_STATE_DIR, BERNIE_CONFIG_DIR,
-// BERNIE_DATA_DIR, BERNIE_CACHE_DIR and BERNIE_ROOT travel with it, else the
-// child writes its pidfile and its token into another tree than the parent
-// reads. The XDG_* variables travel too, because they are the fallback of
-// the paths package.
-func childEnv() []string {
-	keep := []string{"PATH", "HOME", "USER", "LANG", "LC_ALL", "TERM", "TZ",
-		"XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
-		"BERNIE_CONFIG_DIR", "BERNIE_STATE_DIR", "BERNIE_DATA_DIR", "BERNIE_CACHE_DIR",
-		"BERNIE_ROOT", "BERNIE_VENV", "BERNIE_RECIPES", "BERNIE_DASH_TOKEN", "BERNIE_MCP_WRITE"}
-	out := make([]string, 0, len(keep))
-	for _, k := range keep {
-		if v := os.Getenv(k); v != "" {
-			out = append(out, k+"="+v)
-		}
-	}
-	return out
-}
-
-// --- systemd --user ------------------------------------------------------
-
-// SystemdUserAvailable reports whether the user systemd manager can be
-// reached. It probes with `systemctl --user show-environment`: the command
-// is harmless, has no side effects, and exits non-zero when the user
-// manager is not running. CLI callers and MCP tools use it to decide
-// whether to print the enable-linger hint.
-func SystemdUserAvailable() bool {
-	if _, err := exec.LookPath("systemctl"); err != nil {
-		return false
-	}
-	cmd := exec.Command("systemctl", "--user", "show-environment")
-	cmd.Env = os.Environ()
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return false
-	}
-	// An empty answer is also a sign the manager is not running.
-	return len(strings.TrimSpace(string(out))) > 0
-}
-
-// systemdUserAvailable is the package-internal alias.
-func systemdUserAvailable() bool { return SystemdUserAvailable() }
-
-// runningSystemd reports whether the bernie-dash --user unit is active.
-func runningSystemd() bool {
-	cmd := exec.Command("systemctl", "--user", "is-active", UnitName)
-	cmd.Env = os.Environ()
-	out, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-	return strings.TrimSpace(string(out)) == "active"
-}
-
-// startSystemd writes a --user unit, links and starts it. The unit runs
-// `bernie dash --child` with the same args as the detached process.
-func startSystemd(ctx context.Context, p Paths, listen, token, version string) error {
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	unit := renderSystemdUnit(exe, listen, token)
-	if err := os.WriteFile(p.Unit, []byte(unit), 0o644); err != nil {
-		return err
-	}
-	// Make the unit known to the user manager. `link` copies it into
-	// XDG_CONFIG_HOME/systemd/user; the start command works without it
-	// but the user can then `enable --user` it to outlive the session.
-	link := exec.CommandContext(ctx, "systemctl", "--user", "link", p.Unit)
-	link.Env = os.Environ()
-	if out, err := link.CombinedOutput(); err != nil {
-		return fmt.Errorf("systemctl --user link: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-	reload := exec.CommandContext(ctx, "systemctl", "--user", "daemon-reload")
-	reload.Env = os.Environ()
-	_ = reload.Run()
-	start := exec.CommandContext(ctx, "systemctl", "--user", "start", UnitName)
-	start.Env = os.Environ()
-	if out, err := start.CombinedOutput(); err != nil {
-		return fmt.Errorf("systemctl --user start: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-// stopSystemd stops the user unit. Returns true when the unit was active.
-func stopSystemd() bool {
-	cmd := exec.Command("systemctl", "--user", "stop", UnitName)
-	cmd.Env = os.Environ()
-	return cmd.Run() == nil
-}
-
-// renderSystemdUnit returns the --user unit body that runs the dashboard
-// service. The unit inherits the user's environment so $BERNIE_STATE_DIR
-// and friends point at the user's XDG tree.
-func renderSystemdUnit(exe, listen, token string) string {
-	return fmt.Sprintf(`[Unit]
-Description=bernie dashboard
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=%s dash --child --listen %s --token %s
-Restart=on-failure
-RestartSec=2
-
-[Install]
-WantedBy=default.target
-`, exe, listen, token)
-}
-
-// --- service child -------------------------------------------------------
-
-// ChildOptions configure the child mode (`bernie dash --child`). The
-// service mode is for `bernie dash --child` only; the foreground
-// `bernie dash` does not go through RunChild.
-type ChildOptions struct {
-	Listen  string
-	Token   string
-	Version string
-	Now     func() time.Time
-}
-
-// RunChild writes the pidfile of the dashboard service child, then
-// returns. The actual serving of HTTP is done by the caller (the
-// `bernie dash --child` command in cmd_dash.go calls dashboard.Serve
-// directly); we only own the lifecycle files here, to break the
-// dashboard → mcp → dashsvc → dashboard cycle.
-//
-// The startup document is written later, when the socket binds: the
-// caller calls WriteChildStartup from the Ready callback of the
-// dashboard.
-//
-// Callers should defer RunChildCleanup to remove the pidfile on exit.
-func RunChild(_ context.Context, o ChildOptions) error {
-	p, err := EnsureDir()
-	if err != nil {
-		return err
-	}
-	return WritePid(p, os.Getpid())
-}
-
-// WriteChildStartup writes the startup document of the child with the URL
-// the dashboard bound to. The parent polls for this file to learn the URL.
-func WriteChildStartup(listen, url, version string) error {
-	p, err := EnsureDir()
-	if err != nil {
-		return err
-	}
-	host, port, _ := net.SplitHostPort(listen)
-	bound := net.JoinHostPort(host, port)
-	return WriteStartup(p, StartupInfo{
-		Listen:    bound,
-		URL:       url,
-		PID:       os.Getpid(),
-		StartedAt: time.Now(),
-		Version:   version,
-		Manager:   "process",
-	})
-}
-
-// RunChildCleanup removes the pidfile when the child exits. Callers
-// invoke this in a defer after RunChild.
-func RunChildCleanup() {
-	p := ServicePaths()
-	_ = RemovePid(p)
 }
