@@ -327,7 +327,10 @@ purpose:
 - `VLLM_TUNED_CONFIG_FOLDER`: in host mode it points to bernie's copy of the
   same files for the selected GPUs' architecture, not to the fork tree.
 - `ROCM_HOME`, `ROCM_PATH`, `HIP_PATH`, `HIP_ROOT_DIR`: bernie uses the
-  newest ROCm install it detects, as a resolved path.
+  ROCm install the host runs, as a resolved path: the tree whose tools win
+  on `PATH`, else the newest install that has a `hipcc`. A tree nested in
+  another one counts (a TheRock tree inside a package install is the one the
+  operator runs).
 
 ## 13. Recipes for another GPU architecture
 

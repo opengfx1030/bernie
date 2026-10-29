@@ -46,7 +46,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `internal/machine/gpu` | the live GPUs | `List`, `Telemetry`, `TelemetryFast`, `TelemetrySlow`, `MergeSlow`, `Archs`, `ArchMatch`, `ECC` | 1 |
 | `internal/machine/gpu/devices` | the device tables | `Lookup`, `LookupArch`, `CodeTargets`, `GFXName`, `Arch`, `Device` | 1 |
 | `internal/machine/host` | the OS facts | `Probe`, `Preferred`, `InstallCommand`, `GPUGroups`, `Info` | 1 |
-| `internal/machine/rocm` | the ROCm facts | `Probe`, `ProbeVenv`, `VenvLibPaths`, `FindROCBLAS`, `CompareVersions` | 1 |
+| `internal/machine/rocm` | the ROCm facts | `Probe`, `ProbeVenv`, `VenvLibPaths`, `FindROCBLAS`, `CompareVersions`, `RuntimeInstall` | 1 |
 | `internal/machine/topo` | the PCIe facts | `Discover`, `MeasureBandwidth`, `BestGroup`, `P2PChecklist` | 1 |
 | `internal/support/paths` | the XDG paths | `State`, `Config`, `Data`, `Cache`, `Ensure` | 0 |
 | `internal/support/hostroot` | the root of the host tree bernie reads | `Root`, `Set`, `EnvVar` | 0 |

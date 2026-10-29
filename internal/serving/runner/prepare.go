@@ -130,15 +130,11 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 }
 
 // hostEnvDefaults adds ROCM_HOME/ROCM_PATH/HIP_PATH/HIP_ROOT_DIR from the
-// newest detected ROCm install and HF_HOME from the config, unless the
-// recipe or --set gave them.
+// ROCm install the host runs (the tree whose tools win on PATH, else the
+// newest install, nested trees included) and HF_HOME from the config,
+// unless the recipe or --set gave them.
 func hostEnvDefaults(p *recipe.Plan, cfg config.Config) {
-	var best rocm.Install
-	for _, in := range rocm.FindInstalls(hostroot.Root()) {
-		if best.Root == "" || rocm.CompareVersions(in.Version, best.Version) > 0 {
-			best = in
-		}
-	}
+	best := rocm.RuntimeInstall(hostroot.Root())
 	if best.Root != "" {
 		for _, k := range []string{"ROCM_HOME", "ROCM_PATH", "HIP_PATH", "HIP_ROOT_DIR"} {
 			if _, ok := p.Env[k]; !ok {
