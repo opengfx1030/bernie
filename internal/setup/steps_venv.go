@@ -261,11 +261,14 @@ func (p planner) vllmBuilt(dir string) bool {
 // register its ops, its extension must find every library it needs and
 // rocBLAS must come from the wheel of the venv.
 func (p planner) venvVerify() Step {
-	ld := ""
-	if libs := rocm.VenvLibPaths(p.o.Venv); len(libs) > 0 {
-		ld = "LD_LIBRARY_PATH=" + strings.Join(libs, ":") + ":${LD_LIBRARY_PATH:-} "
-	}
-	cmd := ld + "BERNIE_VENV_STRICT=1 " + shq(p.python()) + " -I - <<'PY'\n" + rocm.VenvProbeScript + "PY"
+	// The library path is computed when the command runs: the plan is
+	// written before the venv holds the wheels. The order is the one of
+	// the gfx1030 wiki: the wheel libraries load before the system ones.
+	sp := "SP=$(" + shq(p.python()) + " -c 'import sysconfig; print(sysconfig.get_paths()[\"purelib\"])')"
+	ld := "export LD_LIBRARY_PATH=\"$SP/_rocm_sdk_libraries/lib:$SP/_rocm_sdk_core/lib" +
+		":$SP/_rocm_sdk_core/lib/host-math/lib:$SP/_rocm_sdk_core/lib/rocm_sysdeps/lib" +
+		":$SP/_rocm_sdk_core/lib/core/lib:$SP/torch/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\""
+	cmd := sp + "; " + ld + "; BERNIE_VENV_STRICT=1 " + shq(p.python()) + " -I - <<'PY'\n" + rocm.VenvProbeScript + "PY"
 	return Step{
 		ID: "venv.verify", Title: "Verify the vLLM build in the venv", Mode: "host",
 		Done:     p.venvOK,
