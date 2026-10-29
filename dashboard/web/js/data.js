@@ -149,13 +149,11 @@ function openBenchEvents(id, handlers = {}) {
 // pair of eyes.
 const JOB_POLL_MS = 2000;
 
-/** watchJob follows one job: the stream carries the progress and the end of
- *  the work, the document of the job is the second pair of eyes when the
- *  stream is quiet. It returns the function that stops the watch.
- *
- *  path is the document of the job. open opens the stream of that kind of
- *  job and hands it the handlers progress, log, done and failed. */
-function watchJob(path, open, id, handlers = {}) {
+/** watchBenchJob follows one benchmark job: the phase, the log lines and
+ *  the end of the run. The stream carries the progress; the document of the
+ *  job is the second pair of eyes when the stream is quiet. It returns the
+ *  function that stops the watch. */
+function watchBenchJob(id, handlers = {}) {
   let stopped = false;
   let misses = 0;
   let stream = null;
@@ -164,10 +162,14 @@ function watchJob(path, open, id, handlers = {}) {
     clearInterval(timer);
     if (stream) stream.close();
   };
+  /** parse reads the document of an event of the stream. */
+  const parse = (ev) => {
+    try { return JSON.parse(ev.data); } catch (e) { return null; }
+  };
   const timer = setInterval(async () => {
     if (stopped) return;
     try {
-      const job = await api(path);
+      const job = await api("/api/bench/" + encodeURIComponent(id));
       if (stopped) return;
       misses = 0;
       handlers.progress && handlers.progress(job);
@@ -187,37 +189,24 @@ function watchJob(path, open, id, handlers = {}) {
       }
     }
   }, JOB_POLL_MS);
-  stream = open(id, {
+  stream = openBenchEvents(id, {
     progress: (ev) => {
       if (stopped) return;
-      let doc = null;
-      try { doc = JSON.parse(ev.data); } catch (e) { return; }
-      handlers.progress && handlers.progress(doc);
+      const doc = parse(ev);
+      if (doc) handlers.progress && handlers.progress(doc);
     },
     log: (ev) => { if (!stopped && handlers.log) handlers.log(ev.data); },
     done: (ev) => {
       stop();
-      let doc = {};
-      try { doc = JSON.parse(ev.data); } catch (e) { /* the empty job */ }
-      handlers.done && handlers.done(doc);
+      handlers.done && handlers.done(parse(ev) || {});
     },
     failed: (ev) => {
       stop();
-      let text = "The job stopped.";
-      try {
-        const doc = JSON.parse(ev.data);
-        text = doc.error || doc.phase || text;
-      } catch (e) { /* keep the sentence */ }
-      handlers.failed && handlers.failed(new Error(text));
+      const doc = parse(ev);
+      handlers.failed && handlers.failed(new Error((doc && (doc.error || doc.phase)) || "The job stopped."));
     },
   });
   return stop;
-}
-
-/** watchBenchJob follows one benchmark job: the phase, the log lines and
- *  the end of the run. */
-function watchBenchJob(id, handlers = {}) {
-  return watchJob("/api/bench/" + encodeURIComponent(id), openBenchEvents, id, handlers);
 }
 
 /** apiText reads a text answer: the markdown receipt of a comparison is not
