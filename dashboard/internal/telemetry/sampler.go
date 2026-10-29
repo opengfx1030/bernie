@@ -39,6 +39,9 @@ type document struct {
 	// SlowAgeS is the age in seconds of the slow fields (the temperatures,
 	// the caps, the clocks). The fast fields are one second old at most.
 	SlowAgeS float64 `json:"slow_age_s"`
+	// SlowIntervalS is the time between two slow passes: the slow fields
+	// are that old at most.
+	SlowIntervalS float64 `json:"slow_interval_s"`
 }
 
 // runMetrics is the live vLLM state of one run that is not exited.
@@ -140,6 +143,7 @@ func (s *Sampler) Sample(ctx context.Context) []byte {
 	}
 	t := document{Time: now.UnixMilli(), GPUs: cards, Runs: []runMetrics{}}
 	t.SlowAgeS = now.Sub(sp.slowAt).Seconds()
+	t.SlowIntervalS = slowEvery.Seconds()
 	if t.GPUs == nil {
 		t.GPUs = []gpu.Sample{}
 	}
