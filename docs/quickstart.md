@@ -61,5 +61,3 @@ this host?), `bernie logs <name>` (what is the server saying?) and
 
 When something is wrong, the page and the terminal name the command that
 fixes it: `bernie status --steps`, `bernie status --json`, `bernie doctor`.
-
-More: [install.md](install.md), [spec.md](spec.md), [mcp.md](mcp.md).
