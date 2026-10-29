@@ -61,22 +61,30 @@ function classicSubscribe() {
   return classic.unsub;
 }
 
-/** classicHistory reads the five minutes of the server's output rate. The
- *  ring buffer of the server holds it; the live samples then keep the chart
- *  moving. */
+/** classicHistory reads the five minutes of the server's output and prefill
+ *  rates. The ring buffer of the server holds them (tokens_per_s and
+ *  prompt_tok_s of every series); the live samples then keep the charts
+ *  moving on top of that history. */
 async function classicHistory() {
   try {
     const doc = await api("/api/gpus/history?window=5m");
     const series = (doc && doc.series) || [];
     if (!series.length) return;
     const vals = series[0].tokens_per_s || [];
+    const prompts = series[0].prompt_tok_s || [];
     const step = (doc.interval_s || 2) * 1000;
     const now = Date.now();
     const seeded = vals.map((v, i) => ({
-      t: now - (vals.length - 1 - i) * step, gen: v == null ? null : v, prompt: null,
+      t: now - (vals.length - 1 - i) * step,
+      gen: v == null ? null : v,
+      prompt: i < prompts.length && prompts[i] != null ? prompts[i] : null,
     }));
-    classic.hist = classic.hist.length ? classic.hist.concat(seeded.filter((p) => p.t < classic.hist[0].t)) : seeded;
-    if (classic.hist.length > CLASSIC_HIST) classic.hist = classic.hist.slice(-CLASSIC_HIST);
+    // The seeded points are older than the live samples; the buffer stays in
+    // the order of the clock, so the charts read from the old to the new.
+    const oldest = classic.hist.length ? classic.hist[0].t : Infinity;
+    const merged = classic.hist.concat(seeded.filter((p) => p.t < oldest));
+    merged.sort((a, b) => a.t - b.t);
+    classic.hist = merged.slice(-CLASSIC_HIST);
     if (typeof state !== "undefined" && state.tab === "classic") classicUpdate(state.tele);
   } catch (e) {
     // The chart starts empty and fills from the live stream.
