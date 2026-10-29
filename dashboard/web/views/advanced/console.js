@@ -86,9 +86,12 @@ async function advLoad() {
 }
 
 /** advReload reads the documents of the host again. The doctor is held for
- *  fifteen seconds by the server; the button asks for a fresh read. */
+ *  fifteen seconds by the server; the button drops every cached answer of
+ *  the host (POST /api/refresh) before it reloads, so a check that just
+ *  resolved or a cable that changed shows up at once (spec §11, ia.md R27). */
 async function advReload() {
   adv.errors = {};
+  try { await refreshHost(); } catch { /* the cache drop is best-effort */ }
   await advLoad();
   toast("The host was read again.");
 }

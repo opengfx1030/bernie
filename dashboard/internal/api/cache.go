@@ -73,3 +73,13 @@ func (c *hostCache) drop(key string) {
 	defer c.mu.Unlock()
 	delete(c.items, key)
 }
+
+// dropAll forgets every entry of the cache. The host re-probe endpoint
+// (POST /api/refresh) calls it: the next reader of the same endpoint
+// re-reads the host instead of returning a stale answer (spec §11,
+// ia.md R27).
+func (c *hostCache) dropAll() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items = map[string]cacheEntry{}
+}

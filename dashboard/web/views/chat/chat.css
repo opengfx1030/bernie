@@ -12,4 +12,5 @@
 .chat-reasoning { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2);
   border-left: 2px solid var(--border-strong); padding-left: var(--space-3); }
 .chat-metrics { margin: 0; color: var(--text-2); font-size: var(--small); }
+.chat-model { margin: 0; color: var(--text-2); font-size: var(--small); font-family: var(--font-mono); }
 .chat-note { margin: var(--space-5) 0 0; max-width: 60rem; color: var(--muted); font-size: var(--small); }
