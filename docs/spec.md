@@ -1413,6 +1413,10 @@ Rules for responses and tokens:
 - In token mode, `/?token=<t>` is the only URL that accepts the token. It
   sets an HttpOnly, SameSite=Strict cookie and redirects (303) to `/` with no
   query.
+- A browser that opens a page of the dashboard in token mode without the
+  token gets a plain HTML page that says what to do: open the address that
+  `bernie dash` printed, the one that ends in `/?token=…`. The token is never
+  in the page. The `/api` paths keep the JSON error shape.
 - A `token` query parameter on any `/api/` path is refused with 400
   (`{"error": "...", "exit_code": 2}`) in both modes, even when the token is
   valid. API clients send `Authorization: Bearer <token>`.
