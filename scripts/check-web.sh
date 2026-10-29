@@ -13,6 +13,7 @@ readonly README="dashboard/README.md"
 readonly WEB="dashboard/web"
 readonly DATA_FILE="dashboard/web/js/data.js"
 readonly LINE_LIMIT=400
+readonly ALLOWLIST_LINE_CAP=1024
 readonly DATA_PATTERN='fetch\(|EventSource|setInterval|setTimeout'
 
 mode="check"
@@ -167,6 +168,10 @@ while IFS=$'\t' read -r path expected note; do
 	actual=$(awk 'END { print NR }' "$path")
 	if [ "$actual" -le "$LINE_LIMIT" ]; then
 		fail "the oversized-file entry is no longer needed: $path ($actual lines)"
+		continue
+	fi
+	if [ "$actual" -gt "$ALLOWLIST_LINE_CAP" ]; then
+		fail "$path has $actual lines; even a listed file stays under $ALLOWLIST_LINE_CAP"
 		continue
 	fi
 	if [ "$actual" -ne "$expected" ]; then
