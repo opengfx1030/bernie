@@ -20,6 +20,31 @@ Do not open a public issue. Use GitHub private vulnerability reporting
 - Plans and logs redact environment keys that contain `TOKEN`, `KEY`,
   `SECRET` or `PASSWORD` before the dashboard shows them.
 
+## The dashboard container
+
+`scripts/install.sh --container` writes the compose file of the dashboard
+container and a `.env` (mode 0600) with the dashboard token and the GPU
+group ids of the host, then starts the container. The bind address is
+`127.0.0.1:7860` by default, so the dashboard is not on the network; the
+token is required on every request.
+
+What the container mounts:
+
+| Mount | Mode | Why |
+|---|---|---|
+| `/dev/kfd`, `/dev/dri` | device | the GPUs: the dashboard reads the cards |
+| `/sys` | read-only | the host facts the dashboard shows (PCIe, KFD) |
+| `./data` | read-write | the state of the container |
+
+What it does **not** mount: the engine socket (`/var/run/docker.sock`).
+The container cannot start or stop other containers and it is not root on
+the host. It runs as uid 65532, and the SELinux label is disabled for
+the device nodes only.
+
+The `.env` holds the dashboard token. It is mode 0600 and is never
+printed in full by the installer: the URL it prints carries the token,
+so the terminal output is as secret as the file.
+
 ## Supply chain
 
 Nothing in this repository floats.

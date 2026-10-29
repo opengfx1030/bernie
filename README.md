@@ -47,6 +47,18 @@ bernie up       # check → install (non-root steps) → best recipe → serve �
 need root and prints the command to run. Then it serves the best recipe for
 your GPUs and starts the dashboard on `http://127.0.0.1:7860`.
 
+Prefer the dashboard in a container? Add `--container`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --container
+```
+
+That writes the compose file and a `.env` (mode 0600) with the token and
+the GPU group ids of the host, and starts the container on
+`http://127.0.0.1:7860`. The container mounts the GPU device nodes and
+`/sys` (read-only); it does not mount the engine socket. See
+[SECURITY.md](SECURITY.md).
+
 ### Step by step
 
 Prefer control? Each stage is its own command:
