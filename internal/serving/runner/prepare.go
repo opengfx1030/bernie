@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
@@ -25,7 +26,10 @@ type PrepareOptions struct {
 	Name   string
 	Venv   string
 	Engine string
-	Sets   []string // --set, applied after the config defaults
+	// DeviceAccess is how the container gets the GPU: classic, cdi or
+	// auto (the default, spec §8.2).
+	DeviceAccess string
+	Sets         []string // --set, applied after the config defaults
 	// Profile forces a TunableOp profile; NoTunableOp skips TunableOp;
 	// Tuning enables online tuning into the per-user file.
 	Profile     string
@@ -91,6 +95,15 @@ func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) {
 		return nil, err
 	}
 	p.Warnings = append(warnings, p.Warnings...)
+	// The device access mode: the flag, then the config, then the recipe.
+	if req := o.DeviceAccess; req != "" {
+		p.DeviceAccessRequest = req
+	} else if cfg.DeviceAccess != "" {
+		p.DeviceAccessRequest = cfg.DeviceAccess
+	}
+	if req := p.DeviceAccessRequest; req != "" && !slices.Contains(host.DeviceAccessModes, req) {
+		return nil, fmt.Errorf("device access must be one of %s, not %q", strings.Join(host.DeviceAccessModes, ", "), req)
+	}
 
 	if mode == recipe.ModeHost {
 		hostEnvDefaults(p, cfg)

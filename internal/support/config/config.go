@@ -18,15 +18,18 @@ import (
 
 // Config is the content of config.yaml.
 type Config struct {
-	Venv   string   `json:"venv" yaml:"venv,omitempty"`
-	Mode   string   `json:"mode" yaml:"mode,omitempty"`     // host | container | "" (auto)
-	Engine string   `json:"engine" yaml:"engine,omitempty"` // docker | podman | "" (auto)
-	HFHome string   `json:"hf_home" yaml:"hf_home,omitempty"`
-	Set    []string `json:"set" yaml:"set,omitempty"` // applied before --set
+	Venv   string `json:"venv" yaml:"venv,omitempty"`
+	Mode   string `json:"mode" yaml:"mode,omitempty"`     // host | container | "" (auto)
+	Engine string `json:"engine" yaml:"engine,omitempty"` // docker | podman | "" (auto)
+	// DeviceAccess is how a container gets the GPU: classic | cdi |
+	// auto ("" = auto, spec §8.2).
+	DeviceAccess string   `json:"device_access" yaml:"device_access,omitempty"`
+	HFHome       string   `json:"hf_home" yaml:"hf_home,omitempty"`
+	Set          []string `json:"set" yaml:"set,omitempty"` // applied before --set
 }
 
 // Keys are the settable keys, in file order.
-var Keys = []string{"venv", "mode", "engine", "hf_home", "set"}
+var Keys = []string{"venv", "mode", "engine", "device_access", "hf_home", "set"}
 
 // Path is <config>/config.yaml.
 func Path() string { return filepath.Join(paths.Config(), "config.yaml") }
@@ -62,6 +65,11 @@ func (c Config) validate() error {
 	case "", "docker", "podman":
 	default:
 		return fmt.Errorf("config engine must be docker or podman, not %q", c.Engine)
+	}
+	switch c.DeviceAccess {
+	case "", "classic", "cdi", "auto":
+	default:
+		return fmt.Errorf("config device_access must be classic, cdi or auto, not %q", c.DeviceAccess)
 	}
 	for _, s := range c.Set {
 		if k, _, ok := strings.Cut(s, "="); !ok || k == "" {
@@ -104,6 +112,8 @@ func (c *Config) SetKey(key, value string) error {
 		c.Mode = value
 	case "engine":
 		c.Engine = value
+	case "device_access":
+		c.DeviceAccess = value
 	case "hf_home":
 		c.HFHome = value
 	case "set":
@@ -179,6 +189,7 @@ func expandHome(p string) string {
 func (c Config) Map() [][2]string {
 	return [][2]string{
 		{"venv", c.Venv}, {"mode", c.Mode}, {"engine", c.Engine},
+		{"device_access", c.DeviceAccess},
 		{"hf_home", c.HFHome}, {"set", strings.Join(c.Set, " ")},
 	}
 }

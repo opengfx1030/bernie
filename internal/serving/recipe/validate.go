@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/opengfx1030/bernie/internal/machine/host"
 )
 
 var (
@@ -70,6 +72,9 @@ func Validate(r *Recipe) []string {
 		if !archPattern.MatchString(a) {
 			add("requires.arch: %q is not a gfx name or prefix (for example gfx1030, gfx103, gfx11)", a)
 		}
+	}
+	if r.Container != nil && r.Container.DeviceAccess != "" && !contains(host.DeviceAccessModes, r.Container.DeviceAccess) {
+		add("container.device_access: want one of %s, got %q", strings.Join(host.DeviceAccessModes, ", "), r.Container.DeviceAccess)
 	}
 	if r.Requires.GPUs < 0 || r.Requires.VRAMGiB < 0 || r.Requires.RAMGiB < 0 {
 		add("requires: values must not be negative")

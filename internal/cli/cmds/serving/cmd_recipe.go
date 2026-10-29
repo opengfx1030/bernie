@@ -121,6 +121,7 @@ func prepareFlags(fs *flag.FlagSet, o *runner.PrepareOptions, sets *cli.MultiFla
 	fs.StringVar(&o.Mode, "mode", "", "host or container (default: config, else container when the recipe has an image and an engine is usable)")
 	fs.StringVar(&o.Name, "name", "", "run name (default: recipe id)")
 	fs.StringVar(&o.Engine, "engine", "", "docker or podman (default: config, else the first usable)")
+	fs.StringVar(&o.DeviceAccess, "device-access", "", "classic, cdi or auto (default: config, else the recipe, else auto)")
 	fs.StringVar(&o.Profile, "profile", "", "force a TunableOp profile (validated against the loaded rocBLAS in host mode)")
 	fs.BoolVar(&o.NoTunableOp, "no-tunableop", false, "do not set TunableOp")
 	fs.BoolVar(&o.Tuning, "tuning", false, "TunableOp online tuning into the per-user rows file")

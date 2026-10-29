@@ -51,6 +51,9 @@ type Container struct {
 	TunableOpProfile string `json:"tunableop_profile,omitempty"`
 	ShmSize          string `json:"shm_size,omitempty"`
 	Pull             *bool  `json:"pull,omitempty"`
+	// DeviceAccess is how the container gets the GPU: classic, cdi or
+	// auto (the default, spec §8.2).
+	DeviceAccess string `json:"device_access,omitempty"`
 }
 
 // Spec is the file schema of spec §7.2.
