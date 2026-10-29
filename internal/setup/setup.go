@@ -26,9 +26,13 @@ const (
 	TorchVisionPin = "torchvision==0.27.0+rocm7.14.0"
 	TorchAudioPin  = "torchaudio==2.11.0+rocm7.14.0"
 	// TritonPin keeps RDNA2 support (Triton 3.9 removed RDNA1/RDNA2).
-	TritonPin       = "triton==3.7.1"
-	ForkRepo        = "https://github.com/opengfx1030/vllm-rdna.git"
-	ForkBranch      = "rdna_extras"
+	TritonPin  = "triton==3.7.1"
+	ForkRepo   = "https://github.com/opengfx1030/vllm-rdna.git"
+	ForkBranch = "rdna_extras"
+	// ForkVersion is the version of the fork: upstream vLLM 0.31.0 with
+	// the RDNA port. The branch carries no tag, so the build names the
+	// package with it.
+	ForkVersion     = "0.31.0+rdna"
 	CausalConv1DRef = "git+https://github.com/Dao-AILab/causal-conv1d.git@4f6ae4e26ae5fe8af9372f8d312ab25cc4595223"
 	FlashAttnRepo   = "https://github.com/Dao-AILab/flash-attention.git"
 )

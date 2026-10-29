@@ -148,6 +148,9 @@ func (p planner) vllmBuild() Step {
 		"ROCM_HOME="+shq(rh), "ROCM_PATH="+shq(rh), "HIP_PATH="+shq(rh),
 		"CMAKE_HIP_COMPILER="+shq(rh+"/bin/hipcc"),
 		"VLLM_PYTHON_EXECUTABLE="+shq(p.python()),
+		// The branch carries no tag: setuptools-scm cannot name the
+		// package without this.
+		"SETUPTOOLS_SCM_PRETEND_VERSION="+shq(ForkVersion),
 		fmt.Sprintf("MAX_JOBS=%d", jobs),
 	), " ")
 	return Step{
