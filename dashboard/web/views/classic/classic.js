@@ -156,8 +156,9 @@ function classicModel(doc) {
     record: record,
     runList: runList,
     stats: stats,
-    // the line under the state: what the run is doing right now.
-    sub: live ? "is answering requests" : (starting ? "is loading the model" : ""),
+    // the line under the state: what the run is doing right now. The words
+    // of the reference for the case where nothing serves.
+    sub: live ? "is answering requests" : (starting ? "is loading the model" : "The model server is not running."),
     layout: layout,
     url: url,
     model: record ? record.name : "",
