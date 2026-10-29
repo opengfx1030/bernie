@@ -28,5 +28,5 @@ func (h *handler) getPlan(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	httpjson.Redacted(w, http.StatusOK, p)
+	httpjson.Write(w, http.StatusOK, p)
 }

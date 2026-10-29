@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/opengfx1030/bernie/internal/support/redact"
 )
 
 // heartbeat keeps proxies from closing idle streams and surfaces client
@@ -40,6 +42,9 @@ func New(w http.ResponseWriter) *Stream {
 }
 
 // Event writes one event. data must not contain newlines; callers split.
+// The data is redacted before it leaves the process: a log line, a job
+// document or a model answer never carries a secret to the browser
+// (dashboard/AGENTS.md, hard rule 6).
 // An empty name sends the default "message" event.
 func (s *Stream) Event(name, data string) error {
 	var b bytes.Buffer
@@ -50,14 +55,14 @@ func (s *Stream) Event(name, data string) error {
 		b.WriteByte('\n')
 	}
 	b.WriteString("data: ")
-	b.WriteString(data)
+	b.WriteString(redact.Text(data))
 	b.WriteString("\n\n")
 	return s.write(b.Bytes())
 }
 
 // EventID writes one event with an id. The id lets a client that
 // re-attaches ask for the events after the last one it saw: it sends the id
-// back in the Last-Event-ID header.
+// back in the Last-Event-ID header. The data is redacted like in Event.
 func (s *Stream) EventID(id, name, data string) error {
 	var b bytes.Buffer
 	b.Grow(len(id) + len(name) + len(data) + 24)
@@ -70,7 +75,7 @@ func (s *Stream) EventID(id, name, data string) error {
 		b.WriteByte('\n')
 	}
 	b.WriteString("data: ")
-	b.WriteString(data)
+	b.WriteString(redact.Text(data))
 	b.WriteString("\n\n")
 	return s.write(b.Bytes())
 }

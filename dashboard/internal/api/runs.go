@@ -23,7 +23,7 @@ func (h *handler) getRuns(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	httpjson.Redacted(w, http.StatusOK, val)
+	httpjson.Write(w, http.StatusOK, val)
 }
 
 // runRequest is the body of POST /api/runs.
@@ -58,7 +58,7 @@ func (h *handler) postRun(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 	default:
 		fmt.Fprintf(h.log, "bernie dash: started run %s (recipe %s, port %d)\n", rec.Name, rec.Recipe, rec.Port)
-		httpjson.Redacted(w, http.StatusCreated, rec)
+		httpjson.Write(w, http.StatusCreated, rec)
 	}
 }
 

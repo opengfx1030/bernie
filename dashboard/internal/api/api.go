@@ -41,6 +41,53 @@ type handler struct {
 	hist  *hostCache
 }
 
+// routes is every route of the API (spec §11): the pattern of the path and
+// the handler. The router is built from this list, so the test that walks
+// every route reads the same list: a route that is added later is covered
+// without touching the test.
+var routes = []struct {
+	pattern string
+	handler func(*handler, http.ResponseWriter, *http.Request)
+}{
+	{"GET /api/hw", (*handler).getHW},
+	{"GET /api/topo", (*handler).getTopo},
+	{"GET /api/topo/check", (*handler).getTopoCheck},
+	{"GET /api/doctor", (*handler).getDoctor},
+	{"GET /api/glossary", (*handler).getGlossary},
+	{"GET /api/recipes", (*handler).getRecipes},
+	{"GET /api/recipes/{id}/plan", (*handler).getPlan},
+	{"GET /api/runs", (*handler).getRuns},
+	{"POST /api/runs", (*handler).postRun},
+	{"DELETE /api/runs/{name}", (*handler).deleteRun},
+	{"GET /api/runs/{name}/logs", (*handler).getLogs},
+	{"GET /api/runs/{name}/log", (*handler).getRunLog},
+	{"GET /api/runs/{name}/findings", (*handler).getRunFindings},
+	{"GET /api/telemetry", (*handler).getTelemetry},
+	{"GET /api/gpus/history", (*handler).getHistory},
+	{"POST /api/smoke", (*handler).postSmoke},
+	{"POST /api/chat", (*handler).postChat},
+	{"GET /api/power", (*handler).getPower},
+	{"PUT /api/power", (*handler).putPower},
+	{"GET /api/bench", (*handler).getBench},
+	{"GET /api/bench/suites", (*handler).getBenchSuites},
+	{"GET /api/bench/compare", (*handler).getBenchCompare},
+	{"POST /api/bench", (*handler).postBench},
+	{"POST /api/bench/run", (*handler).postBenchRun},
+	{"POST /api/bench/ab", (*handler).postBenchAB},
+	{"GET /api/bench/{id}", (*handler).getBenchJob},
+	{"GET /api/bench/{id}/events", (*handler).getBenchEvents},
+	{"GET /api/onboarding", (*handler).getOnboarding},
+	{"POST /api/onboarding/{step}/run", (*handler).postOnboardingRun},
+	{"POST /api/onboarding/path/run", (*handler).postOnboardingPath},
+	{"GET /api/jobs", (*handler).getJobs},
+	{"GET /api/jobs/{id}", (*handler).getJob},
+	{"POST /api/jobs/{id}/stop", (*handler).postJobStop},
+	{"GET /api/jobs/{id}/events", (*handler).getJobEvents},
+	{"/api/", func(_ *handler, w http.ResponseWriter, r *http.Request) {
+		httpjson.Error(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
+	}},
+}
+
 // Register adds every dashboard API route to mux.
 func Register(mux *http.ServeMux, o Options) {
 	if o.Log == nil {
@@ -57,41 +104,9 @@ func Register(mux *http.ServeMux, o Options) {
 		hist:  newHostCache(historyTTL),
 	}
 
-	mux.HandleFunc("GET /api/hw", h.getHW)
-	mux.HandleFunc("GET /api/topo", h.getTopo)
-	mux.HandleFunc("GET /api/topo/check", h.getTopoCheck)
-	mux.HandleFunc("GET /api/doctor", h.getDoctor)
-	mux.HandleFunc("GET /api/glossary", h.getGlossary)
-	mux.HandleFunc("GET /api/recipes", h.getRecipes)
-	mux.HandleFunc("GET /api/recipes/{id}/plan", h.getPlan)
-	mux.HandleFunc("GET /api/runs", h.getRuns)
-	mux.HandleFunc("POST /api/runs", h.postRun)
-	mux.HandleFunc("DELETE /api/runs/{name}", h.deleteRun)
-	mux.HandleFunc("GET /api/runs/{name}/logs", h.getLogs)
-	mux.HandleFunc("GET /api/runs/{name}/log", h.getRunLog)
-	mux.HandleFunc("GET /api/runs/{name}/findings", h.getRunFindings)
-	mux.HandleFunc("GET /api/telemetry", h.getTelemetry)
-	mux.HandleFunc("GET /api/gpus/history", h.getHistory)
-	mux.HandleFunc("POST /api/smoke", h.postSmoke)
-	mux.HandleFunc("POST /api/chat", h.postChat)
-	mux.HandleFunc("GET /api/power", h.getPower)
-	mux.HandleFunc("PUT /api/power", h.putPower)
-	mux.HandleFunc("GET /api/bench", h.getBench)
-	mux.HandleFunc("GET /api/bench/suites", h.getBenchSuites)
-	mux.HandleFunc("GET /api/bench/compare", h.getBenchCompare)
-	mux.HandleFunc("POST /api/bench", h.postBench)
-	mux.HandleFunc("POST /api/bench/run", h.postBenchRun)
-	mux.HandleFunc("POST /api/bench/ab", h.postBenchAB)
-	mux.HandleFunc("GET /api/bench/{id}", h.getBenchJob)
-	mux.HandleFunc("GET /api/bench/{id}/events", h.getBenchEvents)
-	mux.HandleFunc("GET /api/onboarding", h.getOnboarding)
-	mux.HandleFunc("POST /api/onboarding/{step}/run", h.postOnboardingRun)
-	mux.HandleFunc("POST /api/onboarding/path/run", h.postOnboardingPath)
-	mux.HandleFunc("GET /api/jobs", h.getJobs)
-	mux.HandleFunc("GET /api/jobs/{id}", h.getJob)
-	mux.HandleFunc("POST /api/jobs/{id}/stop", h.postJobStop)
-	mux.HandleFunc("GET /api/jobs/{id}/events", h.getJobEvents)
-	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		httpjson.Error(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
-	})
+	for _, r := range routes {
+		mux.HandleFunc(r.pattern, func(w http.ResponseWriter, req *http.Request) {
+			r.handler(h, w, req)
+		})
+	}
 }
