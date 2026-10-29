@@ -3,10 +3,16 @@ package telemetry
 import (
 	"context"
 	"encoding/json"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
+	"github.com/opengfx1030/bernie/internal/serving/runner"
+	"github.com/opengfx1030/bernie/internal/serving/vllm"
+	"github.com/opengfx1030/bernie/internal/serving/vllm/vllmtest"
 )
 
 // The sampler reads the cards in two tiers: the fast tier (the load, the
@@ -133,5 +139,47 @@ func TestHistoryHoldsTheSlowGaps(t *testing.T) {
 	}
 	if s.TempC[2] == nil {
 		t.Error("the third slow point is a gap, want a value")
+	}
+}
+
+// The sampler reads the server of every run once a second and keeps the
+// readings of the last minute: the window of the run holds what the server
+// did in between.
+func TestScrapeCarriesTheWindow(t *testing.T) {
+	srv := httptest.NewServer(vllmtest.New(vllmtest.Config{Model: "m1"}))
+	defer srv.Close()
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := runner.Status{
+		Record: runner.Record{Name: "run", Host: u.Hostname(), Port: port},
+		State:  runner.StateRunning,
+	}
+	w := vllm.NewWatcher(srv.URL, vllm.DefaultWindow)
+	m := scrape(context.Background(), st, w)
+	if m.Stats == nil {
+		t.Fatalf("no stats: %v", m.Error)
+	}
+	if m.Window != nil {
+		t.Errorf("the first reading has no window: %+v", m.Window)
+	}
+	// A request gives the server something to measure.
+	if _, err := vllm.New(srv.URL).CompleteStream(context.Background(), "m1", "hello there", 4); err != nil {
+		t.Fatal(err)
+	}
+	m = scrape(context.Background(), st, w)
+	if m.Window == nil {
+		t.Fatalf("no window: %v", m.Error)
+	}
+	if m.Window.TTFT == nil {
+		t.Error("the window holds no time to the first token")
+	}
+	if m.Window.PrefixCacheQueries == 0 {
+		t.Error("the window holds no prefix cache query")
 	}
 }
