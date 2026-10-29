@@ -1,7 +1,8 @@
 // Command fakevllm serves a fake OpenAI-compatible server for the bench
-// smoke test: /health, /v1/models, /tokenize and streaming
-// /v1/completions. With --recall correct it repeats the hidden fact of the
-// prompt; with --recall wrong it answers another number.
+// smoke test: /health, /v1/models, /tokenize, streaming /v1/completions and
+// streaming /v1/chat/completions. With --recall correct it repeats the
+// hidden fact of the prompt; with --recall wrong it answers another number.
+// With --ttft the server waits before the first chunk of an answer.
 package main
 
 import (
@@ -19,6 +20,7 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:8000", "address to listen on")
 	recall := flag.String("recall", "off", "answer the hidden fact of the prompt: off, correct or wrong")
 	model := flag.String("model", "fake-model", "served model id")
+	ttft := flag.Duration("ttft", 0, "delay before the first chunk of an answer")
 	flag.Parse()
 	if *recall != "off" && *recall != "correct" && *recall != "wrong" {
 		fmt.Fprintln(os.Stderr, "fakevllm: --recall must be off, correct or wrong")
@@ -30,7 +32,7 @@ func main() {
 	}
 	srv := &http.Server{
 		Addr:              *listen,
-		Handler:           vllmtest.New(vllmtest.Config{Model: *model, RecallMode: mode}),
+		Handler:           vllmtest.New(vllmtest.Config{Model: *model, RecallMode: mode, TTFT: *ttft}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	fmt.Printf("fake vLLM server on http://%s (model %s, recall %s)\n", *listen, *model, *recall)
