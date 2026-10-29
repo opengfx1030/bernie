@@ -64,6 +64,9 @@ func printChecklist(w io.Writer, doc *onboarding.Document) {
 	}
 	for _, s := range doc.Steps {
 		fmt.Fprintf(w, "  %-8s %-12s %s\n", s.State, s.ID, s.Summary)
+		if s.Detail != "" {
+			fmt.Fprintf(w, "           %s\n", s.Detail)
+		}
 		if s.Progress != nil && s.Progress.Phase != "" {
 			fmt.Fprintf(w, "           %s\n", s.Progress.Phase)
 		}
