@@ -103,7 +103,7 @@ func resultText(res *sdk.CallToolResult) string {
 	return b.String()
 }
 
-var readTools = []string{"bench_compare", "bench_list", "bench_show", "bench_suites", "doctor", "doctor_log", "hw", "jobs", "logs", "models",
+var readTools = []string{"bench_compare", "bench_list", "bench_show", "bench_suites", "doctor", "doctor_log", "fleet", "hw", "jobs", "logs", "models",
 	"onboarding_status", "power_status", "ps", "recipe_list", "recipe_plan", "recipe_show", "smoke", "status", "topo", "tunableop_status"}
 
 func TestToolsListIsFixedAndReadOnly(t *testing.T) {

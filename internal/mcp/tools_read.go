@@ -208,4 +208,7 @@ func registerRead(s *Server) {
 
 	addTool[noIn, []onboarding.JobSummary](s, ro("jobs", "The onboarding jobs of this host: the id, the step, the state and the progress of every job, newest first. The id of a job re-attaches to its output."), nil,
 		func(context.Context, *call, noIn) (any, error) { return app.OnboardingJobs(0), nil })
+
+	addTool[noIn, app.FleetList](s, ro("fleet", "The fleet of this box: this host first, then every configured peer, with the state word, the model, the cards and the output speed (bernie fleet ls). A peer that does not answer keeps its row and says why."), nil,
+		func(ctx context.Context, _ *call, _ noIn) (any, error) { return app.Fleet(ctx) })
 }
