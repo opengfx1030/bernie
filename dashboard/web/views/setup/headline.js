@@ -119,6 +119,7 @@ function setupHeadActions(doc, say) {
       onclick: () => { setupCopyText(setupRootCommand(rootNext)); focusSetupStep(rootNext.id); },
     }, "Copy the root command"));
     out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the next command"));
+    out.push(h("button", { type: "button", onclick: () => loadSetupDocument() }, "Re-check"));
     out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
     return out;
   } else {

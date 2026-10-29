@@ -21,7 +21,13 @@ async function setupRunPath() {
     return;
   }
   if (!job || job.root_required) {
-    setupProgress.path = { phase: "This step needs root. Run it in a terminal, then re-check.", failed: true };
+    // The path stops at the step that needs root: the page shows the exact
+    // command and the Re-check that reads the host again.
+    setupProgress.path = {
+      phase: "This step needs root. Run the command below as root, then press Re-check.",
+      failed: true,
+      commands: (job && job.commands) || [],
+    };
     paintSetupPath();
     return;
   }
@@ -68,8 +74,11 @@ function setupPaintPath() {
     return;
   }
   const running = !live.failed && live.phase !== "Done." && live.phase !== "Stopped.";
+  const commands = live.commands || [];
   put(box,
     h("p.small.muted", running ? "bernie is setting up this box." : (live.failed ? "The setup stopped." : "The setup is done.")),
     h("p.step-progress-sentence", live.phase),
-    running ? h("button.small", { type: "button", onclick: setupStopPath }, "Stop") : null);
+    commands.map((c) => cmdBlock(c, "Copy the command")),
+    running ? h("button.small", { type: "button", onclick: setupStopPath }, "Stop") : null,
+    commands.length ? h("button.small", { type: "button", onclick: () => loadSetupDocument() }, "Re-check") : null);
 }
