@@ -276,4 +276,32 @@ assert_equals "--listen missing value exit code" "$rc" "2"
 assert_contains "--listen missing value message" "$out" "unknown flag: --listen"
 teardown "$t"
 
+echo "test 10: dry-run --container prints the container plan"
+t=$(setup)
+build_release "$t/release"
+read -r server_pid server_port < <(start_server "$t/release")
+run_install "$t" "http://127.0.0.1:$server_port" "$t/bin" "--dry-run --container --container-dir $t/container"
+rc=$(cat "$t/rc"); out=$(cat "$t/out")
+stop_server "$server_pid"
+assert_equals "dry-run --container exit code" "$rc" "0"
+assert_contains "dry-run --container prints the dir" "$out" "$t/container"
+assert_contains "dry-run --container stops before download" "$out" "stopping before download"
+assert_contains "dry-run --container mentions the compose file" "$out" "compose file"
+if [ -e "$t/container/.env" ]; then
+    printf '  FAIL  dry-run --container wrote an .env\n'; exit 1
+fi
+printf '  PASS  dry-run --container wrote nothing\n'
+teardown "$t"
+
+echo "test 11: --container-dir needs a value"
+t=$(setup)
+set +e
+sh "$t/install.sh" --container-dir >"$t/out" 2>&1
+echo $? >"$t/rc"
+set -e
+rc=$(cat "$t/rc"); out=$(cat "$t/out")
+assert_equals "--container-dir missing value exit code" "$rc" "2"
+assert_contains "--container-dir missing value message" "$out" "unknown flag: --container-dir"
+teardown "$t"
+
 echo "all install tests passed"
