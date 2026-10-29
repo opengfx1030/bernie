@@ -69,7 +69,7 @@ func TestClampPowerForRows(t *testing.T) {
 		{"one card takes it", []int{0}, 200, 200, nil, false},
 		{"one card above its maximum", []int{2}, 230, 175, []int{2}, false},
 		{"two cards share their range", []int{2, 3}, 230, 175, []int{2, 3}, false},
-		{"above every card", nil, 300, 175, []int{2, 3}, false},
+		{"above every card", nil, 300, 175, []int{0, 2, 3}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
