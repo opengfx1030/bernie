@@ -912,6 +912,9 @@ dashboard use this same plan document.
   that has a `hipcc`. A tree nested in another one counts: a TheRock tree
   inside a package install is the one the operator runs, and it is newer
   than the package around it.
+- `serve` refuses a port that another process already listens on. The
+  message names the run that holds the port, the command that stops it and
+  the flag that picks another port.
 - `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE` are `1` when `model.source`
   is a local path, and `0` when it is a Hugging Face repo id.
 - Host mode needs the fork built in the venv for `requires.engine: vllm-rdna`.
