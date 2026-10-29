@@ -31,7 +31,7 @@ func init() {
 	cmd := &cli.Command{
 		Name:    "dash",
 		Summary: "Start, stop or check the web dashboard",
-		Usage:   "[start|stop|status] [flags]\n" +
+		Usage: "[start|stop|status] [flags]\n" +
 			"\n" +
 			"  bernie dash                       (foreground, Ctrl-C to stop)\n" +
 			"  bernie dash start [--listen ADDR] [--token T] [--rotate-token]\n" +
@@ -74,7 +74,7 @@ func init() {
 // from it via c.Flags; we expose the struct so the subcommand files can
 // build on it.
 var cmdDash = &cli.Command{
-	Name: "dash",
+	Name:  "dash",
 	Usage: "[start|stop|status] [flags]",
 }
 

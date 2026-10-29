@@ -2,11 +2,8 @@ package mcp
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/opengfx1030/bernie/internal/app/dashsvc"
@@ -14,32 +11,10 @@ import (
 
 // The dashboard tools avoid importing `github.com/opengfx1030/bernie/dashboard`
 // directly: the dashboard package imports this one for its /mcp endpoint,
-// so a direct import would cycle. The two helpers below inline the small
-// pieces we need (the default listen and the token generator).
+// so a direct import would cycle. The constant below inlines the small
+// piece we need (the default listen address).
 
 const dashDefaultListen = "127.0.0.1:7860"
-
-// dashNewToken returns a random 128-bit hex token. Same shape as
-// dashboard.NewToken (called auth.NewToken there).
-func dashNewToken() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		panic("mcp: crypto/rand: " + err.Error())
-	}
-	return hex.EncodeToString(b)
-}
-
-// dashIsLoopback reports whether the listen address binds only to
-// loopback. An empty host ("" or ":7860") binds all interfaces and is
-// not loopback.
-func dashIsLoopback(listen string) bool {
-	h, _, err := net.SplitHostPort(listen)
-	if err != nil {
-		h = listen
-	}
-	ip := net.ParseIP(strings.Trim(h, "[]"))
-	return ip != nil && ip.IsLoopback()
-}
 
 // This file is the dashboard service as MCP tools. They are the same
 // capabilities the CLI exposes through `bernie dash start|stop|status`
