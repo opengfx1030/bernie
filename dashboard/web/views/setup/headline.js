@@ -77,7 +77,7 @@ function setupHeadActions(doc, say) {
   const primary = doc.primary;
   if (say.action === "doctor") {
     out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
-    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
     return out;
   }
   if (say.action === "continue") {
@@ -97,7 +97,7 @@ function setupHeadActions(doc, say) {
   }
   if (say.action === "start") {
     out.push(h("button.primary", { type: "button", onclick: startSetupServer }, "Start the server"));
-    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
     return out;
   }
   if (say.action === "try") {
@@ -119,15 +119,15 @@ function setupHeadActions(doc, say) {
       onclick: () => { setupCopyText(setupRootCommand(rootNext)); focusSetupStep(rootNext.id); },
     }, "Copy the root command"));
     out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the next command"));
-    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
     return out;
   } else {
     out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
-    out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+    out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
     return out;
   }
   out.push(h("button", { type: "button", onclick: setupCopyNextCommand }, "Copy the command"));
-  out.push(h("button", { type: "button", onclick: setupToggleAdvanced }, "Advanced"));
+  out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
   return out;
 }
 
@@ -273,16 +273,13 @@ function focusSetupVerify() {
   focusSetupStep("verify");
 }
 
-/** setupToggleAdvanced opens or closes the raw documents of the tab. The
- *  page-wide Advanced switch owns the state, so the rail button and this
- *  button always agree. */
-function setupToggleAdvanced() {
-  if (typeof toggleAdvanced === "function") {
-    toggleAdvanced();
-    return;
-  }
+/** setupShowDetails opens or closes the raw documents of the tab. It acts on
+ *  this tab only: the rail button is the page-wide switch. */
+function setupShowDetails() {
   const panel = setupState.advanced;
   if (!panel) return;
-  panel.open = !panel.open;
+  setupState.detailsOpen = !setupState.detailsOpen;
+  panel.open = !!setupState.detailsOpen;
+  panel.dataset.local = "1";
   if (panel.open) panel.scrollIntoView({ block: "nearest" });
 }

@@ -20,7 +20,7 @@ Wireframes: `design/benchmark-1280.svg` (a result and a comparison),
    receipt.
 5. The section `THE HISTORY`: the table of the saved results.
 6. The section `AN A/B RUN`: the baseline and the candidate.
-7. The section `ADVANCED`.
+7. The section `SHOW DETAILS`.
 
 ## The widgets
 
@@ -48,7 +48,7 @@ Wireframes: `design/benchmark-1280.svg` (a result and a comparison),
 | 15 | The compare-to-baseline picker | the same document | on open | the picker is disabled | the picker is disabled |
 | 16 | The receipt | `GET /api/bench/compare?a=ID&b=ID&format=markdown` (G11) | on demand | the button is disabled | the button is disabled |
 | 17 | The A/B run | `POST /api/bench/ab` with the two arms (G12) and `GET /api/bench/{id}/events` | on demand | the section says `An A/B run measures one server, then the other, then the first again.` | the section shows the error of the run |
-| 18 | The Advanced panel | `/api/bench`, `/api/bench/suites`, `/api/bench/compare` | on open | the panel holds the empty answer of the endpoint | the panel holds the error answer |
+| 18 | The Show details panel | `/api/bench`, `/api/bench/suites`, `/api/bench/compare` | on open | the panel holds the empty answer of the endpoint | the panel holds the error answer |
 
 ## The suite cards
 

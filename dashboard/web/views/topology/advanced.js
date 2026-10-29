@@ -32,5 +32,5 @@ function topoAdvanced() {
     pre.textContent = doc == null ? "not read yet" : JSON.stringify(doc, null, 2);
     body.append(pre);
   }
-  return h("details.advanced", h("summary", "Advanced"), body);
+  return h("details.advanced", h("summary", "Show details"), body);
 }
