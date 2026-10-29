@@ -47,7 +47,7 @@ func (h *handler) getFleet(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	httpjson.Write(w, http.StatusOK, val.Hosts)
+	httpjson.Write(w, http.StatusOK, val)
 }
 
 // fleetAddRequest is the body of POST /api/fleet.
