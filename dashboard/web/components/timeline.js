@@ -36,22 +36,6 @@ const TIMELINE_PILL = {
   failed: "fail",
 };
 
-// TIMELINE_ACTION names what a step does, in the words of the reader. A
-// button says what it starts, never only "Run".
-const TIMELINE_ACTION = {
-  hardware: "Check the cards",
-  access: "Fix the device access",
-  rocm: "Install the ROCm tools",
-  "python-env": "Build the Python environment",
-  model: "Download the model",
-  recipe: "Pick the recipe",
-  serve: "Start the server",
-  verify: "Ask the server",
-  bench: "Measure the speed",
-  tuning: "Tune the kernels",
-  power: "Set the power caps",
-};
-
 /**
  * stepTimeline renders the ordered steps of the onboarding checklist.
  *
@@ -163,9 +147,10 @@ function stepSummary(step, state) {
 }
 
 /** stepActionLabel names the action of a step: the button says what it
- *  starts, never only "Run". */
+ *  starts, never only "Run". The words come from the checklist
+ *  (spec §3.3), so the CLI, the MCP server and the page say the same. */
 function stepActionLabel(step, again) {
-  const name = TIMELINE_ACTION[step.id] || step.title || "Run the step";
+  const name = step.action || step.title || "Run the step";
   return again ? name + " again" : name;
 }
 

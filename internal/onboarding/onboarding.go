@@ -47,6 +47,9 @@ const (
 type Document struct {
 	Next  string `json:"next"`
 	Steps []Step `json:"steps"`
+	// NextAction is the next step in words: the sentence that says what to
+	// do and the command that does it. Every front end prints it.
+	NextAction *NextAction `json:"next_action,omitempty"`
 	// Facts are the numbers of this host with the reason why they matter.
 	// The page shows them above the steps.
 	Facts []Fact `json:"facts"`
@@ -87,6 +90,23 @@ type Step struct {
 	// WaitsFor is the id of the step that holds the path for this step. A
 	// step that waits says so in words.
 	WaitsFor string `json:"waits_for,omitempty"`
+	// Action names what the step does, in the words of the reader. The
+	// button of the step says this.
+	Action string `json:"action,omitempty"`
+}
+
+// NextAction is the next step of the path in words: what to do, the
+// sentence that says it and the command that does it. The CLI, the MCP
+// server and the page print this one record, so they cannot disagree.
+type NextAction struct {
+	Step         string   `json:"step"`
+	Title        string   `json:"title"`
+	State        string   `json:"state"`
+	Action       string   `json:"action"`
+	Sentence     string   `json:"sentence"`
+	Command      string   `json:"command,omitempty"`
+	Root         bool     `json:"root"`
+	RootCommands []string `json:"root_commands,omitempty"`
 }
 
 // Progress is the progress of a running step: the phase sentence and, when
@@ -128,7 +148,47 @@ func Build(f *Facts) *Document {
 	doc.Facts = factsOf(f)
 	attachJobs(doc.Steps, f.Jobs)
 	setWaitsFor(doc)
+	doc.NextAction = nextAction(doc)
 	return doc
+}
+
+// nextAction is the next step of the path in words. It is nil when the path
+// is complete.
+func nextAction(doc *Document) *NextAction {
+	if doc.Next == "" {
+		return nil
+	}
+	for _, s := range doc.Steps {
+		if s.ID != doc.Next {
+			continue
+		}
+		return &NextAction{
+			Step:         s.ID,
+			Title:        s.Title,
+			State:        s.State,
+			Action:       s.Action,
+			Sentence:     nextActionSentence(s),
+			Command:      s.Command,
+			Root:         len(s.RootCommands) > 0,
+			RootCommands: s.RootCommands,
+		}
+	}
+	return nil
+}
+
+// nextActionSentence says what to do next, and who does it. It is the same
+// sentence in the CLI, in the MCP server and on the page.
+func nextActionSentence(s Step) string {
+	switch {
+	case len(s.RootCommands) > 0:
+		return "Copy the command, run it as root in a terminal, then press Re-check."
+	case s.State == StateRunning:
+		return s.Action + " is running now."
+	case s.CanRun:
+		return s.Action + ". bernie does it here."
+	default:
+		return s.Action + "."
+	}
 }
 
 // setWaitsFor names the step that holds the path for every runnable step

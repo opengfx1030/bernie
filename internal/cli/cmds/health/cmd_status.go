@@ -67,8 +67,15 @@ func printChecklist(w io.Writer, doc *onboarding.Document) {
 			fmt.Fprintf(w, "           run:  %s\n", s.Command)
 		}
 	}
-	if doc.Next != "" {
-		fmt.Fprintf(w, "next: %s\n", doc.Next)
+	if a := doc.NextAction; a != nil {
+		fmt.Fprintf(w, "next: %s\n", a.Sentence)
+		if a.Root {
+			for _, cmd := range a.RootCommands {
+				fmt.Fprintf(w, "       root: %s\n", cmd)
+			}
+		} else if a.Command != "" {
+			fmt.Fprintf(w, "       run:  %s\n", a.Command)
+		}
 	} else {
 		fmt.Fprintln(w, "next: the host is ready")
 	}

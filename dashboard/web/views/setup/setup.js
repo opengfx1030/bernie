@@ -175,9 +175,11 @@ function setupHeadline(doc) {
   }
   const current = setupCurrentStep(doc);
   let lede = "";
-  if (current && current.state === "todo" && current.can_run) {
-    const name = stepActionLabel(current, false);
-    lede = "Next: " + name.charAt(0).toLowerCase() + name.slice(1) + ". bernie does it here.";
+  const action = doc.next_action;
+  if (action && action.sentence) {
+    // The sentence comes from the checklist (spec §3.3): the CLI, the MCP
+    // server and the page say the same thing.
+    lede = action.sentence;
   } else if (current && (current.root_commands || []).length) {
     lede = "Copy the command, run it as root in a terminal, then press Re-check.";
   } else {
