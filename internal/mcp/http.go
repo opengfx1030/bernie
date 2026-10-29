@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/opengfx1030/bernie/internal/support/netx"
 )
 
 // maxBody bounds a JSON-RPC request body.
@@ -112,20 +114,12 @@ func loopbackHost(hostport string) bool {
 	if err != nil {
 		h = hostport
 	}
-	return loopbackName(h)
+	return netx.Loopback(h)
 }
 
 func loopbackOrigin(origin string) bool {
 	u, err := url.Parse(origin)
-	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && loopbackName(u.Hostname())
-}
-
-func loopbackName(h string) bool {
-	if h == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(strings.Trim(h, "[]"))
-	return ip != nil && ip.IsLoopback()
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && netx.Loopback(u.Hostname())
 }
 
 // deny writes the CLI's --json failure shape, like the dashboard.

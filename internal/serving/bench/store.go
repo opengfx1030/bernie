@@ -18,6 +18,7 @@ import (
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/serving/tuning"
+	"github.com/opengfx1030/bernie/internal/support/netx"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
 
@@ -181,21 +182,13 @@ func dialHost(h string) string {
 	return h
 }
 
-func isLoopback(h string) bool {
-	if h == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(h)
-	return ip != nil && ip.IsLoopback()
-}
-
 // sameEndpoint reports whether a client URL reaches the run's listen address.
 func sameEndpoint(u *url.URL, r runRecord) bool {
 	if u.Port() != strconv.Itoa(r.Port) {
 		return false
 	}
 	h, rh := u.Hostname(), dialHost(r.Host)
-	return h == rh || (isLoopback(h) && isLoopback(rh))
+	return h == rh || (netx.Loopback(h) && netx.Loopback(rh))
 }
 
 // gpuList is gpu.List; tests replace it.

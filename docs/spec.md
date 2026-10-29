@@ -1451,8 +1451,8 @@ does not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/power` | `tune power service status` JSON |
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. |
 | GET | `/api/bench` | `bench list` JSON |
-| POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. One bench at a time; a second gets 409. |
-| POST | `/api/bench/run` | the same body as `POST /api/bench`, but the run happens in the background → `{"id": "b-7f3a"}` (202). The state of the run is `GET /api/bench/{id}`. |
+| POST | `/api/bench` | bench flags as JSON (`concurrency` is a list or `"1,8"`) → result. The target is always a loopback server of this host. One bench at a time; a second gets 409. |
+| POST | `/api/bench/run` | the same body as `POST /api/bench`, but the run happens in the background → `{"id": "b-7f3a"}` (202). The target is always a loopback server of this host. The state of the run is `GET /api/bench/{id}`. |
 | POST | `/api/bench/ab` | `{"base": "", "cand": "", "suite": "", "model": "", "num_prompts": 0, "seed": 0, "tag": ""}` → `{"id": "b-7f3a"}` (202). A URL arm must be a server of this host. The state of the run is `GET /api/bench/{id}`. |
 | GET | `/api/bench/{id}` | the state of a benchmark run: `{"id", "status", "phase", "done", "total", "result_id"}`. `status` is `running`, `done` or `failed`; `phase` names the cell the run is on; `done` counts the finished cells, `total` is the number of cells of the run and `result_id` is the id of the saved result. |
 | GET | `/api/bench/{id}/events` | Server-sent events of a benchmark run: one `log` event per progress line, a `progress` event with the job document, then a `done` or `failed` event with the job document. |

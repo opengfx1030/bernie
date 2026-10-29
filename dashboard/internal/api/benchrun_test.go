@@ -87,6 +87,12 @@ func TestBenchRunGuards(t *testing.T) {
 		}
 	}
 	// The run only talks to a server of this host.
+	for _, path := range []string{"/api/bench", "/api/bench/run"} {
+		w := post(t, h, path, `{"url":"http://10.0.0.2:8001"}`)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("%s with a remote target: got %d, want 400", path, w.Code)
+		}
+	}
 	w := post(t, h, "/api/bench/ab", `{"base":"flashnext","cand":"http://10.0.0.2:8001"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("a remote arm: got %d, want 400", w.Code)
