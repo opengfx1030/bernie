@@ -97,6 +97,11 @@ func (g *Guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !g.authorized(r) {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				w.Header().Set("WWW-Authenticate", `Bearer realm="bernie"`)
+			} else if wantsHTML(r) {
+				// A browser gets a page that says what to do; an API
+				// client gets the JSON error below.
+				g.tokenPage(w)
+				return
 			}
 			httpjson.Error(w, http.StatusUnauthorized, "token required: open the URL printed by `bernie dash` (…/?token=…) or send Authorization: Bearer <token>")
 			return
