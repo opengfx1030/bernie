@@ -335,3 +335,18 @@ details.advanced > summary:hover { color: var(--text); }
 }
 .ring-n { fill: var(--text); font: 700 17px var(--font-display); text-anchor: middle; }
 .ring-u { fill: var(--muted); font: 600 11px var(--font-body); text-anchor: middle; }
+
+/* The words of the glossary that stand on the Setup tab. */
+.setup-glossary-list {
+  margin: var(--space-3) 0 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.setup-glossary-word {
+  display: grid;
+  grid-template-columns: minmax(120px, 190px) 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+.setup-glossary-word dt { font-weight: 700; color: var(--text); }
+.setup-glossary-word dd { margin: 0; color: var(--text-2); }
