@@ -143,6 +143,23 @@ func WriteToken(tok string) (Paths, error) {
 	return p, nil
 }
 
+// ReadableToken returns the persisted token when this process can read the
+// token file. The file is mode 0600, so the owner (and root) read it and
+// nobody else. The second answer is false when the file is missing or the
+// process has no access: the caller then redacts the token.
+func ReadableToken() (string, bool) {
+	p := ServicePaths()
+	data, err := os.ReadFile(p.Token)
+	if err != nil {
+		return "", false
+	}
+	tok := strings.TrimSpace(string(data))
+	if tok == "" {
+		return "", false
+	}
+	return tok, true
+}
+
 // IsAlive reports whether pid is a live process (signal 0 succeeds).
 func IsAlive(pid int) bool {
 	if pid <= 0 {
@@ -517,12 +534,16 @@ func startDetached(ctx context.Context, p Paths, listen, token, version string) 
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, exe, dashChildArgs(listen, token, version)...)
+	// The child must outlive this process: exec.Command (not
+	// CommandContext) keeps it alive when the parent returns and the
+	// CLI context is cancelled.
+	cmd := exec.Command(exe, dashChildArgs(listen, token, version)...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	cmd.Stdin = nil
 	cmd.Stdout = logF
 	cmd.Stderr = logF
-	// Detach from the parent's environment except for a clean PATH/TERM.
+	// The child reads the same directories as the parent: the BERNIE_*
+	// and XDG_* variables travel with it.
 	cmd.Env = childEnv()
 	if err := cmd.Start(); err != nil {
 		_ = logF.Close()
@@ -556,9 +577,17 @@ func dashChildArgs(listen, token, version string) []string {
 	}
 }
 
-// childEnv is the env passed to the detached child.
+// childEnv is the env passed to the detached child. The child must see the
+// same bernie directories as the parent: BERNIE_STATE_DIR, BERNIE_CONFIG_DIR,
+// BERNIE_DATA_DIR, BERNIE_CACHE_DIR and BERNIE_ROOT travel with it, else the
+// child writes its pidfile and its token into another tree than the parent
+// reads. The XDG_* variables travel too, because they are the fallback of
+// the paths package.
 func childEnv() []string {
-	keep := []string{"PATH", "HOME", "USER", "LANG", "LC_ALL", "TERM", "TZ"}
+	keep := []string{"PATH", "HOME", "USER", "LANG", "LC_ALL", "TERM", "TZ",
+		"XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
+		"BERNIE_CONFIG_DIR", "BERNIE_STATE_DIR", "BERNIE_DATA_DIR", "BERNIE_CACHE_DIR",
+		"BERNIE_ROOT", "BERNIE_VENV", "BERNIE_RECIPES", "BERNIE_DASH_TOKEN", "BERNIE_MCP_WRITE"}
 	out := make([]string, 0, len(keep))
 	for _, k := range keep {
 		if v := os.Getenv(k); v != "" {
@@ -672,11 +701,15 @@ type ChildOptions struct {
 	Now     func() time.Time
 }
 
-// RunChild writes the pidfile and startup document for the dashboard
-// service child, then returns. The actual serving of HTTP is done by
-// the caller (the `bernie dash --child` command in cmd_dash.go calls
-// dashboard.Serve directly); we only own the lifecycle files here, to
-// break the dashboard → mcp → dashsvc → dashboard cycle.
+// RunChild writes the pidfile of the dashboard service child, then
+// returns. The actual serving of HTTP is done by the caller (the
+// `bernie dash --child` command in cmd_dash.go calls dashboard.Serve
+// directly); we only own the lifecycle files here, to break the
+// dashboard → mcp → dashsvc → dashboard cycle.
+//
+// The startup document is written later, when the socket binds: the
+// caller calls WriteChildStartup from the Ready callback of the
+// dashboard.
 //
 // Callers should defer RunChildCleanup to remove the pidfile on exit.
 func RunChild(_ context.Context, o ChildOptions) error {
@@ -684,24 +717,26 @@ func RunChild(_ context.Context, o ChildOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := WritePid(p, os.Getpid()); err != nil {
+	return WritePid(p, os.Getpid())
+}
+
+// WriteChildStartup writes the startup document of the child with the URL
+// the dashboard bound to. The parent polls for this file to learn the URL.
+func WriteChildStartup(listen, url, version string) error {
+	p, err := EnsureDir()
+	if err != nil {
 		return err
 	}
-	oNow := o.Now
-	if oNow == nil {
-		oNow = time.Now
-	}
-	host, port, _ := net.SplitHostPort(o.Listen)
-	listen := net.JoinHostPort(host, port)
-	_ = WriteStartup(p, StartupInfo{
-		Listen:    listen,
-		URL:       "http://" + listen + "/",
+	host, port, _ := net.SplitHostPort(listen)
+	bound := net.JoinHostPort(host, port)
+	return WriteStartup(p, StartupInfo{
+		Listen:    bound,
+		URL:       url,
 		PID:       os.Getpid(),
-		StartedAt: oNow(),
-		Version:   o.Version,
+		StartedAt: time.Now(),
+		Version:   version,
 		Manager:   "process",
 	})
-	return nil
 }
 
 // RunChildCleanup removes the pidfile when the child exits. Callers
