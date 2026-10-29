@@ -15,12 +15,24 @@ function topoChecklist(data) {
   const items = data.checklist || [];
   const sum = data.summary || {};
   const failed = sum.fail || 0;
+  const skipped = sum.skip || 0;
+  const ready = sum.ok || 0;
   const box = h("div");
-  const verdict = failed
-    ? "Multi-GPU copies will not work: " + failed + (failed === 1 ? " check failed." : " checks failed.")
-    : "Multi-GPU copies will work on this host.";
+  let verdict;
+  let kind;
+  if (failed) {
+    kind = "fail";
+    verdict = "Multi-GPU copies will not work: " + failed + (failed === 1 ? " check failed." : " checks failed.");
+  } else if (!ready && skipped) {
+    // Every check was skipped: there is nothing to copy on this host.
+    kind = "skip";
+    verdict = "There is nothing to copy on this host: every check was skipped.";
+  } else {
+    kind = "ok";
+    verdict = "Multi-GPU copies will work on this host.";
+  }
   box.append(h("div.topo-verdict",
-    topoPill(failed ? "fail" : "ok", failed ? "not ready" : "ready"),
+    topoPill(kind, kind === "fail" ? "not ready" : kind === "skip" ? "nothing to check" : "ready"),
     h("span.topo-verdict-text", verdict)));
   if (!items.length) {
     box.append(h("div.topo-note", "Nothing to check on this host."));
