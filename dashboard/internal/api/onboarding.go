@@ -53,34 +53,20 @@ func (h *handler) postOnboardingRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	step := r.PathValue("step")
-	doc, err := app.Onboarding(r.Context(), req.options())
-	if err != nil {
-		httpjson.Error(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	found := findStep(doc.Steps, step)
-	if found == nil {
-		httpjson.Error(w, http.StatusBadRequest, "no onboarding step named "+step)
-		return
-	}
-	if len(found.RootCommands) > 0 {
-		httpjson.Write(w, http.StatusOK, map[string]any{
-			"step": step, "root_required": true, "commands": found.RootCommands,
-		})
-		return
-	}
-	if !found.CanRun {
-		httpjson.Error(w, http.StatusBadRequest, "this step has nothing bernie can run")
-		return
-	}
-	job, err := app.StartOnboardingJob(r.Context(), step, req.options())
+	res, err := app.RunOnboardingStep(r.Context(), step, req.options())
 	switch {
+	case errors.Is(err, onboarding.ErrUnknownStep), errors.Is(err, onboarding.ErrNoAction):
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, onboarding.ErrJobBusy):
 		httpjson.Error(w, http.StatusConflict, err.Error())
 	case err != nil:
-		httpjson.Error(w, http.StatusBadRequest, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
+	case res.RootRequired:
+		httpjson.Write(w, http.StatusOK, map[string]any{
+			"step": step, "root_required": true, "commands": res.Commands,
+		})
 	default:
-		httpjson.Write(w, http.StatusCreated, job)
+		httpjson.Write(w, http.StatusCreated, res.Job)
 	}
 }
 
@@ -176,14 +162,4 @@ func lastEventID(r *http.Request) int {
 		return 0
 	}
 	return n
-}
-
-// findStep returns the onboarding step with the given id, or nil.
-func findStep(steps []onboarding.Step, id string) *onboarding.Step {
-	for i := range steps {
-		if steps[i].ID == id {
-			return &steps[i]
-		}
-	}
-	return nil
 }

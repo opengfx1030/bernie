@@ -27,9 +27,9 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `dashboard/internal/httpjson` | the JSON response shapes and the redaction | `Write`, `Error`, `Decode`, `Redacted` | 4 |
 | `dashboard/internal/sse` | the server-sent event writer | `New`, `Stream`, `LineWriter`, `Heartbeat` | 4 |
 | `dashboard/internal/telemetry` | the 1 Hz sampler and the hub that shares it | `NewHub`, `Hub`, `Sampler` | 4 |
-| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `Stop`, `Smoke` | 3 |
+| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `RunOnboardingStep`, `Stop`, `Smoke` | 3 |
 | `internal/flow` | the `status` snapshot and the `up` chain | `Summary`, `Up`, `Findings`, `WaitHealthy`, `Blocked` | 3 |
-| `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
+| `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `PrepareStep`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
 | `internal/doctor` | the host checks | `Run`, `Report`, `Check`, `Status`, `Options` | 2 |
 | `internal/setup` | the install plan | `Plan`, `Apply`, `Step`, `Options` | 2 |
 | `internal/logdoc` | the log knowledge | `Load`, `Scan`, `ScanFile`, `PhaseOf`, `Rule`, `Match` | 2 |
@@ -296,7 +296,7 @@ func BenchList() ([]bench.Result, error)                                // never
 func Stop(ctx context.Context, name string) (StopResult, error)
 func Onboarding(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) // the checklist
 func OnboardingCached(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) // the cached checklist
-func StartOnboardingJob(ctx context.Context, step string, o OnboardingOptions) (*onboarding.Job, error)
+func RunOnboardingStep(ctx context.Context, step string, o OnboardingOptions) (OnboardingStepResult, error)
 func OnboardingJob(id string) (*onboarding.Job, error)
 func OnboardingJobLog(id string) ([]string, error)
 func Smoke(ctx context.Context, o SmokeOptions) (*onboarding.SmokeResult, error)
@@ -319,10 +319,12 @@ func Gather(ctx context.Context, o Options) (*Facts, error)   // one probe of th
 func Build(f *Facts) *Document                                 // the steps from the facts
 func Load(ctx context.Context, o Options) (*Document, error)   // the cached document, refreshed in the background when it is stale
 type Action struct { Step, Kind string; Steps []setup.Step; Recipe, Mode, Venv string; Sets []string }
+type PreparedStep struct { Step string; RootCommands []string; Action *Action }
+func PrepareStep(f *Facts, step string, o Options) (*PreparedStep, error) // ErrUnknownStep, ErrNoAction
 func ActionFor(f *Facts, step string, o Options) (*Action, error)  // ErrNoAction
 func SetupAction(steps []setup.Step) *Action                  // what `up` applies
 func (a *Action) Run(ctx context.Context, log io.Writer) error
-func StartJob(ctx context.Context, step string, o Options) (*Job, error) // ErrJobBusy
+func StartJob(ctx context.Context, prepared *PreparedStep) (*Job, error) // ErrJobBusy
 func RecentJobs() []Job; func GetJob(id string) (*Job, error); func JobLog(id string) ([]string, error)
 func Smoke(ctx context.Context, baseURL, model string) (*SmokeResult, error)
 func LiveRun(ctx context.Context) (*Run, error)

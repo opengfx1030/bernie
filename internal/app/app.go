@@ -44,10 +44,33 @@ func OnboardingCached(ctx context.Context, o OnboardingOptions) (*onboarding.Doc
 	return onboarding.Load(ctx, o)
 }
 
-// StartOnboardingJob runs the action of an onboarding step in the background
-// and returns the job. One job runs at a time.
-func StartOnboardingJob(ctx context.Context, step string, o OnboardingOptions) (*onboarding.Job, error) {
-	return onboarding.StartJob(ctx, step, o)
+// OnboardingStepResult is what running one checklist step produced. A step
+// that needs root carries its commands; a runnable step carries its job.
+type OnboardingStepResult struct {
+	RootRequired bool
+	Commands     []string
+	Job          *onboarding.Job
+}
+
+// RunOnboardingStep gathers the host once, prepares the step and runs it
+// when bernie can. One job runs at a time.
+func RunOnboardingStep(ctx context.Context, step string, o OnboardingOptions) (OnboardingStepResult, error) {
+	f, err := onboarding.Gather(ctx, o)
+	if err != nil {
+		return OnboardingStepResult{}, err
+	}
+	prepared, err := onboarding.PrepareStep(f, step, o)
+	if err != nil {
+		return OnboardingStepResult{}, err
+	}
+	if len(prepared.RootCommands) > 0 {
+		return OnboardingStepResult{RootRequired: true, Commands: prepared.RootCommands}, nil
+	}
+	job, err := onboarding.StartJob(ctx, prepared)
+	if err != nil {
+		return OnboardingStepResult{}, err
+	}
+	return OnboardingStepResult{Job: job}, nil
 }
 
 // OnboardingJob returns the job with this id.

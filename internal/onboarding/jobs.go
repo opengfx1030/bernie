@@ -65,19 +65,14 @@ var jobMu sync.Mutex
 // maxJobLines is the number of output lines a job keeps.
 const maxJobLines = 50
 
-// StartJob runs the action of a step in the background and returns the job.
-// The job outlives the call: it runs until it is done or it fails. One job
-// runs at a time; a second call gets ErrJobBusy.
-func StartJob(ctx context.Context, step string, o Options) (*Job, error) {
-	f, err := Gather(ctx, o)
-	if err != nil {
-		return nil, err
+// StartJob runs a prepared onboarding action in the background and returns
+// the job. The job outlives the call: it runs until it is done or it fails.
+// One job runs at a time; a second call gets ErrJobBusy.
+func StartJob(ctx context.Context, prepared *PreparedStep) (*Job, error) {
+	if prepared == nil || prepared.Action == nil {
+		return nil, ErrNoAction
 	}
-	action, err := ActionFor(f, step, o)
-	if err != nil {
-		return nil, err
-	}
-	return startJob(ctx, step, action)
+	return startJob(ctx, prepared.Step, prepared.Action)
 }
 
 // startJob runs a prepared action in the background. One job runs at a time.
