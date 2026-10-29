@@ -130,8 +130,8 @@ Rules:
    plan. The CLI and the dashboard both call it.
 7. `app` holds the operations that more than one front end runs and that no
    domain package owns: `hw`, `topo`, `doctor`, the run-log scan, `recipe
-   list`, `tune` status and power, `setup` plan and apply, `bench` (run and
-   save), the onboarding checklist and its jobs. Each returns the struct of
+   list`, `tune` status and power, `setup` plan and apply, `bench` (run,
+   save and compare), the onboarding checklist and its jobs. Each returns the struct of
    its `--json` document. `app` never prints and never imports a front end.
 8. `onboarding` holds the checklist of spec §3.3: the facts of the host
    (one probe), the steps derived from them and the jobs that run a step.

@@ -27,7 +27,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `dashboard/internal/httpjson` | the JSON response shapes and the redaction | `Write`, `Error`, `Decode`, `Redacted` | 4 |
 | `dashboard/internal/sse` | the server-sent event writer | `New`, `Stream`, `LineWriter`, `Heartbeat` | 4 |
 | `dashboard/internal/telemetry` | the 1 Hz sampler and the hub that shares it | `NewHub`, `Hub`, `Sampler` | 4 |
-| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Bench`, `BenchSuite`, `PowerStatus`, `Onboarding`, `Stop`, `Smoke` | 3 |
+| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `Stop`, `Smoke` | 3 |
 | `internal/flow` | the `status` snapshot and the `up` chain | `Summary`, `Up`, `Findings`, `WaitHealthy`, `Blocked` | 3 |
 | `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
 | `internal/doctor` | the host checks | `Run`, `Report`, `Check`, `Status`, `Options` | 2 |
@@ -291,6 +291,7 @@ func SetupPending(steps []setup.Step, only []string) []setup.Step
 func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) ([]setup.Step, error)
 func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Result, string, error) // ErrAllFailed, *SaveError
 func BenchSuite(ctx context.Context, name string, o bench.Options, progress io.Writer) (*bench.Result, string, error)
+func BenchCompare(aID, bID string, band float64) (*suite.Verdict, error) // ErrBenchResultNotFound
 func BenchList() ([]bench.Result, error)                                // never null
 func Stop(ctx context.Context, name string) (StopResult, error)
 func Onboarding(ctx context.Context, o OnboardingOptions) (*onboarding.Document, error) // the checklist
