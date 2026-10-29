@@ -21,7 +21,7 @@ func (h *handler) getRecipes(w http.ResponseWriter, r *http.Request) {
 // GET /api/recipes/{id}/plan?set=K=V&mode=M — `bernie recipe plan --json`.
 func (h *handler) getPlan(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	p, err := runner.Prepare(r.Context(), runner.PrepareOptions{
+	p, err := app.Plan(r.Context(), runner.PrepareOptions{
 		Recipe: r.PathValue("id"), Mode: q.Get("mode"), Name: q.Get("name"), Sets: q["set"],
 	})
 	if err != nil {

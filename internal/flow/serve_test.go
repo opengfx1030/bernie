@@ -26,12 +26,16 @@ func (f *fakeRunner) Start(ctx context.Context, p *recipe.Plan, o runner.StartOp
 
 func (f *fakeRunner) List(ctx context.Context) ([]runner.Status, error) {
 	f.calls++
-	if f.calls == 1 {
+	switch f.calls {
+	case 1:
+		return nil, nil
+	case 2:
 		*f.events = append(*f.events, "starting")
 		return []runner.Status{{Record: runner.Record{Name: "test", Port: 18000}, State: runner.StateStarting}}, nil
+	default:
+		*f.events = append(*f.events, "healthy")
+		return []runner.Status{{Record: runner.Record{Name: "test", Port: 18000}, State: runner.StateRunning}}, nil
 	}
-	*f.events = append(*f.events, "healthy")
-	return []runner.Status{{Record: runner.Record{Name: "test", Port: 18000}, State: runner.StateRunning}}, nil
 }
 
 // fakeDashboard is the dashboard of `up`: it records when it starts and when
@@ -66,10 +70,11 @@ func TestServeAndWaitStartsTheDashboardBeforeHealth(t *testing.T) {
 	o := UpOptions{
 		Wait:      5 * time.Second,
 		Runner:    &fakeRunner{events: &events},
+		Prepared:  &recipe.Plan{Name: "test"},
 		Dashboard: &fakeDashboard{events: &events},
 	}
 	res := &UpResult{Recipe: "test", Mode: "host"}
-	if err := serveAndWait(context.Background(), o, &bytes.Buffer{}, &recipe.Plan{}, res); err != nil {
+	if err := serveAndWait(context.Background(), o, &bytes.Buffer{}, res); err != nil {
 		t.Fatalf("serveAndWait: %v", err)
 	}
 	if !res.Healthy {
@@ -94,13 +99,14 @@ func TestServeAndWaitKeepsWaitingWhenTheDashboardCannotBind(t *testing.T) {
 	var events []string
 	var log bytes.Buffer
 	o := UpOptions{
-		Wait:   5 * time.Second,
-		Runner: &fakeRunner{events: &events},
+		Wait:     5 * time.Second,
+		Runner:   &fakeRunner{events: &events},
+		Prepared: &recipe.Plan{Name: "test"},
 		Dashboard: &fakeDashboard{events: &events,
 			err: errors.New("listen tcp 127.0.0.1:7860: bind: address already in use")},
 	}
 	res := &UpResult{Recipe: "test", Mode: "host"}
-	if err := serveAndWait(context.Background(), o, &log, &recipe.Plan{}, res); err != nil {
+	if err := serveAndWait(context.Background(), o, &log, res); err != nil {
 		t.Fatalf("the run must go on: %v", err)
 	}
 	if !res.Healthy {
@@ -118,9 +124,9 @@ func TestServeAndWaitKeepsWaitingWhenTheDashboardCannotBind(t *testing.T) {
 func TestServeAndWaitWithoutADashboard(t *testing.T) {
 	fastPoll(t)
 	var events []string
-	o := UpOptions{Wait: 5 * time.Second, Runner: &fakeRunner{events: &events}}
+	o := UpOptions{Wait: 5 * time.Second, Runner: &fakeRunner{events: &events}, Prepared: &recipe.Plan{Name: "test"}}
 	res := &UpResult{Recipe: "test", Mode: "host"}
-	if err := serveAndWait(context.Background(), o, &bytes.Buffer{}, &recipe.Plan{}, res); err != nil {
+	if err := serveAndWait(context.Background(), o, &bytes.Buffer{}, res); err != nil {
 		t.Fatalf("serveAndWait: %v", err)
 	}
 	if index(events, "healthy") < 0 {

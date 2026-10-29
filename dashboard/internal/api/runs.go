@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -43,19 +44,22 @@ func (h *handler) postRun(w http.ResponseWriter, r *http.Request) {
 		httpjson.Error(w, http.StatusBadRequest, "body field recipe is required")
 		return
 	}
-	p, err := runner.Prepare(r.Context(), runner.PrepareOptions{Recipe: req.Recipe, Mode: req.Mode, Name: req.Name, Sets: req.Set})
-	if err != nil {
-		httpjson.Error(w, http.StatusBadRequest, err.Error())
-		return
-	}
 	// The run outlives this request; only a cancelled request before start aborts it.
-	rec, err := runner.Start(context.WithoutCancel(r.Context()), p, runner.StartOptions{Progress: h.log})
-	if err != nil {
+	rec, err := app.Serve(context.WithoutCancel(r.Context()), app.ServeOptions{
+		Prepare: runner.PrepareOptions{Recipe: req.Recipe, Mode: req.Mode, Name: req.Name, Sets: req.Set},
+		Start:   runner.StartOptions{Progress: h.log},
+	})
+	switch {
+	case errors.Is(err, app.ErrPrepare):
+		httpjson.Error(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, app.ErrRunActive):
+		httpjson.Error(w, http.StatusConflict, err.Error())
+	case err != nil:
 		httpjson.Error(w, http.StatusInternalServerError, err.Error())
-		return
+	default:
+		fmt.Fprintf(h.log, "bernie dash: started run %s (recipe %s, port %d)\n", rec.Name, rec.Recipe, rec.Port)
+		httpjson.Redacted(w, http.StatusCreated, rec)
 	}
-	fmt.Fprintf(h.log, "bernie dash: started run %s (recipe %s, port %d)\n", rec.Name, rec.Recipe, rec.Port)
-	httpjson.Redacted(w, http.StatusCreated, rec)
 }
 
 // DELETE /api/runs/{name} — `bernie stop <name>`.

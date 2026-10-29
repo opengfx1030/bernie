@@ -68,6 +68,9 @@ func RunOnboardingStep(ctx context.Context, step string, o OnboardingOptions) (O
 	if len(prepared.RootCommands) > 0 {
 		return OnboardingStepResult{RootRequired: true, Commands: prepared.RootCommands}, nil
 	}
+	if prepared.Action != nil {
+		prepared.Action.Serve = serveOnboarding
+	}
 	job, err := onboarding.StartJob(ctx, prepared)
 	if err != nil {
 		return OnboardingStepResult{}, err

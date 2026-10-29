@@ -25,6 +25,19 @@ var ErrNoAction = errors.New("this step has nothing bernie can run")
 // ErrUnknownStep means that no onboarding step has the requested id.
 var ErrUnknownStep = errors.New("unknown onboarding step")
 
+// ServeOptions are the launch inputs of a serve action.
+type ServeOptions struct {
+	Recipe string
+	Mode   string
+	Name   string
+	Venv   string
+	Engine string
+	Sets   []string
+}
+
+// ServeFunc starts the run of a serve action.
+type ServeFunc func(context.Context, ServeOptions) (*runner.Record, error)
+
 // Action is what a step does when it runs. The dashboard, the jobs and `up`
 // all run the same action.
 type Action struct {
@@ -42,6 +55,9 @@ type Action struct {
 	RunName string
 	// Limit bounds the wait for a healthy server. 0 = 30 minutes.
 	Limit time.Duration
+	// Serve starts the run of a serve action. The shared app operation
+	// supplies it.
+	Serve ServeFunc
 }
 
 // SetupAction returns the action that applies the given setup steps. `up`
@@ -136,13 +152,12 @@ func (a *Action) Run(ctx context.Context, log io.Writer) error {
 // serve starts the run and waits until it answers /health. The phase
 // sentences of the log go to log.
 func (a *Action) serve(ctx context.Context, log io.Writer) error {
-	p, err := runner.Prepare(ctx, runner.PrepareOptions{
+	if a.Serve == nil {
+		return errors.New("the serve action has no server")
+	}
+	rec, err := a.Serve(ctx, ServeOptions{
 		Recipe: a.Recipe, Mode: a.Mode, Name: a.Name, Venv: a.Venv, Engine: a.Engine, Sets: a.Sets,
 	})
-	if err != nil {
-		return err
-	}
-	rec, err := runner.Start(ctx, p, runner.StartOptions{Venv: a.Venv, Engine: a.Engine})
 	if err != nil {
 		return err
 	}

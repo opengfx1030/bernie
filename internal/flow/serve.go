@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/opengfx1030/bernie/internal/serving/recipe"
+	"github.com/opengfx1030/bernie/internal/app"
 	"github.com/opengfx1030/bernie/internal/serving/runner"
 )
 
@@ -20,42 +20,25 @@ type Dashboard interface {
 
 // Runner starts a run and lists the runs. The runner package is the real
 // one; a test can fake it.
-type Runner interface {
-	// Start starts the plan and returns the record of the run.
-	Start(ctx context.Context, p *recipe.Plan, o runner.StartOptions) (*runner.Record, error)
-	// List returns the recorded runs with their live state.
-	List(ctx context.Context) ([]runner.Status, error)
-}
-
-// liveRunner is the runner package behind the Runner interface.
-type liveRunner struct{}
-
-func (liveRunner) Start(ctx context.Context, p *recipe.Plan, o runner.StartOptions) (*runner.Record, error) {
-	return runner.Start(ctx, p, o)
-}
-
-func (liveRunner) List(ctx context.Context) ([]runner.Status, error) { return runner.List(ctx) }
-
-// runner returns the runner of the options: the real one unless a test set
-// another.
-func (o UpOptions) runner() Runner {
-	if o.Runner != nil {
-		return o.Runner
-	}
-	return liveRunner{}
-}
+type Runner = app.Runner
 
 // serveAndWait starts the run, starts the dashboard and waits until the run
 // answers /health (spec §3.1). It is the tail of Up. A dashboard that cannot
 // start is reported and does not stop the wait.
-func serveAndWait(ctx context.Context, o UpOptions, log io.Writer, p *recipe.Plan, res *UpResult) error {
-	run := o.runner()
-	for _, w := range p.Warnings {
-		fmt.Fprintf(log, "up: warning: %s\n", w)
-	}
-	rec, err := run.Start(ctx, p, runner.StartOptions{Venv: o.Venv, Engine: o.Engine, Progress: log})
+func serveAndWait(ctx context.Context, o UpOptions, log io.Writer, res *UpResult) error {
+	rec, err := app.Serve(ctx, app.ServeOptions{
+		Prepare:  runner.PrepareOptions{Recipe: res.Recipe, Mode: res.Mode, Name: o.Name, Venv: o.Venv, Engine: o.Engine, Sets: o.Sets},
+		Start:    runner.StartOptions{Venv: o.Venv, Engine: o.Engine, Progress: log},
+		Prepared: o.Prepared,
+		Runner:   o.Runner,
+	})
 	if err != nil {
 		return err
+	}
+	if rec.Plan != nil {
+		for _, w := range rec.Plan.Warnings {
+			fmt.Fprintf(log, "up: warning: %s\n", w)
+		}
 	}
 	res.Run = rec
 	res.URL = rec.URL()
@@ -66,7 +49,11 @@ func serveAndWait(ctx context.Context, o UpOptions, log io.Writer, p *recipe.Pla
 		}
 	}
 	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: bernie logs %s -f)\n", rec.Name, rec.Name)
-	if err := waitHealthy(ctx, rec.Name, o.Wait, log, run.List); err != nil {
+	list := runner.List
+	if o.Runner != nil {
+		list = o.Runner.List
+	}
+	if err := waitHealthy(ctx, rec.Name, o.Wait, log, list); err != nil {
 		return err
 	}
 	res.Healthy = true

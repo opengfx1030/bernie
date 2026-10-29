@@ -41,21 +41,18 @@ func init() {
 			return cli.Usagef("serve needs exactly one recipe id")
 		}
 		o.Recipe, o.Sets = pos[0], sets
-		p, err := runner.Prepare(c.Ctx, o)
-		if err != nil {
-			return err
-		}
 		if *dry {
+			p, err := app.Plan(c.Ctx, o)
+			if err != nil {
+				return err
+			}
 			return c.Emit(p, func(w io.Writer) { printPlan(w, p) })
-		}
-		for _, w := range p.Warnings {
-			c.Logf("warning: %s", w)
 		}
 		so := runner.StartOptions{Venv: o.Venv, Engine: o.Engine, Foreground: *fg, NoPull: *noPull, Progress: c.Err}
 		if *fg && !c.JSON {
 			so.Progress = c.Out
 		}
-		rec, err := runner.Start(c.Ctx, p, so)
+		rec, err := app.Serve(c.Ctx, app.ServeOptions{Prepare: o, Start: so})
 		if err != nil {
 			if rec != nil && *fg { // the server exited in the foreground
 				if ms := flow.Findings(c.Ctx, *rec); len(ms) > 0 {
@@ -63,6 +60,12 @@ func init() {
 				}
 			}
 			return err
+		}
+		p := rec.Plan
+		if p != nil {
+			for _, w := range p.Warnings {
+				c.Logf("warning: %s", w)
+			}
 		}
 		// The dashboard comes up while the server loads the model, so the
 		// operator can watch the log in the browser (spec §3.2).
@@ -194,7 +197,7 @@ func init() {
 			return cli.Usagef("compose writes a container plan; drop --mode %s", o.Mode)
 		}
 		o.Recipe, o.Sets, o.Mode = pos[0], sets, recipe.ModeContainer
-		p, err := runner.Prepare(c.Ctx, o)
+		p, err := app.Plan(c.Ctx, o)
 		if err != nil {
 			return err
 		}

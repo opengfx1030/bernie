@@ -27,7 +27,7 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `dashboard/internal/httpjson` | the JSON response shapes and the redaction | `Write`, `Error`, `Decode`, `Redacted` | 4 |
 | `dashboard/internal/sse` | the server-sent event writer | `New`, `Stream`, `LineWriter`, `Heartbeat` | 4 |
 | `dashboard/internal/telemetry` | the 1 Hz sampler and the hub that shares it | `NewHub`, `Hub`, `Sampler` | 4 |
-| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `RunOnboardingStep`, `Stop`, `Smoke` | 3 |
+| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Serve`, `Plan`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `RunOnboardingStep`, `Stop`, `Smoke` | 3 |
 | `internal/flow` | the `status` snapshot and the `up` chain | `Summary`, `Up`, `Findings`, `WaitHealthy`, `Blocked` | 3 |
 | `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `PrepareStep`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
 | `internal/doctor` | the host checks | `Run`, `Report`, `Check`, `Status`, `Options` | 2 |
@@ -265,6 +265,7 @@ func List() ([]*Suite, error); func Get(id string) (*Suite, error)
 func (s *Suite) Digest() string                 // sha256 of the canonical suite
 func Run(ctx context.Context, s *Suite, o bench.Options, progress io.Writer) (*bench.Result, error)
 func Compare(a, b *bench.Result) (*Comparison, error)   // ErrWorkloadDiffers: the workloads differ
+type Starter func(context.Context, string, string) (*runner.Record, error) // starts a recipe arm
 func Judge(cmp *Comparison, band float64) *Verdict      // better, same, worse, noisy
 func AB(ctx context.Context, o ABOptions) (*ABResult, error)  // the visits base, cand, cand, base
 ```
@@ -290,6 +291,8 @@ func ReadPowerServiceStatus(ctx context.Context) (PowerServiceStatus, error)
 func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error)
 func SetupPending(steps []setup.Step, only []string) []setup.Step
 func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) ([]setup.Step, error)
+func Plan(ctx context.Context, o runner.PrepareOptions) (*recipe.Plan, error)
+func Serve(ctx context.Context, o ServeOptions) (*runner.Record, error) // ErrPrepare, ErrRunActive
 func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Result, string, error) // ErrAllFailed, *SaveError
 func BenchSuite(ctx context.Context, name string, o bench.Options, progress io.Writer) (*bench.Result, string, error)
 func BenchCompare(aID, bID string, band float64) (*suite.Verdict, error) // ErrBenchResultNotFound
@@ -319,7 +322,7 @@ type Facts struct { Host host.Info; GPUs []gpu.GPU; Restriction string; Doctor d
 func Gather(ctx context.Context, o Options) (*Facts, error)   // one probe of the host
 func Build(f *Facts) *Document                                 // the steps from the facts
 func Load(ctx context.Context, o Options) (*Document, error)   // the cached document, refreshed in the background when it is stale
-type Action struct { Step, Kind string; Steps []setup.Step; Recipe, Mode, Venv string; Sets []string }
+type Action struct { Step, Kind string; Steps []setup.Step; Recipe, Mode, Venv string; Sets []string; Serve ServeFunc }
 type PreparedStep struct { Step string; RootCommands []string; Action *Action }
 func PrepareStep(f *Facts, step string, o Options) (*PreparedStep, error) // ErrUnknownStep, ErrNoAction
 func ActionFor(f *Facts, step string, o Options) (*Action, error)  // ErrNoAction

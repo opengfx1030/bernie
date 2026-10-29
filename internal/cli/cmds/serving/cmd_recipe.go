@@ -104,7 +104,7 @@ func init() {
 			return cli.Usagef("recipe plan needs exactly one recipe id")
 		}
 		o.Recipe, o.Sets = pos[0], sets
-		p, err := runner.Prepare(c.Ctx, o)
+		p, err := app.Plan(c.Ctx, o)
 		if err != nil {
 			return err
 		}

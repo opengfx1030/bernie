@@ -41,7 +41,13 @@ type ABOptions struct {
 	Band float64
 	// Progress is where the progress lines go.
 	Progress io.Writer
+	// Starter starts a recipe arm. It is required for a recipe arm.
+	Starter Starter
 }
+
+// Starter starts the server of a recipe arm. The shared app operation
+// supplies it.
+type Starter func(context.Context, string, string) (*runner.Record, error)
 
 // ABResult is the result of an A/B run.
 type ABResult struct {
@@ -133,11 +139,10 @@ func armServer(ctx context.Context, arm, spec string, o ABOptions) (string, func
 		return spec, stop, nil
 	}
 	name := "ab-" + arm
-	plan, err := runner.Prepare(ctx, runner.PrepareOptions{Recipe: spec, Name: name})
-	if err != nil {
-		return "", stop, err
+	if o.Starter == nil {
+		return "", stop, fmt.Errorf("the A/B run has no starter for the recipe %s", spec)
 	}
-	rec, err := runner.Start(ctx, plan, runner.StartOptions{})
+	rec, err := o.Starter(ctx, spec, name)
 	if err != nil {
 		return "", stop, err
 	}

@@ -126,13 +126,15 @@ Rules:
 5. The JSON field names of domain structs are the public API (spec.md).
    Rename a field only together with spec.md.
 6. `flow` holds the two product-level chains (`status` and `up`).
-   `runner.Prepare` is the only place that turns a recipe id into a ready
-   plan. The CLI and the dashboard both call it.
+   `app.Plan` is the front-end entry to `runner.Prepare`, the only place
+   that turns a recipe id into a ready plan. `app.Serve` prepares and starts
+   a run, including the active-name check.
 7. `app` holds the operations that more than one front end runs and that no
    domain package owns: `hw`, `topo`, `doctor`, the run-log scan, `recipe
-   list`, `tune` status and power, `setup` plan and apply, `bench` (run,
-   save and compare), the onboarding checklist and its jobs. Each returns the struct of
-   its `--json` document. `app` never prints and never imports a front end.
+   list`, `tune` status and power, `setup` plan and apply, `serve` and
+   `plan`, `bench` (run, save and compare), the onboarding checklist and its
+   jobs. Each returns the struct of its `--json` document. `app` never
+   prints and never imports a front end.
 8. `onboarding` holds the checklist of spec §3.3: the facts of the host
    (one probe), the steps derived from them and the jobs that run a step.
    `flow`, `app` and the front ends read the same document, so the page and
