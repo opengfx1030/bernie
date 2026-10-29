@@ -10,7 +10,7 @@ const VIEWS = {
   dashboard: "viewDashboard",
   benchmark: "viewBenchmark",
   logs: "viewLogs",
-  classic: "viewClassic",
+  advanced: "viewAdvanced",
 };
 
 // The old routes and where they land now.
@@ -22,6 +22,7 @@ const OLD_ROUTES = {
   topology: ["dashboard", "topology"],
   runs: ["dashboard", "runs"],
   bench: ["benchmark", "suites"],
+  classic: ["advanced", ""],
 };
 
 /* ---------- the files of the tabs ---------- */
@@ -55,11 +56,13 @@ const TAB_SCRIPTS = {
     "views/logs/tail.js",
     "views/logs/advanced.js",
   ],
-  classic: [
-    "views/classic/charts.js",
-    "views/classic/classic.js",
-    "views/classic/panels.js",
-    "views/classic/paint.js",
+  advanced: [
+    "components/charts.js",
+    "views/advanced/advanced.js",
+    "views/advanced/overview.js",
+    "views/advanced/gpus.js",
+    "views/advanced/power.js",
+    "views/advanced/topology.js",
   ],
 };
 
@@ -69,7 +72,7 @@ const TAB_CSS = {
   dashboard: ["views/dashboard/dashboard.css"],
   benchmark: ["css/bench.css"],
   logs: ["views/logs/logs.css"],
-  classic: ["css/classic.css"],
+  advanced: ["css/advanced.css"],
 };
 
 // The tabs whose files are on the page.
@@ -233,7 +236,7 @@ function shortcutsKey(ev) {
   if (!shortcutsOn()) return;
   if (pendingG) {
     pendingG = false;
-    const tab = { s: "setup", d: "dashboard", b: "benchmark", l: "logs", c: "classic" }[k];
+    const tab = { s: "setup", d: "dashboard", b: "benchmark", l: "logs", c: "advanced" }[k];
     if (tab) {
       ev.preventDefault();
       location.hash = "#" + tab;
