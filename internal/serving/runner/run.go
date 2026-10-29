@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -100,6 +101,9 @@ func Start(ctx context.Context, p *recipe.Plan, o StartOptions) (*Record, error)
 			return nil, fmt.Errorf("run %s is %s (pid %d %s); stop it first (bernie stop %s) or use --name", p.Name, st, prev.PID, prev.Container, p.Name)
 		}
 	}
+	if err := checkPort(ctx, p); err != nil {
+		return nil, err
+	}
 	dir, err := paths.Ensure(RunDir(p.Name))
 	if err != nil {
 		return nil, err
@@ -110,6 +114,43 @@ func Start(ctx context.Context, p *recipe.Plan, o StartOptions) (*Record, error)
 		return startContainer(ctx, p, o, rec)
 	}
 	return startHost(ctx, p, o, rec, dir)
+}
+
+// checkPort refuses a plan whose port another process already listens on:
+// the server dies with "Address already in use" and the operator waits for
+// a server that never answers. The message names the run that holds the
+// port when it is one of ours.
+func checkPort(ctx context.Context, p *recipe.Plan) error {
+	if p.Port <= 0 {
+		return nil
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort(p.Host, strconv.Itoa(p.Port)))
+	if err == nil {
+		_ = ln.Close()
+		return nil
+	}
+	if !errors.Is(err, syscall.EADDRINUSE) {
+		return nil
+	}
+	if name := runOnPort(ctx, p.Port); name != "" {
+		return fmt.Errorf("port %d is already in use by the run %s; stop it first (bernie stop %s) or choose another port (--set args.port=%d)",
+			p.Port, name, name, p.Port+1)
+	}
+	return fmt.Errorf("port %d is already in use; stop the process that holds it or choose another port (--set args.port=%d)", p.Port, p.Port+1)
+}
+
+// runOnPort returns the name of the run that listens on the port, or "".
+func runOnPort(ctx context.Context, port int) string {
+	recs, err := List(ctx)
+	if err != nil {
+		return ""
+	}
+	for _, r := range recs {
+		if r.Port == port && r.State != StateExited {
+			return r.Name
+		}
+	}
+	return ""
 }
 
 func startHost(ctx context.Context, p *recipe.Plan, o StartOptions, rec *Record, dir string) (*Record, error) {
