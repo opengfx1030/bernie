@@ -39,6 +39,19 @@ function setupHeadline(doc) {
       action: "doctor",
     };
   }
+  // A step can be blocked on the operator (a root command, a missing
+  // group, an unreadable /dev/kfd). The headline says so in words the
+  // reference's reader recognises (ia.md §5 R39): the situation, one
+  // short sentence, and the next move (Re-check).
+  const blocked = pending.find((s) => s.state === "blocked");
+  if (blocked) {
+    const detail = blocked.summary || "a step waits for the operator.";
+    return {
+      title: "A FEW THINGS FIRST.",
+      lede: detail + " Fix the items below first, then press Re-check.",
+      action: "recheck",
+    };
+  }
   const current = setupCurrentStep(doc);
   let lede = "";
   const action = doc.next_action;
@@ -77,6 +90,14 @@ function setupHeadActions(doc, say) {
   const primary = doc.primary;
   if (say.action === "doctor") {
     out.push(h("button.primary", { type: "button", onclick: focusSetupDoctor }, "Read the doctor report"));
+    out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
+    return out;
+  }
+  if (say.action === "recheck") {
+    out.push(h("button.primary", {
+      type: "button",
+      onclick: () => { focusSetupStep("setup-doctor"); loadSetupDocument(); },
+    }, "Re-check"));
     out.push(h("button", { type: "button", onclick: setupShowDetails }, "Show details"));
     return out;
   }
