@@ -401,3 +401,14 @@ func TestECCStates(t *testing.T) {
 		}
 	}
 }
+
+func TestAmdgpuFixNamesTheOutOfTreeDriver(t *testing.T) {
+	// The in-tree driver of the kernel is enough for a card the kernel
+	// knows. The out-of-tree one is the hint for a kernel that is too old.
+	if f := amdgpuFix("apt"); !strings.Contains(f, "sudo modprobe amdgpu") || !strings.Contains(f, "sudo apt install -y amdgpu-dkms") {
+		t.Errorf("amdgpuFix(apt) = %q", f)
+	}
+	if f := amdgpuFix("dnf"); !strings.Contains(f, "out-of-tree amdgpu driver") || strings.Contains(f, "dnf install") {
+		t.Errorf("amdgpuFix(dnf) = %q", f)
+	}
+}

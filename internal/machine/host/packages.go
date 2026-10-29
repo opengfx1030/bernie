@@ -14,6 +14,7 @@ const (
 	PkgPodmanCompose = "podman-compose" // compose for podman
 	PkgDocker        = "docker"         // the Docker engine
 	PkgAMDCTK        = "amd-ctk"        // the AMD Container Toolkit (amd-ctk)
+	PkgAMDGPUDKMS    = "amdgpu-dkms"    // the out-of-tree amdgpu driver
 	PkgPython        = "python"         // Python 3.12 with venv
 	PkgGit           = "git"            // git
 )
@@ -51,6 +52,12 @@ var packages = map[string]map[string][]string{
 	},
 	PkgAMDCTK: {
 		"dnf": {"amd-container-toolkit"}, "apt": {"amd-container-toolkit"}, "pacman": {"amd-container-toolkit"}, "zypper": {"amd-container-toolkit"},
+	},
+	PkgAMDGPUDKMS: {
+		// The RHEL family has no amdgpu-dkms package: the driver is in
+		// the kernel and AMD ships an out-of-tree one in its own
+		// repository.
+		"apt": {"amdgpu-dkms"},
 	},
 	PkgPython: {
 		"dnf": {"python3.12"}, "apt": {"python3.12", "python3.12-venv"}, "pacman": {"python"}, "zypper": {"python312"},

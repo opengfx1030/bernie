@@ -64,6 +64,17 @@ func osChecks(in inputs) []Check {
 	return out
 }
 
+// amdgpuFix names the fix for a missing amdgpu module. The in-tree driver
+// of the kernel is enough for a card the kernel knows; the out-of-tree one
+// is for a kernel that is too old for the GPU.
+func amdgpuFix(pm string) string {
+	fix := "sudo modprobe amdgpu"
+	if c := host.InstallCommand(pm, host.PkgAMDGPUDKMS); c != "" {
+		return fix + "; if the kernel is too old for the card, install the out-of-tree driver: " + c
+	}
+	return fix + "; if the kernel is too old for the card, install the out-of-tree amdgpu driver from the AMD repository"
+}
+
 func kernelChecks(in inputs) []Check {
 	const cat = "kernel"
 	var out []Check
@@ -71,7 +82,7 @@ func kernelChecks(in inputs) []Check {
 		out = append(out, check(cat, "amdgpu", OK, "amdgpu is loaded", ""))
 	} else {
 		out = append(out, check(cat, "amdgpu", Fail, "amdgpu is loaded", "amdgpu module not found in /sys/module or /proc/modules").
-			with("sudo modprobe amdgpu", docGotchas))
+			with(amdgpuFix(in.host.PkgManager), docGotchas))
 	}
 	args := strings.Fields(in.host.Cmdline)
 	has := func(a string) bool {
