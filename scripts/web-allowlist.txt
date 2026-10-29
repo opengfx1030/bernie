@@ -12,7 +12,5 @@ dashboard/web/views/logs/tail.js	the Logs tail owns the timers that clear a sear
 # One path, its current line count and an owner note per line. The path, the
 # line count and the note are separated by tabs.
 dashboard/web/views/setup/setup.js	726	onboarding owner: AuditFirstRunWorker splits it in the current onboarding slice
-internal/onboarding/jobs.go	444	onboarding owner: AuditFirstRunWorker splits it in the current onboarding slice
-internal/onboarding/steps.go	434	onboarding owner: AuditFirstRunWorker splits it in the current onboarding slice
 dashboard/web/components/charts.js	429	dashboard charts owner: split planned in the next chart refactor
 internal/cli/cli.go	401	open: 1 line over, split next round
