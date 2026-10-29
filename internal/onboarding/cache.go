@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/opengfx1030/bernie/internal/support/factcache"
+	"github.com/opengfx1030/bernie/internal/support/hostroot"
 )
 
 // DocumentTTL is how long the cached onboarding document of this host stays
@@ -47,10 +48,15 @@ func Load(ctx context.Context, o Options) (*Document, error) {
 func documentKey(o Options) string { return "onboarding/document/" + optionsFingerprint(o) }
 
 // optionsFingerprint names the options of a document: two documents with
-// other options are other facts.
+// other options are other facts. The root of the host tree is one of them:
+// the document of a captured host is not the document of the real one.
 func optionsFingerprint(o Options) string {
 	h := sha256.New()
-	for _, s := range append([]string{o.Venv, o.Recipe, o.Mode, o.Engine, o.Name}, o.Sets...) {
+	root := o.Root
+	if root == "" {
+		root = hostroot.Root()
+	}
+	for _, s := range append([]string{root, o.Venv, o.Recipe, o.Mode, o.Engine, o.Name}, o.Sets...) {
 		fmt.Fprintf(h, "%d:%s", len(s), s)
 	}
 	return hex.EncodeToString(h.Sum(nil)[:8])
