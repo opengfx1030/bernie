@@ -107,21 +107,6 @@
 .dash-power-table td { font-weight: 400; }
 .dash-power-table td:first-child { font-weight: 600; }
 
-/* ---------- the topology ---------- */
-
-.dash-topo-block { margin-bottom: 12px; }
-.dash-topo-switch { font: 700 13px/1.3 var(--font-mono); margin: 0 0 6px; }
-.dash-mono-cell { font-family: var(--font-mono); font-size: 12px; }
-.dash-matrix-cell { border: 2px solid var(--bg); border-radius: 6px; font-weight: 600; }
-.dash-matrix-cell-unknown { color: var(--muted); }
-.dash-matrix-head { font-weight: 600; color: var(--text); max-width: 96px; overflow-wrap: anywhere; }
-.dash-matrix-name { font-weight: 600; color: var(--text); }
-.dash-matrix-sub { font-weight: 400; font-size: 11px; }
-.dash-matrix-dot { color: var(--text); margin-left: 3px; }
-.dash-matrix-gbps { display: block; font-size: 10.5px; color: var(--muted); font-weight: 400; }
-.dash-matrix-legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-top: 10px; color: var(--text-2); }
-.dash-verdict { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-
 /* ---------- the shared small rules ---------- */
 
 .dash-note-13 { font-size: 13px; color: var(--muted); }
@@ -142,12 +127,10 @@
 .dash-raw-json { max-height: 260px; overflow: auto; }
 .dash-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .dash-cards-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
-.dash-topo-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
 
 /* the small rules grouped for clarity */
 .dash-cards-note { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
 .dash-fail-13 { color: var(--fail); font-size: 13px; }
-.dash-matrix-table { border-collapse: separate; border-spacing: 2px; }
 .dash-muted-12 { font-size: 12px; color: var(--muted); margin-top: 8px; }
 .dash-muted-12-note { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .dash-muted-13-gap { color: var(--muted); font-size: 13px; margin: 4px 0 8px; }

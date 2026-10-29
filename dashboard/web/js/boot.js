@@ -1,14 +1,18 @@
 "use strict";
 // The router and the start-up. Loaded last: every view function exists by now.
 //
-// The page has four tabs: #setup, #dashboard, #benchmark and #logs. The old
-// links keep working: the router rewrites them and replaces the history entry,
-// so the back button never walks through them.
+// The page has eight tabs: #setup, #dashboard, #chat, #benchmark, #topology,
+// #fleet, #logs and #advanced. The old links keep working: the router
+// rewrites them and replaces the history entry, so the back button never
+// walks through them.
 
 const VIEWS = {
   setup: "viewSetup",
   dashboard: "viewDashboard",
+  chat: "viewChat",
   benchmark: "viewBenchmark",
+  topology: "viewTopology",
+  fleet: "viewFleet",
   logs: "viewLogs",
   advanced: "viewAdvanced",
 };
@@ -19,7 +23,6 @@ const OLD_ROUTES = {
   overview: ["setup", ""],
   recipes: ["setup", "recipes"],
   gpus: ["dashboard", "gpus"],
-  topology: ["dashboard", "topology"],
   runs: ["dashboard", "runs"],
   bench: ["benchmark", "suites"],
   classic: ["advanced", ""],
@@ -46,6 +49,19 @@ const TAB_SCRIPTS = {
     "views/benchmark/benchmark.js",
     "views/benchmark/suites.js",
   ],
+  chat: [
+    "views/chat/chat.js",
+  ],
+  topology: [
+    "views/topology/topology.js",
+    "views/topology/matrix.js",
+    "views/topology/links.js",
+    "views/topology/checklist.js",
+    "views/topology/advanced.js",
+  ],
+  fleet: [
+    "views/fleet/fleet.js",
+  ],
   logs: [
     "views/logs/logs.js",
     "views/logs/levels.js",
@@ -67,6 +83,9 @@ const TAB_CSS = {
   setup: [],
   dashboard: ["views/dashboard/dashboard.css", "views/dashboard/simple.css"],
   benchmark: ["css/bench.css"],
+  chat: [],
+  topology: ["views/topology/topology.css"],
+  fleet: [],
   logs: ["views/logs/logs.css"],
   advanced: ["css/advanced.css"],
 };
@@ -232,7 +251,7 @@ function shortcutsKey(ev) {
   if (!shortcutsOn()) return;
   if (pendingG) {
     pendingG = false;
-    const tab = { s: "setup", d: "dashboard", b: "benchmark", l: "logs", c: "advanced" }[k];
+    const tab = { s: "setup", d: "dashboard", b: "benchmark", t: "topology", l: "logs", c: "advanced" }[k];
     if (tab) {
       ev.preventDefault();
       location.hash = "#" + tab;
@@ -241,7 +260,7 @@ function shortcutsKey(ev) {
   }
   if (k === "g") {
     pendingG = true;
-    toast("Now press s, d, b, l or c.");
+    toast("Now press s, d, b, t, l or c.");
     setTimeout(() => (pendingG = false), 1500);
   }
 }

@@ -144,8 +144,9 @@ const SHORTCUTS = [
   ["g then s", "the Setup tab"],
   ["g then d", "the Dashboard tab"],
   ["g then b", "the Benchmark tab"],
+  ["g then t", "the Topology tab"],
   ["g then l", "the Logs tab"],
-  ["g then c", "the Classic tab"],
+  ["g then c", "the Advanced tab"],
 ];
 
 /** shortcutsOn says whether the letter shortcuts are on. They are off until

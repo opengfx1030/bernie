@@ -126,6 +126,19 @@ body.shell {
 
 .tab-count[hidden] { display: none; }
 
+/* the tag of a tab that is planned: the word carries the meaning */
+.tab-soon {
+  margin-left: -8px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font: 700 9px/16px var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* the old tabs, under a rule: they open their new home */
 .rail-group {
   margin: 18px 10px 8px;
@@ -321,9 +334,13 @@ body.shell {
 @media (max-width: 719px) {
   body.shell {
     grid-template-columns: minmax(0, 1fr);
-    padding-bottom: 64px;
+    padding-bottom: 150px;
   }
 
+  /* The rail becomes a tab bar at the bottom of the page: the thumb reaches
+     it and the content keeps its full width. The eight entries sit in a grid
+     of four columns and two rows: every word is whole, the bar never
+     scrolls sideways and every entry keeps a 44 px touch target. */
   .rail {
     position: fixed;
     left: 0;
@@ -332,33 +349,45 @@ body.shell {
     top: auto;
     height: auto;
     z-index: 20;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand foot"
+      "tabs tabs";
     align-items: center;
     gap: var(--space-2);
     padding: 8px 12px;
     border-right: 0;
     border-top: 1px solid var(--border);
     background: var(--surface);
-    overflow-x: auto;
+    overflow: hidden;
   }
 
   .brand {
-    margin: 0 8px 0 0;
+    grid-area: brand;
+    margin: 0;
     flex: none;
   }
 
   .brand .host { display: none; }
 
   .tabs {
-    flex-direction: row;
-    gap: var(--space-1);
-    flex: 1;
+    grid-area: tabs;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
   }
 
   .tabs a {
+    flex-direction: row;
+    justify-content: center;
+    gap: 4px;
+    min-height: 44px;
     border-left: 0;
     border-bottom: 2px solid transparent;
-    padding: 8px 10px;
+    padding: 4px 2px;
+    font-size: 12px;
     white-space: nowrap;
   }
 
@@ -369,9 +398,12 @@ body.shell {
     border-bottom-color: var(--accent);
   }
 
+  .tab-soon { margin-left: 0; }
+
   .rail-group { display: none; }
 
   .rail-foot {
+    grid-area: foot;
     margin-top: 0;
     padding: 0;
     flex-direction: row;
@@ -380,7 +412,8 @@ body.shell {
     flex: none;
   }
 
-  .rail-foot .pill { display: none; }
+  .rail-foot .pill,
+  .rail-foot .pill-age { display: none; }
 
   .content {
     padding: var(--space-5) 16px var(--space-9);

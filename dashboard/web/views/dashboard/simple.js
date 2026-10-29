@@ -35,7 +35,8 @@ function dashSimpleHero() {
   const endpointNone = h("span.dash-muted", "No endpoint while no run is serving.");
   endpoint.append(endpointCode, endpointCopy, endpointNone);
   top.append(pill, layout, actions);
-  left.append(top, word, lede, endpoint);
+  left.append(top, word, lede, endpoint,
+    h("p.small.muted", h("a", { href: "#topology" }, "P2P readiness: open the Topology tab")));
   const eyebrow = h("div.eyebrow", "Output speed");
   const value = h("div.dash-hero-num");
   const amount = h("span", "–");

@@ -1,0 +1,187 @@
+/* ---------- the Topology tab ----------
+   The rules of this tab live here: the sheet comes with the files of the
+   tab and the first paint does not carry them. */
+
+/* the matrix: one cell per pair of cards */
+.topo-matrix {
+  border-collapse: collapse;
+  width: auto;
+}
+
+.topo-matrix th,
+.topo-matrix td {
+  text-align: center;
+  padding: 5px 8px;
+  font-size: var(--small);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.topo-matrix-name,
+.topo-matrix-head {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.topo-cell {
+  position: relative;
+  font-family: var(--font-mono);
+}
+
+.topo-cell-code {
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.topo-cell-mark {
+  display: block;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.topo-cell-gbps {
+  display: block;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.topo-cell-unknown {
+  color: var(--muted);
+}
+
+.topo-matrix td.self {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+/* the four link classes: the colour helps, the word carries the meaning */
+.topo-c-PIX { background: color-mix(in srgb, var(--series-2) 28%, transparent); }
+.topo-c-PXB { background: color-mix(in srgb, var(--series-1) 28%, transparent); }
+.topo-c-PHB { background: color-mix(in srgb, var(--series-3) 28%, transparent); }
+.topo-c-SYS { background: color-mix(in srgb, var(--series-4) 28%, transparent); }
+
+/* the legend of the classes */
+.topo-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  font-size: var(--small);
+}
+
+.topo-legend-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.topo-legend-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 1px 7px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+}
+
+.topo-legend-word {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  color: var(--muted);
+}
+
+.topo-legend-word b {
+  color: var(--text);
+}
+
+/* the PCIe tree */
+.topo-sub {
+  font: 700 13px/1.3 var(--font-body);
+  color: var(--muted);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.topo-block {
+  margin-bottom: var(--space-4);
+}
+
+.topo-switch {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin: 0 0 var(--space-2);
+}
+
+.topo-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* the readiness checklist */
+.topo-verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+}
+
+.topo-check-row {
+  border-top: 1px solid var(--border);
+  padding: var(--space-3) 0;
+}
+
+.topo-check-row:first-of-type {
+  border-top: 0;
+}
+
+.topo-check-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.topo-check-title {
+  font-size: var(--body);
+}
+
+.topo-check-detail {
+  color: var(--text-2);
+  margin-top: var(--space-1);
+}
+
+.topo-check-fix {
+  margin-top: var(--space-2);
+}
+
+.topo-check-doc {
+  display: inline-block;
+  margin-top: var(--space-1);
+  font-size: var(--small);
+}
+
+.topo-note {
+  color: var(--text-2);
+}
+
+.topo-note-small {
+  color: var(--muted);
+  font-size: var(--small);
+}
+
+/* the raw documents */
+.topo-raw-json {
+  max-height: 300px;
+  overflow: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
