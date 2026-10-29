@@ -68,29 +68,63 @@ function chartPaths(points, px, py, baseY) {
 
 /** chartPointer wires the pointer and the keyboard of a chart: the pointer
  *  moves the readout and the arrow keys move it too. The index -1 means that
- *  nothing is pointed at. */
+ *  nothing is pointed at. The count is read when the pointer moves, not when
+ *  the chart is built: a chart is built empty and filled later, so the
+ *  number of points is only known then. */
 function chartPointer(svg, count, onIndex) {
   let index = -1;
+  const total = () => {
+    const n = typeof count === "function" ? count() : count;
+    return typeof n === "number" && n > 0 ? Math.floor(n) : 0;
+  };
   const move = (i) => {
-    if (count < 1) return;
-    index = Math.max(0, Math.min(count - 1, i));
+    const n = total();
+    if (n < 1) return;
+    index = Math.max(0, Math.min(n - 1, i));
     onIndex(index);
   };
   const at = (ev) => {
+    const n = total();
+    if (n < 1) return;
     const box = svg.getBoundingClientRect();
     if (!box.width) return;
-    move(Math.round(((ev.clientX - box.left) / box.width) * (count - 1)));
+    move(Math.round(((ev.clientX - box.left) / box.width) * (n - 1)));
   };
   svg.addEventListener("pointermove", at);
   svg.addEventListener("pointerleave", () => { index = -1; onIndex(-1); });
-  svg.addEventListener("focus", () => move(count - 1));
+  svg.addEventListener("focus", () => move(total() - 1));
   svg.addEventListener("blur", () => { index = -1; onIndex(-1); });
   svg.addEventListener("keydown", (ev) => {
     if (ev.key === "ArrowRight") { move(index + 1); ev.preventDefault(); }
     else if (ev.key === "ArrowLeft") { move(index - 1); ev.preventDefault(); }
     else if (ev.key === "Home") { move(0); ev.preventDefault(); }
-    else if (ev.key === "End") { move(count - 1); ev.preventDefault(); }
+    else if (ev.key === "End") { move(total() - 1); ev.preventDefault(); }
   });
+}
+
+/** chartNice rounds a number up to 1, 2 or 5 times a power of ten: the top
+ *  of a scale is a round number, so two charts can be compared by eye. */
+function chartNice(v) {
+  if (!(v > 0)) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(v)));
+  const f = v / e;
+  const m = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+  return m * e;
+}
+
+/** sparkDomain is the scale of one sparkline: the top of the scale is the
+ *  limit of the measure when the caller names one, else the largest number
+ *  that was measured, rounded up to a round number. The paint and the
+ *  pointer read the same domain, so the dot sits on the line. */
+function sparkDomain(values, max) {
+  let top = 0;
+  for (const v of values || []) {
+    if (typeof v === "number" && isFinite(v) && v > top) top = v;
+  }
+  const fixed = typeof max === "number" && max > 0;
+  if (fixed) top = max;
+  else top = chartNice(top);
+  return { min: 0, max: top > 0 ? top : 1, fixed: fixed };
 }
 
 /** spark draws the last minute of one number as a small line under a tile.
@@ -115,9 +149,15 @@ function spark(values, max, label, opts) {
   const read = h("span.chart-read", { class: "chart-readout" });
   wrap.append(svg, read);
 
+  let values2 = values || [];
+  // The top of the scale is the limit of the measure. A caller that names
+  // one is obeyed; a percentage is of a hundred and needs no other limit.
+  const limit = () => (typeof max === "number" && max > 0)
+    ? max : (options.unit === "%" ? 100 : null);
+  let domain = sparkDomain(values2, limit());
   const paint = (vals) => {
     const n = vals.length;
-    const top = max && max > 0 ? max : 100;
+    const top = domain.max;
     const step = n > 1 ? W / (n - 1) : 0;
     const px = (i) => (n > 1 ? i * step : W / 2);
     const py = (v) => H - PAD - (Math.min(v, top) / top) * (H - 2 * PAD);
@@ -143,16 +183,15 @@ function spark(values, max, label, opts) {
     read.textContent = (options.format ? options.format(v) : num(v)) + (options.unit ? " " + options.unit : "");
     read.style.opacity = "1";
   };
-  let values2 = values || [];
   paint(values2);
-  chartPointer(svg, values2.length, (i) => {
+  chartPointer(svg, () => values2.length, (i) => {
     if (i < 0) { read.style.opacity = "0"; mark.setAttribute("opacity", "0"); return; }
     const v = values2[i];
     if (typeof v !== "number" || !isFinite(v)) {
       show(i);
       return;
     }
-    const top = max && max > 0 ? max : Math.max(1, ...chartNumbers(values2));
+    const top = domain.max;
     const step = values2.length > 1 ? W / (values2.length - 1) : 0;
     const x = values2.length > 1 ? i * step : W / 2;
     const y = H - PAD - (Math.min(v, top) / top) * (H - 2 * PAD);
@@ -164,11 +203,16 @@ function spark(values, max, label, opts) {
   wrap.update = (next, nextMax) => {
     values2 = next || [];
     if (nextMax) max = nextMax;
+    domain = sparkDomain(values2, limit());
     paint(values2);
     const nums = chartNumbers(values2);
     const last = nums.length ? nums[nums.length - 1] : null;
+    // A spark without a fixed limit says the range it draws, so the reader
+    // knows what the height of the line means.
+    const range = domain.fixed ? ""
+      : ", 0 to " + num(domain.max) + (options.unit ? " " + options.unit : "");
     svg.setAttribute("aria-label", (label || "the last minute") + ": " +
-      (last == null ? "no sample yet" : (options.format ? options.format(last) : num(last)) + (options.unit ? " " + options.unit : "")));
+      (last == null ? "no sample yet" : (options.format ? options.format(last) : num(last)) + (options.unit ? " " + options.unit : "")) + range);
   };
   wrap.update(values);
   return wrap;
@@ -215,13 +259,6 @@ function areaChart(input, opts) {
     // instead of drawing a zero.
     return downsample(out, 240);
   };
-  // maxValue is the top of the scale: the fixed maximum of the measure when
-  // there is one, else the largest number that was measured.
-  const maxValue = () => {
-    if (options.max && options.max > 0) return options.max;
-    const nums = chartNumbers(points.map((p) => p.v));
-    return nums.length ? Math.max(1, ...nums) : 1;
-  };
   // The chart takes one series (a list of values or points) or a list of
   // series: {values, label, dash}. A second series gets its own line, its
   // own dash pattern and its own word on the chart, so a reader who cannot
@@ -238,10 +275,14 @@ function areaChart(input, opts) {
   };
 
   let series = [];
+  // The scale of the chart: the fixed maximum of the measure when there is
+  // one, else the largest number that was measured. The paint and the
+  // pointer read it, so the dot sits on the line.
+  let maxV = 1;
   const paint = () => {
     const n = Math.max(1, ...series.map((one) => one.points.length));
     const values = chartNumbers(series.flatMap((one) => one.points.map((p) => p.v)));
-    const maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...values);
+    maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...values);
     const px = (i) => (n > 1 ? L + (i * (R - L)) / (n - 1) : (L + R) / 2);
     const py = (v) => B - (Math.min(v, maxV) / maxV) * (B - T);
     grid.replaceChildren();
@@ -310,7 +351,6 @@ function areaChart(input, opts) {
       return;
     }
     const p = series[0].points[i];
-    const maxV = options.max && options.max > 0 ? options.max : Math.max(1, ...chartNumbers(series.flatMap((one) => one.points.map((q) => q.v))));
     const n = Math.max(1, ...series.map((one) => one.points.length));
     const px = (n > 1 ? L + (i * (R - L)) / (n - 1) : (L + R) / 2);
     const py = B - (Math.min(p.v, maxV) / maxV) * (B - T);
@@ -324,7 +364,7 @@ function areaChart(input, opts) {
   };
   series = seriesOf(input);
   paint();
-  chartPointer(svg, series[0] ? series[0].points.length : 0, show);
+  chartPointer(svg, () => (series[0] ? series[0].points.length : 0), show);
   box.update = (next, mins) => {
     if (mins) options.windowMinutes = mins;
     series = seriesOf(next);
@@ -335,14 +375,6 @@ function areaChart(input, opts) {
   };
   box.update(input);
   return box;
-}
-
-/** chartClock writes the time of a sample as HH:MM:SS. */
-function chartClock(t) {
-  const d = new Date(t);
-  if (isNaN(d.getTime())) return "";
-  const p = (n) => String(n).padStart(2, "0");
-  return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
 }
 
 /** ring draws the load of one card: the track, the arc, the number in the

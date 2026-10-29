@@ -63,10 +63,29 @@ function advRenderTiles(box, gpus, samples) {
   const vramTotal = gs.reduce((a, s) => a + (s.vram_total || 0), 0) / GiB;
   const hot = gs.reduce((a, s) => ((s.temp_c || 0) > (a.temp_c || 0) ? s : a), {});
   const sclk = gs.reduce((a, s) => ((s.sclk_mhz || 0) > (a.sclk_mhz || 0) ? s : a), {});
-  const series = (key) => adv.samples.slice(-60).map((s) => {
-    const g = s.gpus[0];
-    return g ? g[key] : null;
+  // The series of a tile is the same measure as the number above it: the
+  // mean load, the sum of the power and the memory, the highest
+  // temperature and the highest clock. A missing measurement stays missing.
+  const last = adv.samples.slice(-60);
+  const each = (key, fn) => last.map((s) => {
+    const values = s.gpus.map((g) => g[key]).filter((v) => v != null);
+    return values.length ? fn(values) : null;
   });
+  const sum = (values) => values.reduce((a, v) => a + v, 0);
+  const series = {
+    busy_pct: each("busy_pct", (v) => sum(v) / v.length),
+    power_w: each("power_w", sum),
+    vram_used: each("vram_used", sum),
+    temp_c: each("temp_c", (v) => Math.max(...v)),
+    sclk_mhz: each("sclk_mhz", (v) => Math.max(...v)),
+  };
+  // The scale of a tile is the limit of its measure: the power cap, the
+  // memory of the cards, the highest edge limit of the host. A measure
+  // without a published limit draws its own range and says it.
+  const edge = gpus.reduce((a, g) => {
+    const limit = g.temp_limits_c && g.temp_limits_c.edge;
+    return limit != null && limit > a ? limit : a;
+  }, 0);
   const tile = (label, value, unit, sub, values, max, tip) => {
     const chart = spark(values, max, tip, { unit: unit });
     return h("div.card.adv-tile",
@@ -76,17 +95,18 @@ function advRenderTiles(box, gpus, samples) {
       chart);
   };
   put(box,
-    tile("Busy", String(Math.round(avg)), "%", busy + " of " + n + " cards busy", series("busy_pct"), 100,
+    tile("Busy", String(Math.round(avg)), "%", busy + " of " + n + " cards busy", series.busy_pct, 100,
       "The average load of the cards, last 60 seconds"),
-    tile("Power", String(Math.round(power)), "W", cap ? "of " + Math.round(cap) + " W of cap" : "no cap published", series("power_w"), undefined,
+    tile("Power", String(Math.round(power)), "W", cap ? "of " + Math.round(cap) + " W of cap" : "no cap published", series.power_w, cap || undefined,
       "The power of all cards, last 60 seconds"),
-    tile("Memory", vram.toFixed(1), "GiB", "of " + vramTotal.toFixed(1) + " GiB", series("vram_used"), undefined,
+    tile("Memory", vram.toFixed(1), "GiB", "of " + vramTotal.toFixed(1) + " GiB",
+      series.vram_used.map((v) => (v == null ? null : v / GiB)), vramTotal || undefined,
       "The memory in use on all cards, last 60 seconds"),
     tile("Hottest", hot.temp_c == null ? "–" : String(Math.round(hot.temp_c)), "°C",
-      hot.hip_index == null ? "no card reports a temperature" : "GPU " + hot.hip_index, series("temp_c"), undefined,
+      hot.hip_index == null ? "no card reports a temperature" : "GPU " + hot.hip_index, series.temp_c, edge || undefined,
       "The hottest card, last 60 seconds"),
     tile("Clock", sclk.sclk_mhz == null ? "–" : String(Math.round(sclk.sclk_mhz)), "MHz",
-      "the highest shader clock", series("sclk_mhz"), undefined,
+      "the highest shader clock", series.sclk_mhz, undefined,
       "The highest shader clock, last 60 seconds"));
 }
 
