@@ -54,6 +54,9 @@ func accessStep(f *Facts) Step {
 		s.State = StateBlocked
 		s.Summary = "This account cannot open the GPU devices."
 		s.RootCommands = rootCommands(f.Setup, "groups")
+		// The note of the plan step says what the operator has to do after
+		// the command (a new session, for the groups).
+		s.Detail = setupWhy(f.Setup, "groups")
 		return s
 	}
 	s.State = StateDone
@@ -69,6 +72,7 @@ func rocmStep(f *Facts) Step {
 		s.State = StateBlocked
 		s.Summary = "The ROCm runtime or the kernel is not ready."
 		s.RootCommands = rootCommands(f.Setup, "rocm.runtime")
+		s.Detail = setupWhy(f.Setup, "rocm.runtime")
 		return s
 	}
 	s.State = StateDone
@@ -277,6 +281,21 @@ func rootCommands(steps []setup.Step, ids ...string) []string {
 		out = append(out, s.Commands...)
 	}
 	return out
+}
+
+// setupWhy returns the note of a setup step: why the root command is what
+// it is, and what the operator has to do after it. It is empty when the
+// step has no note.
+func setupWhy(steps []setup.Step, ids ...string) string {
+	for _, s := range steps {
+		if !contains(ids, s.ID) {
+			continue
+		}
+		if s.Why != "" {
+			return s.Why
+		}
+	}
+	return ""
 }
 
 // pendingSetup returns the plan steps with the given ids that are not done
