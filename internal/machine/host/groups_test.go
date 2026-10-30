@@ -55,13 +55,16 @@ func TestGPUGroupsFromGetent(t *testing.T) {
 	if got[0].GID != 39 || got[0].Source != "/etc/group" {
 		t.Errorf("getent must not answer for a fixture root: %+v", got)
 	}
-	got = gpuGroups(context.Background(), "/", r)
-	want := []DeviceGroup{
-		{Role: "video", GID: 44, Source: "getent group video"},
-		{Role: "render", GID: 109, Source: "getent group render"},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %+v\nwant %+v", got, want)
+	// Ask for the names directly: gpuGroups on "/" reads the device nodes of
+	// the machine that runs the test.
+	for _, c := range []struct {
+		name string
+		gid  int
+	}{{"video", 44}, {"render", 109}} {
+		gid, src, ok := lookupGroup(context.Background(), "/", r, c.name)
+		if !ok || gid != c.gid || src != "getent group "+c.name {
+			t.Errorf("%s: gid %d, source %q, ok %v", c.name, gid, src, ok)
+		}
 	}
 }
 
@@ -80,15 +83,26 @@ func TestGPUGroupsFromDeviceNodes(t *testing.T) {
 	if !ok {
 		t.Skip("no group id for the test file")
 	}
+	if gid == 39 || gid == 105 {
+		t.Skip("the test file has the group id of a fallback group")
+	}
+	// The result is sorted by id, and the id of the test file differs per machine.
+	bySource := map[string]DeviceGroup{}
 	got := gpuGroups(context.Background(), root, fakeRunner{})
+	for _, g := range got {
+		bySource[g.Source] = g
+	}
 	if len(got) != 3 {
 		t.Fatalf("got %+v", got)
 	}
-	if got[0].GID != gid || got[0].Source != "/dev/kfd" || got[0].Role != "kfd" {
-		t.Errorf("device node group = %+v", got[0])
+	if g := bySource["/dev/kfd"]; g.GID != gid || g.Role != "kfd" {
+		t.Errorf("device node group = %+v", g)
 	}
-	if got[1].GID != 39 || got[2].GID != 105 {
-		t.Errorf("fallback groups = %+v", got)
+	want := map[string]int{"video": 39, "render": 105}
+	for _, g := range got {
+		if id, ok := want[g.Role]; ok && g.GID != id {
+			t.Errorf("fallback groups = %+v", got)
+		}
 	}
 }
 
