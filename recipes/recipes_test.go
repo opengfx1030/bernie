@@ -46,6 +46,44 @@ func requiredSets(r *recipe.Recipe) []string {
 	return sets
 }
 
+// TestSingleGPURecipeFitsAndIsRecommended checks the host selection that
+// `up` uses: one V620 fits the one-card recipe, and a host without a GPU
+// cannot select it.
+func TestSingleGPURecipeFitsAndIsRecommended(t *testing.T) {
+	const id = "27b-awq-1gpu"
+	s := recipe.Load()
+	r, err := s.Resolve(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Requires.GPUs != 1 || r.Requires.VRAMGiB != 28 || r.Requires.RAMGiB != 32 {
+		t.Fatalf("requirements = %+v", r.Requires)
+	}
+	gpus, _ := host(t)
+	v620 := gpus[2]
+	if v620.GFX != "gfx1030" || v620.VRAMBytes < 28<<30 {
+		t.Fatalf("fixture GPU 2 = %+v, want a V620 with at least 28 GiB", v620)
+	}
+	const ramBytes = 64 << 30
+	fit := recipe.CheckFit(r, []gpu.GPU{v620}, ramBytes)
+	if fit.Status != recipe.FitYes {
+		t.Fatalf("one-V620 fit = %s: %v", fit.Status, fit.Reasons)
+	}
+	noGPU := recipe.CheckFit(r, []gpu.GPU{}, ramBytes)
+	if noGPU.Status != recipe.FitNo {
+		t.Fatalf("zero-GPU fit = %s: %v", noGPU.Status, noGPU.Reasons)
+	}
+
+	listing := recipe.List(s, []gpu.GPU{v620}, ramBytes, false)
+	if got := recipe.Best(listing); got != id {
+		t.Fatalf("up recommendation = %q, want %q", got, id)
+	}
+	listing = recipe.List(s, []gpu.GPU{}, ramBytes, false)
+	if got := recipe.Best(listing); got != "" {
+		t.Fatalf("up recommendation without a GPU = %q, want none", got)
+	}
+}
+
 func TestBuiltinsLoadResolveValidatePlan(t *testing.T) {
 	s := recipe.Load()
 	for _, e := range s.Errors {
@@ -100,7 +138,11 @@ func TestBuiltinsLoadResolveValidatePlan(t *testing.T) {
 					t.Errorf("plan %s: selected GPU %d is %s", id, i, gpus[i].GFX)
 				}
 			}
-			if !strings.Contains(p.GPUSelectReason, "PIX") {
+			if r.Requires.GPUs == 1 {
+				if !strings.Contains(p.GPUSelectReason, "lowest HIP index") {
+					t.Errorf("plan %s: unexpected one-GPU selection: %s", id, p.GPUSelectReason)
+				}
+			} else if !strings.Contains(p.GPUSelectReason, "PIX") {
 				t.Errorf("plan %s: GPUs %v not on one switch: %s", id, p.GPUs, p.GPUSelectReason)
 			}
 		}

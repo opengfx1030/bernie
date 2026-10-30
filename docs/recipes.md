@@ -283,9 +283,10 @@ recipes/
 
 ## 11. Built-in recipes
 
-The 11 recipes come from `tools/rdna/recipes/*.env` of the
-`opengfx1030/vllm-rdna` fork. The fork comments are kept in the files. All
-11 declare `requires.arch: [gfx1030]`: the fork kernels are validated on
+The 11 fork recipes come from `tools/rdna/recipes/*.env` of the
+`opengfx1030/vllm-rdna` fork. The single-GPU Qwen profile is derived from the
+`27b-awq` fork recipe. The fork comments are kept in the files. All 12
+declare `requires.arch: [gfx1030]`: the fork kernels are validated on
 gfx1030 only. `bernie recipe plan` on another architecture refuses with the
 arch it needs.
 
@@ -299,6 +300,7 @@ arch it needs.
 | `flashnext-dflash2` | `flashnext/` | 4 | host | Flash-Next with the incoai DFlash2 drafter, 3 speculative tokens. Experimental. |
 | `flashnext-exl3` | `flashnext/` | 4 | host | Flash-Next EXL3 3.05 bpw with the PLE table from the checkpoint. Experimental. |
 | `27b-awq` | `qwen-dense/` | 4 | host, container | Qwen3.8-27B AWQ-INT4 dense, W4A8 prefill, TP4. Validated. |
+| `27b-awq-1gpu` | `qwen-dense/` | 1 | host, container | Qwen3.8-27B AWQ-INT4 dense, W4A16, 32K context on one V620. Validated. |
 | `27b-exl3` | `qwen-dense/` | 4 | host, container | Qwen3.8-27B EXL3 3.00 bpw, TP4, 20K context. Validated. |
 | `full` | `qwen-dense/` | 2 | host, container | Qwen3.8-27B AWQ-INT4, full HIP path, TP2. Validated. |
 | `dsv4-flash` | `deepseek/` | 4 | host, container | DeepSeek-V4-Flash K128 (fp8 + MXFP4 experts), TP4. Needs input `MODEL`. Experimental. |

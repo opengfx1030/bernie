@@ -44,6 +44,12 @@ func TestBuiltinsExplainImportantSettings(t *testing.T) {
 			"args.max-num-seqs", "args.compilation-config", "args.kv-cache-memory-bytes",
 			"tuning.tunableop_profile",
 		},
+		"27b-awq-1gpu": {
+			"env.VLLM_RDNA2_W4A8_SDOT4", "env.VLLM_RDNA_AR",
+			"args.tensor-parallel-size", "args.attention-backend", "args.max-model-len",
+			"args.max-num-seqs", "args.compilation-config", "args.kv-cache-memory-bytes",
+			"args.enable-prefix-caching", "tuning.tunableop_profile",
+		},
 		"27b-exl3": {
 			"env.NCCL_P2P_LEVEL", "env.VLLM_ROCM_USE_AITER", "args.attention-backend",
 			"args.max-num-seqs", "args.compilation-config", "args.kv-cache-memory-bytes",

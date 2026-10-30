@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+#
+# Qwen3.8-27B AWQ-INT4 on one Radeon PRO V620 (gfx1030).
+# The compressed-tensors W4A16 weights fit on one 30 GiB card. This profile
+# uses FA-RDNA2 attention, RDNA2 W4A16 GEMMs, prefix caching and
+# FULL_AND_PIECEWISE graphs. It has no tensor-parallel or custom-all-reduce
+# path.
+#
+# Model choice (2026-10-30): the gfx1030 wiki calls Qwen3.8-27B AWQ the
+# day-to-day one-V620 pick. This checkpoint was already complete in the host
+# HF cache (19.57 GiB). The cached GPTQ and 35B-A3B candidates had no
+# weights, so they would need downloads; nothing large was downloaded.
+#
+# Measured 2026-10-30 (one idle Radeon PRO V620, gfx1030; HIP 3; torch
+# confirmed gfx1030; host vLLM 0.31.0+rdna, ROCm 7.14, TunableOp
+# rocm7.14-rocblas5.5):
+# - First launch to /health: 112 s. Weight load: 19.76 s / 19.1 GiB.
+#   Engine init: 55.39 s. Graph capture: 2 s / 0.40 GiB.
+# - KV cache: 63,811 tokens (4.66 GiB reserved), 1.95x concurrency at
+#   32,768 tokens per request.
+# - VRAM: 28,509,048,832 bytes (26.55 GiB, 88% of the card).
+# - bernie bench, 1024/512: c=1 TTFT 3.41 s, 18.68 decode tok/s per
+#   stream (16.65 output tok/s aggregate); c=4 TTFT 6.77 s, 28.48 output
+#   tok/s aggregate.
+# - bernie bench, 8192/512: c=1 TTFT 31.29 s, 17.63 decode tok/s per
+#   stream; c=4 TTFT p50 82.29 s, 12.63 output tok/s aggregate. All
+#   requests completed.
+# - Smoke: healthy in 153 ms. Coherence: 2/2 (2 + 2 = 4; capital of France
+#   = Paris).
+schema: 1
+extends: [_base, _rdna2, _attn-fa]
+name: Qwen3.8-27B AWQ-INT4 dense, W4A16, 1 GPU
+description: >-
+  Qwen3.8-27B AWQ-INT4 (compressed-tensors W4A16, dense hybrid GDN) on one
+  Radeon PRO V620 with FA-RDNA2 attention, prefix caching and
+  FULL_AND_PIECEWISE graphs. Validated on one V620.
+status: validated
+priority: 30
+tags: [qwen, dense, awq, w4a16, single-gpu]
+
+model:
+  source: cyankiwi/Qwen3.8-27B-AWQ-INT4
+  served_name: q27d-1gpu
+
+requires:
+  arch: [gfx1030]
+  gpus: 1
+  vram_gib: 28
+  ram_gib: 32
+
+env:
+  # W4A16 is the native RDNA2 dense GEMM path. W4A8 is a TP4 prefill
+  # optimization and is not used by this one-card profile.
+  VLLM_RDNA2_W4A8_SDOT4: "0"
+  VLLM_USE_V2_MODEL_RUNNER: "1"
+  VLLM_USE_AOT_COMPILE: "0"
+  VLLM_DISABLE_COMPILE_CACHE: "1"
+  VLLM_RDNA_FUSED_SE: "1"
+  VLLM_RDNA_DENSE_INT8: "0"
+  VLLM_RDNA_DENSE_INT8_ONLY: "0"
+  VLLM_RDNA_DENSE_GEMV: "0"
+  # TP=1 has no collective. Keep both multi-GPU all-reduce paths off.
+  VLLM_RDNA_AR: "0"
+  VLLM_FORCE_CUSTOM_ALL_REDUCE: "0"
+  OMP_NUM_THREADS: "4"
+  TOKENIZERS_PARALLELISM: "false"
+  PYTHONFAULTHANDLER: "1"
+  VLLM_ENABLE_STARTUP_PLAN: "0"
+  VLLM_RDNA_DECODE_STALL_MS: "0"
+
+args:
+  host: 127.0.0.1
+  port: 18130
+  tensor-parallel-size: 1
+  max-model-len: 32768
+  block-size: 1024
+  max-num-seqs: 4
+  max-num-batched-tokens: 2048
+  kv-cache-memory-bytes: 5000000000
+  gpu-memory-utilization: 0.90
+  compilation-config:
+    cudagraph_mode: FULL_AND_PIECEWISE
+    cudagraph_capture_sizes: [1, 2, 4]
+    compile_ranges_endpoints: []
+  enable-prefix-caching: true
+  mamba-cache-mode: align
+  language-model-only: true
+  skip-mm-profiling: true
+  trust-remote-code: true
+
+why:
+  env.VLLM_RDNA2_W4A8_SDOT4: "Keeps the one-card profile on the native RDNA2 W4A16 GEMMs."
+  env.VLLM_USE_V2_MODEL_RUNNER: "Uses the production runner for hybrid models on gfx1030."
+  env.VLLM_USE_AOT_COMPILE: "Compiles per process because one shared AOT graph can carry rank-zero buffers."
+  env.VLLM_DISABLE_COMPILE_CACHE: "Keeps the one-card run independent of another card's compiled artifacts."
+  env.VLLM_RDNA_AR: "Disables the custom all-reduce because TP=1 has no collective."
+  env.VLLM_FORCE_CUSTOM_ALL_REDUCE: "Leaves the stock custom all-reduce off because TP=1 has no collective."
+  env.VLLM_RDNA_DECODE_STALL_MS: "Leaves the decode-stall cap off because it constrains prefill on this profile."
+  args.tensor-parallel-size: "Keeps all model weights on the one V620."
+  args.max-model-len: "Uses a 32K context that fits beside the W4A16 weights and the measured KV cache."
+  args.block-size: "Uses the 1024-token recurrent-state block validated by the fork."
+  args.max-num-seqs: "Four request slots leave room for the W4A16 weights and KV cache on one card."
+  args.max-num-batched-tokens: "Covers two 1024-token state blocks for the FP16 KV cache."
+  args.kv-cache-memory-bytes: "Reserves 5 GB for the 32K-context single-card profile."
+  args.gpu-memory-utilization: "Caps allocator use at 90 percent of the V620 memory."
+  args.compilation-config: "Uses full decode graphs with piecewise graphs for the other batches."
+  args.enable-prefix-caching: "Reuses the aligned recurrent conversation state."
+  args.mamba-cache-mode: "Keeps the recurrent cache on the model's state-block grid."
+  args.language-model-only: "Excludes the unused vision path from this text recipe."
+  args.skip-mm-profiling: "Skips vision profiling on this text-only launch."
+  args.trust-remote-code: "Runs the checkpoint's Qwen model implementation."
