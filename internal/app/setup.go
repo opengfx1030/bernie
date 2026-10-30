@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"slices"
@@ -58,6 +59,21 @@ func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error) {
 		Mode: o.Mode, Venv: cfg.ResolveVenv(o.Venv), Image: o.Image, ModelRepo: o.Model,
 		HFHome: cfg.ResolveHFHome(), GPUArchs: archs, ROCm: o.ROCm, Root: tree,
 	}), nil
+}
+
+// SetupForceVerify returns the plan with the venv check marked as to do, so
+// apply runs it again even when its postcondition holds: the run records a
+// fresh set of versions and evidence (spec §6.3). It fails when the plan has
+// no venv check (container mode).
+func SetupForceVerify(steps []setup.Step) ([]setup.Step, error) {
+	out := slices.Clone(steps)
+	for i := range out {
+		if out[i].ID == setup.StepVenvVerify {
+			out[i].Done = false
+			return out, nil
+		}
+	}
+	return nil, fmt.Errorf("this plan has no %s step: verify checks a host venv (use --mode host)", setup.StepVenvVerify)
 }
 
 // SetupPending lists the selected steps that apply would run: not done and

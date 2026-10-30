@@ -90,36 +90,61 @@ func init() {
 				return fmt.Errorf("aborted (use --yes to skip the prompt)")
 			}
 		}
-		opts := setupOptionsOf(c, f)
-		opts.Verbose = *verbose
-		// JSON and verbose both bypass the live CR line: JSON streams
-		// NDJSON, verbose interleaves raw output that would overwrite
-		// the cursor. One line per event is what both want.
-		printer := &runPrinter{w: c.Err, tty: isTerminal(os.Stderr) && !*verbose && !c.JSON}
-		var enc *json.Encoder
-		if c.JSON {
-			// NDJSON: one event per line, the record of the run last.
-			enc = json.NewEncoder(c.Out)
-			enc.SetEscapeHTML(false)
-			printer.events = func(ev setup.Event) { _ = enc.Encode(ev) }
-		}
-		opts.OnEvent = printer.event
-		res, err := app.SetupApply(c.Ctx, steps, opts, only, c.Err)
-		printer.finish()
-		if c.JSON {
-			if res != nil && res.Run != nil {
-				_ = enc.Encode(map[string]any{"type": "run", "run": res.Run})
-			}
+		return runSteps(c, f, steps, only, *verbose)
+	}
+
+	verify := &cli.Command{Name: "verify", Summary: "Check the venv again: versions, the fork ops, the libraries", Usage: "[--venv DIR] [-v]"}
+	verify.Run = func(c *cli.Context, args []string) error {
+		fs := c.Flags(verify)
+		f := addSetupFlags(c, fs)
+		verbose := fs.Bool("v", false, "also stream the raw step output")
+		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
+		steps, err := buildPlan(c, f)
 		if err != nil {
 			return err
 		}
-		return c.Emit(res.Steps, func(w io.Writer) { printSteps(w, res.Steps) })
+		steps, err = app.SetupForceVerify(steps)
+		if err != nil {
+			return err
+		}
+		return runSteps(c, f, steps, []string{setup.StepVenvVerify}, *verbose)
 	}
 
-	cmd.Subs = []*cli.Command{plan, apply, setupReportCommand(), setupLogCommand()}
+	cmd.Subs = []*cli.Command{plan, apply, verify, setupReportCommand(), setupLogCommand()}
 	cli.Register(cmd)
+}
+
+// runSteps applies the selected steps through the one apply function and
+// prints the run: one line per step, NDJSON with --json.
+func runSteps(c *cli.Context, f setupFlags, steps []setup.Step, only []string, verbose bool) error {
+	opts := setupOptionsOf(c, f)
+	opts.Verbose = verbose
+	// JSON and verbose both bypass the live CR line: JSON streams NDJSON,
+	// verbose interleaves raw output that would overwrite the cursor. One
+	// line per event is what both want.
+	printer := &runPrinter{w: c.Err, tty: isTerminal(os.Stderr) && !verbose && !c.JSON}
+	var enc *json.Encoder
+	if c.JSON {
+		// NDJSON: one event per line, the record of the run last.
+		enc = json.NewEncoder(c.Out)
+		enc.SetEscapeHTML(false)
+		printer.events = func(ev setup.Event) { _ = enc.Encode(ev) }
+	}
+	opts.OnEvent = printer.event
+	res, err := app.SetupApply(c.Ctx, steps, opts, only, c.Err)
+	printer.finish()
+	if c.JSON {
+		if res != nil && res.Run != nil {
+			_ = enc.Encode(map[string]any{"type": "run", "run": res.Run})
+		}
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	return c.Emit(res.Steps, func(w io.Writer) { printSteps(w, res.Steps) })
 }
 
 func confirm(w io.Writer, prompt string) bool {

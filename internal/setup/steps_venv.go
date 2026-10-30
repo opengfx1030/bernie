@@ -258,6 +258,9 @@ func (p planner) vllmBuilt(dir string) bool {
 	return so && !p.venvFailed
 }
 
+// StepVenvVerify is the id of the check of the venv.
+const StepVenvVerify = "venv.verify"
+
 // venvVerify is the postcondition of the vllm.build step: the fork must
 // register its ops, its extension must find every library it needs and
 // rocBLAS must come from the wheel of the venv.
@@ -271,7 +274,7 @@ func (p planner) venvVerify() Step {
 		":$SP/_rocm_sdk_core/lib/core/lib:$SP/torch/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\""
 	cmd := sp + "; " + ld + "; BERNIE_VENV_STRICT=1 " + shq(p.python()) + " -I - <<'PY'\n" + rocm.VenvProbeScript + "PY"
 	return Step{
-		ID: "venv.verify", Title: "Verify the vLLM build in the venv", Mode: "host",
+		ID: StepVenvVerify, Title: "Verify the vLLM build in the venv", Mode: "host",
 		Done:     p.venvOK,
 		Commands: []string{cmd},
 		Why:      "The checks of the gfx1030 wiki: torch and vLLM import, the fork registers more than ten RDNA ops with an all_reduce, the extension finds every library and rocBLAS comes from the wheel of the venv.",

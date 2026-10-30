@@ -231,6 +231,7 @@ other file, script or compose file is required.
 | `bernie doctor --log FILE\|-` / `doctor --run NAME` | no | Match a vLLM log against known failures ([§5.3](#53-log-doctor)). |
 | `bernie setup plan [--mode M] [--venv DIR] [--image I] [--model M]` | no | Ordered install steps for this host. |
 | `bernie setup apply [--mode M] [--step ID]... [--yes] [--venv DIR] [--image I] [--model M] [-v]` | yes | Run the steps that do not need root. Print the root steps. `-v` also streams the raw output of the steps. |
+| `bernie setup verify [--venv DIR] [-v]` | yes (its own run record) | Run the check of the venv again, even when it passed before: versions of the main parts, the fork ops, the libraries. It records a run, so `setup report` shows fresh evidence. Exit code 1 when a check fails. |
 | `bernie recipe list [--all]` | no | Recipes, with fit to this host. `--all` includes recipes that do not fit. |
 | `bernie recipe show <id>` | no | The merged recipe (after `extends`). |
 | `bernie recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
@@ -955,6 +956,9 @@ The commands:
   when no id is given): every step with its state, its duration and its log,
   then the evidence of the check of the venv. With `--json` it writes the
   record itself.
+- `bernie setup verify` runs the check of the venv again through the same
+  apply function, even when its postcondition holds, and records a run with
+  the new evidence and component versions. It needs a host plan.
 - `bernie setup log [STEP] [-f]` prints the log of a step of the newest run
   and keeps printing it with `-f`.
 - `bernie status --steps` carries the time of every step of the newest run.
