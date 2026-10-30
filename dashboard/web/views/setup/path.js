@@ -13,7 +13,7 @@ async function setupRunPath() {
   await setupPathLoaded;
   setupProgress.path = { phase: "Starting\u2026", started: Date.now() };
   setupLogs.path = [];
-  paintSetupPath();
+  setupPaintPath();
   let job = null;
   try {
     job = await api("/api/onboarding/path/run", {
@@ -22,7 +22,7 @@ async function setupRunPath() {
     });
   } catch (e) {
     setupProgress.path = { phase: "Failed: " + (e.message || e), failed: true };
-    paintSetupPath();
+    setupPaintPath();
     return;
   }
   if (!job || job.root_required) {
@@ -33,11 +33,11 @@ async function setupRunPath() {
       failed: true,
       commands: (job && job.commands) || [],
     };
-    paintSetupPath();
+    setupPaintPath();
     return;
   }
   setupState.pathJobID = job.id;
-  followSetupJob({ id: "path" }, job, { onRefresh: () => { paintSetupPath(); loadSetupDocument(); } });
+  followSetupJob({ id: "path" }, job, { onRefresh: () => { setupRefreshRun("path"); loadSetupDocument(); } });
 }
 
 /** setupStopPath stops the run of the path. The job ends and the tab says
@@ -53,7 +53,7 @@ async function setupStopPath() {
     return;
   }
   setupProgress.path = { phase: "Stopped.", failed: true };
-  paintSetupPath();
+  setupPaintPath();
 }
 
 /** setupAttachPath re-attaches to the job of the whole path after a
@@ -64,10 +64,19 @@ async function setupAttachPath(doc) {
   if (!path || !path.id) return;
   setupState.pathJobID = path.id;
   setupProgress.path = { phase: path.phase || "Working\u2026" };
-  paintSetupPath();
+  setupPaintPath();
   if (path.state !== "running") return;
   setupLogs.path = [];
-  followSetupJob({ id: "path" }, { id: path.id }, { onRefresh: () => { paintSetupPath(); loadSetupDocument(); } });
+  followSetupJob({ id: "path" }, { id: path.id }, { onRefresh: () => { setupRefreshRun("path"); loadSetupDocument(); } });
+}
+
+/** setupRunRows draws the steps of the setup run with their state and the
+ *  time they took. The record of the run is the one source (spec §6.4). */
+function setupRunRows() {
+  const run = setupState.run;
+  if (!run || !run.steps || !run.steps.length) return null;
+  return h("div.step-run", run.steps.map((s) => h("div.step-run-row",
+    h("span", s.id + "  " + s.state + "  " + (s.duration_s > 0 ? setupDuration(s.duration_s) : "")))));
 }
 
 /** setupPaintPath paints the run of the path: the step it is on, the phase
@@ -86,6 +95,7 @@ function setupPaintPath() {
     h("p.small.muted", running ? "bernie is setting up this box." : (live.failed ? "The setup stopped." : "The setup is done.")),
     h("p.step-progress-sentence", live.phase),
     live.detail ? h("p.small.muted", live.detail) : null,
+    setupRunRows(),
     commands.map((c) => cmdBlock(c, "Copy the command")),
     running ? h("button.small", { type: "button", onclick: setupStopPath }, "Stop") : null,
     commands.length ? h("button.small", { type: "button", onclick: () => loadSetupDocument() }, "Re-check") : null);
