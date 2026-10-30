@@ -237,6 +237,16 @@ type runPrinter struct {
 	current string
 	// active says that a step runs now.
 	active bool
+	// now is the clock of the printer. The tests fix it.
+	now func() time.Time
+}
+
+// clock is the clock of the printer.
+func (p *runPrinter) clock() time.Time {
+	if p.now != nil {
+		return p.now()
+	}
+	return time.Now()
 }
 
 // event prints one event of a run.
@@ -275,7 +285,7 @@ func (p *runPrinter) event(ev setup.Event) {
 
 // running is the line of the step that runs now.
 func (p *runPrinter) running() string {
-	line := fmt.Sprintf("[%d/%d] %s: running... %s", p.index, p.total, p.stepID(), setup.FormatDuration(time.Since(p.start).Seconds()))
+	line := fmt.Sprintf("[%d/%d] %s: running... %s", p.index, p.total, p.stepID(), setup.FormatDuration(p.clock().Sub(p.start).Seconds()))
 	if p.phase != "" {
 		line += " (" + p.phase + ")"
 	}
