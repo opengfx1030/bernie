@@ -7,11 +7,13 @@ package setup
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu/devices"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/support/config"
 	"github.com/opengfx1030/bernie/internal/support/execx"
 	"github.com/opengfx1030/bernie/internal/support/paths"
 )
@@ -69,6 +71,33 @@ type Options struct {
 
 // DefaultVenv is the venv used when none is configured.
 func DefaultVenv() string { return filepath.Join(paths.Data(), "venv-rocm"+ROCmWheel) }
+
+// ResolveRunVenv applies the venv order of spec §6.2 and returns the venv
+// the run uses. When none of the sources is set and the default of the
+// host is taken, the resolved venv is also written to the config so a
+// later run in the same dirs finds it through the "config" source. An
+// explicit user choice (--venv, $BERNIE_VENV, config `venv`,
+// $VIRTUAL_ENV) is never overwritten.
+func ResolveRunVenv(flag string) string {
+	if flag != "" {
+		return flag
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return DefaultVenv()
+	}
+	res := cfg.ResolveVenv("")
+	if res != "" {
+		return res
+	}
+	def := DefaultVenv()
+	if cfg.Venv == "" && os.Getenv("BERNIE_VENV") == "" && os.Getenv("VIRTUAL_ENV") == "" {
+		_ = config.SaveFile(config.Path(), config.Config{Venv: def, Mode: cfg.Mode, Engine: cfg.Engine,
+			DeviceAccess: cfg.DeviceAccess, HFHome: cfg.HFHome, DownloadLimit: cfg.DownloadLimit,
+			Set: cfg.Set, Fleet: cfg.Fleet})
+	}
+	return def
+}
 
 // Plan returns the ordered steps for the mode, with Done evaluated on this
 // host.

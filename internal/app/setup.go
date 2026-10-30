@@ -86,8 +86,9 @@ type SetupResult struct {
 // The run is recorded in the store of the host, so the CLI, the MCP server
 // and the dashboard read the same record.
 func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) (*SetupResult, error) {
+	resolved := setup.ResolveRunVenv(o.Venv)
 	run, err := setup.ApplyRun(ctx, steps, only, log, setup.ApplyOptions{
-		Mode: o.Mode, Venv: runVenv(o.Venv), Store: setup.DefaultRunStore(), Mirror: o.Mirror, Event: o.OnEvent,
+		Mode: o.Mode, Venv: resolved, Store: setup.DefaultRunStore(), Mirror: o.Mirror, Event: o.OnEvent,
 	})
 	if err != nil {
 		return &SetupResult{Run: run}, err
@@ -101,19 +102,6 @@ func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []
 
 // SetupStore is the store of the setup runs of this host: <state>/setup.
 func SetupStore() *setup.RunStore { return setup.DefaultRunStore() }
-
-// runVenv returns the venv of a run: the flag, else the config, else the
-// default of the host.
-func runVenv(venv string) string {
-	if venv != "" {
-		return venv
-	}
-	cfg, err := config.Load()
-	if err != nil {
-		return ""
-	}
-	return cfg.ResolveVenv("")
-}
 
 // SetupRuns returns the setup runs of this host, newest first. A limit below
 // one means every run the store keeps.
