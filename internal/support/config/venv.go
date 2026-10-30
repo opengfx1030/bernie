@@ -85,7 +85,7 @@ func resetVenvCache() {
 
 func probeConventionalVenvs() []string {
 	home, _ := os.UserHomeDir()
-	patterns := []string{filepath.Join(paths.Data(), "venv")}
+	patterns := []string{filepath.Join(paths.Data(), "venv*")}
 	if home != "" {
 		patterns = append(patterns,
 			filepath.Join(home, ".venvs", "vllm*"),

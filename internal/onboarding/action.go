@@ -67,7 +67,7 @@ type Action struct {
 // record of the run lands in the store of the host, so the CLI, the MCP
 // server and the dashboard read the same one.
 func applyOptions(mode, recipe, venv string) setup.ApplyOptions {
-	return setup.ApplyOptions{Mode: mode, Recipe: recipe, Venv: venv, Store: setup.DefaultRunStore(), Mirror: true}
+	return setup.ApplyOptions{Mode: mode, Recipe: recipe, Venv: setup.ResolveRunVenv(venv), Store: setup.DefaultRunStore(), Mirror: true}
 }
 
 // SetupAction returns the action that applies the given setup steps. `up`
