@@ -79,6 +79,29 @@ function setupRunRows() {
     h("span", s.id + "  " + s.state + "  " + (s.duration_s > 0 ? setupDuration(s.duration_s) : "")))));
 }
 
+/** setupPythonEnv draws the components table of the venv.verify step of
+ *  the run: python, torch, triton, vllm (with the fork's git sha and
+ *  branch), flash-attn, causal-conv1d, transformers, rocBLAS, RCCL and
+ *  the host ROCm SDK (spec §6.3). The record is the one source: the
+ *  page reads the same JSON the CLI prints and the MCP server returns.
+ *  Lazy: when the run has no venv.verify step or its evidence has no
+ *  components, the table is not shown. */
+function setupPythonEnv() {
+  const run = setupState.run;
+  if (!run || !run.steps) return null;
+  const step = run.steps.find((s) => s.id === "venv.verify");
+  if (!step || !step.evidence || !step.evidence.components) return null;
+  const comps = step.evidence.components;
+  if (!comps.length) return null;
+  return h("div.python-env",
+    h("p.small.muted", "venv components (from the run record)"),
+    h("div.python-env-rows", comps.map((c) =>
+      h("div.python-env-row",
+        h("span.python-env-name", c.name || ""),
+        h("span.python-env-version", c.version || "absent"),
+        c.note ? h("span.python-env-note", "(" + c.note + ")") : null))));
+}
+
 /** setupPaintPath paints the run of the path: the step it is on, the phase
  *  and the Stop control. */
 function setupPaintPath() {
@@ -96,6 +119,7 @@ function setupPaintPath() {
     h("p.step-progress-sentence", live.phase),
     live.detail ? h("p.small.muted", live.detail) : null,
     setupRunRows(),
+    setupPythonEnv(),
     commands.map((c) => cmdBlock(c, "Copy the command")),
     running ? h("button.small", { type: "button", onclick: setupStopPath }, "Stop") : null,
     commands.length ? h("button.small", { type: "button", onclick: () => loadSetupDocument() }, "Re-check") : null);

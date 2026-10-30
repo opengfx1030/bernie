@@ -84,3 +84,30 @@ func TestTheLaunchDisclosureShowsTheComposeFileOnlyInContainerMode(t *testing.T)
 		t.Error("the disclosure holds no launch command")
 	}
 }
+
+// The python-env detail of the setup path comes from the venv.verify
+// step of the run record (spec §6.3). The page reads the same JSON the
+// CLI prints and the MCP server returns, so the three surfaces cannot
+// disagree.
+func TestSetupPathShowsPythonEnvFromTheRunRecord(t *testing.T) {
+	src, err := fs.ReadFile(webFS, "web/views/setup/path.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	for _, want := range []string{
+		"setupPythonEnv",
+		"venv.verify",
+		"evidence.components",
+		// The table is absent when the run has no venv.verify step or no
+		// components in its evidence.
+		"if (!step || !step.evidence || !step.evidence.components) return null",
+		// The table is rendered with the path paint: the path module owns
+		// the section, the steps module owns the load.
+		"setupPaintPath",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("setup/path.js does not carry %q", want)
+		}
+	}
+}

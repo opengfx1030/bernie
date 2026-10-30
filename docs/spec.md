@@ -825,6 +825,19 @@ finds every library it needs and rocBLAS comes from the wheel of the venv.
 The step is done when the checks pass; the `doctor` reports the same
 findings.
 
+The evidence of the step carries a small ordered `components` list of the
+MOST IMPORTANT parts of the venv: `python`, `torch` (with the HIP build),
+the `rocm-sdk-core`/`rocm` wheel, `triton`, `vllm` (with the fork's git
+short sha and branch when the editable source has a `.git`, read from
+files, not by running git), `flash-attn` (the `flash_attn` package when
+it is there, else the fork's FA-RDNA2 op count from the registered ops of
+`vllm._rocm_C`), `causal-conv1d`, `transformers`, `rocBLAS` (with the
+wheel library version), `RCCL` (`torch.cuda.nccl.version()`) and the host
+ROCm SDK (the version of `/opt/rocm`, for comparison). Every entry has
+`name`, `version` and `note`; a missing part is reported as `"absent"`,
+never omitted. The list has at most twelve entries and the probe collects
+them in one Python pass with `importlib.metadata`, no extra process.
+
 ### 6.3 The ROCm repository
 
 AMD publishes ROCm in two repository shapes. The multi-arch repository
@@ -888,7 +901,12 @@ The record of a run is one JSON file, `<state>/setup/<run-id>/run.json`:
  "started_at": "", "ended_at": "", "duration_s": 0,
  "steps": [{"id": "venv.verify", "title": "", "state": "done|skipped|running|failed|blocked",
    "started_at": "", "ended_at": "", "duration_s": 0, "exit_code": 0,
-   "summary": "", "log_path": "", "commands": [], "evidence": {},
+   "summary": "", "log_path": "", "commands": [],
+   "evidence": {"python": "", "torch": "", "hip": "", "vllm": "", "device_count": 0,
+    "rocm_ops": 0, "rdna_ops": 0, "all_reduce": false,
+    "rocm_c": "", "rocblas": "", "rocblas_wheel": false,
+    "missing_libs": [], "verify_errors": [],
+    "components": [{"name": "", "version": "", "note": ""}]},
    "progress": {"phase": "", "sentence": "", "fraction": 0,
     "bytes_done": 0, "bytes_total": 0, "rate_bps": 0,
     "files_done": 0, "files_total": 0}}],
@@ -905,7 +923,9 @@ bytes, rate and file count from the sentence of [§6.1](#61-the-model-download).
 absent when the step does not measure them. `evidence` is what the step
 produced: the verification JSON of the check of the venv, with the versions,
 the torch and the HIP version, the count of the RDNA ops, the `all_reduce`,
-the result of `ldd` and the path of the rocBLAS.
+the result of `ldd`, the path of the rocBLAS and the ordered `components`
+list of [§6.2](#62-the-host-venv) — the same JSON the CLI prints, the MCP
+server returns and the Setup tab of the dashboard renders.
 
 Every step keeps its own log, `<state>/setup/<run-id>/<step>.log`: the
 command line first, then the output with a timestamp on every line. The
