@@ -143,8 +143,14 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 			Mode: mode, Recipe: id, Venv: o.Venv,
 		})
 		action.Apply.Event = o.OnEvent
-		if err := action.Run(ctx, log); err != nil {
+		run, err := action.Run(ctx, log)
+		if err != nil {
 			return nil, err
+		}
+		// The setup created/used this venv; pass it to serve so the
+		// same run resolves the venv the steps used (spec §6.2).
+		if run != nil && run.Venv != "" {
+			o.Venv = run.Venv
 		}
 	}
 

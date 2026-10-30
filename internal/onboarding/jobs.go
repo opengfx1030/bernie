@@ -140,7 +140,7 @@ func runJob(ctx context.Context, job *Job, action *Action, logf *os.File) {
 		jobCancelMu.Unlock()
 	}()
 	w := &jobWriter{job: job, f: logf}
-	err := action.Run(ctx, w)
+	_, err := action.Run(ctx, w)
 	now := time.Now().UTC()
 	job.FinishedAt = &now
 	switch {

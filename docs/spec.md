@@ -739,7 +739,12 @@ bernie downloads the files itself, with the Go standard library:
   bytes that are already there (`resume_bytes`).
 - The checksum of the content is checked before the file is moved in place.
 - The progress is one line every two seconds and one at the end:
-  `model.download: 1.8 GB of 2.3 GB (78%) at 45.2 MB/s`.
+  `model.download: 78% · 1.8 GB of 2.3 GB · 45.2 MB/s · file 7 of 14`.
+  The fields are `pct`, `done of total`, `rate` and `file i of n`, joined
+  by ` · `; the file count is omitted before the first file finishes. The
+  run record ([§6.4](#64-the-run-record)) carries the same numbers in
+  `progress` (`bytes_done`, `bytes_total`, `rate_bps`, `files_done`,
+  `files_total`) so the dashboard and the CLI can render the sentence.
 
 The download runs on the host. The container image of bernie holds no
 HTTPS client and no Python, and it never downloads anything.
@@ -759,7 +764,7 @@ Host mode needs a Python venv with vLLM. bernie picks it in this order:
 3. The config key `venv` ([§12](#12-files-and-paths)).
 4. `$VIRTUAL_ENV`.
 5. One conventional venv, when exactly one exists:
-   - `<data>/venv`
+   - `<data>/venv*` (the default of `setup apply`, e.g. `<data>/venv-rocm7.14.0`)
    - `~/.venvs/vllm*`
    - `~/Apps/vllm/venv*`
 
@@ -771,6 +776,14 @@ and the answer does not change between two reads of the same tree. When
 several candidates exist, bernie picks none: `doctor` and `status` list the
 candidates and ask the operator to choose one with `bernie config set venv
 DIR`.
+
+`setup apply` and `up` pick the venv the same way, and the run record
+([§6.4](#64-the-run-record)) carries the one the steps used. When none of
+the sources above is set and the conventional list is empty, `setup apply`
+and `up` create the venv at `<data>/venv-rocm<VERSION>` and write that path
+to the config key `venv` when no explicit `--venv`, `$BERNIE_VENV`, config
+`venv` or `$VIRTUAL_ENV` is set: a later run in the same dirs finds it
+through step 3. An explicit user choice is never overwritten.
 
 `doctor` and `status` say which venv they used and where it came from:
 `flag`, `$BERNIE_VENV`, `config`, `$VIRTUAL_ENV` or `conventional`. An
@@ -876,7 +889,9 @@ The record of a run is one JSON file, `<state>/setup/<run-id>/run.json`:
  "steps": [{"id": "venv.verify", "title": "", "state": "done|skipped|running|failed|blocked",
    "started_at": "", "ended_at": "", "duration_s": 0, "exit_code": 0,
    "summary": "", "log_path": "", "commands": [], "evidence": {},
-   "progress": {"phase": "", "sentence": "", "fraction": 0}}],
+   "progress": {"phase": "", "sentence": "", "fraction": 0,
+    "bytes_done": 0, "bytes_total": 0, "rate_bps": 0,
+    "files_done": 0, "files_total": 0}}],
  "error": "", "dir": ""}
 ```
 
@@ -884,7 +899,10 @@ The state of a step: `done` (it ran and passed), `skipped` (its
 postcondition already held), `running` (it runs now), `failed` (it failed)
 or `blocked` (it needs root). `progress` carries the phase, the sentence and
 the numbers of the step while it runs; the build of the fork reads its
-fraction from the `[N/M]` count of ninja. `evidence` is what the step
+fraction from the `[N/M]` count of ninja, the model download reads its
+bytes, rate and file count from the sentence of [§6.1](#61-the-model-download).
+`bytes_done`, `bytes_total`, `rate_bps`, `files_done` and `files_total` are
+absent when the step does not measure them. `evidence` is what the step
 produced: the verification JSON of the check of the venv, with the versions,
 the torch and the HIP version, the count of the RDNA ops, the `all_reduce`,
 the result of `ldd` and the path of the rocBLAS.

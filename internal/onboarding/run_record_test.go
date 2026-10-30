@@ -21,7 +21,7 @@ func TestButtonAndCLIShareTheRecord(t *testing.T) {
 
 	// The button: the action of a checklist step.
 	action := &Action{Kind: ActionSetup, Steps: steps, Apply: applyOptions("host", "tiny", "")}
-	if err := action.Run(context.Background(), io.Discard); err != nil {
+	if _, err := action.Run(context.Background(), io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	button, err := setup.DefaultRunStore().Latest()
@@ -31,7 +31,8 @@ func TestButtonAndCLIShareTheRecord(t *testing.T) {
 
 	// The CLI: the same apply function, with the same inputs.
 	cli, err := setup.ApplyRun(context.Background(), steps, nil, io.Discard,
-		setup.ApplyOptions{Store: setup.DefaultRunStore(), Mode: "host", Recipe: "tiny"})
+		setup.ApplyOptions{Store: setup.DefaultRunStore(), Mode: "host", Recipe: "tiny",
+			Venv: setup.ResolveRunVenv("")})
 	if err != nil {
 		t.Fatal(err)
 	}

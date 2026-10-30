@@ -143,24 +143,25 @@ func ActionFor(f *Facts, step string, o Options) (*Action, error) {
 	return a, nil
 }
 
-// Run does the action and writes its progress to log.
-func (a *Action) Run(ctx context.Context, log io.Writer) error {
+// Run does the action and writes its progress to log. A setup action
+// returns the record of the run, so `up` can pass the venv the steps used
+// straight to the serve of the same run.
+func (a *Action) Run(ctx context.Context, log io.Writer) (*setup.Run, error) {
 	switch a.Kind {
 	case ActionPath:
-		return a.runPath(ctx, log)
+		return nil, a.runPath(ctx, log)
 	case ActionSetup:
 		ids := make([]string, len(a.Steps))
 		for i, s := range a.Steps {
 			ids[i] = s.ID
 		}
-		_, err := setup.ApplyRun(ctx, a.Steps, ids, log, a.Apply)
-		return err
+		return setup.ApplyRun(ctx, a.Steps, ids, log, a.Apply)
 	case ActionServe:
-		return a.serve(ctx, log)
+		return nil, a.serve(ctx, log)
 	case ActionVerify:
-		return a.verify(ctx, log)
+		return nil, a.verify(ctx, log)
 	}
-	return ErrNoAction
+	return nil, ErrNoAction
 }
 
 // serve starts the run and waits until it answers /health. The phase
