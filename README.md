@@ -67,6 +67,7 @@ Prefer control? Each stage is its own command:
 bernie doctor                        # problems, each with the fix for your distro
 bernie hw && bernie topo            # GPUs, PCIe switches, P2P
 bernie setup apply --mode container  # install what is missing (root steps are printed)
+bernie setup report                  # what the last setup did: every step, its time and its log
 bernie recipe list                   # recipes that fit this host
 bernie recipe plan 27b-awq           # exact env + command, nothing runs
 bernie serve 27b-awq                 # start it
@@ -85,6 +86,7 @@ Stop and inspect runs with `bernie ps`, `bernie logs -f`, `bernie stop`.
 | `doctor` | Checks GPU access, ROCm, libraries, Python venv, containers, resources, tuning. `--log`/`--run` explain a failed vLLM log. |
 | `hw`, `topo` | GPU inventory; PCIe tree, link classes (PIX/PXB/PHB/SYS), P2P, bandwidth. |
 | `setup plan\|apply` | Ordered install steps for this host. Never runs `sudo`. |
+| `setup report\|log` | The record of the last setup run: every step, its time, its log and the evidence of the venv check. |
 | `recipe list\|show\|plan\|validate` | Recipes, fit to this host, resolved launch. |
 | `serve`, `ps`, `logs`, `stop` | Run vLLM as a host process or a Docker/Podman container. |
 | `compose` | Write a `compose.yml` for a recipe (Docker and Podman). |

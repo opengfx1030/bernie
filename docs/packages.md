@@ -28,12 +28,12 @@ Packages are grouped by role: `internal/machine` (what the host is),
 | `dashboard/internal/httpjson` | the JSON response shapes and the redaction | `Write`, `Error`, `Decode`, `Redacted` | 4 |
 | `dashboard/internal/sse` | the server-sent event writer | `New`, `Stream`, `LineWriter`, `Heartbeat` | 4 |
 | `dashboard/internal/telemetry` | the 1 Hz sampler and the hub that shares it | `NewHub`, `Hub`, `Sampler` | 4 |
-| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `Serve`, `Plan`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `RunOnboardingStep`, `Stop`, `Smoke` | 3 |
+| `internal/app` | the operations the front ends share | `HW`, `Topo`, `Doctor`, `RecipeList`, `SetupPlan`, `SetupApply`, `SetupRuns`, `SetupRun`, `SetupLatestRun`, `Serve`, `Plan`, `Bench`, `BenchSuite`, `BenchCompare`, `PowerStatus`, `Onboarding`, `RunOnboardingStep`, `Stop`, `Smoke` | 3 |
 | `internal/flow` | the `status` snapshot and the `up` chain | `Summary`, `Up`, `Findings`, `WaitHealthy`, `Blocked` | 3 |
 | `internal/onboarding` | the onboarding checklist | `Gather`, `Build`, `Load`, `PrepareStep`, `ActionFor`, `StartJob`, `Smoke`, `Document`, `Facts` | 3 |
 | `internal/bench/job` | the benchmark jobs: the store, the state machine and the typed progress events | `NewStore`, `Store`, `Request`, `Doc`, `Job`, `Progress` | 3 |
 | `internal/doctor` | the host checks | `Run`, `Report`, `Check`, `Status`, `Options` | 2 |
-| `internal/setup` | the install plan | `Plan`, `Apply`, `Step`, `Options` | 2 |
+| `internal/setup` | the install plan and the record of a run | `Plan`, `Apply`, `ApplyRun`, `Step`, `Options`, `Run`, `RunStep`, `RunStore`, `Progress` | 2 |
 | `internal/logdoc` | the log knowledge | `Load`, `Scan`, `ScanFile`, `PhaseOf`, `Rule`, `Match` | 2 |
 | `internal/serving` | the serving package group | none (directory only) | 2 |
 | `internal/serving/recipe` | the recipe and its launch plan | `Load`, `Resolve`, `Validate`, `CheckFit`, `List`, `Best`, `BuildPlan`, `Plan` | 2 |
@@ -310,7 +310,11 @@ func GeneratePowerServicePlan() (PowerServicePlan, error)
 func ReadPowerServiceStatus(ctx context.Context) (PowerServiceStatus, error)
 func SetupPlan(ctx context.Context, o SetupOptions) ([]setup.Step, error)
 func SetupPending(steps []setup.Step, only []string) []setup.Step
-func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) ([]setup.Step, error)
+func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) (*SetupResult, error)
+func SetupRuns(limit int) []*setup.Run
+func SetupRun(id string) (*setup.Run, error)
+func SetupLatestRun() (*setup.Run, error)
+func SetupStepLog(runID, stepID string) ([]byte, error)
 func Plan(ctx context.Context, o runner.PrepareOptions) (*recipe.Plan, error)
 func Serve(ctx context.Context, o ServeOptions) (*runner.Record, error) // ErrPrepare, ErrRunActive
 func Bench(ctx context.Context, o bench.Options, progress io.Writer) (*bench.Result, string, error) // ErrAllFailed, *SaveError
