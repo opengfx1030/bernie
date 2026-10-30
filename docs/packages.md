@@ -371,7 +371,7 @@ type Options struct { Write bool; Transport, Version string; Log io.Writer }
 func New(o Options) *Server               // registers the fixed tool catalog
 func (s *Server) Run(ctx context.Context) error   // stdio
 func (s *Server) Handler(token string) http.Handler // Streamable HTTP, stateless, guarded
-func IsMutating(tool string) bool                 // serve, stop, bench_run, setup_apply, tune_power_set
+func IsMutating(tool string) bool                 // serve, stop, bench_run, setup_apply, setup_verify, tune_power_set
 ```
 
 A tool is a function `(ctx, in) -> canonical document` registered with its

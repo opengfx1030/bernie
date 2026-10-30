@@ -16,7 +16,7 @@ func init() {
 	}
 	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
-		write := fs.Bool("allow-write", os.Getenv("BERNIE_MCP_WRITE") == "1", "also expose the tools that change the host (serve, stop, bench_run, bench_ab, setup_apply, tune_power_set); default: BERNIE_MCP_WRITE=1")
+		write := fs.Bool("allow-write", os.Getenv("BERNIE_MCP_WRITE") == "1", "also expose the tools that change the host (serve, stop, bench_run, bench_ab, setup_apply, setup_verify, tune_power_set); default: BERNIE_MCP_WRITE=1")
 		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err

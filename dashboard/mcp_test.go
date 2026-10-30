@@ -77,7 +77,7 @@ func TestMCPLoopbackReadOnly(t *testing.T) {
 		t.Fatal("no tools listed")
 	}
 	for _, n := range names {
-		if n == "serve" || n == "stop" || n == "bench_run" || n == "setup_apply" || n == "tune_power_set" {
+		if n == "serve" || n == "stop" || n == "bench_run" || n == "setup_apply" || n == "setup_verify" || n == "tune_power_set" {
 			t.Errorf("read-only /mcp lists %s", n)
 		}
 	}

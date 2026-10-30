@@ -2179,11 +2179,17 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `bench_run` | `bench` (loopback `url` only, `recall`, `suite` optional) | the saved `bench.Result` |
 | `bench_ab` | `bench ab` (loopback `base` / `cand` URLs only) | the `suite.ABResult` |
 | `setup_apply` | `setup apply` | the setup steps after the run and the record of the run (`run_id`) |
+| `setup_verify` | `setup verify` | the record of the run (`run_id`) with the evidence and the components of the check of the venv |
 | `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors", "clamped"}` |
 | `fleet_add` | `fleet add` | `{"name", "url"}` (the token is never in the result) |
 | `fleet_rm` | `fleet rm` | `{"removed": name}` |
 | `dash_start` | `dash start` | the state of the dashboard service ([§11.1](#111-the-dashboard-service)) |
 | `dash_stop` | `dash stop` | `{"stopped": true}` |
+
+`setup_verify` is a mutating tool: it starts the Python of the venv, which
+imports torch and vLLM and touches the GPU, and it writes the record of the
+run under the state directory. A tool that only writes a state file (the
+desired power cap) is mutating for the same reason.
 
 `up` and `config set` are not tools. An agent runs them through the CLI.
 
@@ -2244,8 +2250,8 @@ A token:
   `0600`, directory `0700`). The raw token is never stored.
 
 The server runs one host-changing operation at a time (`serve`, `stop`,
-`setup_apply`, `tune_power_set`, `fleet_add`, `fleet_rm`) and one benchmark at
-a time. A call that
+`setup_apply`, `setup_verify`, `tune_power_set`, `fleet_add`, `fleet_rm`) and
+one benchmark at a time. A call that
 finds the slot taken fails with a busy error. The benchmark tools fail with
 `a benchmark is already running`, the sentence of every front end that
 starts a benchmark ([§11](#11-dashboard)).

@@ -127,7 +127,8 @@ needs them runs the CLI: `bernie smoke`, `bernie logs NAME` and
 ## Write mode
 
 The tools that change the host (`serve`, `stop`, `bench_run`, `bench_ab`,
-`setup_apply`, `tune_power_set`) are not listed until you enable them: `bernie mcp
+`setup_apply`, `setup_verify`, `tune_power_set`) are not listed until you enable
+them: `bernie mcp
 `--allow-write``, or `BERNIE_MCP_WRITE=1` in the environment of `bernie mcp` or
 `bernie dash`. Over HTTP they also need a dashboard token.
 
