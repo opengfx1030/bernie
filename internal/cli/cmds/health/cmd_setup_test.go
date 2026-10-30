@@ -180,8 +180,8 @@ func TestComponentsRender(t *testing.T) {
 			notWant:  []string{"components:"},
 		},
 		{
-			name: "components empty",
-			fixture: `{"python":"3.12.14","components":[]}`,
+			name:     "components empty",
+			fixture:  `{"python":"3.12.14","components":[]}`,
 			wantSubs: []string{"python 3.12.14"},
 			notWant:  []string{"components:"},
 		},
