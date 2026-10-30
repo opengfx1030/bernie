@@ -223,14 +223,14 @@ other file, script or compose file is required.
 | Command | Changes host | Purpose |
 |---|---|---|
 | `bernie` / `bernie status` | no | Overview and the next command to type. `--steps` prints the onboarding checklist ([§3.3](#33-the-onboarding-checklist)). |
-| `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D]` | yes | Doctor → setup → best recipe → serve → dashboard → wait for health. |
+| `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D] [-v]` | yes | Doctor → setup → best recipe → serve → dashboard → wait for health. `-v` also streams the raw output of the setup steps. |
 | `bernie hw` | no | Hardware and OS inventory. |
 | `bernie topo [--bandwidth] [--venv DIR]` | no | PCIe tree, P2P matrix, link classes. Optional bandwidth test. |
 | `bernie topo --check [--recipe ID]` | no | P2P readiness checklist ([§4.5](#45-p2p-readiness-checklist)). Exit 3 if an item fails. |
 | `bernie doctor [--category C]... [--venv DIR]` | no | All checks. Exit 3 if one check fails. |
 | `bernie doctor --log FILE\|-` / `doctor --run NAME` | no | Match a vLLM log against known failures ([§5.3](#53-log-doctor)). |
 | `bernie setup plan [--mode M] [--venv DIR] [--image I] [--model M]` | no | Ordered install steps for this host. |
-| `bernie setup apply [--mode M] [--step ID]... [--yes] [--venv DIR] [--image I] [--model M]` | yes | Run the steps that do not need root. Print the root steps. |
+| `bernie setup apply [--mode M] [--step ID]... [--yes] [--venv DIR] [--image I] [--model M] [-v]` | yes | Run the steps that do not need root. Print the root steps. `-v` also streams the raw output of the steps. |
 | `bernie recipe list [--all]` | no | Recipes, with fit to this host. `--all` includes recipes that do not fit. |
 | `bernie recipe show <id>` | no | The merged recipe (after `extends`). |
 | `bernie recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
@@ -938,10 +938,19 @@ last ten runs; `<state>/setup/latest` points at the newest one.
 
 The commands:
 
-- `bernie setup apply` streams one line per step ("[3/7] venv.torch:
-  running... 4m12s", then "done in 4m12s, log: PATH"). With `--json` it
-  writes one JSON event per line (NDJSON) and ends with the record of the
-  run.
+- `bernie setup apply` streams the progress of the run. On a TTY the
+  progress line is the only live line: it shows the step that runs now,
+  the time it has been running and its phase, and it is replaced in
+  place. The raw output of a step (its command echo, the output of the
+  tool) stays in the log of the step: `--verbose` streams it too, and
+  `bernie setup log -f` follows the log of a step. Off a TTY (CI, an
+  agent, a file) every event is one line of its own: "[3/7] venv.torch:
+  running", then "done in 4m12s, log: PATH", and a progress line with the
+  phase of the step at most once every ten seconds. The evidence of the
+  check of the venv (`BERNIE_JSON:...`) never reaches the terminal: it
+  goes to the record of the run, and `setup report` prints it. With
+  `--json` the command writes one JSON event per line (NDJSON) and ends
+  with the record of the run.
 - `bernie setup report [RUN]` prints the record of a run (the newest one
   when no id is given): every step with its state, its duration and its log,
   then the evidence of the check of the venv. With `--json` it writes the

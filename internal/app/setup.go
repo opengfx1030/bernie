@@ -26,6 +26,10 @@ type SetupOptions struct {
 	// Mirror writes the raw output of the steps to the log. The CLI
 	// leaves it off: the output is in the log of the step.
 	Mirror bool
+	// Verbose streams the markers ("== step: title", "$ cmd") on top of
+	// the progress printer. The CLI leaves it off: the progress line is
+	// the only live line on a TTY; the per-step log carries everything.
+	Verbose bool
 }
 
 // SetupPlan probes the host and returns the ordered install steps.
@@ -88,7 +92,7 @@ type SetupResult struct {
 func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) (*SetupResult, error) {
 	resolved := setup.ResolveRunVenv(o.Venv)
 	run, err := setup.ApplyRun(ctx, steps, only, log, setup.ApplyOptions{
-		Mode: o.Mode, Venv: resolved, Store: setup.DefaultRunStore(), Mirror: o.Mirror, Event: o.OnEvent,
+		Mode: o.Mode, Venv: resolved, Store: setup.DefaultRunStore(), Mirror: o.Mirror, Verbose: o.Verbose, Event: o.OnEvent,
 	})
 	if err != nil {
 		return &SetupResult{Run: run}, err

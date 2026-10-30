@@ -16,7 +16,7 @@ import (
 
 func init() {
 	cmd := &cli.Command{Name: "up", Summary: "Doctor, setup, best recipe, serve and dashboard in one command",
-		Usage: "[RECIPE] [--set KEY=VALUE]... [--mode host|container] [--yes] [--no-dash]"}
+		Usage: "[RECIPE] [--set KEY=VALUE]... [--mode host|container] [--yes] [--no-dash] [-v]"}
 	cmd.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(cmd)
 		var sets cli.MultiFlag
@@ -25,6 +25,7 @@ func init() {
 		engine := fs.String("engine", "", "docker or podman")
 		name := fs.String("name", "", "run name (default: recipe id)")
 		yes := fs.Bool("yes", false, "do not ask for confirmation")
+		verbose := fs.Bool("v", false, "also stream the raw step output (markers and command echo)")
 		noDash := fs.Bool("no-dash", false, "do not start the dashboard after the server is healthy")
 		listen := fs.String("listen", "127.0.0.1:7860", "dashboard listen address")
 		wait := fs.Duration("wait", 30*time.Minute, "how long to wait for /health")
@@ -35,9 +36,11 @@ func init() {
 		if len(pos) > 1 {
 			return cli.Usagef("up takes at most one recipe id")
 		}
-		o := flow.UpOptions{Sets: sets, Mode: *mode, Venv: c.Venv, Engine: *engine, Name: *name, Yes: *yes, Wait: *wait}
+		o := flow.UpOptions{Sets: sets, Mode: *mode, Venv: c.Venv, Engine: *engine, Name: *name, Yes: *yes, Wait: *wait, Verbose: *verbose}
 		// The setup steps of the path stream one line per step (spec §6.4).
-		printer := &runPrinter{w: c.Err}
+		// Live CR line on a TTY; one line per event in JSON or verbose
+		// (verbose interleaves raw output that would overwrite the cursor).
+		printer := &runPrinter{w: c.Err, tty: isTerminal(os.Stderr) && !*verbose && !c.JSON}
 		if c.JSON {
 			enc := json.NewEncoder(c.Out)
 			enc.SetEscapeHTML(false)

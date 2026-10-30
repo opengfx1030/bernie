@@ -66,13 +66,14 @@ func init() {
 		return c.Emit(steps, func(w io.Writer) { printSteps(w, steps) })
 	}
 
-	apply := &cli.Command{Name: "apply", Summary: "Run the steps that do not need root; print the root steps", Usage: "[--mode M] [--step ID]... [--rocm VERSION] [--yes]"}
+	apply := &cli.Command{Name: "apply", Summary: "Run the steps that do not need root; print the root steps", Usage: "[--mode M] [--step ID]... [--rocm VERSION] [--yes] [-v]"}
 	apply.Run = func(c *cli.Context, args []string) error {
 		fs := c.Flags(apply)
 		f := addSetupFlags(c, fs)
 		var only cli.MultiFlag
 		fs.Var(&only, "step", "run only this step (repeatable)")
 		yes := fs.Bool("yes", false, "do not ask for confirmation")
+		verbose := fs.Bool("v", false, "also stream the raw step output (markers and command echo)")
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
@@ -90,7 +91,11 @@ func init() {
 			}
 		}
 		opts := setupOptionsOf(c, f)
-		printer := &runPrinter{w: c.Err}
+		opts.Verbose = *verbose
+		// JSON and verbose both bypass the live CR line: JSON streams
+		// NDJSON, verbose interleaves raw output that would overwrite
+		// the cursor. One line per event is what both want.
+		printer := &runPrinter{w: c.Err, tty: isTerminal(os.Stderr) && !*verbose && !c.JSON}
 		var enc *json.Encoder
 		if c.JSON {
 			// NDJSON: one event per line, the record of the run last.

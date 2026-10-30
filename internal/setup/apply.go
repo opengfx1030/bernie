@@ -25,7 +25,13 @@ type ApplyOptions struct {
 	// Mirror writes the raw output of the steps to log, next to the log
 	// of the step. The dashboard and `up` show the output; the CLI shows
 	// the progress and keeps the output in the log of the step.
+	// The BERNIE_JSON evidence line is never mirrored: it goes to the
+	// record only, `setup report` prints it.
 	Mirror bool
+	// Verbose streams the markers ("== step: title") and the command
+	// echo ("$ cmd") to log, on top of the progress printer. Without it
+	// the CLI prints nothing but the running/done lines.
+	Verbose bool
 	// Quiet leaves the markers ("== step: title") out of log.
 	Quiet bool
 	// Event receives the events of the run. The CLI streams them.

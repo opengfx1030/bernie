@@ -20,7 +20,7 @@ func TestButtonAndCLIShareTheRecord(t *testing.T) {
 		Commands: []string{"echo ran > " + dir + "/ran"}}}
 
 	// The button: the action of a checklist step.
-	action := &Action{Kind: ActionSetup, Steps: steps, Apply: applyOptions("host", "tiny", "")}
+	action := &Action{Kind: ActionSetup, Steps: steps, Apply: applyOptions("host", "tiny", "", false)}
 	if _, err := action.Run(context.Background(), io.Discard); err != nil {
 		t.Fatal(err)
 	}
