@@ -266,6 +266,11 @@ func ProbeVenv(ctx context.Context, venv string) VenvReport {
 	if err != nil && rep.Err == "" {
 		rep.Err = err.Error()
 	}
+	// Only a probe that ran and reported is cached, and Probed is not
+	// stored with the fact: a hit without an error was probed.
+	if err == nil && rep.Err == "" {
+		rep.Probed = true
+	}
 	return rep
 }
 
