@@ -1831,7 +1831,8 @@ Rules for responses and tokens:
   the run), `GET /api/topo/check` (the environment of the recipe of the
   check), `GET /api/doctor` (the checks and the commands they name),
   `GET /api/onboarding`, `GET /api/jobs/{id}`,
-  `POST /api/onboarding/{step}/run` and `POST /api/onboarding/path/run` (the
+  `POST /api/onboarding/{step}/run`, `POST /api/onboarding/path/run` and
+  `POST /api/setup/verify` (the
   checklist and the output of a step), `POST /api/smoke` and `POST /api/chat`
   (the answer of the model). The other routes carry only numbers, identifiers
   and the static words of the catalogue — `GET /api/hw`, `GET /api/topo`,
@@ -1906,6 +1907,7 @@ not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | GET | `/api/setup/runs` | the records of the setup runs of this host, newest first, and the newest one in full ([§6.4](#64-the-run-record)). The answer is `{"runs": [Run], "run": Run}`. |
 | GET | `/api/setup/runs/{id}/log/{step}` | the log of one step of a run: `{"run": "", "step": "", "lines": [""], "truncated": false}`. The tail of the log, at most 400 lines. |
+| POST | `/api/setup/verify` | start the check of the venv again in the background → the job document. The job runs the `venv.verify` step through the same function the CLI and the MCP server use ([§6.4](#64-the-run-record)), so the record of the run is the one of the other front ends. The body is `{"mode": "", "venv": ""}`. One job runs at a time: a call that finds the slot taken answers 409. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
 | POST | `/api/onboarding/path/run` | start the whole path that bernie can do itself in the background → the job document. The body is the same as the step run. It is the one action of the Setup tab. A step that needs root answers `{"step": "path", "root_required": true, "commands": []}` and runs nothing. |
 | POST | `/api/jobs/{id}/stop` | stop the job with this id → `{"id": "", "stopped": true}`. `stopped` is false when the job runs in another process and cannot be stopped from here. |

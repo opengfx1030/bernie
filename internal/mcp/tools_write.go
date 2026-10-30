@@ -68,14 +68,6 @@ type setupIn struct {
 	confirmToken
 }
 
-// setupVerifyIn is the input of setup_verify: the venv to check and the
-// mode of the plan. The check needs a host plan.
-type setupVerifyIn struct {
-	Mode string `json:"mode,omitempty" jsonschema:"host or container (default: config mode, else both)"`
-	Venv string `json:"venv,omitempty" jsonschema:"venv directory for host mode"`
-	confirmToken
-}
-
 type powerIn struct {
 	Watts      float64 `json:"watts" jsonschema:"power cap in watts"`
 	GPUIndexes []int   `json:"gpu_indexes,omitempty" jsonschema:"HIP indexes (default: all GPUs)"`
@@ -138,8 +130,6 @@ func registerWrite(s *Server) {
 		func(sc *jsonschema.Schema) { tokenSchema(sc) }, s.benchAB)
 	addTool[setupIn, Outcome[setupRunResult]](s, w("setup_apply", "Run the install steps that need no root (bernie setup apply). Steps that need root are returned as commands for the operator. It returns the id of the run: setup_report reads its record.", true, false, true),
 		func(sc *jsonschema.Schema) { prop(sc, "mode").Enum = enum("host", "container"); tokenSchema(sc) }, s.setupApply)
-	addTool[setupVerifyIn, Outcome[setupRunResult]](s, w("setup_verify", "Check the venv again (bernie setup verify): the versions of the main parts, the fork ops and the libraries. It runs the check even when it passed before, it starts the Python of the venv, and it records a run with the new evidence.", false, false, true),
-		func(sc *jsonschema.Schema) { prop(sc, "mode").Enum = enum("host", "container"); tokenSchema(sc) }, s.setupVerify)
 	addTool[powerIn, Outcome[app.PowerDesiredResult]](s, w("tune_power_set", "Write the desired GPU power cap (bernie tune power set). It changes the desired-state file; it never writes hwmon.", false, true, false),
 		func(sc *jsonschema.Schema) {
 			prop(sc, "watts").ExclusiveMinimum = jsonschema.Ptr(0.0)
@@ -154,6 +144,7 @@ func registerWrite(s *Server) {
 	addTool[fleetRmIn, Outcome[map[string]string]](s, w("fleet_rm", "Forget one peer of the fleet (bernie fleet rm). The token goes with it.", true, true, false),
 		func(sc *jsonschema.Schema) { tokenSchema(sc) }, s.fleetRm)
 
+	registerSetupVerify(s)
 	registerJobTools(s)
 }
 
@@ -338,45 +329,6 @@ func (s *Server) setupApply(ctx context.Context, c *call, in setupIn) (any, erro
 			out := &setupRunResult{Steps: res.Steps, Run: res.Run}
 			if res.Run != nil {
 				out.RunID = res.Run.ID
-			}
-			return out, err
-		}})
-}
-
-// setupVerify checks the venv again: it runs the check of the venv even
-// when its postcondition holds and records the run with the new evidence
-// (spec §6.4). The plan is the step the check runs: the operator sees what
-// is about to start before the token confirms it.
-func (s *Server) setupVerify(ctx context.Context, c *call, in setupVerifyIn) (any, error) {
-	opts := app.SetupOptions{Mode: in.Mode, Venv: in.Venv, Mirror: true}
-	plan := func() (any, error) {
-		steps, err := app.SetupPlan(ctx, opts)
-		if err != nil {
-			return nil, err
-		}
-		forced, err := app.SetupForceVerify(steps)
-		if err != nil {
-			return nil, err
-		}
-		run := []setup.Step{}
-		for _, st := range forced {
-			if st.ID == setup.StepVenvVerify {
-				run = append(run, st)
-			}
-		}
-		return setupPlanDoc{Run: run, Manual: []setup.Step{}}, nil
-	}
-	token := in.ConfirmToken
-	in.ConfirmToken = ""
-	return execute(s, c, mutation[setupRunResult]{tool: "setup_verify", token: token, args: in, plan: plan, lock: &s.mutate,
-		run: func(ctx context.Context) (*setupRunResult, error) {
-			res, err := app.SetupVerify(ctx, opts, c.progress())
-			out := &setupRunResult{}
-			if res != nil {
-				out.Steps, out.Run = res.Steps, res.Run
-				if res.Run != nil {
-					out.RunID = res.Run.ID
-				}
 			}
 			return out, err
 		}})

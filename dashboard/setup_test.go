@@ -111,3 +111,31 @@ func TestSetupPathShowsPythonEnvFromTheRunRecord(t *testing.T) {
 		}
 	}
 }
+
+// The venv detail holds the button that checks the venv again: the server
+// runs the check in the background and the page reads the new record of the
+// run when the job ends (spec §6.4). The button is disabled while the check
+// runs.
+func TestTheVenvDetailHasTheVerifyButton(t *testing.T) {
+	src, err := fs.ReadFile(webFS, "web/views/setup/path.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+	for _, want := range []string{
+		"setupVerifyAgain",
+		`"/api/setup/verify"`,
+		"Verify again",
+		// The button is disabled while the check runs.
+		"disabled: running",
+		// The phase of the check is shown, and the record of the run is
+		// read again when the job ends.
+		"step-progress-sentence",
+		`setupRefreshRun("verify")`,
+		"setupPaintPath()",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("setup/path.js does not carry %q", want)
+		}
+	}
+}

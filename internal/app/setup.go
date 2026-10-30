@@ -10,6 +10,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/machine/rocm"
+	"github.com/opengfx1030/bernie/internal/onboarding"
 	"github.com/opengfx1030/bernie/internal/setup"
 	"github.com/opengfx1030/bernie/internal/support/config"
 )
@@ -137,6 +138,29 @@ func SetupVerify(ctx context.Context, o SetupOptions, log io.Writer) (*SetupResu
 		return nil, err
 	}
 	return SetupApply(ctx, forced, o, []string{setup.StepVenvVerify}, log)
+}
+
+// RunSetupVerify checks the venv again in the background: the job runs the
+// venv.verify step through the one verify function and leaves the record of
+// the run in the store of the host, so the page reads the same record the
+// CLI prints and the MCP server returns (spec §6.4). One job runs at a
+// time.
+func RunSetupVerify(ctx context.Context, o SetupOptions) (*onboarding.Job, error) {
+	// The page shows the output of the check, like the output of the other
+	// setup jobs.
+	o.Mirror = true
+	action := &onboarding.Action{
+		Step: setup.StepVenvVerify,
+		Kind: onboarding.ActionSetupVerify,
+		Verify: func(ctx context.Context, log io.Writer) (*setup.Run, error) {
+			res, err := SetupVerify(ctx, o, log)
+			if res == nil {
+				return nil, err
+			}
+			return res.Run, err
+		},
+	}
+	return onboarding.StartJob(ctx, &onboarding.PreparedStep{Step: setup.StepVenvVerify, Action: action})
 }
 
 // SetupStore is the store of the setup runs of this host: <state>/setup.

@@ -98,6 +98,7 @@ var routes = []struct {
 	{"GET /api/jobs/{id}/events", (*handler).getJobEvents},
 	{"GET /api/setup/runs", (*handler).getSetupRuns},
 	{"GET /api/setup/runs/{id}/log/{step}", (*handler).getSetupStepLog},
+	{"POST /api/setup/verify", (*handler).postSetupVerify},
 	{"GET /api/fleet", (*handler).getFleet},
 	{"POST /api/fleet", (*handler).postFleet},
 	{"DELETE /api/fleet/{name}", (*handler).deleteFleet},

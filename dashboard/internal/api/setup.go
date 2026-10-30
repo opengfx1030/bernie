@@ -1,11 +1,13 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/opengfx1030/bernie/dashboard/internal/httpjson"
 	"github.com/opengfx1030/bernie/internal/app"
+	"github.com/opengfx1030/bernie/internal/onboarding"
 	"github.com/opengfx1030/bernie/internal/setup"
 )
 
@@ -54,4 +56,33 @@ func (h *handler) getSetupStepLog(w http.ResponseWriter, r *http.Request) {
 	httpjson.Write(w, http.StatusOK, map[string]any{
 		"run": id, "step": step, "lines": lines, "truncated": truncated,
 	})
+}
+
+// setupVerifyRequest is the body of POST /api/setup/verify: the venv to
+// check and the mode of the plan.
+type setupVerifyRequest struct {
+	Mode string `json:"mode"`
+	Venv string `json:"venv"`
+}
+
+// POST /api/setup/verify — check the venv again in the background: the job
+// runs the venv.verify step through the one verify function and leaves the
+// record of the run in the store of the host, so the page reads the same
+// record the CLI prints (spec §6.4). The answer is the job document.
+//
+// A job runs at a time: a second one answers 409.
+func (h *handler) postSetupVerify(w http.ResponseWriter, r *http.Request) {
+	var req setupVerifyRequest
+	if !httpjson.Decode(w, r, &req) {
+		return
+	}
+	job, err := app.RunSetupVerify(r.Context(), app.SetupOptions{Mode: req.Mode, Venv: req.Venv})
+	switch {
+	case errors.Is(err, onboarding.ErrJobBusy):
+		httpjson.Error(w, http.StatusConflict, err.Error())
+	case err != nil:
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
+	default:
+		httpjson.Write(w, http.StatusCreated, job)
+	}
 }

@@ -85,7 +85,10 @@ function setupRunRows() {
  *  the host ROCm SDK (spec §6.3). The record is the one source: the
  *  page reads the same JSON the CLI prints and the MCP server returns.
  *  Lazy: when the run has no venv.verify step or its evidence has no
- *  components, the table is not shown. */
+ *  components, the table is not shown.
+ *
+ *  The button checks the venv again: the server runs the check in the
+ *  background and the page reads the new record of the run when it ends. */
 function setupPythonEnv() {
   const run = setupState.run;
   if (!run || !run.steps) return null;
@@ -93,13 +96,46 @@ function setupPythonEnv() {
   if (!step || !step.evidence || !step.evidence.components) return null;
   const comps = step.evidence.components;
   if (!comps.length) return null;
+  const live = setupProgress.verify || {};
+  const running = !!live.running;
   return h("div.python-env",
     h("p.small.muted", "venv components (from the run record)"),
     h("div.python-env-rows", comps.map((c) =>
       h("div.python-env-row",
         h("span.python-env-name", c.name || ""),
         h("span.python-env-version", c.version || "absent"),
-        c.note ? h("span.python-env-note", "(" + c.note + ")") : null))));
+        c.note ? h("span.python-env-note", "(" + c.note + ")") : null))),
+    h("button.small", { type: "button", disabled: running, onclick: setupVerifyAgain },
+      running ? "Checking\u2026" : "Verify again"),
+    live.phase ? h("p.step-progress-sentence", live.phase) : null);
+}
+
+/** setupVerifyAgain checks the venv again. The server runs the check of
+ *  the venv in the background and records the run; the page reads that
+ *  record when the job ends and paints the new components (spec §6.4).
+ *  The button stays disabled while the check runs. */
+async function setupVerifyAgain() {
+  await setupPathLoaded;
+  setupProgress.verify = { phase: "Checking the venv\u2026", started: Date.now(), running: true };
+  setupPaintPath();
+  let job = null;
+  try {
+    job = await api("/api/setup/verify", { method: "POST", body: { mode: setupState.mode } });
+  } catch (e) {
+    setupProgress.verify = { phase: "Failed: " + (e.message || e), failed: true, running: false };
+    setupPaintPath();
+    return;
+  }
+  followSetupJob({ id: "verify" }, job, {
+    onRefresh: () => {
+      const live = setupProgress.verify || {};
+      if (live.failed || live.phase === "Done.") live.running = false;
+      // The record of the run is the one source: the page reads it and
+      // paints the components of the new run.
+      setupRefreshRun("verify");
+      setupPaintPath();
+    },
+  });
 }
 
 /** setupPaintPath paints the run of the path: the step it is on, the phase

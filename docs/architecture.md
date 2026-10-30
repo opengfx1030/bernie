@@ -313,6 +313,7 @@ every gap.
 | Match a known log failure | `doctor --run NAME`; `doctor --log FILE` | `doctor_log` | `GET /api/runs/{name}/findings` | `app.RunLog`, `logdoc.Scan` | partial |
 | Plan the setup steps | `setup plan` | not built: `setup plan` tool | not built: `setup plan` endpoint | `app.SetupPlan` | partial |
 | Apply the setup steps | `setup apply` | `setup_apply` | `POST /api/onboarding/{step}/run` (one checklist step) | `app.SetupApply`, `app.RunOnboardingStep` | partial |
+| Check the venv again | `setup verify` | `setup_verify` | `POST /api/setup/verify` (the button of the venv detail) | `app.SetupVerify`, `app.RunSetupVerify` | built |
 | Read the record of a setup run | `setup report`, `setup log` | `setup_report` | `GET /api/setup/runs` | `app.SetupRun`, `app.SetupLatestRun`, `app.SetupStepLog` | built |
 | List the recipes | `recipe list` | `recipe_list` | `GET /api/recipes` | `app.RecipeList` | built |
 | Show a recipe | `recipe show ID` | `recipe_show` | not built: `recipe show` endpoint | `recipe.Load`, `Set.Resolve` | partial |

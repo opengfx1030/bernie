@@ -16,6 +16,9 @@ const (
 	ActionSetup  = "setup"
 	ActionServe  = "serve"
 	ActionVerify = "verify"
+	// ActionSetupVerify checks the venv again: it runs the venv.verify
+	// step even when its postcondition holds (spec §6.4).
+	ActionSetupVerify = "setup-verify"
 )
 
 // ErrNoAction means the step has nothing bernie can run: it needs root, or
@@ -38,6 +41,9 @@ type ServeOptions struct {
 // ServeFunc starts the run of a serve action.
 type ServeFunc func(context.Context, ServeOptions) (*runner.Record, error)
 
+// SetupVerifyFunc checks the venv again and returns the record of the run.
+type SetupVerifyFunc func(context.Context, io.Writer) (*setup.Run, error)
+
 // Action is what a step does when it runs. The dashboard, the jobs and `up`
 // all run the same action.
 type Action struct {
@@ -58,6 +64,8 @@ type Action struct {
 	// Serve starts the run of a serve action. The shared app operation
 	// supplies it.
 	Serve ServeFunc
+	// Verify checks the venv again. The shared app operation supplies it.
+	Verify SetupVerifyFunc
 	// Apply are the options of the setup run the action starts: the
 	// record of the run and the mode and the recipe it serves.
 	Apply setup.ApplyOptions
@@ -169,6 +177,11 @@ func (a *Action) Run(ctx context.Context, log io.Writer) (*setup.Run, error) {
 		return nil, a.serve(ctx, log)
 	case ActionVerify:
 		return nil, a.verify(ctx, log)
+	case ActionSetupVerify:
+		if a.Verify == nil {
+			return nil, errors.New("the verify action has no checker")
+		}
+		return a.Verify(ctx, log)
 	}
 	return nil, ErrNoAction
 }

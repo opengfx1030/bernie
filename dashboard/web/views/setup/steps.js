@@ -310,7 +310,9 @@ async function setupRefreshRun(id) {
   live.phase = step.id + ": " + step.state +
     (step.progress && step.progress.sentence ? " (" + step.progress.sentence + ")" : "");
   live.detail = step.duration_s > 0 ? setupDuration(step.duration_s) : "";
-  if (id !== "path" && step.log_path) {
+  // The verify job has no row in the checklist: its output stays in the
+  // log of the step.
+  if (id !== "path" && id !== "verify" && step.log_path) {
     let log = null;
     try {
       log = await api("/api/setup/runs/" + encodeURIComponent(run.id) + "/log/" + encodeURIComponent(step.id));
