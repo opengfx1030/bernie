@@ -27,6 +27,9 @@ func init() {
 				fmt.Fprintf(w, "model   %s\n", res.Model)
 			}
 			fmt.Fprintf(w, "answer  %s\n", res.Reply)
+			fmt.Fprintf(w, "check   %s\n", res.Check)
+			fmt.Fprintf(w, "ttft    %d ms\n", res.TTFTMS)
+			fmt.Fprintf(w, "tok/s   %.1f\n", res.TokS)
 		})
 	}
 	cli.Register(cmd)

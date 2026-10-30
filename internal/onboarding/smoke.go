@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 
 	"github.com/opengfx1030/bernie/internal/serving/runner"
@@ -20,8 +21,8 @@ var ErrRunGone = errors.New("the run is not serving")
 // ErrNoRun means there is no run with the name asked for.
 var ErrNoRun = errors.New("no run with that name")
 
-// SmokeResult is the smoke check document: the answer of the server and the
-// numbers of the answer.
+// SmokeResult is the smoke check document: the answer of the server, the
+// numbers of the answer and the verdict of the check (spec §3.1).
 type SmokeResult struct {
 	URL    string `json:"url"`
 	Model  string `json:"model"`
@@ -33,24 +34,42 @@ type SmokeResult struct {
 	OutputTokens int `json:"output_tokens"`
 	// TokS is the output speed: the tokens per second after the first one.
 	TokS float64 `json:"tok_s"`
+	// OK says the answer carried the number the prompt asked for.
+	OK bool `json:"ok"`
+	// Check is the verdict: "ok: contains 4" when the answer has the
+	// expected number, "answered" when the server answered something
+	// else. The smoke does not fail on the verdict; it is information.
+	Check string `json:"check"`
 }
 
-// smokePrompt is the prompt of the smoke check: one word.
-const smokePrompt = "Hello"
+// smokePrompt is the prompt of the smoke check: a short question with a
+// known answer. It rides through the chat completions endpoint so the
+// model applies its chat template; a raw completion has no template
+// and the answer reads as unrelated text.
+const smokePrompt = "What is 2+2? Answer with one number."
+
+// smokeAnswer is the number the prompt asks for. The check looks for it
+// as a whole word so "4" matches but "42" or "14" do not.
+const smokeAnswer = "4"
+
+// smokeAnswerRE matches the expected answer as a whole token.
+var smokeAnswerRE = regexp.MustCompile(`\b` + regexp.QuoteMeta(smokeAnswer) + `\b`)
 
 // smokeTokens bounds the answer of the smoke check.
 const smokeTokens = 64
 
-// Smoke checks that a server answers: /health first, then one completion of
-// the default prompt. It is the smallest request that proves the server works.
+// Smoke checks that a server answers: /health first, then one chat
+// completion of the default prompt. It is the smallest request that
+// proves the server works.
 func Smoke(ctx context.Context, baseURL, model string) (*SmokeResult, error) {
 	return SmokePrompt(ctx, baseURL, model, smokePrompt)
 }
 
-// SmokePrompt checks that a server answers the prompt of the caller:
-// /health first, then one completion. The result carries the text of the
-// answer, the time to the first token, the number of tokens and the output
-// speed.
+// SmokePrompt checks that a server answers the prompt of the caller
+// through the chat completions endpoint: /health first, then one
+// streamed chat completion. The result carries the text of the answer,
+// the time to the first token, the number of tokens, the output speed
+// and the verdict of the check.
 func SmokePrompt(ctx context.Context, baseURL, model, prompt string) (*SmokeResult, error) {
 	if prompt == "" {
 		prompt = smokePrompt
@@ -59,18 +78,18 @@ func SmokePrompt(ctx context.Context, baseURL, model, prompt string) (*SmokeResu
 	if err := c.Health(ctx); err != nil {
 		return nil, fmt.Errorf("health check failed: %w", err)
 	}
-	if model == "" {
-		if ids, err := c.Models(ctx); err == nil && len(ids) > 0 {
-			model = ids[0]
-		}
-	}
-	res, err := c.CompleteStream(ctx, model, prompt, smokeTokens)
+	stream, err := c.ChatStream(ctx, model, prompt, smokeTokens)
 	if err != nil {
-		return nil, fmt.Errorf("completion failed: %w", err)
+		return nil, fmt.Errorf("chat completion failed: %w", err)
+	}
+	defer stream.Close()
+	res, err := stream.Read(func(vllm.ChatDelta) error { return nil })
+	if err != nil {
+		return nil, fmt.Errorf("chat completion failed: %w", err)
 	}
 	out := &SmokeResult{
 		URL:          c.BaseURL(),
-		Model:        model,
+		Model:        stream.Model(),
 		Health:       true,
 		Reply:        strings.TrimSpace(res.Text),
 		TTFTMS:       int(res.TTFT.Milliseconds()),
@@ -79,7 +98,22 @@ func SmokePrompt(ctx context.Context, baseURL, model, prompt string) (*SmokeResu
 	if d := res.Total - res.TTFT; d > 0 {
 		out.TokS = math.Round(float64(res.Tokens)/d.Seconds()*10) / 10
 	}
+	out.OK, out.Check = checkAnswer(prompt, out.Reply)
 	return out, nil
+}
+
+// checkAnswer says whether the answer carried the number the prompt
+// asked for. Only the default prompt has a known answer; a prompt of
+// the caller has none, so the check says the server answered without
+// claiming a specific value.
+func checkAnswer(prompt, reply string) (bool, string) {
+	if prompt != smokePrompt {
+		return false, "answered"
+	}
+	if smokeAnswerRE.MatchString(reply) {
+		return true, "ok: contains " + smokeAnswer
+	}
+	return false, "answered"
 }
 
 // LiveRun returns the run that is not exited.
