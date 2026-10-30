@@ -106,7 +106,7 @@ func resultText(res *sdk.CallToolResult) string {
 var readTools = []string{"bench_compare", "bench_list", "bench_show", "bench_status", "bench_suites", "config_show",
 	"dash_status", "doctor", "doctor_log", "fleet", "hw", "jobs", "logs", "models",
 	"onboarding_status", "power_status", "prefs_get", "ps", "recipe_list", "recipe_plan", "recipe_show", "report",
-	"setup_plan", "smoke", "status", "topo", "tunableop_status"}
+	"setup_plan", "setup_report", "smoke", "status", "topo", "tunableop_status"}
 
 func TestToolsListIsFixedAndReadOnly(t *testing.T) {
 	isolate(t)

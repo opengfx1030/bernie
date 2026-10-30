@@ -2,6 +2,7 @@ package health
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/opengfx1030/bernie/internal/cli"
@@ -88,14 +89,31 @@ func init() {
 				return fmt.Errorf("aborted (use --yes to skip the prompt)")
 			}
 		}
-		after, err := app.SetupApply(c.Ctx, steps, setupOptionsOf(c, f), only, c.Err)
+		opts := setupOptionsOf(c, f)
+		printer := &runPrinter{w: c.Err}
+		var enc *json.Encoder
+		if c.JSON {
+			// NDJSON: one event per line, the record of the run last.
+			enc = json.NewEncoder(c.Out)
+			enc.SetEscapeHTML(false)
+			printer.events = func(ev setup.Event) { _ = enc.Encode(ev) }
+		}
+		opts.OnEvent = printer.event
+		res, err := app.SetupApply(c.Ctx, steps, opts, only, c.Err)
+		printer.finish()
+		if c.JSON {
+			if res != nil && res.Run != nil {
+				_ = enc.Encode(map[string]any{"type": "run", "run": res.Run})
+			}
+			return err
+		}
 		if err != nil {
 			return err
 		}
-		return c.Emit(after, func(w io.Writer) { printSteps(w, after) })
+		return c.Emit(res.Steps, func(w io.Writer) { printSteps(w, res.Steps) })
 	}
 
-	cmd.Subs = []*cli.Command{plan, apply}
+	cmd.Subs = []*cli.Command{plan, apply, setupReportCommand(), setupLogCommand()}
 	cli.Register(cmd)
 }
 

@@ -91,6 +91,15 @@ type setupPlanDoc struct {
 	Manual []setup.Step `json:"manual"` // root steps: commands for the operator, never run
 }
 
+// setupApplyResult is what setup_apply returns when it ran: the plan as
+// it stands and the record of the run (spec §6.4). The id of the run is
+// the handle of the report: setup_report reads it back.
+type setupApplyResult struct {
+	Steps []setup.Step `json:"steps"`
+	Run   *setup.Run   `json:"run,omitempty"`
+	RunID string       `json:"run_id,omitempty"`
+}
+
 // powerPlan is what tune_power_set would write.
 type powerPlan struct {
 	File       string             `json:"file"`
@@ -119,7 +128,7 @@ func registerWrite(s *Server) {
 		}, s.benchRun)
 	addTool[benchABIn, Outcome[suite.ABResult]](s, w("bench_ab", "Run a baseline and a candidate back to back (bernie bench ab) and tell the verdict. The visits run in the order base, cand, cand, base and one server runs at a time.", false, false, true),
 		func(sc *jsonschema.Schema) { tokenSchema(sc) }, s.benchAB)
-	addTool[setupIn, Outcome[[]setup.Step]](s, w("setup_apply", "Run the install steps that need no root (bernie setup apply). Steps that need root are returned as commands for the operator.", true, false, true),
+	addTool[setupIn, Outcome[setupApplyResult]](s, w("setup_apply", "Run the install steps that need no root (bernie setup apply). Steps that need root are returned as commands for the operator. It returns the id of the run: setup_report reads its record.", true, false, true),
 		func(sc *jsonschema.Schema) { prop(sc, "mode").Enum = enum("host", "container"); tokenSchema(sc) }, s.setupApply)
 	addTool[powerIn, Outcome[app.PowerDesiredResult]](s, w("tune_power_set", "Write the desired GPU power cap (bernie tune power set). It changes the desired-state file; it never writes hwmon.", false, true, false),
 		func(sc *jsonschema.Schema) {
@@ -297,7 +306,7 @@ func loopbackURL(raw string) error {
 }
 
 func (s *Server) setupApply(ctx context.Context, c *call, in setupIn) (any, error) {
-	opts := app.SetupOptions{Mode: in.Mode, Venv: in.Venv, Image: in.Image, Model: in.Model}
+	opts := app.SetupOptions{Mode: in.Mode, Venv: in.Venv, Image: in.Image, Model: in.Model, Mirror: true}
 	steps, err := app.SetupPlan(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -309,14 +318,18 @@ func (s *Server) setupApply(ctx context.Context, c *call, in setupIn) (any, erro
 		}
 	}
 	if len(plan.Run) == 0 {
-		return planOnly[[]setup.Step](c, plan, "nothing to run: every selected non-root step is done"), nil
+		return planOnly[setupApplyResult](c, plan, "nothing to run: every selected non-root step is done"), nil
 	}
 	token := in.ConfirmToken
 	in.ConfirmToken = ""
-	return execute(s, c, mutation[[]setup.Step]{tool: "setup_apply", token: token, args: in, plan: func() (any, error) { return plan, nil }, lock: &s.mutate,
-		run: func(ctx context.Context) (*[]setup.Step, error) {
-			after, err := app.SetupApply(ctx, steps, opts, in.Steps, c.progress())
-			return &after, err
+	return execute(s, c, mutation[setupApplyResult]{tool: "setup_apply", token: token, args: in, plan: func() (any, error) { return plan, nil }, lock: &s.mutate,
+		run: func(ctx context.Context) (*setupApplyResult, error) {
+			res, err := app.SetupApply(ctx, steps, opts, in.Steps, c.progress())
+			out := &setupApplyResult{Steps: res.Steps, Run: res.Run}
+			if res.Run != nil {
+				out.RunID = res.Run.ID
+			}
+			return out, err
 		}})
 }
 

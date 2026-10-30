@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"io"
+	"os"
 	"slices"
 
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
@@ -19,6 +20,12 @@ import (
 type SetupOptions struct {
 	Mode, Venv, Image, Model, ROCm string
 	Root                           string
+	// OnEvent receives the events of a run (the CLI streams them). It
+	// is not a flag.
+	OnEvent func(setup.Event)
+	// Mirror writes the raw output of the steps to the log. The CLI
+	// leaves it off: the output is in the log of the step.
+	Mirror bool
 }
 
 // SetupPlan probes the host and returns the ordered install steps.
@@ -65,12 +72,69 @@ func SetupPending(steps []setup.Step, only []string) []setup.Step {
 	return out
 }
 
+// SetupResult is what a setup apply produced: the plan as it stands
+// afterwards and the record of the run (spec §6.4).
+type SetupResult struct {
+	Steps []setup.Step `json:"steps"`
+	Run   *setup.Run   `json:"run,omitempty"`
+}
+
 // SetupApply runs the pending steps of a plan in order, stopping at the first
-// failure, and returns the plan as it stands afterwards. Root steps are never
-// run. Progress goes to log.
-func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) ([]setup.Step, error) {
-	if err := setup.Apply(ctx, steps, only, log); err != nil {
-		return nil, err
+// failure, and returns the plan as it stands afterwards and the record of the
+// run. Root steps are never run. Progress goes to log.
+//
+// The run is recorded in the store of the host, so the CLI, the MCP server
+// and the dashboard read the same record.
+func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []string, log io.Writer) (*SetupResult, error) {
+	run, err := setup.ApplyRun(ctx, steps, only, log, setup.ApplyOptions{
+		Mode: o.Mode, Venv: runVenv(o.Venv), Store: setup.DefaultRunStore(), Mirror: o.Mirror, Event: o.OnEvent,
+	})
+	if err != nil {
+		return &SetupResult{Run: run}, err
 	}
-	return SetupPlan(ctx, o)
+	after, err := SetupPlan(ctx, o)
+	if err != nil {
+		return &SetupResult{Run: run}, err
+	}
+	return &SetupResult{Steps: after, Run: run}, nil
+}
+
+// SetupStore is the store of the setup runs of this host: <state>/setup.
+func SetupStore() *setup.RunStore { return setup.DefaultRunStore() }
+
+// runVenv returns the venv of a run: the flag, else the config, else the
+// default of the host.
+func runVenv(venv string) string {
+	if venv != "" {
+		return venv
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return ""
+	}
+	return cfg.ResolveVenv("")
+}
+
+// SetupRuns returns the setup runs of this host, newest first. A limit below
+// one means every run the store keeps.
+func SetupRuns(limit int) []*setup.Run {
+	runs, err := SetupStore().List()
+	if err != nil {
+		return nil
+	}
+	if limit > 0 && len(runs) > limit {
+		runs = runs[:limit]
+	}
+	return runs
+}
+
+// SetupRun returns the record of one setup run.
+func SetupRun(id string) (*setup.Run, error) { return SetupStore().Load(id) }
+
+// SetupLatestRun returns the record of the newest setup run.
+func SetupLatestRun() (*setup.Run, error) { return SetupStore().Latest() }
+
+// SetupStepLog returns the log of one step of a run.
+func SetupStepLog(runID, stepID string) ([]byte, error) {
+	return os.ReadFile(SetupStore().StepLog(runID, stepID))
 }

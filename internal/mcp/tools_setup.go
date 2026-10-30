@@ -40,8 +40,9 @@ func (s *Server) setupPlan(ctx context.Context, _ *call, in setupPlanIn) (any, e
 	return steps, nil
 }
 
-// registerSetupTools wires setup_plan into the catalog. The tool is
-// read-only: it probes the host and changes nothing.
+// registerSetupTools wires setup_plan and setup_report into the catalog.
+// Both are read-only: they probe the host or read the record of a run and
+// change nothing.
 func registerSetupTools(s *Server) {
 	addTool[setupPlanIn, []setup.Step](s, spec{
 		name: "setup_plan",
@@ -49,4 +50,23 @@ func registerSetupTools(s *Server) {
 	}, func(sc *jsonschema.Schema) {
 		prop(sc, "mode").Enum = enum("host", "container")
 	}, s.setupPlan)
+	addTool[setupReportIn, *setup.Run](s, spec{
+		name: "setup_report",
+		desc: "The record of a setup run (bernie setup report): every step with its state, its duration, its log and the evidence of the check of the venv. Without a run id it returns the newest run. It changes nothing.",
+	}, nil, s.setupReport)
+}
+
+// setupReportIn is the input of setup_report.
+type setupReportIn struct {
+	// Run is the id of the run. Empty means the newest one.
+	Run string `json:"run,omitempty" jsonschema:"the id of the run (default: the newest one)"`
+}
+
+// setupReport implements the read-only setup_report tool. It returns the
+// same document as `bernie setup report --json`.
+func (s *Server) setupReport(ctx context.Context, _ *call, in setupReportIn) (any, error) {
+	if in.Run != "" {
+		return app.SetupRun(in.Run)
+	}
+	return app.SetupLatestRun()
 }

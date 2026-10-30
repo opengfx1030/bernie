@@ -58,12 +58,22 @@ type Action struct {
 	// Serve starts the run of a serve action. The shared app operation
 	// supplies it.
 	Serve ServeFunc
+	// Apply are the options of the setup run the action starts: the
+	// record of the run and the mode and the recipe it serves.
+	Apply setup.ApplyOptions
+}
+
+// applyOptions builds the options of the setup run of an action: the
+// record of the run lands in the store of the host, so the CLI, the MCP
+// server and the dashboard read the same one.
+func applyOptions(mode, recipe, venv string) setup.ApplyOptions {
+	return setup.ApplyOptions{Mode: mode, Recipe: recipe, Venv: venv, Store: setup.DefaultRunStore(), Mirror: true}
 }
 
 // SetupAction returns the action that applies the given setup steps. `up`
 // and the jobs run the same action.
-func SetupAction(steps []setup.Step) *Action {
-	return &Action{Kind: ActionSetup, Steps: steps}
+func SetupAction(steps []setup.Step, o Options) *Action {
+	return &Action{Kind: ActionSetup, Steps: steps, Apply: applyOptions(o.Mode, o.Recipe, o.Venv)}
 }
 
 // PreparedStep is what a checklist step needs before it can run. A step
@@ -105,7 +115,8 @@ func PrepareStep(f *Facts, step string, o Options) (*PreparedStep, error) {
 // ActionFor returns the action of a step. It returns ErrNoAction when the
 // step needs root or has nothing left to do.
 func ActionFor(f *Facts, step string, o Options) (*Action, error) {
-	a := &Action{Step: step, Venv: o.Venv, Sets: o.Sets, Engine: o.Engine, Name: o.Name}
+	a := &Action{Step: step, Venv: o.Venv, Sets: o.Sets, Engine: o.Engine, Name: o.Name,
+		Apply: applyOptions(o.Mode, o.Recipe, o.Venv)}
 	switch step {
 	case StepPythonEnv:
 		pending := pendingSetup(f.Setup, pythonSetupSteps)
@@ -142,7 +153,8 @@ func (a *Action) Run(ctx context.Context, log io.Writer) error {
 		for i, s := range a.Steps {
 			ids[i] = s.ID
 		}
-		return setup.Apply(ctx, a.Steps, ids, log)
+		_, err := setup.ApplyRun(ctx, a.Steps, ids, log, a.Apply)
+		return err
 	case ActionServe:
 		return a.serve(ctx, log)
 	case ActionVerify:
