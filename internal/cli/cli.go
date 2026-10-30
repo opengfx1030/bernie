@@ -101,11 +101,36 @@ func Register(c *Command) {
 func Main(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	// The product surface is "run the binary": no arguments means status.
-	if len(args) == 0 && registry["status"] != nil {
-		args = []string{"status"}
+	root := &Command{Name: "bernie", Subs: topLevel()}
+	rest, jsonOut := splitJSON(args)
+	if len(rest) == 0 {
+		return defaultRun(ctx, os.Stdout, os.Stderr, root, jsonOut)
 	}
-	return run(ctx, os.Stdout, os.Stderr, &Command{Name: "bernie", Subs: topLevel()}, args)
+	return run(ctx, os.Stdout, os.Stderr, root, args)
+}
+
+// defaultCommands is what the binary runs with no command: the host in one
+// screen, then the dashboard. Tests may override it.
+var defaultCommands = []string{"status", "dash"}
+
+// defaultRun is what the binary does when it is run with no command: the
+// product surface. It shows the host in one screen and opens the dashboard
+// (spec §3.2). With --json it prints the status document and stops: an
+// agent reads data, it does not get a blocking server.
+func defaultRun(ctx context.Context, out, errw io.Writer, root *Command, jsonOut bool) int {
+	if jsonOut {
+		return run(ctx, out, errw, root, []string{"status", "--json"})
+	}
+	for _, name := range defaultCommands {
+		if registry[name] == nil {
+			continue
+		}
+		// The host in one screen. Its exit code reports findings, not a
+		// failure of the launch: a host that needs setup is the normal
+		// case. The dashboard below absorbs the rest of the run.
+		run(ctx, out, errw, root, []string{name})
+	}
+	return ExitOK
 }
 
 // splitJSON removes the global --json flag from args. Rule: scanning stops at

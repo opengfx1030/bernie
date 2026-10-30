@@ -3,6 +3,7 @@ package dashcmd
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -96,6 +97,23 @@ func runForeground(c *cli.Context, args []string) error {
 	if *token == "" && !dashboard.IsLoopback(*listen) {
 		*token = dashboard.NewToken()
 	}
+	// A dashboard service already owns this address: surface it instead of
+	// failing to bind. Compare the port so 0.0.0.0:7860 and 127.0.0.1:7860
+	// both match a service listening on the same port.
+	if st, err := dashsvc.GetStatus(); err == nil && st.State == "running" && samePort(st.Listen, *listen) {
+		url := st.LoopbackURL
+		if tok, ok := dashsvc.ReadableToken(); ok && tok != "" {
+			url += "?token=" + tok
+		}
+		if url == "" {
+			url = "http://" + *listen + "/"
+		}
+		return c.Emit(map[string]any{"url": url, "listen": st.Listen, "already_running": true, "pid": st.PID},
+			func(w io.Writer) {
+				fmt.Fprintf(w, "bernie dashboard: %s\n", url)
+				fmt.Fprintf(w, "It is already running (pid %d). Stop it with `bernie dash stop`.\n", st.PID)
+			})
+	}
 	if *demo {
 		if os.Getenv(app.DemoEnv) == "" {
 			env, err := app.PrepareDemo()
@@ -133,6 +151,20 @@ func runForeground(c *cli.Context, args []string) error {
 			})
 		},
 	})
+}
+
+// samePort reports whether two listen addresses ("host:port" or ":port")
+// resolve to the same TCP port. An unparsable address returns false.
+func samePort(a, b string) bool {
+	_, pa, err := net.SplitHostPort(a)
+	if err != nil {
+		return false
+	}
+	_, pb, err := net.SplitHostPort(b)
+	if err != nil {
+		return false
+	}
+	return pa != "" && pa == pb
 }
 
 // runChildMode is `bernie dash --child`: serve as the detached service

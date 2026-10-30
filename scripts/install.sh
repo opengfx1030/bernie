@@ -64,7 +64,7 @@ Environment:
   BERNIE_RAW_URL   raw base URL             (testing only)
   BERNIE_LISTEN    listen address           (overrides --listen)
 
-After install, run:  bernie up
+After install, run:  bernie  (opens the dashboard; add --listen ADDR for the LAN)
 
 With --start the dashboard is left running as a background service; the
 script then prints the loopback URL, the LAN URLs and an ssh -L hint.

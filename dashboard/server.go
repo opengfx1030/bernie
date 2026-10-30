@@ -70,7 +70,7 @@ func Serve(ctx context.Context, o Options) error {
 	}
 	ln, err := net.Listen("tcp", o.Listen)
 	if err != nil {
-		return err
+		return fmt.Errorf("listen on %s: %w (another dashboard may be running: `bernie dash status`, stop with `bernie dash stop`)", o.Listen, err)
 	}
 	s := newServer(o)
 	srv := &http.Server{

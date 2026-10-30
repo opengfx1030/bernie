@@ -129,11 +129,17 @@ needs a reason in its description.
 The whole product is one file. The operator downloads it and runs it. No
 other file, script or compose file is required.
 
-- `bernie` with no arguments runs `bernie status`. It changes nothing.
-  It prints the GPUs, the doctor summary, the best recipe for this host,
-  the running runs, the venv it uses with its source
-  ([§6.2](#62-the-host-venv)), and the one next command to type.
-- `bernie status --steps` prints the onboarding checklist
+- `bernie` with no arguments runs the host in one screen and opens the
+  dashboard in the foreground. The status output is printed first: the
+  GPUs, the doctor summary, the best recipe for this host, the running
+  runs, the venv it uses with its source
+  ([§6.2](#62-the-host-venv)), and the one next command to type. The
+  dashboard then binds to `--listen` (default `127.0.0.1:7860`) and
+  prints the URL to open. A dashboard that is already running on the
+  same port is detected: its URL is printed instead of failing to bind.
+  It changes nothing.
+- `bernie status [--steps]` prints the overview (without opening the
+  dashboard). `--steps` prints the onboarding checklist
   ([§3.3](#33-the-onboarding-checklist)): the ordered steps from a bare
   machine to a serving model, the state of each step, the command that does
   it and the step to do now. `status --json` carries the same steps in the
@@ -209,8 +215,9 @@ other file, script or compose file is required.
   `help <command>` prints the top-level help: the topic is ignored.
 - A command that takes no positional argument ignores the positional
   arguments it is given. `version` ignores every argument and every flag.
-- `bernie --json` without a command is a usage error: stdout carries
-  `{"error": "missing subcommand", "exit_code": 2}` and the exit code is 2.
+- `bernie --json` without a command prints the status document
+  (the same one `bernie status --json` produces) and exits 0. An agent
+  reads data; the dashboard is not started, so the call returns.
 - Diagnostics and progress go to stderr.
 - Flags and positional arguments can be in any order.
 - Exit codes: `0` success, `1` runtime failure, `2` usage error,
@@ -222,7 +229,7 @@ other file, script or compose file is required.
 
 | Command | Changes host | Purpose |
 |---|---|---|
-| `bernie` / `bernie status` | no | Overview and the next command to type. `--steps` prints the onboarding checklist ([§3.3](#33-the-onboarding-checklist)). |
+| `bernie` / `bernie status [--steps]` | no | The product surface: bare `bernie` prints the overview and opens the dashboard in the foreground. `bernie status` prints the overview only. `--steps` adds the onboarding checklist ([§3.3](#33-the-onboarding-checklist)). |
 | `bernie up [RECIPE] [--set K=V]... [--mode M] [--venv DIR] [--engine E] [--name N] [--yes] [--no-dash] [--listen ADDR] [--wait D] [-v]` | yes | Doctor → setup → best recipe → serve → dashboard → wait for health. `-v` also streams the raw output of the setup steps. |
 | `bernie hw` | no | Hardware and OS inventory. |
 | `bernie topo [--bandwidth] [--venv DIR]` | no | PCIe tree, P2P matrix, link classes. Optional bandwidth test. |

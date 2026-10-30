@@ -5,25 +5,20 @@ From a bare Linux host to a model that answers.
 ## 1. One line, then browser
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh -s -- --start
+curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+bernie
 ```
 
-The installer puts `bernie` on `$PATH`, starts the dashboard as a
-background service and prints the URL to open. The token (when the
-listen address is not loopback) is persisted at
-`~/.local/state/bernie/dashboard/token` and is part of the URL: anyone
-with the URL can drive the host, so keep it private.
-
-The dashboard is reachable while vLLM is still loading: the Setup tab
-shows the next step and the run as `starting`. The host is checked the
-first time the dashboard reads it; the Setup tab runs the steps bernie
-can do without root and prints the ones that need root.
+`bernie` (no command) shows the host in one screen and opens the
+dashboard in the foreground. The URL is printed, for example
+`http://127.0.0.1:7860/`. To reach it from another machine, start
+the dashboard on the LAN: `bernie dash --listen 0.0.0.0:7860` (the
+URL then carries a token; keep it private).
 
 ## 2. Or run the whole path
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/opengfx1030/bernie/main/scripts/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
 bernie up
 ```
 
@@ -37,14 +32,11 @@ up: stopped: No AMD GPU is visible to bernie.
   sudo modprobe amdgpu
 ```
 
-## 3. Open the dashboard
+## 3. The dashboard
 
-`up` prints the address of the dashboard when it is up:
-`dashboard: http://127.0.0.1:7860/`. Open it in a browser. On a host that is
-not only yours the address carries a token (`http://host:7860/?token=…`).
-Keep it to yourself.
-
-## 4. What you see
+The dashboard binds to `127.0.0.1:7860` by default; the URL is printed
+when it is up. On a host that is not only yours the address carries a
+token (`http://host:7860/?token=…`). Keep it to yourself.
 
 The Setup tab opens with one sentence about the host and one next action.
 The setup it runs leaves a record: `bernie setup report` prints every step,
