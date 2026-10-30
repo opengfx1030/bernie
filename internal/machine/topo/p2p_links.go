@@ -176,7 +176,13 @@ func largeBARItem(root string, gpus []gpu.GPU, cmdline string) CheckItem {
 		"Check the firmware for a large BAR setting: a GPU needs a PCI window above 4G for its full VRAM.", TopologyDoc)
 }
 
-// largestBAR reads the biggest memory region of the PCI resource file.
+// maxDeviceBARs is the number of lines of the PCI resource file that describe
+// the BARs of the device. The next lines are the expansion ROM, the bridge
+// windows and, on an SR-IOV card such as the V620, the VF BARs: their size is
+// the size of one VF times the number of VFs, so they can pass for a large BAR.
+const maxDeviceBARs = 6
+
+// largestBAR reads the biggest BAR of the device from the PCI resource file.
 func largestBAR(root string, g gpu.GPU) uint64 {
 	if g.SysfsPath == "" {
 		return 0
@@ -185,8 +191,12 @@ func largestBAR(root string, g gpu.GPU) uint64 {
 	if err != nil {
 		return 0
 	}
+	lines := strings.Split(string(b), "\n")
+	if len(lines) > maxDeviceBARs {
+		lines = lines[:maxDeviceBARs]
+	}
 	var max uint64
-	for _, line := range strings.Split(string(b), "\n") {
+	for _, line := range lines {
 		f := strings.Fields(line)
 		if len(f) < 2 {
 			continue

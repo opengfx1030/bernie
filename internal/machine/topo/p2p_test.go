@@ -1,6 +1,8 @@
 package topo
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -112,6 +114,33 @@ func TestP2PChecklistRecipeEnv(t *testing.T) {
 	}
 	if strings.Contains(it.Detail, "OMP_NUM_THREADS") {
 		t.Errorf("recipe_env shows an unrelated variable: %q", it.Detail)
+	}
+}
+
+// The VF BARs of an SR-IOV card come after the BARs of the device: 12 VFs of
+// 32 GiB read as 384 GiB and must not pass for a large BAR.
+func TestLargestBARIgnoresTheVFBARs(t *testing.T) {
+	root := t.TempDir()
+	dev := "sys/bus/pci/devices/0000:03:00.0"
+	if err := os.MkdirAll(filepath.Join(root, dev), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	resource := strings.Join([]string{
+		"0x00000000d0000000 0x00000000dfffffff 0x000000000014220c", // BAR0: 256 MiB
+		"0x0000000000000000 0x0000000000000000 0x0000000000000000",
+		"0x00000000e0000000 0x00000000e01fffff 0x000000000014220c",
+		"0x0000000000000000 0x0000000000000000 0x0000000000000000",
+		"0x000000000000e000 0x000000000000e0ff 0x0000000000040101",
+		"0x00000000f0000000 0x00000000f00fffff 0x0000000000040200",
+		"0x00000000f0100000 0x00000000f011ffff 0x0000000000046200", // ROM
+		"0x0000039000000000 0x000003efffffffff 0x000000000014220c", // VF BAR0: 384 GiB
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(root, dev, "resource"), []byte(resource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := largestBAR(root, gpu.GPU{SysfsPath: dev})
+	if want := uint64(256 << 20); got != want {
+		t.Errorf("largest BAR = %d, want %d", got, want)
 	}
 }
 

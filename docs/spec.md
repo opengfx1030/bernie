@@ -568,7 +568,7 @@ or `skip`), one line of cause, and a fix command or a documentation link.
 | Item | What it reads | `ok` | `warn` | `fail` |
 |---|---|---|---|---|
 | `kfd_links` | the KFD `p2p_links` and `io_links` of every GPU node, and the KFD peer link of every GPU pair | every pair has a peer link and every GPU has an io_link | a pair has no peer link, so it stages through the host | no pair has a peer link |
-| `large_bar` | the largest memory region of `/sys/bus/pci/devices/<bdf>/resource` and the VRAM of the GPU | the BAR covers the VRAM, or the kernel command line pins the firmware BAR (`pci=realloc=off`) | the BAR is smaller than the VRAM and nothing pins it | – |
+| `large_bar` | the largest of the first six regions (BAR0-BAR5) of `/sys/bus/pci/devices/<bdf>/resource` and the VRAM of the GPU; the later lines hold the ROM, the bridge windows and the SR-IOV VF BARs | the BAR covers the VRAM, or the kernel command line pins the firmware BAR (`pci=realloc=off`) | the BAR is smaller than the VRAM and nothing pins it | – |
 | `iommu` | `iommu=pt`, `iommu=on` or `iommu=off` in `/proc/cmdline` | `iommu=pt` or `iommu=off` | the IOMMU translates peer addresses | – |
 | `acs` | `pcie_acs_override` and `disable_acs_redir` in `/proc/cmdline` | ACS redirection is off, or no PCIe switch sits between the GPUs | ACS can block a peer copy across a switch | – |
 | `link_speed` | `current_link_speed` and `current_link_width` against `max_link_speed` and `max_link_width` | every GPU runs at the maximum of its slot | a link is degraded or below gen4 x8 | – |
