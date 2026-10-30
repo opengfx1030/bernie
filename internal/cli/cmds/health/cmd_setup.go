@@ -32,10 +32,18 @@ func addSetupFlags(c *cli.Context, fs *flag.FlagSet) setupFlags {
 
 // buildPlan probes the host and returns the setup steps.
 func buildPlan(c *cli.Context, f setupFlags) ([]setup.Step, error) {
-	if m := *f.mode; m != "" && m != "host" && m != "container" {
-		return nil, cli.Usagef("--mode must be host or container, not %q", m)
+	if err := validMode(*f.mode); err != nil {
+		return nil, err
 	}
 	return app.SetupPlan(c.Ctx, setupOptionsOf(c, f))
+}
+
+// validMode refuses a mode that is not one of the two.
+func validMode(mode string) error {
+	if mode != "" && mode != "host" && mode != "container" {
+		return cli.Usagef("--mode must be host or container, not %q", mode)
+	}
+	return nil
 }
 
 func setupOptions(f setupFlags) app.SetupOptions {
@@ -101,15 +109,17 @@ func init() {
 		if _, err := cli.Parse(fs, args); err != nil {
 			return err
 		}
-		steps, err := buildPlan(c, f)
-		if err != nil {
+		if err := validMode(*f.mode); err != nil {
 			return err
 		}
-		steps, err = app.SetupForceVerify(steps)
-		if err != nil {
-			return err
-		}
-		return runSteps(c, f, steps, []string{setup.StepVenvVerify}, *verbose)
+		opts := setupOptionsOf(c, f)
+		opts.Verbose = *verbose
+		// The one verify function: the plan, the forced check and the
+		// apply of the check, so the run record is the one of the other
+		// front ends.
+		return runAndPrint(c, opts, func(o app.SetupOptions) (*app.SetupResult, error) {
+			return app.SetupVerify(c.Ctx, o, c.Err)
+		})
 	}
 
 	cmd.Subs = []*cli.Command{plan, apply, verify, setupReportCommand(), setupLogCommand()}
@@ -121,10 +131,19 @@ func init() {
 func runSteps(c *cli.Context, f setupFlags, steps []setup.Step, only []string, verbose bool) error {
 	opts := setupOptionsOf(c, f)
 	opts.Verbose = verbose
+	return runAndPrint(c, opts, func(o app.SetupOptions) (*app.SetupResult, error) {
+		return app.SetupApply(c.Ctx, steps, o, only, c.Err)
+	})
+}
+
+// runAndPrint runs one setup operation and prints its run: one line per
+// step, NDJSON with --json. The operation is the one app function of the
+// command: apply for the steps, verify for the check of the venv.
+func runAndPrint(c *cli.Context, opts app.SetupOptions, run func(app.SetupOptions) (*app.SetupResult, error)) error {
 	// JSON and verbose both bypass the live CR line: JSON streams NDJSON,
 	// verbose interleaves raw output that would overwrite the cursor. One
 	// line per event is what both want.
-	printer := &runPrinter{w: c.Err, tty: isTerminal(os.Stderr) && !verbose && !c.JSON}
+	printer := &runPrinter{w: c.Err, tty: isTerminal(os.Stderr) && !opts.Verbose && !c.JSON}
 	var enc *json.Encoder
 	if c.JSON {
 		// NDJSON: one event per line, the record of the run last.
@@ -133,7 +152,7 @@ func runSteps(c *cli.Context, f setupFlags, steps []setup.Step, only []string, v
 		printer.events = func(ev setup.Event) { _ = enc.Encode(ev) }
 	}
 	opts.OnEvent = printer.event
-	res, err := app.SetupApply(c.Ctx, steps, opts, only, c.Err)
+	res, err := run(opts)
 	printer.finish()
 	if c.JSON {
 		if res != nil && res.Run != nil {

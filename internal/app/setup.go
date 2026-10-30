@@ -120,6 +120,25 @@ func SetupApply(ctx context.Context, steps []setup.Step, o SetupOptions, only []
 	return &SetupResult{Steps: after, Run: run}, nil
 }
 
+// SetupVerify runs the check of the venv again, even when its postcondition
+// holds, and returns the plan as it stands afterwards and the record of the
+// run (spec §6.4). It needs a host plan: a plan without a venv check fails.
+//
+// The CLI, the MCP server and the dashboard run this one function, so the
+// three front ends write the same record of the run and read the same
+// evidence.
+func SetupVerify(ctx context.Context, o SetupOptions, log io.Writer) (*SetupResult, error) {
+	steps, err := SetupPlan(ctx, o)
+	if err != nil {
+		return nil, err
+	}
+	forced, err := SetupForceVerify(steps)
+	if err != nil {
+		return nil, err
+	}
+	return SetupApply(ctx, forced, o, []string{setup.StepVenvVerify}, log)
+}
+
 // SetupStore is the store of the setup runs of this host: <state>/setup.
 func SetupStore() *setup.RunStore { return setup.DefaultRunStore() }
 
