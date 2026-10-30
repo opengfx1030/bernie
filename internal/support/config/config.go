@@ -22,6 +22,11 @@ type Config struct {
 	Venv   string `json:"venv" yaml:"venv,omitempty"`
 	Mode   string `json:"mode" yaml:"mode,omitempty"`     // host | container | "" (auto)
 	Engine string `json:"engine" yaml:"engine,omitempty"` // docker | podman | "" (auto)
+	// AutoYes, when true, makes `bernie up` skip the one-shot
+	// confirmation prompt and run. The doctor still runs and any
+	// step that needs root still blocks the flow with its commands.
+	// Empty / false preserves the default (prompt).
+	AutoYes bool   `json:"auto_yes" yaml:"auto_yes,omitempty"`
 	// DeviceAccess is how a container gets the GPU: classic | cdi |
 	// auto ("" = auto, spec §8.2).
 	DeviceAccess string `json:"device_access" yaml:"device_access,omitempty"`
@@ -39,7 +44,7 @@ type Config struct {
 }
 
 // Keys are the settable keys, in file order.
-var Keys = []string{"venv", "mode", "engine", "device_access", "hf_home", "download_limit", "set", "fleet"}
+var Keys = []string{"venv", "mode", "engine", "auto_yes", "device_access", "hf_home", "download_limit", "set", "fleet"}
 
 // Path is <config>/config.yaml.
 func Path() string { return filepath.Join(paths.Config(), "config.yaml") }
@@ -145,6 +150,16 @@ func (c *Config) SetKey(key, value string) error {
 		c.Mode = value
 	case "engine":
 		c.Engine = value
+	case "auto_yes":
+		v := strings.ToLower(strings.TrimSpace(value))
+		switch v {
+		case "", "false", "no", "0":
+			c.AutoYes = false
+		case "true", "yes", "1":
+			c.AutoYes = true
+		default:
+			return fmt.Errorf("config auto_yes: want true or false, got %q", value)
+		}
 	case "device_access":
 		c.DeviceAccess = value
 	case "hf_home":
@@ -299,6 +314,7 @@ func (c Config) Map() [][2]string {
 	}
 	return [][2]string{
 		{"venv", c.Venv}, {"mode", c.Mode}, {"engine", c.Engine},
+		{"auto_yes", strconv.FormatBool(c.AutoYes)},
 		{"device_access", c.DeviceAccess},
 		{"hf_home", c.HFHome}, {"download_limit", limit},
 		{"set", strings.Join(c.Set, " ")},

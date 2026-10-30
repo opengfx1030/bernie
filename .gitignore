@@ -5,3 +5,4 @@
 *.tar.gz
 !internal/**/testdata/*.tar.gz
 .DS_Store
+/bernie-build/

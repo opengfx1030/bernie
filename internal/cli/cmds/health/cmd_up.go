@@ -13,6 +13,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/app/dashsvc"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/setup"
+	"github.com/opengfx1030/bernie/internal/support/config"
 )
 
 func init() {
@@ -36,6 +37,13 @@ func init() {
 		}
 		if len(pos) > 1 {
 			return cli.Usagef("up takes at most one recipe id")
+		}
+		// `auto_yes: true` in config is the persistent form of --yes for
+		// this command. --yes on the CLI still wins; both are OR'd.
+		if !*yes {
+			if cfg, err := config.Load(); err == nil && cfg.AutoYes {
+				*yes = true
+			}
 		}
 		o := flow.UpOptions{Sets: sets, Mode: *mode, Venv: c.Venv, Engine: *engine, Name: *name, Yes: *yes, Wait: *wait, Verbose: *verbose}
 		// The setup steps of the path stream one line per step (spec §6.4).
