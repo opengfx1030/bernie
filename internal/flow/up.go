@@ -136,7 +136,9 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		}
 	}
 	if len(apply) > 0 {
-		if err := onboarding.SetupAction(pending).Run(ctx, log); err != nil {
+		if err := onboarding.SetupAction(pending, onboarding.Options{
+			Mode: mode, Recipe: id, Venv: o.Venv,
+		}).Run(ctx, log); err != nil {
 			return nil, err
 		}
 	}

@@ -20,7 +20,8 @@ const ActionPath = "path"
 // missing, then the server, then the check.
 func PathAction(f *Facts, o Options) *Action {
 	a := &Action{Kind: ActionPath, Recipe: f.Recipe, Mode: f.Mode, Venv: o.Venv,
-		Sets: o.Sets, Engine: o.Engine, Name: o.Name}
+		Sets: o.Sets, Engine: o.Engine, Name: o.Name,
+		Apply: applyOptions(f.Mode, f.Recipe, o.Venv)}
 	for _, s := range f.Setup {
 		if s.Done || s.Root {
 			continue
@@ -76,7 +77,7 @@ func (a *Action) runPath(ctx context.Context, log io.Writer) error {
 			ids[i] = s.ID
 		}
 		fmt.Fprintf(log, "== %s: %s\n", StepPythonEnv, "Build the Python environment")
-		if err := setup.Apply(ctx, a.Steps, ids, log); err != nil {
+		if _, err := setup.ApplyRun(ctx, a.Steps, ids, log, a.Apply); err != nil {
 			return err
 		}
 		fmt.Fprintf(log, "== %s: %s\n", StepModel, "Download the model")
