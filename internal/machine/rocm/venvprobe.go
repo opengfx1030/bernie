@@ -284,12 +284,32 @@ if rocblas_soname:
 if rocblas_release:
     note_parts.append("rocBLAS " + rocblas_release)
 add("rocBLAS", rocblas_ver, ", ".join(note_parts))
-# RCCL: torch.cuda.nccl.version() returns a tuple (compiled, runtime) on
-# some PyTorch versions and a 3-tuple on others; keep both shapes
-# readable.
+# RCCL: torch.cuda.nccl.version() returns a 3-tuple (major, minor,
+# patch) on modern PyTorch and a 4-tuple with a string suffix on the
+# release branches. Render the numeric parts with dots; ignore any
+# suffix (rc1, post2). Older 2-tuple shapes (compiled/runtime) are
+# kept as a last resort so old PyTorch still reads.
+def nccl_str(nccl):
+    try:
+        if hasattr(nccl, "major"):
+            return "%d.%d.%d" % (int(nccl.major), int(nccl.minor), int(nccl.patch))
+        if isinstance(nccl, tuple):
+            nums = []
+            for x in nccl:
+                if isinstance(x, int):
+                    nums.append(int(x))
+                else:
+                    break
+            if len(nums) >= 3:
+                return "%d.%d.%d" % (nums[0], nums[1], nums[2])
+            if len(nums) == 2:
+                return "%d/%d" % (nums[0], nums[1])
+    except Exception:
+        pass
+    return None
 try:
     nccl = torch.cuda.nccl.version()
-    nccl_ver = "%s/%s" % nccl if isinstance(nccl, tuple) and len(nccl) == 2 else str(nccl)
+    nccl_ver = nccl_str(nccl)
 except Exception:
     nccl_ver = None
 add("RCCL", nccl_ver, "")
