@@ -1,6 +1,7 @@
 package health
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/opengfx1030/bernie/internal/cli"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/opengfx1030/bernie/dashboard"
 	"github.com/opengfx1030/bernie/internal/flow"
+	"github.com/opengfx1030/bernie/internal/setup"
 )
 
 func init() {
@@ -34,6 +36,14 @@ func init() {
 			return cli.Usagef("up takes at most one recipe id")
 		}
 		o := flow.UpOptions{Sets: sets, Mode: *mode, Venv: c.Venv, Engine: *engine, Name: *name, Yes: *yes, Wait: *wait}
+		// The setup steps of the path stream one line per step (spec §6.4).
+		printer := &runPrinter{w: c.Err}
+		if c.JSON {
+			enc := json.NewEncoder(c.Out)
+			enc.SetEscapeHTML(false)
+			printer.events = func(ev setup.Event) { _ = enc.Encode(ev) }
+		}
+		o.OnEvent = printer.event
 		if len(pos) == 1 {
 			o.Recipe = pos[0]
 		}
@@ -49,6 +59,7 @@ func init() {
 			o.Dashboard = dash
 		}
 		res, err := flow.Up(c.Ctx, o, c.Err)
+		printer.finish()
 		var b *flow.Blocked
 		if errors.As(err, &b) {
 			if c.JSON {
@@ -69,7 +80,10 @@ func init() {
 			return err
 		}
 		if c.JSON {
-			return c.Emit(res, func(w io.Writer) { printUp(w, res) })
+			// NDJSON: the events of the setup run, the result last.
+			enc := json.NewEncoder(c.Out)
+			enc.SetEscapeHTML(false)
+			return enc.Encode(res)
 		}
 		printUp(c.Out, res)
 		if dash != nil {

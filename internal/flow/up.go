@@ -48,6 +48,9 @@ type UpOptions struct {
 	// Prepared is an already built plan. Nil means the shared serve
 	// operation prepares it.
 	Prepared *recipe.Plan
+	// OnEvent receives the events of the setup run (spec §6.4): the CLI
+	// streams them, one line per step.
+	OnEvent func(setup.Event)
 }
 
 // UpResult is the outcome of a completed Up.
@@ -136,9 +139,11 @@ func Up(ctx context.Context, o UpOptions, log io.Writer) (*UpResult, error) {
 		}
 	}
 	if len(apply) > 0 {
-		if err := onboarding.SetupAction(pending, onboarding.Options{
+		action := onboarding.SetupAction(pending, onboarding.Options{
 			Mode: mode, Recipe: id, Venv: o.Venv,
-		}).Run(ctx, log); err != nil {
+		})
+		action.Apply.Event = o.OnEvent
+		if err := action.Run(ctx, log); err != nil {
 			return nil, err
 		}
 	}

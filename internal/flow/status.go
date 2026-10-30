@@ -10,6 +10,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/machine/gpu"
 	"github.com/opengfx1030/bernie/internal/machine/host"
 	"github.com/opengfx1030/bernie/internal/onboarding"
+	"github.com/opengfx1030/bernie/internal/setup"
 )
 
 // Summary is a compact, human-sized view of one host (spec §3.1).
@@ -33,6 +34,9 @@ type Summary struct {
 	Onboarding *onboarding.Document `json:"onboarding,omitempty"`
 	// Venv is the host-mode venv and where it came from (spec §6.2).
 	Venv *doctor.VenvInfo `json:"venv,omitempty"`
+	// SetupRun is the record of the newest setup run: the time of every
+	// step of the last setup (spec §6.4).
+	SetupRun *setup.Run `json:"setup_run,omitempty"`
 }
 
 // Snapshot probes the host and returns the status document. It changes
@@ -57,6 +61,9 @@ func Snapshot(ctx context.Context, venv string) (*Summary, error) {
 		s.Runs = []Run{}
 	}
 	s.Serving = serving(ctx, runs)
+	if run, err := setup.DefaultRunStore().Latest(); err == nil {
+		s.SetupRun = run
+	}
 	if s.Fits == nil {
 		s.Fits = []string{}
 	}
