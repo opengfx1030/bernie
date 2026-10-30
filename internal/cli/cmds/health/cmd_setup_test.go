@@ -24,7 +24,7 @@ func TestPrintRunGolden(t *testing.T) {
 			{ID: "venv.verify", Title: "Verify the vLLM build in the venv", State: setup.StepDone, DurationS: 30,
 				LogPath:  "/state/setup/run/venv.verify.log",
 				Summary:  "torch 2.12.0+rocm7.14.0, hip 7.14.60850, vllm 0.31.0+rdna, 144 RDNA ops, all_reduce registered",
-				Evidence: json.RawMessage(`{"python":"3.12.14","torch":"2.12.0+rocm7.14.0","hip":"7.14.60850","vllm":"0.31.0+rdna","device_count":8,"rocm_ops":159,"rdna_ops":144,"all_reduce":true,"rocm_c":"/v/lib/vllm/_rocm_C.abi3.so","rocblas":"/v/lib/librocblas.so.5","rocblas_wheel":true,"components":[{"name":"python","version":"3.12.14"},{"name":"torch","version":"2.12.0+rocm7.14.0","note":"hip 7.14.60850"},{"name":"rocm-sdk-wheel","version":"absent"},{"name":"triton","version":"3.2.0"},{"name":"vllm","version":"0.31.0+rdna","note":"fork @abc1234 release/0.31-rdna"},{"name":"flash-attn","version":"absent"},{"name":"causal-conv1d","version":"absent"},{"name":"transformers","version":"4.45.2"},{"name":"rocBLAS","version":"5.1.0","note":"wheel"},{"name":"RCCL","version":"2.21.5/2.21.5"},{"name":"rocm-sdk-host","version":"7.14.1","note":"/opt/rocm/core-7.14"}]}`)},
+				Evidence: json.RawMessage(`{"python":"3.12.14","torch":"2.12.0+rocm7.14.0","hip":"7.14.60850","vllm":"0.31.0+rdna","device_count":8,"rocm_ops":159,"rdna_ops":144,"all_reduce":true,"rocm_c":"/v/lib/vllm/_rocm_C.abi3.so","rocblas":"/v/lib/librocblas.so.5","rocblas_wheel":true,"components":[{"name":"python","version":"3.12.14"},{"name":"torch","version":"2.12.0+rocm7.14.0","note":"hip 7.14.60850"},{"name":"rocm-sdk-wheel","version":"absent"},{"name":"triton","version":"3.2.0"},{"name":"vllm","version":"0.31.0+rdna","note":"fork @abc1234 release/0.31-rdna"},{"name":"flash-attn","version":"absent"},{"name":"causal-conv1d","version":"absent"},{"name":"transformers","version":"4.45.2"},{"name":"rocBLAS","version":"5.5.0","note":"wheel, soname 5, rocBLAS 5.5.0"},{"name":"RCCL","version":"2.21.5/2.21.5"},{"name":"rocm-sdk-host","version":"7.14.1","note":"/opt/rocm/core-7.14"}]}`)},
 		},
 	}
 	var buf bytes.Buffer
@@ -52,7 +52,7 @@ evidence of venv.verify:
     flash-attn absent
     causal-conv1d absent
     transformers 4.45.2
-    rocBLAS 5.1.0  (wheel)
+    rocBLAS 5.5.0  (wheel, soname 5, rocBLAS 5.5.0)
     RCCL 2.21.5/2.21.5
     rocm-sdk-host 7.14.1  (/opt/rocm/core-7.14)
 `
@@ -142,7 +142,7 @@ func TestComponentsRender(t *testing.T) {
 				`{"name":"flash-attn","version":"absent"},` +
 				`{"name":"causal-conv1d","version":"absent"},` +
 				`{"name":"transformers","version":"4.45.2"},` +
-				`{"name":"rocBLAS","version":"5.1.0","note":"wheel"},` +
+				`{"name":"rocBLAS","version":"5.5.0","note":"wheel, soname 5, rocBLAS 5.5.0"},` +
 				`{"name":"RCCL","version":"2.21.5/2.21.5"},` +
 				`{"name":"rocm-sdk-host","version":"7.14.1","note":"/opt/rocm/core-7.14"}]}`,
 			wantSubs: []string{
@@ -155,7 +155,7 @@ func TestComponentsRender(t *testing.T) {
 				"flash-attn absent",
 				"causal-conv1d absent",
 				"transformers 4.45.2",
-				"rocBLAS 5.1.0  (wheel)",
+				"rocBLAS 5.5.0  (wheel, soname 5, rocBLAS 5.5.0)",
 				"RCCL 2.21.5/2.21.5",
 				"rocm-sdk-host 7.14.1  (/opt/rocm/core-7.14)",
 			},
@@ -224,7 +224,7 @@ func TestComponentsParse(t *testing.T) {
 				{Name: "flash-attn", Version: "absent"},
 				{Name: "causal-conv1d", Version: "absent"},
 				{Name: "transformers", Version: "4.45.2"},
-				{Name: "rocBLAS", Version: "5.1.0", Note: "wheel"},
+				{Name: "rocBLAS", Version: "5.5.0", Note: "wheel, soname 5, rocBLAS 5.5.0"},
 				{Name: "RCCL", Version: "2.21.5/2.21.5"},
 				{Name: "rocm-sdk-host", Version: "7.14.1", Note: "/opt/rocm/core-7.14"},
 			},
