@@ -142,7 +142,7 @@ func TestTokenCookieFlow(t *testing.T) {
 		t.Fatalf("want one cookie, got %v", cs)
 	}
 	c := cs[0]
-	if c.Name != cookieName || c.Value != testToken || !c.HttpOnly || c.SameSite != http.SameSiteStrictMode || c.Path != "/" {
+	if c.Name != cookieName || c.Value != testToken || !c.HttpOnly || c.SameSite != http.SameSiteLaxMode || c.Path != "/" {
 		t.Fatalf("cookie attributes: %+v", c)
 	}
 

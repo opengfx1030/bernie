@@ -93,7 +93,7 @@ func (g *Guard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			http.SetCookie(w, &http.Cookie{
 				Name: CookieName, Value: q.Get("token"), Path: "/",
-				HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil,
+				HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: r.TLS != nil,
 			})
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return

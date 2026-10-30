@@ -1826,7 +1826,7 @@ Rules for responses and tokens:
   that names a host other than the request's. The custom `X-Bernie: 1`
   header check of spec §11 stays.
 - In token mode, `/?token=<t>` is the only URL that accepts the token. It
-  sets an HttpOnly, SameSite=Strict cookie and redirects (303) to `/` with no
+  sets an HttpOnly, SameSite=Lax cookie and redirects (303) to `/` with no
   query.
 - A browser that opens a page of the dashboard in token mode without a
   valid token gets a plain HTML page that says what to do: open the address
