@@ -231,7 +231,7 @@ other file, script or compose file is required.
 | `bernie doctor --log FILE\|-` / `doctor --run NAME` | no | Match a vLLM log against known failures ([§5.3](#53-log-doctor)). |
 | `bernie setup plan [--mode M] [--venv DIR] [--image I] [--model M]` | no | Ordered install steps for this host. |
 | `bernie setup apply [--mode M] [--step ID]... [--yes] [--venv DIR] [--image I] [--model M] [-v]` | yes | Run the steps that do not need root. Print the root steps. `-v` also streams the raw output of the steps. |
-| `bernie setup verify [--venv DIR] [-v]` | yes (its own run record) | Run the check of the venv again, even when it passed before: versions of the main parts, the fork ops, the libraries. It records a run, so `setup report` shows fresh evidence. Exit code 1 when a check fails. |
+| `bernie setup verify [--venv DIR] [-v]` | yes (its own run record) | Run the check of the venv again, even when it passed before: versions of the main parts, the fork ops, the libraries. It records a run, so `setup report` shows fresh evidence. Exit code 1 when a check fails. The MCP tool `setup_verify` ([§13.4](#134-tools)) and the button of the venv detail of the dashboard ([§11](#11-dashboard)) run the same check and leave the same record. |
 | `bernie recipe list [--all]` | no | Recipes, with fit to this host. `--all` includes recipes that do not fit. |
 | `bernie recipe show <id>` | no | The merged recipe (after `extends`). |
 | `bernie recipe validate [FILE]...` | no | Validate files, or all loaded recipes. |
@@ -958,13 +958,18 @@ The commands:
   record itself.
 - `bernie setup verify` runs the check of the venv again through the same
   apply function, even when its postcondition holds, and records a run with
-  the new evidence and component versions. It needs a host plan.
+  the new evidence and component versions. It needs a host plan. The MCP
+  tool `setup_verify` and the button of the venv detail of the dashboard
+  run that one function, so the three front ends leave the same record.
 - `bernie setup log [STEP] [-f]` prints the log of a step of the newest run
   and keeps printing it with `-f`.
 - `bernie status --steps` carries the time of every step of the newest run.
 
 The button of the Setup tab is a setup run: it writes the same record, and
-the page reads it ([§11](#11-dashboard)). The MCP server reads it with the
+the page reads it ([§11](#11-dashboard)). The venv detail of the tab holds
+a second button, `Verify again`: it starts the check of the venv in the
+background (`POST /api/setup/verify`) and the page reads the new record
+when the job ends. The MCP server reads the record with the
 `setup_report` tool ([§13.4](#134-tools)).
 
 ## 7. Recipes
@@ -2047,8 +2052,12 @@ own: what the server reports is what the page shows, and a re-check asks
 the server again. A step that bernie can do is started with `POST
 /api/onboarding/{step}/run`; its output arrives on the event stream of the
 job (`GET /api/jobs/{id}/events`) and the page shows it under the step. A
-step that needs root shows its commands and a copy button, and the page
-never runs them. The Advanced disclosure of the Setup tab holds the raw
+A step that needs root shows its commands and a copy button, and the page
+never runs them. The venv detail of the tab (the components of the
+`venv.verify` step) holds a `Verify again` button: it starts the check of
+the venv in the background (`POST /api/setup/verify`), it is disabled while
+the check runs, and the page paints the components of the new record when
+the job ends. The Advanced disclosure of the Setup tab holds the raw
 document of `GET /api/onboarding` and the commands that produce it
 (`bernie status --steps`, `bernie status --json`).
 
