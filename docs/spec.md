@@ -139,6 +139,10 @@ other file, script or compose file is required.
   it and the step to do now. `status --json` carries the same steps in the
   `onboarding` field. `--steps` changes the human text only: the JSON
   document is the same with and without it.
+- `bernie setup apply` runs the steps of the install plan
+  ([\u00a76](#6-setup)). It streams one line per step and keeps the log of
+  every step. `bernie setup report` prints the record of the run and
+  `bernie setup log` the log of one step ([\u00a76.4](#64-the-run-record)).
 - `bernie up [RECIPE]` does the full path in one command:
   1. It reads the onboarding steps ([§3.3](#33-the-onboarding-checklist)). A
      blocked step (the GPUs are not usable by this user yet) stops `up` with
@@ -426,6 +430,14 @@ event carries the number of the line as its id; a client that re-attaches
 sends it back in the `Last-Event-ID` header (or in `last_event_id`) and gets
 the lines after it. A job that failed or finished stays readable: its
 document lives on disk.
+
+The Setup tab reads the record of the setup runs: `GET /api/setup/runs`
+returns the records of this host, newest first, and the newest one in full;
+`GET /api/setup/runs/{id}/log/{step}` returns the log of one step of a run
+(the tail, at most 400 lines). The button of the Setup tab is a setup run:
+it writes the record of [\u00a76.4](#64-the-run-record), and the page shows
+the step that runs now, the time every step took, and the log of the step
+under its row. A reload re-attaches: the record is on disk.
 
 ## 4. Host inspection (`hw`, `topo`)
 
@@ -849,6 +861,57 @@ not.
 
 A distribution without an AMD repository (Arch, for example) gets the link
 to the AMD install guide instead of a command.
+
+### 6.4 The run record
+
+Every setup run leaves a record: the CLI, the MCP server and the dashboard
+read that one record, so they cannot disagree.
+
+The record of a run is one JSON file, `<state>/setup/<run-id>/run.json`:
+
+```json
+{"id": "20261030T101112Z-3f585", "mode": "host", "recipe": "", "venv": "/v",
+ "state": "running|done|failed|blocked",
+ "started_at": "", "ended_at": "", "duration_s": 0,
+ "steps": [{"id": "venv.verify", "title": "", "state": "done|skipped|running|failed|blocked",
+   "started_at": "", "ended_at": "", "duration_s": 0, "exit_code": 0,
+   "summary": "", "log_path": "", "commands": [], "evidence": {},
+   "progress": {"phase": "", "sentence": "", "fraction": 0}}],
+ "error": "", "dir": ""}
+```
+
+The state of a step: `done` (it ran and passed), `skipped` (its
+postcondition already held), `running` (it runs now), `failed` (it failed)
+or `blocked` (it needs root). `progress` carries the phase, the sentence and
+the numbers of the step while it runs; the build of the fork reads its
+fraction from the `[N/M]` count of ninja. `evidence` is what the step
+produced: the verification JSON of the check of the venv, with the versions,
+the torch and the HIP version, the count of the RDNA ops, the `all_reduce`,
+the result of `ldd` and the path of the rocBLAS.
+
+Every step keeps its own log, `<state>/setup/<run-id>/<step>.log`: the
+command line first, then the output with a timestamp on every line. The
+record is written atomically after every step and every two seconds while a
+step runs, so a crash or a reload still shows the truth. The store keeps the
+last ten runs; `<state>/setup/latest` points at the newest one.
+
+The commands:
+
+- `bernie setup apply` streams one line per step ("[3/7] venv.torch:
+  running... 4m12s", then "done in 4m12s, log: PATH"). With `--json` it
+  writes one JSON event per line (NDJSON) and ends with the record of the
+  run.
+- `bernie setup report [RUN]` prints the record of a run (the newest one
+  when no id is given): every step with its state, its duration and its log,
+  then the evidence of the check of the venv. With `--json` it writes the
+  record itself.
+- `bernie setup log [STEP] [-f]` prints the log of a step of the newest run
+  and keeps printing it with `-f`.
+- `bernie status --steps` carries the time of every step of the newest run.
+
+The button of the Setup tab is a setup run: it writes the same record, and
+the page reads it ([§11](#11-dashboard)). The MCP server reads it with the
+`setup_report` tool ([§13.4](#134-tools)).
 
 ## 7. Recipes
 
@@ -1787,6 +1850,8 @@ not measure is shown as a dash with the words "n/a on this host".
 | GET | `/api/bench/{id}/events` | Server-sent events of a benchmark run: one `log` event per progress line, a `progress` event with the job document, then a `done` or `failed` event with the job document. The document carries the typed event of the run, so the page reads the state of the run and not the text of the log. |
 | GET | `/api/bench/compare?a=ID&b=ID&format=markdown` | the receipt of the comparison as `text/markdown`: the text of `bernie bench compare A B --markdown`. |
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
+| GET | `/api/setup/runs` | the records of the setup runs of this host, newest first, and the newest one in full ([§6.4](#64-the-run-record)). The answer is `{"runs": [Run], "run": Run}`. |
+| GET | `/api/setup/runs/{id}/log/{step}` | the log of one step of a run: `{"run": "", "step": "", "lines": [""], "truncated": false}`. The tail of the log, at most 400 lines. |
 | POST | `/api/onboarding/{step}/run` | start the action of a step in the background → the job document. A step that needs root answers `{"step": "", "root_required": true, "commands": []}` and runs nothing. |
 | POST | `/api/onboarding/path/run` | start the whole path that bernie can do itself in the background → the job document. The body is the same as the step run. It is the one action of the Setup tab. A step that needs root answers `{"step": "path", "root_required": true, "commands": []}` and runs nothing. |
 | POST | `/api/jobs/{id}/stop` | stop the job with this id → `{"id": "", "stopped": true}`. `stopped` is false when the job runs in another process and cannot be stopped from here. |
@@ -1970,6 +2035,10 @@ and that answer changes when the operator limits them.
 | `rocm/installs/<root>` | the ROCm trees under a root | 10 min |
 | `onboarding/document/<options>` | the onboarding checklist of this host | 15 s |
 
+The setup runs live in `<state>/setup`: one directory per run, with the
+record of the run (`run.json`) and the log of every step. The file
+`latest` points at the newest run ([\u00a76.4](#64-the-run-record)).
+
 The `venv` key is the third step of the venv order of
 [§6.2](#62-the-host-venv). It names the venv of every host-mode command
 that does not get a `--venv` of its own.
@@ -2043,6 +2112,7 @@ Secrets are redacted ([§13.7](#137-untrusted-content)).
 | `power_status` | `tune power service status` | none |
 | `onboarding_status` | `status --steps` (the `onboarding` field of `status --json`) | `venv` |
 | `setup_plan` | `setup plan` | `mode`, `venv`, `image`, `model`, `rocm` |
+| `setup_report` | `setup report` | `run` (the id of the run; the newest one when it is empty) |
 | `dash_status` | `dash status` | `show_token` (the token is redacted without it) |
 | `jobs` | none (the onboarding jobs of this host) | none |
 
@@ -2054,7 +2124,7 @@ Mutating tools ([§13.5](#135-write-gate)):
 | `stop` | `stop NAME` (the name is required) | `{"name", "stopped"}` |
 | `bench_run` | `bench` (loopback `url` only, `recall`, `suite` optional) | the saved `bench.Result` |
 | `bench_ab` | `bench ab` (loopback `base` / `cand` URLs only) | the `suite.ABResult` |
-| `setup_apply` | `setup apply` | the setup steps after the run |
+| `setup_apply` | `setup apply` | the setup steps after the run and the record of the run (`run_id`) |
 | `tune_power_set` | `tune power set` | `{"changed", "file", "watts", "gpu_indexes", "selectors", "clamped"}` |
 | `fleet_add` | `fleet add` | `{"name", "url"}` (the token is never in the result) |
 | `fleet_rm` | `fleet rm` | `{"removed": name}` |

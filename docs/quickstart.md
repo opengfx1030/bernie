@@ -47,6 +47,8 @@ Keep it to yourself.
 ## 4. What you see
 
 The Setup tab opens with one sentence about the host and one next action.
+The setup it runs leaves a record: `bernie setup report` prints every step,
+the time it took, its log and the evidence of the venv check.
 The checklist under it is the path to a serving model: every step says what
 it changes and holds the command that does it.
 
