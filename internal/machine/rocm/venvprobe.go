@@ -12,8 +12,11 @@ package rocm
 // branch when the editable source has a .git, read from files, not by
 // running git), flash attention (the package when it is there, else the
 // fork's FA-RDNA2 op count), causal-conv1d, transformers, rocBLAS (with
-// the wheel library version), RCCL and the host ROCm SDK (for
-// comparison). Missing parts are reported as "absent", never omitted.
+// the wheel library version, the SONAME and, when readable, the rocBLAS
+// release), RCCL and the host ROCm SDK (for comparison). Missing parts
+// are reported as "absent", never omitted; a resolved rocBLAS is never
+// "absent" — it falls back to the wheel package version when no symbol
+// or version file carries a more specific build string.
 //
 // With BERNIE_VENV_STRICT set the script exits non-zero when a check fails,
 // so a caller can use it as a gate. Without it the script always exits 0
@@ -212,9 +215,21 @@ if so:
                 r["rocblas"] = rocblas_path
                 break
     r["rocblas_wheel"] = "_rocm_sdk_libraries" in (r.get("rocblas") or "")
-# rocBLAS wheel library version: the SONAME of the resolved library.
+# rocBLAS: report a version whenever the library resolves. The library
+# carries three version layers: the rocBLAS release (e.g. 5.5.0), the
+# SONAME the linker uses (librocmblas.so.5 -> 5), and the wheel package
+# version (rocm-sdk-libraries). We try them in that order and never say
+# "absent" when the file resolves.
 rocblas_ver = None
+rocblas_soname = None
+rocblas_release = None
 if rocblas_path and os.path.isfile(rocblas_path):
+    # SONAME from the basename: librocblas.so.<N>[.<M>...].
+    base = os.path.basename(rocblas_path)
+    m = re.match(r"librocmblas\.so\.(\d+)", base)
+    if m:
+        rocblas_soname = m.group(1)
+    # ldconfig first (the SONAME the linker records).
     soname_out = subprocess.run(["ldconfig", "-p"], capture_output=True, text=True).stdout
     needle = os.path.basename(rocblas_path)
     for line in soname_out.splitlines():
@@ -223,6 +238,7 @@ if rocblas_path and os.path.isfile(rocblas_path):
             if len(tail) >= 2 and tail[0] == rocblas_path:
                 rocblas_ver = tail[1]
                 break
+    # ldd as a fallback when ldconfig doesn't know the path.
     if not rocblas_ver:
         ldd_v = ldd(rocblas_path)
         for line in ldd_v.splitlines():
@@ -231,8 +247,46 @@ if rocblas_path and os.path.isfile(rocblas_path):
                 if len(tail) >= 1 and tail[0] == rocblas_path:
                     rocblas_ver = tail[1] if len(tail) >= 2 else None
                     break
-add("rocBLAS", rocblas_ver, "wheel" if r.get("rocblas_wheel") else "")
-# RCCL: torch.cuda.nccl.version() returns (compiled, runtime).
+    # rocBLAS release: readelf/objdump print "Version definitions" and the
+    # comment carries the rocBLAS build string.
+    for tool in ("readelf", "objdump"):
+        try:
+            cp = subprocess.run([tool, "-pV", rocblas_path], capture_output=True, text=True, timeout=2)
+            blob = cp.stdout + "\n" + cp.stderr
+            rm = re.search(r"rocBLAS[^0-9]*(\d+\.\d+\.\d+)", blob)
+            if rm:
+                rocblas_release = rm.group(1)
+                break
+            rm = re.search(r"rocblas[^0-9]*(\d+\.\d+\.\d+)", blob, re.IGNORECASE)
+            if rm:
+                rocblas_release = rm.group(1)
+                break
+        except Exception:
+            continue
+    # Wheel package version as the floor: rocm-sdk-libraries is the
+    # wheel that ships rocBLAS, so its version is always the right
+    # fallback when the symbol/version files don't say more.
+    if not rocblas_ver:
+        sdk_libs_ver = pkg_version(["rocm-sdk-libraries"])
+        if sdk_libs_ver:
+            rocblas_ver = sdk_libs_ver
+if rocblas_path:
+    if not rocblas_ver and rocblas_soname:
+        rocblas_ver = rocblas_soname
+# Compose the components row. The version picks the best known value;
+# the note carries the wheel tag and the SONAME so the operator can see
+# both the ABI the linker uses and where the library came from.
+note_parts = []
+if r.get("rocblas_wheel"):
+    note_parts.append("wheel")
+if rocblas_soname:
+    note_parts.append("soname " + rocblas_soname)
+if rocblas_release:
+    note_parts.append("rocBLAS " + rocblas_release)
+add("rocBLAS", rocblas_ver, ", ".join(note_parts))
+# RCCL: torch.cuda.nccl.version() returns a tuple (compiled, runtime) on
+# some PyTorch versions and a 3-tuple on others; keep both shapes
+# readable.
 try:
     nccl = torch.cuda.nccl.version()
     nccl_ver = "%s/%s" % nccl if isinstance(nccl, tuple) and len(nccl) == 2 else str(nccl)

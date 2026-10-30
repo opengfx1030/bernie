@@ -832,7 +832,10 @@ short sha and branch when the editable source has a `.git`, read from
 files, not by running git), `flash-attn` (the `flash_attn` package when
 it is there, else the fork's FA-RDNA2 op count from the registered ops of
 `vllm._rocm_C`), `causal-conv1d`, `transformers`, `rocBLAS` (with the
-wheel library version), `RCCL` (`torch.cuda.nccl.version()`) and the host
+wheel library version: the SONAME of the resolved `librocmblas.so.N`,
+the rocBLAS release when its symbol/version file is readable, and the
+`rocm-sdk-libraries` package version as the floor — a resolved rocBLAS
+is never `absent`), `RCCL` (`torch.cuda.nccl.version()`) and the host
 ROCm SDK (the version of `/opt/rocm`, for comparison). Every entry has
 `name`, `version` and `note`; a missing part is reported as `"absent"`,
 never omitted. The list has at most twelve entries and the probe collects
