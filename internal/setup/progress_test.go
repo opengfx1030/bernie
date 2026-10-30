@@ -72,17 +72,83 @@ func TestProgressOf(t *testing.T) {
 	}
 }
 
-// TestDownloadBytes: the bytes of a download line give the fraction of the
-// download that is done.
-func TestDownloadBytes(t *testing.T) {
-	done, total, ok := downloadBytes("model.download: 1.2 GB of 2.4 GB (50%) at 45.2 MB/s")
-	if !ok {
-		t.Fatal("the line of the download was not read")
+// TestDownloadProgress: the new sentence of the download (spec §6.1) is
+// parsed into bytes, rate and file count.
+func TestDownloadProgress(t *testing.T) {
+	cases := []struct {
+		name     string
+		line     string
+		want     DownloadProgress
+		ok       bool
+		fraction float64
+		phase    string
+	}{
+		{
+			name:     "complete line",
+			line:     "model.download: 78% \u00b7 1.8 GB of 2.3 GB \u00b7 45.2 MB/s \u00b7 file 7 of 14",
+			want:     DownloadProgress{Pct: 78, BytesDone: 1800000000, BytesTotal: 2300000000, RateBps: 45200000, FilesDone: 7, FilesTotal: 14},
+			ok:       true,
+			fraction: 1.8 / 2.3,
+			phase:    PhaseDownload,
+		},
+		{
+			name:     "no file count yet",
+			line:     "model.download: 50% \u00b7 1.2 GB of 2.4 GB \u00b7 45.2 MB/s",
+			want:     DownloadProgress{Pct: 50, BytesDone: 1200000000, BytesTotal: 2400000000, RateBps: 45200000},
+			ok:       true,
+			fraction: 0.5,
+			phase:    PhaseDownload,
+		},
+		{
+			name:     "no rate yet",
+			line:     "model.download: 0% \u00b7 0 B of 2.3 GB \u00b7 file 1 of 14",
+			want:     DownloadProgress{Pct: 0, BytesDone: 0, BytesTotal: 2300000000, FilesDone: 1, FilesTotal: 14},
+			ok:       true,
+			fraction: 0,
+			phase:    PhaseDownload,
+		},
+		{
+			name: "no numbers",
+			line: "model.download: no numbers here",
+			want: DownloadProgress{}, ok: false,
+		},
+		{
+			name: "wrong prefix",
+			line: "something else: 78% \u00b7 1.8 GB of 2.3 GB",
+			want: DownloadProgress{}, ok: false,
+		},
 	}
-	if done != 1200000000 || total != 2400000000 {
-		t.Errorf("the bytes are %d of %d, want 1200000000 of 2400000000", done, total)
-	}
-	if _, _, ok := downloadBytes("model.download: no numbers here"); ok {
-		t.Error("a line without numbers must not be read as a download")
+	for _, c := range cases {
+		got, ok := downloadProgress(c.line)
+		if ok != c.ok {
+			t.Errorf("%s: downloadProgress(%q) ok = %v, want %v", c.name, c.line, ok, c.ok)
+			continue
+		}
+		if !ok {
+			continue
+		}
+		if got != c.want {
+			t.Errorf("%s: downloadProgress(%q) = %+v, want %+v", c.name, c.line, got, c.want)
+		}
+		p, ok := progressOf("model.download", c.line)
+		if !ok {
+			t.Errorf("%s: progressOf did not match", c.name)
+			continue
+		}
+		if p.Phase != c.phase {
+			t.Errorf("%s: phase = %q, want %q", c.name, p.Phase, c.phase)
+		}
+		if p.BytesDone != c.want.BytesDone || p.BytesTotal != c.want.BytesTotal {
+			t.Errorf("%s: bytes = %d of %d, want %d of %d", c.name, p.BytesDone, p.BytesTotal, c.want.BytesDone, c.want.BytesTotal)
+		}
+		if p.RateBps != c.want.RateBps {
+			t.Errorf("%s: rate = %d, want %d", c.name, p.RateBps, c.want.RateBps)
+		}
+		if p.FilesDone != c.want.FilesDone || p.FilesTotal != c.want.FilesTotal {
+			t.Errorf("%s: files = %d of %d, want %d of %d", c.name, p.FilesDone, p.FilesTotal, c.want.FilesDone, c.want.FilesTotal)
+		}
+		if c.fraction > 0 && (p.Fraction < c.fraction-0.001 || p.Fraction > c.fraction+0.001) {
+			t.Errorf("%s: fraction = %v, want %v", c.name, p.Fraction, c.fraction)
+		}
 	}
 }
