@@ -227,10 +227,11 @@ func Start(ctx context.Context, o Options) (*Handle, error) {
 	ready := make(chan string, 1)
 	caller := o.Ready
 	o.Ready = func(url string) {
-		ready <- url
+		// The caller first: Start returns only after the caller has the URL.
 		if caller != nil {
 			caller(url)
 		}
+		ready <- url
 	}
 	go func() { h.done <- Serve(ctx, o) }()
 	select {
