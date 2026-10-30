@@ -84,7 +84,7 @@ var cmdDash = &cli.Command{
 // compatibility with the existing CLI users.
 func runForeground(c *cli.Context, args []string) error {
 	fs := c.Flags(cmdDash)
-	listen := fs.String("listen", dashboard.DefaultListen, "listen address; a non-loopback address requires the token")
+	listen := fs.String("listen", "", "listen address (default 127.0.0.1:7860; --host binds 0.0.0.0:7860)")
 	token := fs.String("token", "", "access token (default $BERNIE_DASH_TOKEN; random when the address is not loopback)")
 	demo := fs.Bool("demo", false, "serve the demo: a captured host and a fake run, with no GPU")
 	_, err := cli.Parse(fs, args)
@@ -94,8 +94,16 @@ func runForeground(c *cli.Context, args []string) error {
 	if *token == "" {
 		*token = os.Getenv("BERNIE_DASH_TOKEN")
 	}
+	*listen = dashboard.ResolveListen(*listen, c.Host)
 	if *token == "" && !dashboard.IsLoopback(*listen) {
-		*token = dashboard.NewToken()
+		// The persisted token keeps the URL the same across restarts, so
+		// the operator does not have to copy a new one every time. It is
+		// the same file the service form uses (spec §11.1).
+		tok, _, err := dashsvc.ReadToken()
+		if err != nil || tok == "" {
+			tok = dashboard.NewToken()
+		}
+		*token = tok
 	}
 	// A dashboard service already owns this address: surface it instead of
 	// failing to bind. Compare the port so 0.0.0.0:7860 and 127.0.0.1:7860
@@ -143,6 +151,9 @@ func runForeground(c *cli.Context, args []string) error {
 				fmt.Fprintf(w, "bernie dashboard: %s\n", url)
 				if *token != "" {
 					fmt.Fprintln(w, "API clients: send the header \"Authorization: Bearer <token>\".")
+				}
+				for _, line := range accessLines(*listen, *token) {
+					fmt.Fprintln(w, line)
 				}
 				if *demo {
 					fmt.Fprintln(w, "Demo: nothing here is real.")

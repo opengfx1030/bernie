@@ -16,6 +16,10 @@ import (
 
 const dashDefaultListen = "127.0.0.1:7860"
 
+// dashHostListen is the same port on every interface: the dashboard is
+// reachable from another machine. The token is then the only protection.
+const dashHostListen = "0.0.0.0:7860"
+
 // This file is the dashboard service as MCP tools. They are the same
 // capabilities the CLI exposes through `bernie dash start|stop|status`
 // and the installer `--start` flag uses (one app function, three front
@@ -33,6 +37,7 @@ type dashStatusIn struct {
 // same shape; the confirm_token field gates the run.
 type dashStartIn struct {
 	Listen      string `json:"listen,omitempty" jsonschema:"listen address (default 127.0.0.1:7860; a non-loopback address implies token mode)"`
+	Host        bool   `json:"host,omitempty" jsonschema:"listen on every interface (0.0.0.0:7860) so the dashboard is reachable from another machine; the token is then the only protection"`
 	Token       string `json:"token,omitempty" jsonschema:"explicit token (else use or generate the persisted one)"`
 	RotateToken bool   `json:"rotate_token,omitempty" jsonschema:"replace the persisted token before starting"`
 	NoSystemd   bool   `json:"no_systemd,omitempty" jsonschema:"skip the systemd --user path even when it is available"`
@@ -108,6 +113,9 @@ func (s *Server) dashStart(ctx context.Context, c *call, in dashStartIn) (any, e
 		listen := in.Listen
 		if listen == "" {
 			listen = dashDefaultListen
+			if in.Host {
+				listen = dashHostListen
+			}
 		}
 		host, port, _ := net.SplitHostPort(listen)
 		_ = port
@@ -127,8 +135,15 @@ func (s *Server) dashStart(ctx context.Context, c *call, in dashStartIn) (any, e
 	in.ConfirmToken = ""
 	return execute(s, c, mutation[*dashsvc.Status]{tool: "dash_start", token: token, args: in, plan: plan, lock: &s.mutate,
 		run: func(_ context.Context) (**dashsvc.Status, error) {
+			listen := in.Listen
+			if listen == "" {
+				listen = dashDefaultListen
+				if in.Host {
+					listen = dashHostListen
+				}
+			}
 			st, err := dashsvc.Start(context.Background(), dashsvc.StartOptions{
-				Listen:      in.Listen,
+				Listen:      listen,
 				Token:       in.Token,
 				RotateToken: in.RotateToken,
 				NoSystemd:   in.NoSystemd,
@@ -184,6 +199,7 @@ func registerDashTools(s *Server) {
 	addTool[dashStartIn, Outcome[*dashsvc.Status]](s, w("dash_start", "Start the dashboard as a detached service (bernie dash start). It survives the shell; the token persists across restarts; prefers systemd --user when reachable (and prints the enable-linger hint).", false, false, false),
 		func(sc *jsonschema.Schema) {
 			prop(sc, "listen").Default = []byte(`"127.0.0.1:7860"`)
+			prop(sc, "host").Description = "listen on every interface (0.0.0.0:7860) so the dashboard is reachable from another machine; the token is then the only protection"
 			tokenSchema(sc)
 		},
 		s.dashStart)

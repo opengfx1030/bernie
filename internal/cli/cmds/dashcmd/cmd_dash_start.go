@@ -27,7 +27,7 @@ import (
 // `dash_status` and exits 1 with a clear message.
 func runStart(c *cli.Context, args []string) error {
 	fs := c.Flags(cmdDash)
-	listen := fs.String("listen", dashboard.DefaultListen, "listen address; a non-loopback address requires the token")
+	listen := fs.String("listen", "", "listen address (default 127.0.0.1:7860; --host binds 0.0.0.0:7860)")
 	token := fs.String("token", "", "explicit token (else use or generate the persisted one)")
 	rotate := fs.Bool("rotate-token", false, "replace the persisted token before starting")
 	noSystemd := fs.Bool("no-systemd", false, "skip the systemd --user path even when it is available")
@@ -40,6 +40,7 @@ func runStart(c *cli.Context, args []string) error {
 	if len(args) > 0 && !isFlag(args[0]) {
 		return cli.Usagef("dash start takes no positional argument (got %q)", args[0])
 	}
+	*listen = dashboard.ResolveListen(*listen, c.Host)
 	// Validate the listen address early.
 	if _, _, err := net.SplitHostPort(*listen); err != nil {
 		return cli.Usagef("invalid --listen %q: %v", *listen, err)

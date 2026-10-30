@@ -14,6 +14,9 @@
 #                    127.0.0.1:7860; a non-loopback address is opt-in
 #                    and requires a token; the URL carries ?token=...)
 #   --no-lan         equivalent to --listen 127.0.0.1:7860 (the default)
+#   --host           equivalent to --listen 0.0.0.0:7860: the dashboard
+#                    is reachable from another machine on the network.
+#                    The token is then the only protection.
 #   --container      also install the dashboard container: the compose
 #                    file, a .env with the token and the GPU group ids,
 #                    and the container up
@@ -41,7 +44,7 @@ set -eu
 
 usage() {
     cat <<'EOF'
-Usage: install.sh [--version TAG] [--dir DIR] [--start] [--listen ADDR] [--no-lan] [--container] [--container-dir DIR] [--dry-run] [-h|--help]
+Usage: install.sh [--version TAG] [--dir DIR] [--start] [--listen ADDR] [--no-lan] [--host] [--container] [--container-dir DIR] [--dry-run] [-h|--help]
 
 Install the latest bernie release binary.
 
@@ -95,6 +98,7 @@ while [ $# -gt 0 ]; do
         --start)   start_after=1; shift ;;
         --listen)  listen=$2; shift 2 ;;
         --no-lan)  listen=127.0.0.1:7860; shift ;;
+        --host)    listen=0.0.0.0:7860; shift ;;
         --container) container=1; shift ;;
         --container-dir) container_dir=$2; shift 2 ;;
         --dry-run) dry_run=1; shift ;;

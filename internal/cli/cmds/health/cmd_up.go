@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/opengfx1030/bernie/dashboard"
+	"github.com/opengfx1030/bernie/internal/app/dashsvc"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/setup"
 )
@@ -27,7 +28,7 @@ func init() {
 		yes := fs.Bool("yes", false, "do not ask for confirmation")
 		verbose := fs.Bool("v", false, "also stream the raw step output (markers and command echo)")
 		noDash := fs.Bool("no-dash", false, "do not start the dashboard after the server is healthy")
-		listen := fs.String("listen", "127.0.0.1:7860", "dashboard listen address")
+		listen := fs.String("listen", "", "dashboard listen address (default 127.0.0.1:7860; --host binds 0.0.0.0:7860)")
 		wait := fs.Duration("wait", 30*time.Minute, "how long to wait for /health")
 		pos, err := cli.Parse(fs, args)
 		if err != nil {
@@ -57,8 +58,17 @@ func init() {
 		// operator can watch the log in the browser (spec §3.1).
 		var dash *dashboard.Starter
 		if !c.JSON && !*noDash {
-			dash = dashboard.NewStarter(dashboard.Options{Listen: *listen, Log: c.Err, Version: cli.Version,
-				Ready: func(url string) { fmt.Fprintf(c.Out, "dashboard: %s\n", url) }})
+			*listen = dashboard.ResolveListen(*listen, c.Host)
+			opts := dashboard.Options{Listen: *listen, Log: c.Err, Version: cli.Version,
+				Ready: func(url string) { fmt.Fprintf(c.Out, "dashboard: %s\n", url) }}
+			if !dashboard.IsLoopback(*listen) {
+				// The persisted token keeps the URL the same across
+				// restarts (spec §11.1).
+				if tok, _, err := dashsvc.ReadToken(); err == nil && tok != "" {
+					opts.Token = tok
+				}
+			}
+			dash = dashboard.NewStarter(opts)
 			o.Dashboard = dash
 		}
 		res, err := flow.Up(c.Ctx, o, c.Err)

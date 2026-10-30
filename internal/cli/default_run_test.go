@@ -29,7 +29,7 @@ func TestDefaultRunStatusOnly(t *testing.T) {
 
 	var out, errb bytes.Buffer
 	// No args, not --json: human output, the status command runs.
-	code := defaultRun(context.Background(), &out, &errb, &Command{Name: "bernie", Subs: topLevel()}, false)
+	code := defaultRun(context.Background(), &out, &errb, &Command{Name: "bernie", Subs: topLevel()}, false, nil)
 	if code != ExitOK {
 		t.Fatalf("defaultRun code = %d, want 0", code)
 	}
@@ -43,7 +43,7 @@ func TestDefaultRunStatusOnly(t *testing.T) {
 	// --json with no command: the same command runs but in JSON mode.
 	out.Reset()
 	errb.Reset()
-	code = defaultRun(context.Background(), &out, &errb, &Command{Name: "bernie", Subs: topLevel()}, true)
+	code = defaultRun(context.Background(), &out, &errb, &Command{Name: "bernie", Subs: topLevel()}, true, nil)
 	if code != ExitOK {
 		t.Fatalf("defaultRun --json code = %d, want 0", code)
 	}

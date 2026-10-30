@@ -61,6 +61,10 @@ type Context struct {
 	// Root is the global --root value: the root of the host tree bernie
 	// reads. Empty means the real host ("/").
 	Root string
+	// Host is the global --host value: true when the operator asks for the
+	// dashboard to listen on the network instead of the loopback address.
+	// It is an explicit opt-in: the default stays closed.
+	Host bool
 	// Path is the command path, e.g. "bernie recipe show".
 	Path string
 	// root is the Context Main created; a --json parsed by a command's own
@@ -103,8 +107,8 @@ func Main(args []string) int {
 	defer stop()
 	root := &Command{Name: "bernie", Subs: topLevel()}
 	rest, jsonOut := splitJSON(args)
-	if len(rest) == 0 {
-		return defaultRun(ctx, os.Stdout, os.Stderr, root, jsonOut)
+	if len(rest) == 0 || (len(rest) == 1 && rest[0] == "--host") {
+		return defaultRun(ctx, os.Stdout, os.Stderr, root, jsonOut, rest)
 	}
 	return run(ctx, os.Stdout, os.Stderr, root, args)
 }
@@ -117,7 +121,10 @@ var defaultCommands = []string{"status", "dash"}
 // product surface. It shows the host in one screen and opens the dashboard
 // (spec §3.2). With --json it prints the status document and stops: an
 // agent reads data, it does not get a blocking server.
-func defaultRun(ctx context.Context, out, errw io.Writer, root *Command, jsonOut bool) int {
+//
+// extra holds the global flags the operator gave (e.g. --host). They go to
+// the dashboard command, which is the one that binds an address.
+func defaultRun(ctx context.Context, out, errw io.Writer, root *Command, jsonOut bool, extra []string) int {
 	if jsonOut {
 		return run(ctx, out, errw, root, []string{"status", "--json"})
 	}
@@ -125,10 +132,14 @@ func defaultRun(ctx context.Context, out, errw io.Writer, root *Command, jsonOut
 		if registry[name] == nil {
 			continue
 		}
+		args := []string{name}
+		if name == "dash" {
+			args = append(args, extra...)
+		}
 		// The host in one screen. Its exit code reports findings, not a
 		// failure of the launch: a host that needs setup is the normal
 		// case. The dashboard below absorbs the rest of the run.
-		run(ctx, out, errw, root, []string{name})
+		run(ctx, out, errw, root, args)
 	}
 	return ExitOK
 }
@@ -239,8 +250,34 @@ func takeRoot(args []string) (rest []string, root string, err error) {
 	return args, "", nil
 }
 
+// takeHost removes a leading global --host flag from a group command.
+func takeHost(args []string) (rest []string, host bool, err error) {
+	if len(args) == 0 {
+		return args, false, nil
+	}
+	if args[0] == "--host" {
+		return args[1:], true, nil
+	}
+	if v, ok := strings.CutPrefix(args[0], "--host="); ok {
+		b, perr := strconv.ParseBool(v)
+		if perr != nil {
+			return nil, false, Usagef("--host must be true or false, not %q", v)
+		}
+		return args[1:], b, nil
+	}
+	return args, false, nil
+}
+
 func dispatch(c *Context, cmd *Command, args []string) error {
 	if len(cmd.Subs) > 0 {
+		rest, host, err := takeHost(args)
+		if err != nil {
+			return err
+		}
+		if host {
+			c.Host = true
+			args = rest
+		}
 		rest, venv, err := takeVenv(args)
 		if err != nil {
 			return err
@@ -308,6 +345,7 @@ func (c *Context) Flags(cmd *Command) *flag.FlagSet {
 	fs.Var(jsonFlag{c}, "json", "print one JSON document on stdout")
 	fs.Var(venvFlag{c}, "venv", "host-mode venv directory")
 	fs.Var(rootFlag{c}, "root", "root of the host tree to read (default /)")
+	fs.Var(hostFlag{c}, "host", "let the dashboard listen on the network (default: loopback only)")
 	fs.Usage = func() {
 		w := fs.Output()
 		if cmd.Summary != "" {
@@ -333,6 +371,20 @@ func (j jsonFlag) Set(v string) error {
 	if j.c.root != nil {
 		j.c.root.JSON = b
 	}
+	return nil
+}
+
+// hostFlag is the global --host flag.
+type hostFlag struct{ c *Context }
+
+func (hostFlag) String() string   { return "" }
+func (hostFlag) IsBoolFlag() bool { return true }
+func (h hostFlag) Set(v string) error {
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return err
+	}
+	h.c.Host = b
 	return nil
 }
 

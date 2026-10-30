@@ -240,6 +240,11 @@ func loopbackURL(listen string) string {
 	return "http://" + net.JoinHostPort(host, port) + "/"
 }
 
+// LANURLs returns the LAN URLs of a dashboard listening on the given
+// address: one per non-loopback interface address. Empty when the
+// listener is bound to one address or is not known.
+func LANURLs(listen string) []string { return lanURLs(listen) }
+
 // lanURLs returns the LAN URLs of the running dashboard, one per non-loopback
 // interface address. Empty when the listener is loopback only or unknown.
 func lanURLs(listen string) []string {

@@ -211,6 +211,12 @@ other file, script or compose file is required.
   host tree bernie reads: `/` by default, another tree when it points at a
   captured host. `BERNIE_ROOT` holds the same value for a process that
   cannot take a flag (the MCP server, a service).
+- `--host` is global too, in the same places. It asks the dashboard to
+  listen on every interface (`0.0.0.0:7860`) instead of the loopback
+  address, so it is reachable from another machine. The default stays on
+  loopback: the port is closed to the network unless the operator asks for
+  it. A dashboard on the network runs in token mode, and the token is
+  persisted, so the URL is the same after a restart.
 - Explicit help (`--help`, `-h`, `help`) is printed on stdout and exits 0.
   `help <command>` prints the top-level help: the topic is ignored.
 - A command that takes no positional argument ignores the positional
@@ -266,8 +272,8 @@ other file, script or compose file is required.
 | `bernie bench ab --base ARM --cand ARM` | yes (it starts and stops a server for every arm) | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie fleet add <NAME> <URL> [--token T]` / `fleet rm <NAME>` / `fleet ls` | yes (config file) | List of other bernie hosts the Fleet tab watches. The token is stored in the config file with `0600`; it is never sent to the browser ([§11](#11-dashboard)). |
-| `bernie dash [--listen ADDR] [--token T] [--demo]` | no | Start the dashboard in the foreground. `--demo` serves a captured host and a fake run from a sandbox under the user cache, with the banner "Demo: nothing here is real"; it needs no GPU and changes nothing on the host. |
-| `bernie dash start [--listen ADDR] [--token T] [--rotate-token] [--no-systemd] [--show-token] [--json]` | yes (a background process) | Start the dashboard as a service that outlives the shell ([§11.1](#111-the-dashboard-service)). |
+| `bernie dash [--listen ADDR] [--token T] [--demo] [--host]` | no | Start the dashboard in the foreground. `--demo` serves a captured host and a fake run from a sandbox under the user cache, with the banner "Demo: nothing here is real"; it needs no GPU and changes nothing on the host. `--host` binds every interface ([§3.2](#32-rules)). |
+| `bernie dash start [--listen ADDR] [--token T] [--rotate-token] [--no-systemd] [--show-token] [--host] [--json]` | yes (a background process) | Start the dashboard as a service that outlives the shell ([§11.1](#111-the-dashboard-service)). |
 | `bernie dash stop [--json]` | yes | Stop the dashboard service. |
 | `bernie dash status [--show-token] [--json]` | no | The state of the dashboard service and the URLs to open. |
 | `bernie mcp [--allow-write]` | no | Serve MCP on stdin and stdout ([§13](#13-model-context-protocol)). With `--allow-write` it exposes the tools that change the host. |
@@ -1723,13 +1729,18 @@ are the rules of §10.3.
 ## 11. Dashboard
 
 `bernie dash` serves an embedded web UI and a JSON API. It listens on
-`127.0.0.1:7860` by default. On a non-loopback address the dashboard runs in
-token mode: every request needs the token (`Authorization: Bearer <t>` or the
-cookie). The token is `--token`, else `$BERNIE_DASH_TOKEN`, else a random
-token printed at start when the listen address is not a loopback address.
-POST, PUT and DELETE requests also need the header `X-Bernie: 1`. When no
-token is set, the `Host` header must be a loopback name (this blocks DNS
-rebinding). Errors are `{"error": "...", "exit_code": N}`.
+`127.0.0.1:7860` by default: the port is closed to the network, and a
+remote operator reaches it through an SSH tunnel
+(`ssh -L 7860:127.0.0.1:7860 <host>`), which the command prints when it
+starts. `--host` (or `--listen 0.0.0.0:7860`) opens the port to the
+network instead; the LAN URLs are then printed, each with the token. On a
+non-loopback address the dashboard runs in token mode: every request needs
+the token (`Authorization: Bearer <t>` or the cookie). The token is
+`--token`, else `$BERNIE_DASH_TOKEN`, else the persisted token (generated
+once, mode 0600 under the state directory), else a random token printed at
+start. POST, PUT and DELETE requests also need the header `X-Bernie: 1`.
+When no token is set, the `Host` header must be a loopback name (this
+blocks DNS rebinding). Errors are `{"error": "...", "exit_code": N}`.
 
 `up` starts the dashboard before the server is healthy
 ([§3.1](#31-the-default-run-the-binary)). The Runs tab then shows the run

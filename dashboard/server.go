@@ -41,8 +41,28 @@ type Options struct {
 	Ready func(url string)
 }
 
-// DefaultListen is the loopback address of spec §11.
+// DefaultListen is the loopback address of spec §11. It is the safe
+// default: the dashboard is reachable from this host only.
 const DefaultListen = "127.0.0.1:7860"
+
+// HostListen is the address of the same port on every interface. It is
+// used when the operator asks for the dashboard to be reachable from
+// another machine (`bernie --host`). A dashboard on this address runs in
+// token mode: every request needs the token.
+const HostListen = "0.0.0.0:7860"
+
+// ResolveListen returns the address the dashboard binds to. An explicit
+// address wins; otherwise the host flag picks the network address and the
+// default stays on loopback, where the port is closed to the network.
+func ResolveListen(listen string, host bool) string {
+	if listen != "" {
+		return listen
+	}
+	if host {
+		return HostListen
+	}
+	return DefaultListen
+}
 
 // cookieName holds the dashboard token after the operator visits /?token=….
 const cookieName = auth.CookieName
