@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -28,6 +29,31 @@ func TestMain(m *testing.M) {
 		os.Exit(cli.Main([]string{"mcp"}))
 	}
 	os.Exit(m.Run())
+}
+
+// lockedBuffer is a buffer two goroutines can use: os/exec copies the stderr
+// of the child into it while the test reads it.
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
+func (l *lockedBuffer) Len() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Len()
 }
 
 // cliJSON runs a bernie command in this process and decodes its --json document.
@@ -65,7 +91,7 @@ func TestStdioSession(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0])
 	cmd.Env = append(os.Environ(), "BERNIE_TEST_AS_MCP=1")
-	var stderr bytes.Buffer
+	var stderr lockedBuffer
 	cmd.Stderr = &stderr
 	ctx := context.Background()
 	cs, err := sdk.NewClient(&sdk.Implementation{Name: "stdio-test", Version: "1"}, nil).Connect(ctx, &sdk.CommandTransport{Command: cmd}, nil)
