@@ -148,20 +148,21 @@ func printRun(w io.Writer, run *setup.Run) {
 // printEvidence prints the verification JSON of a step.
 func printEvidence(w io.Writer, raw json.RawMessage) {
 	var v struct {
-		Python       string   `json:"python"`
-		Torch        string   `json:"torch"`
-		HIP          string   `json:"hip"`
-		VLLM         string   `json:"vllm"`
-		DeviceCount  int      `json:"device_count"`
-		ROCMOps      int      `json:"rocm_ops"`
-		RDNAOps      int      `json:"rdna_ops"`
-		AllReduce    bool     `json:"all_reduce"`
-		ROCMC        string   `json:"rocm_c"`
-		ROCBLAS      string   `json:"rocblas"`
-		ROCBLASWheel bool     `json:"rocblas_wheel"`
-		MissingLibs  []string `json:"missing_libs"`
-		VerifyErrors []string `json:"verify_errors"`
-		Error        string   `json:"error"`
+		Python       string      `json:"python"`
+		Torch        string      `json:"torch"`
+		HIP          string      `json:"hip"`
+		VLLM         string      `json:"vllm"`
+		DeviceCount  int         `json:"device_count"`
+		ROCMOps      int         `json:"rocm_ops"`
+		RDNAOps      int         `json:"rdna_ops"`
+		AllReduce    bool        `json:"all_reduce"`
+		ROCMC        string      `json:"rocm_c"`
+		ROCBLAS      string      `json:"rocblas"`
+		ROCBLASWheel bool        `json:"rocblas_wheel"`
+		MissingLibs  []string    `json:"missing_libs"`
+		VerifyErrors []string    `json:"verify_errors"`
+		Components   []Component `json:"components"`
+		Error        string      `json:"error"`
 	}
 	if err := json.Unmarshal(raw, &v); err != nil {
 		fmt.Fprintf(w, "  %s\n", raw)
@@ -173,6 +174,16 @@ func printEvidence(w io.Writer, raw json.RawMessage) {
 	fmt.Fprintf(w, "  ops: %d RDNA of %d, all_reduce %t\n", v.RDNAOps, v.ROCMOps, v.AllReduce)
 	fmt.Fprintf(w, "  extension %s\n", cli.OrDash(v.ROCMC))
 	fmt.Fprintf(w, "  rocBLAS %s%s\n", cli.OrDash(v.ROCBLAS), wheelNote(v.ROCBLASWheel))
+	if len(v.Components) > 0 {
+		fmt.Fprintln(w, "  components:")
+		for _, c := range v.Components {
+			line := "    " + c.Name + " " + cli.OrDash(c.Version)
+			if c.Note != "" {
+				line += "  (" + c.Note + ")"
+			}
+			fmt.Fprintln(w, line)
+		}
+	}
 	if len(v.MissingLibs) > 0 {
 		fmt.Fprintf(w, "  missing libraries: %s\n", strings.Join(v.MissingLibs, ", "))
 	}
@@ -184,12 +195,69 @@ func printEvidence(w io.Writer, raw json.RawMessage) {
 	}
 }
 
+// Component is one row of the venv components table: the MOST IMPORTANT
+// parts of the venv (spec §6.3). A missing part has Version == "absent"
+// and is never omitted.
+type Component struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Note    string `json:"note,omitempty"`
+}
+
+// venvComponents reads the components list out of the venv.verify step
+// of a setup run (spec §6.4). It returns nil when the run has no
+// venv.verify step or the evidence has no components: the caller shows
+// nothing rather than a half-empty table.
+func venvComponents(run *setup.Run) []Component {
+	if run == nil {
+		return nil
+	}
+	for _, s := range run.Steps {
+		if s.ID != "venv.verify" {
+			continue
+		}
+		if len(s.Evidence) == 0 {
+			return nil
+		}
+		var v struct {
+			Components []Component `json:"components"`
+		}
+		if err := json.Unmarshal(s.Evidence, &v); err != nil {
+			return nil
+		}
+		if len(v.Components) == 0 {
+			return nil
+		}
+		return v.Components
+	}
+	return nil
+}
+
 // wheelNote says where the rocBLAS comes from.
 func wheelNote(wheel bool) string {
 	if wheel {
 		return " (from the wheel of the venv)"
 	}
 	return ""
+}
+
+// printPythonEnv prints the python-env detail of a setup run: the MOST
+// IMPORTANT parts of the venv (spec §6.3). It reads the same record the
+// dashboard and the MCP server read, so the three surfaces cannot
+// disagree. A missing component is "absent", never omitted.
+func printPythonEnv(w io.Writer, run *setup.Run) {
+	comps := venvComponents(run)
+	if len(comps) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "python-env:")
+	for _, c := range comps {
+		line := "  " + c.Name + " " + cli.OrDash(c.Version)
+		if c.Note != "" {
+			line += "  (" + c.Note + ")"
+		}
+		fmt.Fprintln(w, line)
+	}
 }
 
 // tailFile prints a file and, when follow is set, the lines that come

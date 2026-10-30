@@ -1,0 +1,27 @@
+{
+  "python": "3.12.14",
+  "torch": null,
+  "hip": null,
+  "vllm": null,
+  "device_count": 0,
+  "rocm_ops": 0,
+  "rdna_ops": 0,
+  "all_reduce": false,
+  "rocm_c": null,
+  "rocblas": null,
+  "rocblas_wheel": false,
+  "verify_errors": ["torch does not resolve a rocBLAS"],
+  "components": [
+    {"name": "python", "version": "3.12.14"},
+    {"name": "torch", "version": "absent"},
+    {"name": "rocm-sdk-wheel", "version": "absent"},
+    {"name": "triton", "version": "absent"},
+    {"name": "vllm", "version": "absent"},
+    {"name": "flash-attn", "version": "absent"},
+    {"name": "causal-conv1d", "version": "absent"},
+    {"name": "transformers", "version": "absent"},
+    {"name": "rocBLAS", "version": "absent"},
+    {"name": "RCCL", "version": "absent"},
+    {"name": "rocm-sdk-host", "version": "absent"}
+  ]
+}
