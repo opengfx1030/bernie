@@ -81,6 +81,9 @@ func printDoctor(w io.Writer, r doctor.Report) {
 			fmt.Fprintln(w, "  choose one: bernie config set venv DIR")
 		}
 	}
+	if run, err := app.SetupLatestRun(); err == nil {
+		printPythonEnv(w, run)
+	}
 	cat := ""
 	for _, ch := range r.Checks {
 		if ch.Category != cat {

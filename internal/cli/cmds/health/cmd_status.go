@@ -147,6 +147,7 @@ func printStatus(w io.Writer, s *flow.Summary) {
 			fmt.Fprintln(w, "        choose one: bernie config set venv DIR")
 		}
 	}
+	printPythonEnv(w, s.SetupRun)
 	if s.Restriction != "" {
 		fmt.Fprintf(w, "%s\n", s.Restriction)
 	}
