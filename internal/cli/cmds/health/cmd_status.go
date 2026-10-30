@@ -10,6 +10,7 @@ import (
 	"github.com/opengfx1030/bernie/internal/doctor"
 	"github.com/opengfx1030/bernie/internal/flow"
 	"github.com/opengfx1030/bernie/internal/onboarding"
+	"github.com/opengfx1030/bernie/internal/setup"
 )
 
 func init() {
@@ -27,6 +28,7 @@ func init() {
 		return c.Emit(s, func(w io.Writer) {
 			if *steps {
 				printChecklist(w, s.Onboarding)
+				printSetupRun(w, s.SetupRun)
 				return
 			}
 			printStatus(w, s)
@@ -97,6 +99,19 @@ func printChecklist(w io.Writer, doc *onboarding.Document) {
 		}
 	} else {
 		fmt.Fprintln(w, "next: the host is ready")
+	}
+}
+
+// printSetupRun prints the record of the newest setup run: every step with
+// its state and the time it took. It is the same record the report and the
+// dashboard read (spec §6.4).
+func printSetupRun(w io.Writer, run *setup.Run) {
+	if run == nil {
+		return
+	}
+	fmt.Fprintf(w, "\nsetup run %s  %s  in %s\n", run.ID, run.State, setup.FormatDuration(run.DurationS))
+	for _, s := range run.Steps {
+		fmt.Fprintf(w, "  %-20s %-8s %s\n", s.ID, s.State, setup.FormatDuration(s.DurationS))
 	}
 }
 
