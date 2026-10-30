@@ -20,7 +20,7 @@
     {"name": "causal-conv1d", "version": "absent"},
     {"name": "transformers", "version": "4.45.2"},
     {"name": "rocBLAS", "version": "5.5.0", "note": "wheel, soname 5, rocBLAS 5.5.0"},
-    {"name": "RCCL", "version": "2.21.5/2.21.5"},
+    {"name": "RCCL", "version": "2.30.4"},
     {"name": "rocm-sdk-host", "version": "7.14.1", "note": "/opt/rocm/core-7.14"}
   ]
 }
