@@ -302,13 +302,13 @@ func TestRunPrinterModes(t *testing.T) {
 		tty  bool
 		// times maps the At of each event to the clock of the printer
 		// at that point.
-		times []time.Time
+		times  []time.Time
 		events []setup.Event
 		want   string
 	}{
 		{
-			name: "tty running, progress, done",
-			tty:  true,
+			name:  "tty running, progress, done",
+			tty:   true,
 			times: []time.Time{t0, t0.Add(12 * time.Second), t0.Add(12 * time.Second)},
 			events: []setup.Event{
 				{Type: "step_started", At: t0, Index: 1, Total: 2,
@@ -325,8 +325,8 @@ func TestRunPrinterModes(t *testing.T) {
 				"\r[1/2] venv.torch: done in 4m12s, log: /state/setup/run/venv.torch.log\n",
 		},
 		{
-			name: "non-tty one line per event",
-			tty:  false,
+			name:  "non-tty one line per event",
+			tty:   false,
 			times: []time.Time{t0, t0.Add(12 * time.Second), t0.Add(12 * time.Second)},
 			events: []setup.Event{
 				{Type: "step_started", At: t0, Index: 1, Total: 2,
@@ -343,8 +343,8 @@ func TestRunPrinterModes(t *testing.T) {
 				"[1/2] venv.torch: done in 4m12s, log: /state/setup/run/venv.torch.log\n",
 		},
 		{
-			name: "skipped and blocked",
-			tty:  false,
+			name:  "skipped and blocked",
+			tty:   false,
 			times: []time.Time{t0, t0},
 			events: []setup.Event{
 				{Type: "step_skipped", At: t0,
@@ -356,8 +356,8 @@ func TestRunPrinterModes(t *testing.T) {
 				"       rocm.repo: blocked (needs root)\n",
 		},
 		{
-			name: "failed step says why",
-			tty:  false,
+			name:  "failed step says why",
+			tty:   false,
 			times: []time.Time{t0},
 			events: []setup.Event{
 				{Type: "step_done", At: t0, Index: 2, Total: 2,
