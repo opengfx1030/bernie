@@ -89,8 +89,8 @@ func TestSmokeEndpointAnswersThePrompt(t *testing.T) {
 	if res.TTFTMS < 10 || res.OutputTokens < 1 {
 		t.Fatalf("the numbers are %+v", res)
 	}
-	if prompts := fake.Prompts(); len(prompts) != 1 || prompts[0] != "How fast are you?" {
-		t.Fatalf("the server got the prompts %v", prompts)
+	if prompts := fake.ChatPrompts(); len(prompts) != 1 || prompts[0] != "How fast are you?" {
+		t.Fatalf("the server got the chat prompts %v", prompts)
 	}
 }
 
