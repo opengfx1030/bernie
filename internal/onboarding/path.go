@@ -21,7 +21,7 @@ const ActionPath = "path"
 func PathAction(f *Facts, o Options) *Action {
 	a := &Action{Kind: ActionPath, Recipe: f.Recipe, Mode: f.Mode, Venv: o.Venv,
 		Sets: o.Sets, Engine: o.Engine, Name: o.Name,
-		Apply: applyOptions(f.Mode, f.Recipe, o.Venv)}
+		Apply: applyOptions(f.Mode, f.Recipe, o.Venv, o.Verbose)}
 	for _, s := range f.Setup {
 		if s.Done || s.Root {
 			continue

@@ -65,15 +65,24 @@ type Action struct {
 
 // applyOptions builds the options of the setup run of an action: the
 // record of the run lands in the store of the host, so the CLI, the MCP
-// server and the dashboard read the same one.
-func applyOptions(mode, recipe, venv string) setup.ApplyOptions {
-	return setup.ApplyOptions{Mode: mode, Recipe: recipe, Venv: setup.ResolveRunVenv(venv), Store: setup.DefaultRunStore(), Mirror: true}
+// server and the dashboard read the same one. The dashboard wants the
+// raw output mirrored (`Mirror: true`); the CLI passes Verbose so the
+// markers ride on top of the printer instead of getting suppressed.
+func applyOptions(mode, recipe, venv string, verbose bool) setup.ApplyOptions {
+	return setup.ApplyOptions{
+		Mode:    mode,
+		Recipe:  recipe,
+		Venv:    setup.ResolveRunVenv(venv),
+		Store:   setup.DefaultRunStore(),
+		Mirror:  true,
+		Verbose: verbose,
+	}
 }
 
 // SetupAction returns the action that applies the given setup steps. `up`
 // and the jobs run the same action.
 func SetupAction(steps []setup.Step, o Options) *Action {
-	return &Action{Kind: ActionSetup, Steps: steps, Apply: applyOptions(o.Mode, o.Recipe, o.Venv)}
+	return &Action{Kind: ActionSetup, Steps: steps, Apply: applyOptions(o.Mode, o.Recipe, o.Venv, o.Verbose)}
 }
 
 // PreparedStep is what a checklist step needs before it can run. A step
@@ -116,7 +125,7 @@ func PrepareStep(f *Facts, step string, o Options) (*PreparedStep, error) {
 // step needs root or has nothing left to do.
 func ActionFor(f *Facts, step string, o Options) (*Action, error) {
 	a := &Action{Step: step, Venv: o.Venv, Sets: o.Sets, Engine: o.Engine, Name: o.Name,
-		Apply: applyOptions(o.Mode, o.Recipe, o.Venv)}
+		Apply: applyOptions(o.Mode, o.Recipe, o.Venv, o.Verbose)}
 	switch step {
 	case StepPythonEnv:
 		pending := pendingSetup(f.Setup, pythonSetupSteps)

@@ -51,9 +51,16 @@ func (a *applier) emit(ev Event) {
 	a.opt.Event(ev)
 }
 
-// marker writes one line of the log of the caller.
+// marker writes one line of the log of the caller. The markers ("== step:
+// title", "$ cmd") belong to a verbose stream: when the CLI has its own
+// progress printer they collide with the running line and the user reads
+// noise instead of progress. They still go out under --verbose or when no
+// printer is wired (the dashboard, the legacy `Apply` helper).
 func (a *applier) marker(line string) {
 	if a.opt.Quiet || a.log == nil {
+		return
+	}
+	if a.opt.Event != nil && !a.opt.Verbose {
 		return
 	}
 	fmt.Fprintln(a.log, line)
@@ -242,7 +249,11 @@ func (w *stepWriter) line(text string) {
 	if w.onLine != nil {
 		w.onLine(text)
 	}
-	if w.mirror && w.log != nil {
+	// Mirror the raw output to the caller's log when asked, but never
+	// leak the BERNIE_JSON evidence line: that line is the venv probe's
+	// single JSON document, it goes to the per-step log and the record
+	// only. `setup report` prints it; the terminal never should.
+	if w.mirror && w.log != nil && !strings.HasPrefix(text, "BERNIE_JSON:") {
 		fmt.Fprintln(w.log, text)
 	}
 }

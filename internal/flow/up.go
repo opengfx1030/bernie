@@ -51,6 +51,10 @@ type UpOptions struct {
 	// OnEvent receives the events of the setup run (spec §6.4): the CLI
 	// streams them, one line per step.
 	OnEvent func(setup.Event)
+	// Verbose streams the raw step output on top of the progress
+	// printer. The CLI leaves it off by default so the progress line is
+	// the only live line on a TTY.
+	Verbose bool
 }
 
 // UpResult is the outcome of a completed Up.

@@ -22,13 +22,14 @@ import (
 // Options are the inputs of the onboarding: the flags of `up` and of the
 // onboarding endpoints. An empty field means "the config, then the default".
 type Options struct {
-	Venv   string   // host-mode venv
-	Recipe string   // "" = the best fitting recipe
-	Mode   string   // host | container
-	Sets   []string // --set overrides
-	Engine string   // container engine
-	Name   string   // run name
-	Root   string   // root of the host tree to read; "" = the real host
+	Venv    string   // host-mode venv
+	Recipe  string   // "" = the best fitting recipe
+	Mode    string   // host | container
+	Sets    []string // --set overrides
+	Engine  string   // container engine
+	Name    string   // run name
+	Root    string   // root of the host tree to read; "" = the real host
+	Verbose bool     // stream raw step output on top of the progress printer
 }
 
 // Facts is the state of the host, gathered once. The steps are derived from
