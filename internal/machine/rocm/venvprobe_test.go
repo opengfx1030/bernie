@@ -50,6 +50,9 @@ func TestProbeVenvCachesTheResult(t *testing.T) {
 	if rep.Torch != "2.12.0+rocm7.14.0" {
 		t.Fatalf("the cached probe = %+v, want the torch version", rep)
 	}
+	if !rep.Probed {
+		t.Errorf("a cached probe reads as not probed: the plan would call a working venv not done")
+	}
 	if n := runs(t, counter); n != 1 {
 		t.Errorf("the probe ran %d times, want 1", n)
 	}
