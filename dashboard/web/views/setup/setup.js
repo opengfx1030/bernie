@@ -58,6 +58,8 @@ const setupState = {
   onRefresh: null,
   pathBox: null,
   pathJobID: "",
+  // run is the record of the newest setup run (spec §6.4).
+  run: null,
   modules: {},
 };
 

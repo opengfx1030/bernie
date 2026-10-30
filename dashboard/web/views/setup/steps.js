@@ -80,6 +80,9 @@ function followSetupJob(step, job, options) {
       }
       paintSetupProgress(id);
       loadSetupJobProgress(job.id, id);
+      // The setup steps have a record of their own: the page reads it
+      // instead of a second source (spec §6.4).
+      if (id === "python-env" || id === "path") setupRefreshRun(id);
       if (options.onRefresh) options.onRefresh();
     },
     done: (ev) => finish("done", ev.data),
@@ -289,6 +292,32 @@ function paintSetupProgress(id) {
   lines.forEach((line, i) => {
     if (log.children[i].textContent !== line) log.children[i].textContent = line;
   });
+}
+
+/** setupRefreshRun reads the record of the setup run and paints the row it
+ *  belongs to. The record is the one source of the progress of the setup:
+ *  the CLI, the MCP server and the page read it (spec §6.4). */
+async function setupRefreshRun(id) {
+  let doc = null;
+  try { doc = await api("/api/setup/runs"); } catch (e) { return; }
+  const run = (doc && doc.run) || null;
+  setupState.run = run;
+  if (!run || !run.steps || !run.steps.length) return;
+  const steps = run.steps;
+  const step = steps.find((s) => s.state === "running") || steps[steps.length - 1];
+  const live = id === "path" ? setupProgress.path : (setupProgress[id] || (setupProgress[id] = {}));
+  if (!live || live.failed) return;
+  live.phase = step.id + ": " + step.state +
+    (step.progress && step.progress.sentence ? " (" + step.progress.sentence + ")" : "");
+  live.detail = step.duration_s > 0 ? setupDuration(step.duration_s) : "";
+  if (id !== "path" && step.log_path) {
+    let log = null;
+    try {
+      log = await api("/api/setup/runs/" + encodeURIComponent(run.id) + "/log/" + encodeURIComponent(step.id));
+    } catch (e) { log = null; }
+    setupLogs[id] = (log && log.lines) || [];
+  }
+  if (id === "path") setupPaintPath(); else paintSetupProgress(id);
 }
 
 /** setupStopStreams closes the job streams of the tab. */
