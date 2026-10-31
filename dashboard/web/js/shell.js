@@ -246,7 +246,7 @@ function setRunPill(runs) {
   let word = "idle", tone = "skip", sentence = "No run is serving on this host.";
   if (starting.length) {
     word = "starting"; tone = "info";
-    sentence = phaseSentence(starting[0], "The server is loading the model.");
+    sentence = phaseSentence(starting[0], starting[0].waiting || "The server is loading the model.");
   } else if (live.length) {
     const answering = live.some((r) => r.answering !== false);
     if (answering) {

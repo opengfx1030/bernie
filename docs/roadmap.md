@@ -165,14 +165,13 @@ Each item has a spec section and one test that proves it.
 ## The next dashboard
 
 The design of the new dashboard is written down: the shell, the tokens, the
-four tabs (Setup, Dashboard, Benchmark, Logs), the copy of every state and
-the wireframes are in [design-dashboard.md](design-dashboard.md) and in
-[design/](design/). It is a design, not a plan: the first commit that uses
-it is the shell, and every commit names the files it touches.
+eight tabs, the copy of every state and the wireframes are in
+[design-dashboard.md](design-dashboard.md) and in [design/](design/).
 
-| # | Item | Spec | Test |
-|---|---|---|---|
-| 10 | **The dashboard v3 shell.** Four tabs in a rail, the measured tokens, one primary action per tab, a toast, a tooltip and an Advanced panel on every tab. | [design-dashboard.md](design-dashboard.md) | the four tabs open from their hash routes, the old routes still work, and the page does not scroll sideways at 390 px |
+The shell has shipped: the eight tabs of design §2.2 open from their hash
+routes, the old routes land on their new tab, every tab has one primary
+action, and no tab scrolls sideways at 390 px (checked 2026-10-31 in the
+demo, light and dark, 1280 and 390 px).
 
 The design of the dashboard and parts of its markup and CSS come from
 [CrispyGinger's vllm-rdna-dash](https://github.com/crispyging/vllm-rdna-dash),

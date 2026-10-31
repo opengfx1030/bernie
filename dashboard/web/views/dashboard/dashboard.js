@@ -118,7 +118,7 @@ function dashLiveRun() {
 function dashPhase(run) {
   if (!run) return "";
   if (run.phase && run.phase.sentence) return run.phase.sentence;
-  if (run.state === "starting") return "The server is loading the model.";
+  if (run.state === "starting") return run.waiting || "The server is loading the model.";
   return "";
 }
 

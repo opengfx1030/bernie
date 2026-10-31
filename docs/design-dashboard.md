@@ -123,14 +123,15 @@ The pill in the rail footer answers "is something serving?".
 
 | State | Icon | Word | Colour |
 |---|---|---|---|
-| a run answers `/health` | ● | `serving` | `--ok` |
+| a run is `running`: it answers `/health` and a completion | ● | `serving` | `--ok` |
 | a run is loading the model | ◐ | `starting` | `--info` |
 | a run exists but does not answer | ! | `not answering` | `--warn` |
 | no run | – | `idle` | `--skip` |
 | the run died | ✕ | `stopped` | `--fail` |
 
 The pill carries the phase sentence as its `title` and its `aria-label`, for
-example `starting — Loading the model weights, 2 of 5 shards`. The full
+example `starting — Loading the model weights, 2 of 5 shards`. A starting run
+without a phase sentence carries its `waiting` reason instead (spec §8.3). The full
 sentence is always written out in the state headline of the tab.
 
 ### 2.4 Theme and Advanced

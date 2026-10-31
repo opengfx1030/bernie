@@ -71,7 +71,8 @@ async function viewLogs(root) {
     if (run.state === "starting") {
       headKind = "starting";
       setHead(head, "THE SERVER IS STARTING.",
-        (run.phase && run.phase.sentence) || "The server is loading the model. The tail follows it.");
+        [run.phase && run.phase.sentence, run.waiting].filter(Boolean).join(". ") ||
+        "The server is loading the model. The tail follows it.");
       return;
     }
     if (known.length) {
@@ -97,8 +98,8 @@ async function viewLogs(root) {
     }
     tail.setFindings(matches);
     put(findBox, logFindings(matches, {
-      onJump: (f) => { if (!tail.jumpToFinding(f)) toast("That line is not in the tail."); },
       run: run.name,
+      onJump: (f) => { if (!tail.jumpToFinding(f)) toast("That line is not in the tail."); },
     }));
     setHeadline(run, matches);
   }

@@ -22,5 +22,5 @@ dashboard/web/views/benchmark/benchmark.js	401	benchmark owner: the suites, the 
 internal/onboarding/jobs.go	458	onboarding owner: the jobs, their state machine and the progress of the work; the 1024 line cap holds
 internal/setup/download.go	416	setup owner: the model download, its limit and its progress sentence; the 1024 line cap holds
 dashboard/web/views/setup/setup.js	432	setup owner: the orchestrator, the paint functions, the doctor findings and the verify box; a split would push the first paint past the 24-request cap
-dashboard/web/views/setup/recipes.js	426	setup owner: the recipe chooser, the plan card, the structured overrides form and the lazy plan-adjust disclosure; the 1024 line cap holds
+dashboard/web/views/setup/recipes.js	427	setup owner: the recipe chooser, the plan card, the structured overrides form and the lazy plan-adjust disclosure; the 1024 line cap holds
 internal/doctor/doctor_test.go	414	doctor owner: the table-driven cases that walk every category and every status; the 1024 line cap holds

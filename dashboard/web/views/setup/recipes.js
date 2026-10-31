@@ -170,6 +170,7 @@ function setupPlanView(plan, recipe) {
       setupPlanSaveDefaultButton()),
     h("p.recipe-fit", { class: "recipe-fit fit-" + setupFitStatus(recipe) }, recipe ? setupFitLine(recipe) : "fit: unknown"),
     setupPlanOverrides(recipe),
+    (plan.adjustments || []).map((a) => h("p.recipe-warning", "adjusted: " + a.setting + " " + a.from + " -> " + a.to + " (" + a.reason + ")")),
     (plan.warnings || []).map((w) => h("p.recipe-warning", w)),
     setupPlanAdjust(plan, recipe),
     setupPlanLaunchBox(plan),
