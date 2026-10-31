@@ -51,7 +51,7 @@ func serveAndWait(ctx context.Context, o UpOptions, log io.Writer, res *UpResult
 			fmt.Fprintf(log, "up: dashboard: %v\n", err)
 		}
 	}
-	fmt.Fprintf(log, "up: waiting for %s to answer /health (logs: bernie logs %s -f)\n", rec.Name, rec.Name)
+	fmt.Fprintf(log, "up: waiting for %s to answer /health and a first completion (logs: bernie logs %s -f)\n", rec.Name, rec.Name)
 	list := runner.List
 	if o.Runner != nil {
 		list = o.Runner.List
@@ -79,6 +79,7 @@ func waitHealthy(ctx context.Context, name string, limit time.Duration, progress
 	defer tick.Stop()
 	var printer phasePrinter
 	var rec runner.Record
+	var waiting string
 	next := time.Time{}
 	for {
 		if time.Now().After(next) {
@@ -91,7 +92,7 @@ func waitHealthy(ctx context.Context, name string, limit time.Duration, progress
 				if s.Name != name {
 					continue
 				}
-				rec = s.Record
+				rec, waiting = s.Record, s.Waiting
 				switch s.State {
 				case runner.StateRunning:
 					return nil
@@ -100,7 +101,10 @@ func waitHealthy(ctx context.Context, name string, limit time.Duration, progress
 				}
 			}
 			if time.Now().After(deadline) {
-				return fmt.Errorf("%s is not healthy after %s; see: bernie logs %s", name, limit, name)
+				if waiting == "" {
+					waiting = "it never answered"
+				}
+				return fmt.Errorf("%s is not ready after %s (%s); see: bernie logs %s", name, limit, waiting, name)
 			}
 		}
 		if ph, ok := runner.Phase(ctx, rec); ok {

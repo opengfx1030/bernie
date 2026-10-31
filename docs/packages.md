@@ -256,7 +256,7 @@ type PrepareOptions struct { Recipe, Mode, Name, Venv, Engine string; Sets []str
 func Prepare(ctx context.Context, o PrepareOptions) (*recipe.Plan, error) // config, recipe, GPUs, plan, host env, TunableOp, exec
 type Record struct { Name, Recipe, Mode string; PID int; Container, Engine, Host string;
     Port int; StartedAt time.Time; Log, Image, ImageDigest string; Plan *recipe.Plan }
-type Status struct { Record; State string }        // running|starting|exited
+type Status struct { Record; State, Waiting string }   // running|starting|exited; Waiting: why starting
 func Start(ctx context.Context, p *recipe.Plan, o StartOptions) (*Record, error)
 func List(ctx context.Context) ([]Status, error)
 func Stop(ctx context.Context, name string) error

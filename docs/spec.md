@@ -168,8 +168,10 @@ other file, script or compose file is required.
      mode). With `--json` no dashboard is started. The dashboard is reachable
      while the server loads the model: the
      Logs tab shows the run as `starting`, its phase sentence and its log.
-  8. It waits until `/health` answers (`--wait`, default 30 minutes) and
-     prints the progress.
+  8. It waits until the run is `running` ([§8.3](#83-run-record)): `/health`
+     answers and the server answered a one-token completion (`--wait`,
+     default 30 minutes). It prints the progress. A run that is still
+     `starting` at the limit fails with the `waiting` reason.
 
   A dashboard that cannot bind its address (the port is in use) is reported
   on stderr; `up` keeps waiting for the server. Ctrl-C stops the dashboard;
@@ -286,8 +288,8 @@ A `no*` command writes only its generated files under the state directory.
 `cdi` or `auto`), `--profile` (force a TunableOp
 profile), `--no-tunableop` and `--tuning`. `serve` adds `--foreground`,
 `--no-pull`, `--wait D`, `--dash[=ADDR]` and `--dry-run` (same output as
-`recipe plan`). `serve --wait D` waits up to `D` until `/health` answers,
-like `up`; a run that exits first is reported like in `up`. While it waits,
+`recipe plan`). `serve --wait D` waits up to `D` until the run is
+`running`, like `up`; a run that exits first is reported like in `up`. While it waits,
 `serve` prints the phase sentence of the run ([§5.4](#54-log-phase)).
 Without `--wait`, `serve` returns once the run is started. `serve --dash`
 starts the dashboard next to the run (default address `127.0.0.1:7860`,
@@ -1343,14 +1345,26 @@ comment.
 the pull. Tags such as `v0.31.0-extras` are refreshed in place, so the tag
 alone does not identify the image.
 
-`ps` state is derived from the process (or container) and `/health`. The
-state is not stored in `run.json`:
+`ps` state is derived from the process (or container), `/health` and one
+completion. The state is not stored in `run.json`:
 
 | State | Meaning |
 |---|---|
-| `starting` | The process or container is alive. `/health` does not answer 200. |
-| `running` | The process or container is alive. `/health` answers 200. |
+| `starting` | The process or container is alive. `/health` does not answer 200, or the server has not answered a completion yet. |
+| `running` | The process or container is alive. `/health` answers 200 and the server answered a one-token completion. |
 | `exited` | The process or container is gone, whether `stop` ended it or it failed. |
+
+A run is `running` only when it answers. Once `/health` answers, bernie
+sends one streaming completion of `max_tokens: 1` to the served model (the
+plan's served name, else the first id of `/v1/models`), with a 10 second
+limit. The first answer is recorded in `<state>/runs/<name>/answered` with
+the start time of the run, so a later `ps` does not ask again and a new run
+of the same name asks afresh.
+
+A `starting` run has a `waiting` string in `ps --json` and `status --json`:
+what it waits for, for example `the server answers /health but not a
+completion yet: HTTP 503`. The field is absent for a `running` or `exited`
+run.
 
 An exited run has a `findings` array in `ps --json` and `status --json` when
 the scan of its log ([§5.3](#53-log-doctor)) matched at least one rule. Each

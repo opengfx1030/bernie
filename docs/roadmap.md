@@ -13,7 +13,6 @@ Each item has a spec section and one test that proves it.
 
 | # | Item | Spec | Test |
 |---|---|---|---|
-| 4 | **Ready means answers.** A run is `ready` only after `/health` and a one-token completion succeed. | §3.1, §8.3 | A run with the model unloaded stays `starting` and says why. |
 | 5 | **Log doctor on failure.** When a run exits during startup, `serve` and `up` print the matched rule: id, cause, fix. | §5.3 | A fixture log with a known error prints that rule. |
 | 6 | **Next command in every state.** `status --json` has `next` for: no GPU, no recipe fits, recipe fits, run starting, run ready. | §3.1 | Fixture set covers the five states. |
 
@@ -28,6 +27,11 @@ Each item has a spec section and one test that proves it.
 
 ## Shipped
 
+- **Ready means answers.** A run is `running` only after `/health`
+  answers and the server answered a one-token completion. The state name
+  stays `running`, since `ps --json` is an API. A run that is still
+  `starting` says why in `waiting`, and `up` and `serve --wait` fail with
+  that reason at their limit. Spec [§8.3](spec.md#83-run-record).
 - **Plan shrinks to fit.** `recipe plan` lowers `max-model-len` to 32K,
   16K or 8K when one request does not fit the KV budget, and records the
   change in `plan.adjustments[]` with its reason. `serve`, `compose` and
