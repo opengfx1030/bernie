@@ -46,7 +46,7 @@ async function viewLogs(root) {
     logSection("THE RUN", runsBox),
     logSection("THE KNOWN PROBLEMS", findBox),
     logSection("THE LOG", tail.el),
-    logSection("Show details", advanced));
+    advanced);
 
   /** setLede writes the line under the headline. The count of the lines
    *  changes with every line, the headline does not. */
@@ -98,6 +98,7 @@ async function viewLogs(root) {
     tail.setFindings(matches);
     put(findBox, logFindings(matches, {
       onJump: (f) => { if (!tail.jumpToFinding(f)) toast("That line is not in the tail."); },
+      run: run.name,
     }));
     setHeadline(run, matches);
   }

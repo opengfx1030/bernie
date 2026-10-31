@@ -588,7 +588,7 @@ function ring(pct, label, opts) {
     }
     const p = Math.max(0, Math.min(100, v));
     fill.style.width = p.toFixed(1) + "%";
-    num.textContent = String(Math.round(p));
+    num.textContent = Math.round(p) + " %";
     track.setAttribute("aria-label", "the load of " + (label || "the card") + ": " + Math.round(p) + " %");
   };
   paint(pct);
