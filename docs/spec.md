@@ -1033,6 +1033,8 @@ requires:
   vram_gib: 28                  # per GPU
   ram_gib: 64                   # host RAM
   engine: vllm-rdna             # vllm | vllm-rdna (needs the fork's kernels)
+  download_gb: 21               # optional; the model download in GB (10^9 bytes)
+  kv_bytes_per_token: 78356     # optional; KV cache of one token over all ranks, measured
 
 inputs:                         # values the operator gives with --set NAME=VALUE
   PLE_QUANT_DIR:
@@ -1129,8 +1131,35 @@ plan, `status`, `hw` and `doctor` all see the visible set only.
 
 ### 7.8 Fit
 
-`recipe list` gives each recipe a fit: `fits`, `no` (with reasons), or
-`unknown` (no GPU data). Reasons: arch, GPU count, VRAM, RAM.
+`recipe list` gives each recipe a fit in `fit.status`, with the reasons
+in `fit.reasons`:
+
+- `fits`: the recipe runs on this host as written. `reasons` is empty.
+- `tight`: the recipe runs on this host after one change. Each reason
+  names the change.
+- `no`: the host cannot run the recipe. Reasons: arch, GPU count, VRAM,
+  RAM.
+- `unknown`: no GPU data.
+
+A recipe is `tight` when it passes the `no` checks and one of these holds:
+
+- `disk`: the model download (`requires.download_gb`) is larger than the
+  free space of the Hugging Face cache. A model the cache holds, or a local
+  path, needs no download.
+- `kv`: one request of `args.max-model-len` tokens needs more KV cache
+  (`requires.kv_bytes_per_token` times the length) than the budget of a
+  replica. The budget is `args.kv-cache-memory-bytes` times the ranks of a
+  replica when the recipe sets it. Otherwise it is an estimate:
+  `gpu-memory-utilization` (default 0.9) of the smallest matching card,
+  times the ranks, minus the weights (`requires.download_gb`). A recipe
+  without `kv_bytes_per_token` or a numeric `max-model-len` skips the check.
+
+`kv_bytes_per_token` is a measured value: the KV reserve divided by the
+tokens vLLM reports for it, at the recipe's parallel layout and cache
+dtype. The ranks of a replica are `requires.gpus` divided by
+`data-parallel-size`.
+
+`up` and `status` pick a recipe that `fits` before one that is `tight`.
 
 ### 7.9 Setting reasons
 

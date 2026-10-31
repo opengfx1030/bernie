@@ -207,10 +207,14 @@ type Set struct { Recipes map[string]*Recipe; Errors []LoadError }
 func Load(extraDirs ...string) Set                 // layers: embedded, config, $BERNIE_RECIPES, extra
 func (s Set) Resolve(id string) (*Recipe, error)   // extends merged
 func Validate(r *Recipe) []string
-type Fit struct { Status string; Reasons, Modes []string }   // fits|no|unknown
-func CheckFit(r *Recipe, gpus []gpu.GPU, ramBytes uint64) Fit
-func List(s Set, gpus []gpu.GPU, ramBytes uint64, all bool) Listing
-func Best(l Listing) string                        // fit, then priority, then id
+type Fit struct { Status string; Reasons, Modes []string }   // fits|tight|no|unknown
+func (f Fit) Usable() bool                         // fits or tight
+type Host struct { GPUs []gpu.GPU; RAMBytes, DiskFreeBytes uint64; Cached func(model string) bool }
+func CheckFit(r *Recipe, h Host) Fit
+type KV struct { MaxModelLen int; BytesPerToken, NeedBytes, BudgetBytes float64; Source string }
+func CheckKV(r *Recipe, minVRAM uint64) *KV        // nil: no KV data
+func List(s Set, h Host, all bool) Listing
+func Best(l Listing) string                        // fits, then tight, then priority, then id
 func ValidatedArchs(s Set) []string
 type Plan struct { Recipe, Name, Mode, Entrypoint, Model, ServedName, Host string; Port int
     Env map[string]string; Args []string; Settings []Setting; GPUs []int; HIPDevices, GPUSelectReason string

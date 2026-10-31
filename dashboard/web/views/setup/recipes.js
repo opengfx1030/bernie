@@ -33,14 +33,12 @@ async function loadSetupRecipes() {
   await loadSetupPlan();
 }
 
-/** setupRecipeOrder sorts the recipes: the one that fits this host first,
- *  then the ones this host cannot tell, then the ones that do not fit. */
+/** setupRecipeOrder sorts the recipes: fits, tight, unknown, then no. */
 function setupRecipeOrder(recipes) {
   const rank = (r) => {
     const fit = setupFitStatus(r);
-    if (fit === "fits") return 0;
-    if (fit === "unknown") return 1;
-    return 2;
+    const i = ["fits", "tight", "unknown"].indexOf(fit);
+    return i < 0 ? 3 : i;
   };
   return recipes.slice().sort((a, b) => {
     const d = rank(a) - rank(b);
@@ -95,7 +93,7 @@ function setupRecommendedRecipe(recipes) {
   }
   return list.find((r) => setupFitStatus(r) === "fits") || null;
 }
-/** setupFitStatus is the fit of a recipe: fits, no or unknown. */
+/** setupFitStatus is the fit of a recipe: fits, tight, no or unknown. */
 function setupFitStatus(recipe) {
   return (recipe.fit && recipe.fit.status) || "unknown";
 }
@@ -104,6 +102,7 @@ function setupFitLine(recipe) {
   const status = setupFitStatus(recipe);
   const reasons = (recipe.fit && recipe.fit.reasons) || [];
   if (status === "unknown") return "fit: unknown - No GPU data on this host.";
+  if (status === "tight") return "tight: " + reasons.join("; ");
   if (status === "no") return "no: " + (reasons.join("; ") || "this recipe does not fit this host.");
   const need = (recipe.arch || []).join(", ") || "any architecture";
   const gpus = recipe.gpus ? recipe.gpus + " GPUs" : "any number of GPUs";
@@ -202,7 +201,7 @@ function setupPlanActions(recipe, plan) {
 }
 /** setupPlanReady says whether the plan can be started here. */
 function setupPlanReady(recipe) {
-  return setupFitStatus(recipe) === "fits";
+  return /^(fits|tight)$/.test(setupFitStatus(recipe));
 }
 /** setupPlanCommand is the exact command of the plan. */
 function setupPlanCommand(plan) {
@@ -391,7 +390,7 @@ function paintSetupRecipeHint() {
     put(box);
     return;
   }
-  const fits = list.filter((r) => setupFitStatus(r) === "fits");
+  const fits = list.filter(setupPlanReady);
   if (fits.length) {
     put(box);
     return;
