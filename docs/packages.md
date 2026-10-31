@@ -217,10 +217,11 @@ func List(s Set, h Host, all bool) Listing
 func Best(l Listing) string                        // fits, then tight, then priority, then id
 func ValidatedArchs(s Set) []string
 type Plan struct { Recipe, Name, Mode, Entrypoint, Model, ServedName, Host string; Port int
-    Env map[string]string; Args []string; Settings []Setting; GPUs []int; HIPDevices, GPUSelectReason string
+    Env map[string]string; Args []string; Settings []Setting; Adjustments []Adjustment; GPUs []int; HIPDevices, GPUSelectReason string
     Image, ShmSize, TunableOpProfile, TunableOpRows string; PathInputs []string
     Mounts []Mount; Warnings []string; Exec *Exec }
 type Setting struct { Setting, Value, Why string }
+type Adjustment struct { Setting, From, To, Reason string }   // Plan.Adjustments
 type PlanOptions struct { Mode, Name string; Sets []string; GPUs []gpu.GPU; Topo *topo.Topology;
     TunedMoE func(gfx string) (string, error) }
 func BuildPlan(r *Recipe, o PlanOptions) (*Plan, error)

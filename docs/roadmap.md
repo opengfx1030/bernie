@@ -13,7 +13,6 @@ Each item has a spec section and one test that proves it.
 
 | # | Item | Spec | Test |
 |---|---|---|---|
-| 2 | **Plan shrinks to fit.** `recipe plan` lowers `max-model-len` (32K, 16K, 8K) until the KV budget fits free VRAM. Each change is in `plan.adjustments[]` with a reason. A `--set` value is never changed. | §7 | `recipe plan --json` on a 16 GB fixture shows the adjustment; `--set args.max-model-len=8192` stays 8192. |
 | 4 | **Ready means answers.** A run is `ready` only after `/health` and a one-token completion succeed. | §3.1, §8.3 | A run with the model unloaded stays `starting` and says why. |
 | 5 | **Log doctor on failure.** When a run exits during startup, `serve` and `up` print the matched rule: id, cause, fix. | §5.3 | A fixture log with a known error prints that rule. |
 | 6 | **Next command in every state.** `status --json` has `next` for: no GPU, no recipe fits, recipe fits, run starting, run ready. | §3.1 | Fixture set covers the five states. |
@@ -29,6 +28,12 @@ Each item has a spec section and one test that proves it.
 
 ## Shipped
 
+- **Plan shrinks to fit.** `recipe plan` lowers `max-model-len` to 32K,
+  16K or 8K when one request does not fit the KV budget, and records the
+  change in `plan.adjustments[]` with its reason. `serve`, `compose` and
+  `up` print it. An override of `max-model-len` is never changed; the
+  plan warns when it does not fit. Spec
+  [§7.10](spec.md#710-plan-adjustments).
 - **Fit in recipe data.** A recipe may list `requires.download_gb` and a
   measured `requires.kv_bytes_per_token` next to `vram_gib` and `ram_gib`.
   `recipe list` gives every recipe `fits`, `tight: <reason>` or

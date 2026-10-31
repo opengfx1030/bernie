@@ -1189,6 +1189,26 @@ value as a string. The array is absent when the recipe has no reasons, so a
 legacy recipe keeps the same plan JSON. The MCP `recipe_plan` tool and the
 dashboard use this same plan document.
 
+### 7.10 Plan adjustments
+
+A plan changes a recipe setting only to make the recipe fit this host. Each
+change is one entry of `adjustments` in the JSON plan, with `setting`,
+`from`, `to` and `reason`. The text plan prints it as `# adjusted:`, and
+`serve`, `compose` and `up` print it before they start. The field is absent
+when the plan changed nothing.
+
+The one adjustment is the context:
+
+- When one request of `args.max-model-len` does not fit the KV budget
+  (§7.8), the plan lowers `max-model-len` to the largest of 32768, 16384
+  and 8192 that is smaller than the old value and fits.
+- When none fits, the plan keeps the value and adds a warning that names
+  the budget.
+- An override (a config default or `--set`) of `args.max-model-len` is
+  never changed. When it does not fit, the plan keeps it and warns.
+- An override of `args.kv-cache-memory-bytes` changes the budget the plan
+  compares with.
+
 ## 8. Runs
 
 ### 8.1 Host mode

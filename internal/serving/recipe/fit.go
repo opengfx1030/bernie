@@ -45,7 +45,6 @@ type Host struct {
 func CheckFit(r *Recipe, h Host) Fit {
 	f := Fit{Status: FitYes, Reasons: []string{}, Modes: Modes(r)}
 	rq := r.Requires
-	var minVRAM uint64
 	if h.GPUs == nil {
 		f.Status = FitUnknown
 		f.Reasons = append(f.Reasons, "no GPU data")
@@ -58,9 +57,6 @@ func CheckFit(r *Recipe, h Host) Fit {
 			match++
 			if rq.VRAMGiB <= 0 || float64(g.VRAMBytes) >= rq.VRAMGiB*gib {
 				vramOK++
-			}
-			if minVRAM == 0 || g.VRAMBytes < minVRAM {
-				minVRAM = g.VRAMBytes
 			}
 		}
 		switch {
@@ -87,7 +83,7 @@ func CheckFit(r *Recipe, h Host) Fit {
 	if reason := diskReason(r, h); reason != "" {
 		f.Reasons = append(f.Reasons, reason)
 	}
-	if k := CheckKV(r, minVRAM); k != nil && k.NeedBytes > k.BudgetBytes {
+	if k := CheckKV(r, minMatchingVRAM(r, h.GPUs)); k != nil && k.NeedBytes > k.BudgetBytes {
 		f.Reasons = append(f.Reasons, k.Reason())
 	}
 	if len(f.Reasons) > 0 {

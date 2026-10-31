@@ -254,6 +254,9 @@ func printPlan(w io.Writer, p *recipe.Plan) {
 		}
 	}
 	fmt.Fprintf(w, "# url:       %s\n", runner.Record{Host: p.Host, Port: p.Port}.URL())
+	for _, a := range p.Adjustments {
+		fmt.Fprintf(w, "# adjusted:  %s\n", a)
+	}
 	for _, warn := range p.Warnings {
 		fmt.Fprintf(w, "# WARNING:   %s\n", warn)
 	}

@@ -10,7 +10,7 @@ import (
 // A 30 GiB card and a recipe of one GPU with the given requires and args.
 func tightCase(t *testing.T, requires, args string) (*Recipe, []gpu.GPU) {
 	t.Helper()
-	y := "schema: 1\nmodel: {source: org/model}\nrequires: {arch: [gfx1030], gpus: 1, " + requires + "}\nargs: {" + args + "}\n"
+	y := "schema: 1\nname: t\nstatus: experimental\nmodel: {source: org/model}\nrequires: {arch: [gfx1030], gpus: 1, " + requires + "}\nargs: {" + args + "}\n"
 	r, err := Parse("t/tight.yaml", []byte(y))
 	if err != nil {
 		t.Fatal(err)
