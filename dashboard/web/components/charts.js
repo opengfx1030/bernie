@@ -4,7 +4,7 @@
 //
 // The measured geometry of the drawings (the 120 x 34 sparkline, the 84 px
 // ring, the axis of the area chart) follows the reference UI.
-// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+// Adapted from vllm-rdna-dash by CrispyGinger (Apache-2.0).
 //
 // Accessibility: every chart says its numbers in words (the aria-label, the
 // text beside it and the table under it), the two charts with a readout can

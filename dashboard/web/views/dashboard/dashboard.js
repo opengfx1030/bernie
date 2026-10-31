@@ -7,7 +7,7 @@
 // from GET /api/gpus/history. The view never opens a fetch or a timer of its
 // own: the stream lives in js/data.js.
 //
-// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+// Adapted from vllm-rdna-dash by CrispyGinger (Apache-2.0).
 
 const dash = {
   samples: [],   // the compact telemetry ring buffer (one hour of samples)

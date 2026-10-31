@@ -1,5 +1,5 @@
 // The recipe chooser and the plan of the picked recipe.
-// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+// Adapted from vllm-rdna-dash by CrispyGinger (Apache-2.0).
 "use strict";
 
 /** loadSetupRecipes reads the recipes of the host and paints the chooser. */

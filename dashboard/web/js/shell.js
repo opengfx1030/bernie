@@ -1,5 +1,5 @@
 // bernie dashboard: the page-wide behaviour.
-// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+// Adapted from vllm-rdna-dash by CrispyGinger (Apache-2.0).
 // The toast, the copy button, the tooltip, the theme, the Advanced panels and
 // the run status pill. The views only call these.
 "use strict";

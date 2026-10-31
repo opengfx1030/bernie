@@ -176,9 +176,7 @@ it is the shell, and every commit names the files it touches.
 
 The design of the dashboard and parts of its markup and CSS come from
 [CrispyGinger's vllm-rdna-dash](https://github.com/crispyging/vllm-rdna-dash),
-used with the author's permission. Pending: the author adds a licence file to
-that repository, so the use is recorded with a licence and not with a
-permission.
+under its Apache-2.0 licence. Each adapted file says so in its header.
 
 ## Not planned
 

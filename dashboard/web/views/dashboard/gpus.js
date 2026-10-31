@@ -2,7 +2,7 @@
 // ---------- Dashboard tiles and GPU cards ----------
 // One reusable tile and one card per AMD GPU on the host.
 //
-// Adapted from vllm-rdna-dash by CrispyGinger, used with permission.
+// Adapted from vllm-rdna-dash by CrispyGinger (Apache-2.0).
 
 // dashTile is one KPI tile: the name of the number, the number with its
 // unit, one line of context and the last minute of it. A number that was not
