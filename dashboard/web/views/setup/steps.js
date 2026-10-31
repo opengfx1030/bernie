@@ -17,6 +17,7 @@ async function runSetupStep(step, options = {}) {
   const id = step.id;
   setupProgress[id] = { phase: "Starting…", started: Date.now() };
   setupLogs[id] = [];
+  setupStartTicker();
   paintSetupProgress(id);
   let job = null;
   try {
@@ -81,9 +82,13 @@ function followSetupJob(step, job, options) {
       paintSetupProgress(id);
       loadSetupJobProgress(job.id, id);
       // The setup steps have a record of their own: the page reads it
-      // instead of a second source (spec §6.4).
+      // instead of a second source (spec §6.4). Per-line refresh of the
+      // checklist (onRefresh) is for done/failed only — calling it here
+      // re-attaches the stream, which replays every line from the first,
+      // which calls onRefresh again, and the page loops until the browser
+      // runs out of per-host sockets (ERR_INSUFFICIENT_RESOURCES, white
+      // screen). The path/python-env rows have their own live refresh.
       if (id === "python-env" || id === "path") setupRefreshRun(id);
-      if (options.onRefresh) options.onRefresh();
     },
     done: (ev) => finish("done", ev.data),
     failed: (ev) => finish("failed", ev.data),
@@ -214,6 +219,37 @@ function setupDuration(seconds) {
   const s = Math.max(0, Math.round(seconds));
   if (s < 60) return s + " s";
   return Math.round(s / 60) + " min";
+}
+
+// setupTicker is the 1 Hz tick that refreshes the elapsed time of any
+// running step. Setup events carry their own paint, but the build of a
+// big wheel (causal-conv1d, vllm) can take minutes between events; without
+// the tick the page would freeze on "working… 1 s" for that whole window.
+let setupTicker = null;
+function setupStartTicker() {
+  if (setupTicker) return;
+  setupTicker = setInterval(setupTick, 1000);
+}
+function setupStopTicker() {
+  if (!setupTicker) return;
+  clearInterval(setupTicker);
+  setupTicker = null;
+}
+function setupTick() {
+  let any = false;
+  for (const id of Object.keys(setupProgress)) {
+    const s = setupProgress[id];
+    if (s && !s.failed && s.phase && s.phase !== "Done.") {
+      paintSetupProgress(id);
+      any = true;
+    }
+  }
+  if (typeof setupPaintRunRows === "function") setupPaintRunRows();
+  if (!any) setupStopTicker();
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", setupStopTicker);
+  window.addEventListener("beforeunload", setupStopTicker);
 }
 
 /** attachSetupJobs re-opens the event stream of every job the checklist

@@ -13,6 +13,7 @@ async function setupRunPath() {
   await setupPathLoaded;
   setupProgress.path = { phase: "Starting\u2026", started: Date.now() };
   setupLogs.path = [];
+  setupStartTicker();
   setupPaintPath();
   let job = null;
   try {
@@ -75,8 +76,47 @@ async function setupAttachPath(doc) {
 function setupRunRows() {
   const run = setupState.run;
   if (!run || !run.steps || !run.steps.length) return null;
-  return h("div.step-run", run.steps.map((s) => h("div.step-run-row",
-    h("span", s.id + "  " + s.state + "  " + (s.duration_s > 0 ? setupDuration(s.duration_s) : "")))));
+  return h("div.step-run", run.steps.map((s) => setupRunRow(s)));
+}
+
+/** setupRunRow is one row of the run list. The class names the state; the
+ *  data-step id hooks the tick that re-paints the elapsed time of the
+ *  running step. */
+function setupRunRow(s) {
+  const cls = "step-run-row step-run-row-" + s.state;
+  return h("div", { class: cls, "data-step": s.id },
+    h("span.step-run-row-id", s.id),
+    h("span.step-run-row-state", s.state),
+    h("span.step-run-row-duration", { "data-dur": "1" }, setupRunRowDuration(s)));
+}
+
+/** setupRunRowDuration is the elapsed-time text of a row. Frozen when the
+ *  step has finished; live (ticked by setupTick) while the step runs. */
+function setupRunRowDuration(s) {
+  if (s.duration_s > 0) return setupDuration(s.duration_s);
+  if (s.state !== "running") return "";
+  // The first paint uses setupProgress.started; later paints just update
+  // the text node. Without a client-side start time, fall back to the
+  // start of the path so the row still ticks.
+  const started = (setupProgress[s.id] && setupProgress[s.id].started) ||
+                  (setupProgress.path && setupProgress.path.started);
+  if (!started) return "";
+  const sec = Math.max(0, Math.round((Date.now() - started) / 1000));
+  return setupDuration(sec);
+}
+
+/** setupPaintRunRows re-paints the elapsed time of any running run row.
+ *  Called every second by the tick in setup.js so a long build shows
+ *  "running Ns" without waiting for the next event. */
+function setupPaintRunRows() {
+  const run = setupState.run;
+  if (!run || !run.steps) return;
+  for (const s of run.steps) {
+    const row = document.querySelector('[data-step="' + s.id + '"] [data-dur]');
+    if (!row) continue;
+    const text = setupRunRowDuration(s);
+    if (row.textContent !== text) row.textContent = text;
+  }
 }
 
 /** setupPythonEnv draws the components table of the venv.verify step of
@@ -117,6 +157,7 @@ function setupPythonEnv() {
 async function setupVerifyAgain() {
   await setupPathLoaded;
   setupProgress.verify = { phase: "Checking the venv\u2026", started: Date.now(), running: true };
+  setupStartTicker();
   setupPaintPath();
   let job = null;
   try {

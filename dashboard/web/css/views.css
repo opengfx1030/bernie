@@ -53,6 +53,42 @@
 .step-progress:empty { margin-top: 0; }
 .step-progress-sentence { margin: 0 0 6px; font-size: 13px; color: var(--text-2); }
 .step-progress-detail { color: var(--muted); font-size: var(--small); }
+
+/* The run rows under the path box: one line per step. A running step is
+   highlighted and ticks once per second (setupPaintRunRows). */
+.step-run-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: var(--small);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.step-run-row-running {
+  color: var(--text);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.step-run-row-running::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: 0 0 auto;
+  animation: stepRunPulse 1.2s ease-in-out infinite;
+}
+@keyframes stepRunPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+.step-run-row-state {
+  text-transform: lowercase;
+  color: var(--muted);
+  font-weight: 400;
+}
 .step-log-box { margin-top: var(--space-2); }
 .step-log { max-height: 200px; overflow: auto; }
 
