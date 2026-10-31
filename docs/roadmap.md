@@ -13,7 +13,6 @@ Each item has a spec section and one test that proves it.
 
 | # | Item | Spec | Test |
 |---|---|---|---|
-| 5 | **Log doctor on failure.** When a run exits during startup, `serve` and `up` print the matched rule: id, cause, fix. | §5.3 | A fixture log with a known error prints that rule. |
 | 6 | **Next command in every state.** `status --json` has `next` for: no GPU, no recipe fits, recipe fits, run starting, run ready. | §3.1 | Fixture set covers the five states. |
 
 ## Then: honest results and connected clients
@@ -27,6 +26,10 @@ Each item has a spec section and one test that proves it.
 
 ## Shipped
 
+- **Log doctor on failure.** When a run exits during startup, `serve` and
+  `up` scan its log and print every matched rule: id, cause, fix, doc link
+  and the line. `--json` carries them in `log_findings`. Spec
+  [§5.3](spec.md#53-log-doctor).
 - **Ready means answers.** A run is `running` only after `/health`
   answers and the server answered a one-token completion. The state name
   stays `running`, since `ps --json` is an API. A run that is still
