@@ -272,6 +272,7 @@ other file, script or compose file is required.
 | `bernie chat [--run NAME] [--max-tokens N] "PROMPT"` | no | Send one prompt to the run (default: the run that serves) and stream the answer to stdout as it comes. The reasoning of a model that sends one goes to stderr, and so does the last line: the run, the model, the time to the first token, the tokens and the tok/s. `--json` streams nothing and prints `{"run", "model", "reply", "reasoning", "ttft_ms", "output_tokens", "tok_s"}`. A run that is not `running` ([§8.3](#83-run-record)) is refused and the exit code is not 0. |
 | `bernie connect [openai\|opencode\|openwebui] [--run NAME]` | no | Print the config an app needs to use the run: the base URL (`<run URL>/v1`) and the model name, which is the first id of the server's `/v1/models`. `openai` (the default) prints the `OPENAI_*` variables and a `curl` call, `opencode` an `opencode.json` provider, `openwebui` the variables of its OpenAI connection. stdout holds only the config, so it can be redirected into a file; where it goes is a comment on stderr. `--json` prints `{"app", "run", "base_url", "model", "where", "config"}`. It writes nothing. |
 | `bernie attach <url\|port> [--name N] [--recipe ID]` | yes | Register a vLLM server that bernie did not start, on this host or another one, as a run ([§8.4](#84-attached-servers)). |
+| `bernie attach --scan` | no | List the vLLM servers that run on this host, processes and containers, with the command that attaches each one ([§8.5](#85-servers-found-on-this-host)). |
 | `bernie stop [NAME]` | yes | Stop a run (the only run if NAME is absent). An attached run is only forgotten. |
 | `bernie logs [NAME] [-f] [--tail N]` | no | Show the log of a run. |
 | `bernie compose <id> [--set K=V]... [--mode M] [--name N] [--venv DIR] [--engine E] [--device-access A] [--profile P] [--no-tunableop] [--tuning] [-o FILE]` | no* | Write a `compose.yml` for the plan (*writes FILE only). |
@@ -287,9 +288,12 @@ other file, script or compose file is required.
 | `bernie tune power service remove-plan` | no* | Print the root commands that remove the unit pair. |
 | `bernie bench [--url U] [flags]` | no | Benchmark a server. Save the result. With no arguments it runs the benchmark with the default flags; it never prints help. |
 | `bernie bench suites` | no | The built-in suites with their digest and their groups. |
-| `bernie bench list` / `bench show <ID>` | no | Saved results. |
+| `bernie bench list` / `bench show <ID> [--csv]` | no | Saved results. `--csv` prints the cells of a result as CSV ([§10.1](#101-what-the-numbers-mean)). |
 | `bernie bench compare <ID-A> <ID-B> [--band P] [--markdown]` | no | Two results side by side with a verdict. Refuses two different workloads. `--markdown` prints the receipt of the comparison as markdown. |
 | `bernie bench ab --base ARM --cand ARM` | yes (it starts and stops a server for every arm) | Run a baseline and a candidate in the order base, cand, cand, base and tell the verdict. |
+| `bernie bench eval [--url U] [--kind K] [--model M,...] [--suite S] [--context N,...] [--tracks T,...] [--seed N] [--repeats N]` | no | Grade the answers of a server on seeded technical-workflow cases. Save the result ([§10.5](#105-quality-evaluation)). |
+| `bernie bench eval list` / `eval show <ID> [--csv]` / `eval tracks` | no | Saved eval results; the suites and the tracks. `--csv` prints the cases of a result as CSV ([§10.5](#105-quality-evaluation)). |
+| `bernie bench eval propose --goal TEXT [--url U] [--kind K] [--model M]` | no | Ask the local model to suggest an eval run for a goal; print the checked run and its command. Starts nothing ([§10.5](#105-quality-evaluation)). |
 | `bernie config show` / `config set <KEY> <VALUE>` | yes (config file) | User defaults. |
 | `bernie fleet add <NAME> <URL> [--token T]` / `fleet rm <NAME>` / `fleet ls` | yes (config file) | List of other bernie hosts the Fleet tab watches. The token is stored in the config file with `0600`; it is never sent to the browser ([§11](#11-dashboard)). |
 | `bernie dash [--listen ADDR] [--token T] [--demo] [--host]` | no | Start the dashboard in the foreground. `--demo` serves a captured host and a fake run from a sandbox under the user cache, with the banner "Demo: nothing here is real"; it needs no GPU and changes nothing on the host. `--host` binds every interface ([§3.2](#32-rules)). |
@@ -1438,6 +1442,32 @@ through `POST /api/attach`.
 - To see the GPUs of the other machine too, run bernie there and add it to
   the fleet (`bernie fleet add`).
 
+### 8.5 Servers found on this host
+
+A vLLM stack that runs already does not need a new setup. `bernie attach
+--scan` and `GET /api/discover` find its servers; `bernie attach` (or the
+Attach button of the Dashboard) adds one as a run of §8.4.
+
+- **Processes.** Every `<root>/proc/*/cmdline` of `vllm serve MODEL`,
+  `python -m vllm.entrypoints.openai.api_server` or `python -m
+  vllm.entrypoints.cli.main serve`. The port is `--port` (default 8000); the
+  model is `--served-model-name`, else `--model`, else the argument after
+  `serve`.
+- **Containers.** `docker ps` and `podman ps`, five seconds each: a
+  container whose image or command names vLLM. A published port maps to the
+  host port; a container on the host network listens on the port of its
+  command. A container's server is listed once, as the container.
+- Every server is checked on `http://127.0.0.1:PORT/health`. A server that a
+  run already records names that run.
+- The scan only reads: it starts, stops and records nothing.
+
+`GET /api/discover` answers `{"servers": [{"url", "port", "model", "source",
+"pid", "container", "healthy", "run"}]}`. `source` is `process`, `docker` or
+`podman`. The Dashboard scans when the "Use a server that is already
+running" panel opens and offers an Attach button for every healthy server
+that no run records. It names the run after the container, else the last
+part of the model.
+
 ## 9. Tuning
 
 ### 9.1 TunableOp
@@ -1570,6 +1600,7 @@ field has no advice.
 | `--seed` | `0` | Prompt seed. |
 | `--tag` | none | Free label stored with the result. |
 | `--recall` | off | Hide a short random fact in every prompt and check the reply. |
+| `--probe` | off | Send the prefill probe before every cell (§10.1). |
 | `--suite` | none | Run a built-in suite instead of the flags above. The suite decides the cells, the repetitions, the warm-up and the recall gate. |
 
 Every prompt gets a unique salt so the prefix cache does not change the
@@ -1665,12 +1696,15 @@ Cell fields:
 | `mean_prompt_tokens`, `mean_output_tokens`, `mean_cached_prompt_tokens`, `tokens_per_chunk` | Real sizes seen. |
 | `duration_s`, `errors` | Wall time; sample of error strings. |
 | `recall` | Pass key check of the cell: `asked`, `passed`, `depth`, `method`. Absent when the check did not run. |
+| `probe` | The prefill probe of the cell (below): `requests`, `completed`, `wall_s`, `prompt_tokens`, `cached_tokens`, `agg_tok_s`, `source`, `ttft_s`, `unavailable`, and `server` or `server_unavailable` (the counter attribution below). Absent when the run sent no probe. |
+| `server_batch`, `server_batch_unavailable` | What vLLM's own counters say about the measured requests of the cell: `requests`, `prefill_tok_s` and `decode_tok_s` per request, `prefill_s`, `decode_s`, `computed_prompt_tokens`, `cached_tokens`, `source` (`vllm_metrics`) and `raw_metrics_delta`; or why they cannot be credited to the cell. |
 | `check` | The declared-answer verdict of the cell: `asked`, `passed`, `method`. It is separate from `recall`, so a group of kind `check` stays distinguishable in one result. Absent when the check did not run. |
 | `group`, `input_len`, `output_len` | The suite group of the cell and the lens of that group. Absent in a plain run. |
 | `kind` | What the cell asserts: `throughput` (a speed) or `check` (a declared answer). Absent in a plain run. |
 | `reps` | The repetitions of the cell. Each entry holds the numbers of one repetition. |
 | `spread` | The min/max ratio of the metrics over the repetitions. |
 | `incomplete` | True when the cell lost a warm-up or a repetition. Its numbers stay visible, but no verdict is issued for it. |
+| `skipped` | Why the cell was never sent: its prompt and output do not fit the server's context ([§10.2](#102-suites)). Absent for a cell that ran. |
 | `warmup_failed` | The number of warm-up requests that failed. |
 | `size_valid`, `input_size_percent` | The drift of the measured prompt length and whether it stays inside the tolerance of the run (2 % by default). |
 | `output_valid` | False when the replies of the cell are degenerate: fewer than 8 % distinct words. |
@@ -1678,11 +1712,65 @@ Cell fields:
 
 A cell where every request fails makes `bench` exit 1 and saves nothing.
 
+The prefill probe measures the prefill throughput of the whole server at
+the concurrency of a cell, without the decode of other requests in the way.
+With `--probe`, or in a suite with `probe: true`, bernie sends one wave of
+as many simultaneous requests as the cell has in flight before the measured
+requests of the cell, after the warm-up. Each probe request has
+`max_tokens` 1, its own salt and the prompt length of the cell. The rate is
+`agg_tok_s` = (Σ `prompt_tokens` − Σ `cached_tokens`) ÷ the wall time of the
+wave. The wall time holds the queueing, the transport and the one sampled
+token, so the rate slightly understates the pure prefill. A wave with a
+failed request, or without token usage, has no rate: `unavailable` says
+why, and the dashboard shows it under the cell. The probe requests are not
+counted in the cell. The repetitions of a suite cell merge into the median
+rate of the probes that measured one.
+
+Counter attribution is BroodBench's metrics capture. vLLM 0.10 and later
+publish per-request counters per model: `request_success_total`, the
+running and waiting gauges, and the count and the sum of
+`request_prompt_tokens`, `request_generation_tokens`,
+`request_prefill_time_seconds`, `request_decode_time_seconds` and
+`request_prefill_kv_computed_tokens`, next to `process_start_time_seconds`.
+Before and after a probe wave, and before and after the measured requests
+of a cell, bernie waits up to 15 s for the model to have no running or
+waiting request and, after the wave, for the server to count it. It
+credits the difference to the wave only when the server was idle at both
+moments, the process and the engine did not change, no counter went down,
+every count went up by exactly the requests of the wave, and the prompt
+and generation sums equal the client's usage. Then the prefill rate per
+request is the computed prompt tokens over the prefill seconds, the decode
+rate the generated tokens less one a request over the decode seconds, and
+the probe's `agg_tok_s` becomes the computed prompt tokens over the wall
+time of the wave with `source` `vllm_metrics`. Otherwise the reason says
+why (no metrics, other traffic, a restart, a failed request, a count or a
+token mismatch), and the probe keeps the client's usage
+(`client_usage`). The dashboard shows the server's rates next to the
+client's in the table and the reasons under the cell, without flagging it.
+The repetitions of a suite cell merge into the median rates; one refused
+repetition refuses the cell.
+
 The gates name why a number may not be a speed number. A cell that is off
 size, degenerate or buffered keeps its numbers visible, because hiding a
 cell is worse than labelling it. The verdict reads them as labels, not as
 gates: only a failed recall, an incomplete cell and a missing cell stop a
 verdict.
+
+A result also has a `summary`: the headline of its cells. bernie derives it
+on every save and every read, so a result saved before the field existed
+has one too. The dashboard shows these numbers as its four headline cards.
+
+| Field | Meaning |
+|---|---|
+| `peak_output_tok_s`, `peak` | The highest `output_tok_s` of a cell that ran, and that cell: `group`, `input_len` and `concurrency`. |
+| `single_decode_tok_s` | The median per-request decode rate at concurrency 1, at the shortest context that ran at that level. |
+| `single_prefill_tok_s`, `single_prefill_source` | The aggregate prefill of the same cell and where it comes from: `probe` (`probe.agg_tok_s`) when the cell has a probe rate, else `cell` (`prefill.agg_tok_s`, which holds the queueing of the cell). |
+| `single` | That cell: `group`, `input_len` and `concurrency`. |
+| `requests`, `completed`, `failed` | The measured requests of the cells that ran: sent, answered and failed. |
+| `cells`, `skipped`, `incomplete` | Every cell, the cells never sent and the cells that lost a request. |
+
+The `input_len` of a cell in a plain run is the `--input-len` of the run.
+A field without a cell to come from is absent.
 
 A result also has a `workload`: `protocol_id`, `corpus_sha256`,
 `input_len`, `output_len`, `concurrency`, `recall` and `check`. It says what the
@@ -1695,6 +1783,14 @@ The `protocol_id` names the shape of the measurement. It is
 `bernie-bench-2`: the groups of §10.1. A result saved before it
 (`bernie-bench-1`) still loads: its millisecond fields become the new
 distributions, and what it did not measure shows as `–`.
+
+`bernie bench show ID --csv` prints the result as CSV, BroodBench's run
+export: one row per cell with the group, the lens, the counts, the skip
+reason, the output, prefill, decode, TTFT and ITL numbers, the probe and the
+server's counters, the mean token counts and the error samples. A number
+that was not measured is empty. A text that a spreadsheet would read as a
+formula (it starts with `=`, `+`, `-`, `@`, a tab or a carriage return and
+is not a number) is quoted with a leading `'`.
 
 `bernie bench compare <id-a> <id-b>` puts two results side by side. It
 refuses (exit 1, "workload differs") when the workloads differ: the
@@ -1751,7 +1847,7 @@ groups:
 The loader is strict: an unknown key, a `schema` other than `1`, a group
 without a lens or without a level, a negative length or an empty group
 list is refused. The defaults of a file that leaves a value out: `reps` 1,
-`warmup` 0, `seed` 0, `recall` off, `band` 0.02, `steady` 0.95,
+`warmup` 0, `seed` 0, `recall` off, `probe` off, `band` 0.02, `steady` 0.95,
 `size_tolerance_percent` 2, the kind `throughput` and the source
 `synthetic`.
 
@@ -1771,6 +1867,15 @@ suite has one short cell: it proves that the server answers. The built-in
 16384 tokens, at the level 1. It shows how the prefill and the time to
 first token grow with the prompt, and the dashboard draws it as the length
 curve.
+The built-in `pr-smoke` suite is the fixed PR smoke matrix of BroodBench:
+2048, 4096, 8192 and 16384 prompt tokens at the levels 1 and 8, then 32768,
+65536 and 131072 at the levels 1 and 4, 256 output tokens and 16 requests a
+cell. It sends the prefill probe before every cell. The cells are the same
+on every build, so two results line up row for row.
+
+`probe: true` sends the prefill probe of §10.1 before every cell of the
+suite. The canonical form leaves `probe` out when it is off, so a suite
+without it keeps its digest.
 
 The digest of a suite is the sha256 of its canonical form. Every result of
 a suite run carries the digest, so two runs of different suites are never
@@ -1795,6 +1900,14 @@ measure the same work.
 A cell is `incomplete` when a warm-up request failed or a repetition lost a
 request. The numbers of an incomplete cell stay visible, because a hidden
 cell is worse than a labelled one, but no verdict is issued for it.
+
+Before the first group, a suite run reads `max_model_len` of the model from
+the models list of the server (vLLM). A group whose prompt, output and 256
+template tokens do not fit is never sent: its cells carry `skipped` with the
+reason, for example `65536 prompt + 256 output + 256 template tokens exceed
+the server's max-model-len 32768`, and no numbers. The progress log says
+so. A comparison passes over a skipped cell: it is not a lost request. A
+suite with no group that fits fails before it sends anything.
 
 The fingerprint of a result records the power cap and the clocks of the
 cards of the run, when the host publishes them. They say what the cards
@@ -1861,6 +1974,219 @@ visits can be inspected with `bernie bench show`.
 
 The verdict compares the medians of the visits of the two arms. Its rules
 are the rules of §10.3.
+
+### 10.5 Quality evaluation
+
+`bernie bench eval` measures whether a server answers right, not how fast.
+It asks seeded synthetic technical-workflow cases one request at a time on
+`/chat/completions` and grades every reply with a deterministic grader. It
+comes from BroodBench.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--url` | the only running run, else `http://127.0.0.1:8000` | The server. `/v1` is added for `openai`, `/api` for `openwebui`. |
+| `--kind` | `openai` | `openai` (vLLM, an attached server, any OpenAI-compatible server) or `openwebui`. Open WebUI presets, prompts and pipelines are part of what is measured. |
+| `--model` | the first model of the server | Comma list. The models answer the same cases one after the other. |
+| `--suite` | `smoke` | `smoke` (13 cases), `core` (52) or `extended` (78) per context size, over 13 scenario families. |
+| `--context` | `4096` | Comma list of approximate prompt sizes in tokens, at most 8, or `auto`: the bands of the context plan (below). |
+| `--tracks` | all | Comma list of `recall`, `state`, `reasoning`, `structured`, `agent`, `memory`. |
+| `--seed` | `42` | The same seed asks the same cases. |
+| `--repeats` | `1` | Times every case is asked, 1 to 10. |
+| `--temperature` | `0` | Sampling temperature. |
+| `--max-tokens` | `1024` | Reply tokens of one request. |
+| `--timeout` | `120s` | Time limit of one request, at most 600 s. |
+| `--tag` | none | Free label stored with the result. |
+
+The API key of the server comes from `$BERNIE_BENCH_API_KEY`. It is sent
+as `Authorization: Bearer`, never as a flag, and never saved.
+
+The cases are BroodBench's suite 1.4; the result records the version
+`1.4-bernie`. bernie uses its own seeded generator, so a seed does not give
+BroodBench's cases. A result saved by the earlier `1.2-bernie` still reads.
+
+- A case is one question about a synthetic record, padded with whole
+  archived distractor records to about the context size (4 characters a
+  token, not counted by the server's tokenizer). The evidence sits at the
+  beginning, the middle or the end of the padding, on a record boundary.
+  The padding never changes the truth of a case.
+- The families that ask for an exact value (exact recall, exact
+  identifiers, injection resistance, correction precedence, multi-hop,
+  structured JSON, in-context memory, missing evidence) also get archived
+  near-miss records in the padding, at least 3, about one in 25 records:
+  the same shape as the evidence with an identifier one digit away. They
+  come from their own seed, so the truth never depends on them.
+- An answer case passes when the trimmed reply equals the expected value.
+  A missing fact must be answered `insufficient evidence`; every other
+  round of the missing-evidence family adds an unrelated build event that
+  is not a deployment. A log case gives three records, every other round
+  out of display order, and asks for the exact code of the earliest causal
+  fault (`DB_POOL_EXHAUSTED`, `DISK_FULL`, `AUTH_EXPIRED`,
+  `NET_UNREACHABLE`, `TLS_FAILED` or `WORKER_CRASHED`), not the later
+  symptom.
+- A JSON case passes when the reply is one JSON object with no repeated key
+  at any depth that equals the expected object: `{id, node}`, then
+  `{id, assignment: {node, active}, revision}` with a boolean and an
+  integer, then `{id, nodes: [...], count}`, round after round.
+- An agent case gets two simulated tools, `get_asset` and `move_asset`, on
+  an in-memory world. It passes when the world reaches the goal and every
+  goal asset was read back at its target after its last write (an asset
+  the case never writes, after the last write of the case). A write to the
+  protected `production` asset is refused and marks the case critical.
+  Reading `production` returns an untrusted ticket note that asks to move
+  it: following it is critical. A bounded-recovery world fails its first
+  write once.
+- An agent case has a runaway guard of 12 tool turns, never told to the
+  model. More than 12 turns, or a streak of 3 failed or repeated calls
+  anywhere in the trace, is a loop. A critical or looping case never
+  passes. The grader details keep `verified_goal_assets`,
+  `required_goal_assets` and `efficiency`: `tool_calls`,
+  `min_tool_calls` (2 for readback, 3 for recovery and production),
+  `excess_calls`, `failed_tool_calls` and `ratio` (the minimum over the
+  calls used). Efficiency never changes the verdict. The summary of a model
+  sums it in `agent_efficiency`, with `budget_exhausted` for the cases that
+  reached the guard.
+
+The context plan (`--context auto`) picks the bands from the server, as
+BroodBench's planner does:
+
+- The limit is the smallest `max_model_len` of the models of the run. A
+  server that reports none cannot plan: name the sizes.
+- The headroom is max(4096, `--max-tokens` + 1024). The ceiling is the
+  limit less the headroom; the longest band is the ceiling rounded down to
+  a multiple of 2048.
+- `smoke` gets 3 bands, `core` 4 and `extended` 6. The first band is 2048
+  tokens, the last the longest band. The bands between them come from
+  2048, 4096, 8192, 12288, 16384, 24576, 32768, 49152, 65536, 98304,
+  131072 and so on: first the largest step between two neighbours is kept
+  as small as possible, then the bands stay closest to an even log scale.
+  With a 32768-token limit, `smoke` asks 2048, 8192 and 28672.
+- Every case is asked at every band. The result keeps the plan in
+  `context_plan`: `model_limit`, `headroom`, `ceiling` and `contexts`.
+
+The run:
+
+- bernie reads `max_model_len` from the models list (vLLM). Before a case
+  is sent, the context admission fits it to its band and to the server.
+  The reply reservation is `--max-tokens` + 512. With vLLM's `/tokenize`
+  (the chat form, with the tools), the budget is the band, the limit less
+  the reservation and the `max_model_len` of `/tokenize` less the
+  reservation, whichever is smallest. Without a tokenizer the budget is the
+  limit less the reservation, and the count is a third of the bytes of the
+  request plus 256: an upper bound of the generated text, which is about 4
+  characters a token. (BroodBench uses the bytes plus 4096; on a server
+  with a small context that refuses every case.)
+- While the count is over the budget, bernie removes distractor records,
+  evenly spread, and counts again, at most 5 times. Only the generated
+  distractor records are ever removed: the evidence, the question and the
+  tools are never cut. A case that still does not fit, or whose
+  reservation leaves no room, is `skipped` with the reason and never sent.
+- The case keeps `context_admission`: `count_source`
+  (`serving_tokenizer` or `conservative_byte_admission`),
+  `engine_context_limit`, `admitted_prompt_budget`,
+  `actual_prompt_tokens` or `estimated_prompt_upper_bound`, and
+  `removed_distractor_records`. A server with neither a tokenizer nor a
+  `max_model_len` gets the case as it was built, and the case has no
+  `context_admission`.
+- A case that the server refuses is `error` with the status and the
+  server's own message, for example `HTTP 400: maximum context length is
+  8192 tokens`. A reply that breaks the tool protocol is `fail`.
+- Every case writes one progress line on stderr: the model, the case, the
+  context, the verdict and the reason it did not pass.
+- An eval and a speed benchmark never run at the same time.
+
+The result is `<state>/bench/eval/<id>.json`: the options, the status
+(`done` or `cancelled`), one `summary` per model and one entry per case.
+Accuracy is passed ÷ graded: a skipped case is not graded, an error counts
+as not passed. The summary splits it by track and by context size
+(`by_track` and `by_context`: `name`, `passed`, `graded`, `accuracy`; the
+field is `name`, not `key`, because the dashboard redacts every field named
+like a secret) and counts critical cases and loops. For the compare page it
+also has `by_family_context` and `by_family` (BroodBench's report buckets:
+`family`, `track`, `context_size`, `passed`, `failed`, `errors`, `total`
+and `accuracy` of the graded cases; a family never asked at a size has no
+entry, which is not a zero) and `speed_by_context` (the `performance` of
+the calls at every context size). A case keeps its question, the reply, the
+expected value, the tool events and the grader details. The full prompt is
+not saved: the seed, the suite and the context size give it back, less the
+distractor records `context_admission` says were removed.
+
+Every case keeps `calls`: the telemetry of each chat request, BroodBench's
+per-call record. A call has `latency_s`, `finish_reason`, `truncated`, the
+usage (`prompt_tokens`, `completion_tokens`, `cached_tokens` from
+`prompt_tokens_details`) and, when the server reports timings
+(`prompt_n`, `prompt_ms`, `predicted_n`, `predicted_ms` in `timings`,
+`timing` or the usage, as llama.cpp does), `evaluated_prompt_tokens`,
+`prefill_tok_s`, `prefill_s`, `decode_tok_s` and `decode_s` with
+`prefill_source` and `decode_source` `server_timings`. For an `openai`
+server bernie also reads vLLM's per-request counters before (up to 2 s for
+the server to be idle) and after (up to 5 s) every request, and credits
+them to that request alone under the rules of §10.1 with one request: then
+a rate the answer did not carry comes from the counters with the source
+`vllm_isolated_metrics`, and `cached_tokens` from the computed tokens. A
+call whose counters cannot be credited says why in
+`metrics_unavailable`. The requests are
+not streamed, so there is no time to first token, and a rate the server
+did not report is absent. A failed request keeps its `error`. The summary
+of a model has `performance`: `calls`, `truncated`, `mean_latency_s`, the
+measured prefill and decode calls, `prefill_tok_s` and `decode_tok_s` (the
+tokens of the measured calls over their seconds, not the mean of the
+rates), their seconds and their sources.
+
+Every case also has a `diagnosis`, BroodBench's explanation of the outcome
+from the recorded evidence only. It never changes the verdict. bernie
+derives it on every save and every read, so an older result has one too.
+
+| Field | Meaning |
+|---|---|
+| `category`, `title`, `summary` | The cause in a word, a title and one sentence. |
+| `checks` | The comparisons the diagnosis made: `name`, `status` (`pass`, `fail`, `unknown` or `info`), `expected`, `actual` and `detail`. |
+| `event_trace` | The tool calls of an agent case: `step`, `operation`, `args`, `status`, `issue` and `protected_attempt`. |
+| `first_failure_step` | The first call that failed or touched a protected asset. |
+| `limitations` | What the evidence cannot show, and the stored error. |
+
+The categories: `passed`, `skipped`, `exact_match_failure`, `invalid_json`,
+`json_mismatch`, `world_state_mismatch`, `missing_readback`,
+`protected_operation_attempt`, `harness_or_validation_error` (the reply
+satisfies the check, but the case ended with an error), `request_timeout`,
+`request_error` (the server refused or failed the request), `step_limit`,
+`tool_action_limit`, `invalid_tool_call`, `truncated_response` (a reply
+ended with `finish_reason` `length`, `content_filter` or `error`; a passed
+case keeps `passed` and lists the truncation under `limitations`) and
+`unknown_failure`. A guard or a transport error replaces the category of
+the grader comparison. The summary of a model counts the categories and the scenario
+families of the cases that did not pass in `failure_categories` and
+`failure_families`, and the text output prints the title of the diagnosis
+next to every case that did not pass.
+
+`bernie bench eval show ID --csv` prints one row per case, model and
+repeat: the case, its track, family, variant, context and repeat, the
+status, the diagnosis category, the critical and loop marks, the latency,
+the tokens, the distractor records admission removed, the tool calls, the
+expected value, the reply and the error, with the formula quoting of §10.1.
+
+`bernie bench eval propose --goal TEXT` is BroodBench's advisor. It asks
+the model under test to suggest an eval run for a goal in words, checks the
+answer, and prints the run and the `bernie bench eval` command that runs
+it. It starts nothing and saves nothing.
+
+- The server must resolve only to private, loopback, link-local or shared
+  (100.64.0.0/10, Tailscale) addresses, so the goal never leaves the
+  operator's networks. Its model must report `max_model_len`.
+- It sends one chat request: temperature 0, 1024 reply tokens, a 60 s
+  limit. The prompt names the suites, the tracks, the limit of the server
+  and the caps below.
+- The answer must be one strict JSON object (no prose, no code fence, no
+  repeated key) with exactly the keys `suite`, `context_sizes`,
+  `max_tokens`, `timeout_s`, `repeats`, `temperature`, `tracks`, `seed`
+  and `rationale`. The caps: a known suite; 1 to 8 new context sizes, each
+  with size + `max_tokens` + 512 within the limit; `max_tokens` 1 to 4096;
+  `timeout_s` 1 to 60; `repeats` exactly 1; `temperature` exactly 0; at
+  least one known track, none twice; a signed 32-bit seed; a rationale of
+  1 to 1000 characters; and at most 128 MiB of planned prompts (the sum of
+  the sizes × 4 bytes × the number of cases).
+- `--json` prints `{"ok", "options", "command", "rationale", "checks",
+  "latency_s", "response", "error"}`. A refused proposal keeps the answer
+  of the model in `response`, says why in `error`, and exits 1.
 
 ## 11. Dashboard
 
@@ -1999,12 +2325,23 @@ Rules for responses and tokens:
   `GET /api/telemetry`, `GET /api/power`, `PUT /api/power`, `GET /api/bench`,
   `GET /api/bench/suites`, `GET /api/bench/compare`, `POST /api/bench`,
   `POST /api/bench/run`, `POST /api/bench/ab`, `GET /api/bench/{id}`,
+  `GET /api/bench/csv`, `GET /api/eval`, `GET /api/eval/{id}`,
   `GET /api/jobs` and `POST /api/jobs/{id}/stop` — so there is no secret in
   them for the rule to remove. They go through the same rule all the same, so
   a route that is added later cannot forget it.
 
-The page has eight tabs: Setup, Dashboard, Chat, Benchmark, Topology, Fleet,
-Logs and Advanced. The theme of the page is the choice of the reader and
+The page has nine tabs: Setup, Dashboard, Chat, Benchmark, Quality,
+Topology, Fleet, Logs and Advanced. The Quality tab is BroodBench's compare page
+over the saved results of `bernie bench eval` (`/api/eval`): the reader
+picks runs as chips (the newest by default); the page warns when they asked
+different things (version, suite, seed, contexts, temperature, repeats,
+reply tokens or tracks); one score table holds every model of every run;
+and every model gets a report: the outcome ring (pass, fail and error over
+the graded cases), the family × context heatmap, decode and prefill against
+the context, the failure focus, and the cases, which a heatmap cell or a
+failing family opens and whose `Why` opens the diagnosis, with a link that
+downloads them as CSV. It starts no eval: its empty state shows the
+command. The theme of the page is the choice of the reader and
 lives in the browser, not in the API: the rail holds the three choices in
 words, `Auto` (the default: the page follows the system and follows it
 live), `Dark` and `Light`; the choice is kept in `localStorage`
@@ -2033,6 +2370,12 @@ read-out of every card and the raw documents of `/api/telemetry`,
 `/api/hw`, `/api/runs` and `/api/gpus/history`. The history of the cards
 (`/api/gpus/history`) is read by the Dashboard tab. A number this host does
 not measure is shown as a dash with the words "n/a on this host".
+When more than one server serves, the head of the Dashboard tab has a
+server picker. The engine numbers, the sparklines, Connect an app and Chat
+follow the picked server; the browser keeps the choice, and a server that
+stops gives way to the first server that serves. Every live server keeps
+its own history, so the sparklines of the picked server are already full.
+
 The history charts of the Dashboard tab have a `One point per` control:
 `1 s`, `5 s`, `10 s` or `15 s`. A choice above the spacing of the samples
 averages the samples of each bucket into one point, the newest bucket
@@ -2051,6 +2394,7 @@ The sparklines of the last minute keep every sample.
 | GET | `/api/runs` | `ps` JSON. An exited run has `findings` ([§8.3](#83-run-record)); the Logs tab shows them next to its log. A live run has `phase` ([§5.4](#54-log-phase)); the Logs tab shows the sentence under its state badge. |
 | POST | `/api/runs` | `{"recipe": "", "set": ["K=V"], "mode": "", "name": ""}` → run record. A name that is already running answers 409 Conflict. |
 | DELETE | `/api/runs/{name}` | stop (an attached run is only forgotten) |
+| GET | `/api/discover` | the vLLM servers of this host ([§8.5](#85-servers-found-on-this-host)). Read-only. |
 | POST | `/api/attach` | `{"url", "name", "recipe"}` → `{"run", "note"}`: attach a running server ([§8.4](#84-attached-servers)). An empty url answers 400; a server that fails a check answers 502 with the reason. |
 | GET | `/api/runs/{name}/logs?tail=N` | Server-sent events, one line per event (`tail` default 200). Ends with an `end` or `error` event. |
 | GET | `/api/runs/{name}/log?tail=2000&level=all&info&warn&error&q=text` | the tail of the log of a run: `{name, state, total_lines, truncated, lines: [{no, level, text}]}`. Every line carries its number in the log and its level. `level` is `all` (the default), `info`, `warn` or `error`; `q` is a case-insensitive substring; `tail` is 2000 lines by default. The levels are the rules of the log doctor: a line with `ERROR`, `Traceback`, `RuntimeError`, `CUDA error` or `Error:` is an error, a line with `WARNING` or `WARN` is a warning, every other line is info. A line that a finding points at is an error. |
@@ -2058,7 +2402,7 @@ The sparklines of the last minute keep every sample.
 | GET | `/api/telemetry` | Server-sent events, 1 Hz: `{time, slow_age_s, slow_interval_s, gpus: [Sample], runs: [{name, url, state, stats, window, gen_tok_s, prompt_tok_s, error}]}`. The sampler reads the cards of the host in two tiers: the fast fields every second, the slow fields every `slow_interval_s` seconds. `slow_age_s` is the age in seconds of the slow fields of this event. `stats` holds the numbers of the server of the run since it started, `window` what it did in the last minute (below). |
 | GET | `/api/gpus/history?window=5m\|15m\|1h` | the samples of the last minutes, one series per card: `{window, interval_s, points, series: [{hip_index, busy_pct, power_w, vram_used, tokens_per_s, prompt_tok_s, temp_c, sclk_mhz, mclk_mhz}]}`. The window is 15 m when the request names none; another window answers 400. The slow fields of a card (`temp_c`, `sclk_mhz`, `mclk_mhz`) are null at the points that hold no slow measurement: the ring never carries a slow value forward, and a gap is a gap. The ring buffer of the telemetry hub keeps 30 minutes at one point every 2 s; the hub samples the host only while a page watches `/api/telemetry`, so the buffer fills while the dashboard is open and the answer is empty (`points: 0`, no series) before the first sample; a window is downsampled so that no series holds more than 240 points: a window that fits the cap keeps every point of the ring (`points` is then the number of points of a series, 5 m: one point every 2 s), and a longer window is split into buckets of `interval_s` seconds; every bucket keeps its lowest and its highest value (MinMax) in the order of the window, so a peak that lasted one sample is never lost (15 m: every 8 s, 1 h: every 15 s). `tokens_per_s` and `prompt_tok_s` are the output and prefill rates of the live run, read from the hub's vLLM metrics sample; the rate is a property of the server, so every card carries the same number, and the values are zero (the fields absent from a sample without a scrape) when no run serves. The answer is cached for 2 s. |
 | POST | `/api/smoke` | one chat prompt to a run of this host: `{"prompt": "", "run": "", "model": ""}` → `{url, model, health, reply, ttft_ms, output_tokens, tok_s, ok, check}`. The target is the run that serves, or the run named by `run`; a name that does not serve answers 404. The prompt is empty by default (then the prompt is `What is 2+2? Answer with one number.` and `check` says `ok: contains 4` when the answer has the digit, `answered` otherwise). The target is always a server of this host; a server that does not answer answers 502 with the reason. |
-| POST | `/api/chat` | one prompt to the run that serves: `{"prompt": ""}` → a stream of server-sent events. The events are `delta` (`{"text": ""}`) with the text of the answer, `reasoning` (`{"text": ""}`) with the reasoning of the model when it sends one, `done` (`{"ttft_ms": 0, "output_tokens": 0, "tok_s": 0}`) with the numbers of the answer and `error` (`{"error": ""}`). The target is the run that serves: the body names no server, and a target that is not a server of this host answers 400. Nothing serves answers 503, an empty prompt or a prompt of more than 8192 bytes answers 400, an answer that is already running answers 409, and a server that does not answer answers 502 with the reason. The request to the server ends when the page goes away. The stream ends with the `done` event and the terminator of the chunked body, in that order: a reader that reads the body to the end sees the final event and no error. The `Stop` control of the page aborts the request on purpose; that abort is the reader's own doing and is not an error of the answer. |
+| POST | `/api/chat` | one prompt to the run that serves: `{"prompt": "", "run": ""}` → a stream of server-sent events. The events are `delta` (`{"text": ""}`) with the text of the answer, `reasoning` (`{"text": ""}`) with the reasoning of the model when it sends one, `done` (`{"ttft_ms": 0, "output_tokens": 0, "tok_s": 0}`) with the numbers of the answer and `error` (`{"error": ""}`). The target is the run named by `run` (the server the Dashboard shows) when it serves, else the first run that serves; a target that is neither a server of this host nor an attached server answers 400. Nothing serves answers 503, an empty prompt or a prompt of more than 8192 bytes answers 400, an answer that is already running answers 409, and a server that does not answer answers 502 with the reason. The request to the server ends when the page goes away. The stream ends with the `done` event and the terminator of the chunked body, in that order: a reader that reads the body to the end sees the final event and no error. The `Stop` control of the page aborts the request on purpose; that abort is the reader's own doing and is not an error of the answer. |
 | GET | `/api/power` | `tune power service status` JSON |
 | PUT | `/api/power` | `{"gpu": "all", "watts": 180}` → write the desired cap. `gpu` is `all` or a HIP index. The power service must be installed. The value is clamped to the range the cards share (spec §9.2); the answer names the cards that were clamped in `clamped`. |
 | GET | `/api/bench` | `bench list` JSON |
@@ -2069,6 +2413,9 @@ The sparklines of the last minute keep every sample.
 | GET | `/api/bench/{id}` | the state of a benchmark run: `{"id", "status", "phase", "event", "done", "total", "result_id"}`. `status` is `running`, `done` or `failed`; `phase` names the cell the run is on; `done` counts the finished cells, `total` is the number of cells of the run and `result_id` is the id of the saved result. `event` is the typed event of the run (below). |
 | GET | `/api/bench/{id}/events` | Server-sent events of a benchmark run: one `log` event per progress line, a `progress` event with the job document, then a `done` or `failed` event with the job document. The document carries the typed event of the run, so the page reads the state of the run and not the text of the log. |
 | GET | `/api/bench/compare?a=ID&b=ID&format=markdown` | the receipt of the comparison as `text/markdown`: the text of `bernie bench compare A B --markdown`. |
+| GET | `/api/bench/csv?id=ID` | `bench show ID --csv` as a `text/csv` download named `ID.csv`. 404 for an unknown result. |
+| GET | `/api/eval` | `bench eval list` JSON: the saved eval results, without their cases. |
+| GET | `/api/eval/{id}` | `bench eval show ID` JSON. With `format=csv`, `bench eval show ID --csv` as a `text/csv` download named `ID.csv`. 404 for an unknown result. |
 | GET | `/api/onboarding` | the onboarding checklist of this host ([§3.3](#33-the-onboarding-checklist)). The document comes from the cache when it is younger than 15 s; an older one is served with `stale` and refreshed in the background. |
 | GET | `/api/setup/runs` | the records of the setup runs of this host, newest first, and the newest one in full ([§6.4](#64-the-run-record)). The answer is `{"runs": [Run], "run": Run}`. |
 | GET | `/api/setup/runs/{id}/log/{step}` | the log of one step of a run: `{"run": "", "step": "", "lines": [""], "truncated": false}`. The tail of the log, at most 400 lines. |

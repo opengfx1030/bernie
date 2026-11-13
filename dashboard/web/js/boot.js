@@ -1,7 +1,7 @@
 "use strict";
 // The router and the start-up. Loaded last: every view function exists by now.
 //
-// The page has eight tabs: #setup, #dashboard, #chat, #benchmark, #topology,
+// The page has nine tabs: #setup, #dashboard, #chat, #benchmark, #quality, #topology,
 // #fleet, #logs and #advanced. The old links keep working: the router
 // rewrites them and replaces the history entry, so the back button never
 // walks through them.
@@ -11,6 +11,7 @@ const VIEWS = {
   dashboard: "viewDashboard",
   chat: "viewChat",
   benchmark: "viewBenchmark",
+  quality: "viewQuality",
   topology: "viewTopology",
   fleet: "viewFleet",
   logs: "viewLogs",
@@ -43,13 +44,21 @@ const TAB_SCRIPTS = {
     "views/dashboard/dashboard.js",
     "views/dashboard/details.js",
     "views/dashboard/gpus.js",
+    "views/dashboard/attach.js",
     "views/dashboard/simple.js",
   ],
   benchmark: [
     "components/metrics.js",
     "components/compare.js",
+    "views/benchmark/report.js",
     "views/benchmark/benchmark.js",
     "views/benchmark/suites.js",
+  ],
+  quality: [
+    "components/metrics.js",
+    "components/compare.js",
+    "views/benchmark/report.js",
+    "views/quality/quality.js",
   ],
   chat: [
     "views/chat/chat.js",
@@ -89,6 +98,7 @@ const TAB_CSS = {
   setup: [],
   dashboard: ["views/dashboard/dashboard.css", "views/dashboard/simple.css"],
   benchmark: ["css/bench.css"],
+  quality: ["css/bench.css"],
   chat: ["views/chat/chat.css"],
   topology: ["views/topology/topology.css"],
   fleet: ["views/fleet/fleet.css"],
@@ -101,9 +111,15 @@ const tabReady = new Set(["setup"]);
 // The tabs whose files are on their way.
 const tabLoading = new Map();
 
+/** loadedScripts are the files loadScript added to the page. */
+const loadedScripts = new Set();
+
 /** loadScript adds one file of the page. The files of a bundle run in the
  *  order they are named. */
 function loadScript(src) {
+  // Two bundles may share a file: it runs once, or its constants clash.
+  if (loadedScripts.has(src)) return Promise.resolve();
+  loadedScripts.add(src);
   return new Promise((resolve, reject) => {
     const el = document.createElement("script");
     el.src = src;
@@ -257,7 +273,7 @@ function shortcutsKey(ev) {
   if (!shortcutsOn()) return;
   if (pendingG) {
     pendingG = false;
-    const tab = { s: "setup", d: "dashboard", b: "benchmark", t: "topology", l: "logs", c: "advanced" }[k];
+    const tab = { s: "setup", d: "dashboard", b: "benchmark", q: "quality", t: "topology", l: "logs", c: "advanced" }[k];
     if (tab) {
       ev.preventDefault();
       location.hash = "#" + tab;

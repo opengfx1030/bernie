@@ -74,7 +74,7 @@ the readiness callback.
 | `web/js/data.js` | The only place that fetches: `api()`, `apiText()`, the shared state, the SSE streams and the one poller |
 | `web/js/boot.js` | The router, the old-hash aliases, the keyboard shortcuts and the manifest of the files of a tab. Loaded last. |
 | `web/components/` | The shared widgets: cards, command block, charts, metrics, comparison, step timeline |
-| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewChat`, `viewBenchmark`, `viewTopology`, `viewFleet`, `viewLogs`, `viewAdvanced` |
+| `web/views/<tab>/` | One file per concern of a tab: `viewSetup`, `viewDashboard`, `viewChat`, `viewBenchmark`, `viewQuality`, `viewTopology`, `viewFleet`, `viewLogs`, `viewAdvanced` |
 | `web/views/topology/topology.css` | The Topology tab only: the matrix, the legend, the tree and the checklist |
 | `web/views/chat/chat.css` | The Chat tab only: the prompt box, the answer and the numbers of the answer |
 | `web/views/fleet/fleet.css` | The Fleet tab only: the rows of the other hosts and the form that adds one |
@@ -101,11 +101,11 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/components/cards.js` | `jsonLink`, `cardHead`, `stateHead`, `setHead`, `factRow`, `tableHead`, `tableCaption`, `emptyState`, `sectionLabel`, `PILL_ICON`, `statePill`, `loading`, `failed` |
 | `dashboard/web/components/charts.js` | `chartMinMax`, `chartNumbers`, `chartSame`, `chartPaths`, `chartPointer`, `chartNice`, `sparkDomain`, `chartDataTable`, `spark`, `areaChart` |
 | `dashboard/web/components/command.js` | `copyBtn`, `cmdBlock`, `connectEndpoint`, `connectSnippet` |
-| `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `ladderPoints`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart`, `curveSmallMultiples`, `curveTable` |
+| `dashboard/web/components/compare.js` | `NO_VERDICT`, `svgEl`, `compareCellName`, `compareSpread`, `compareBandText`, `compareSpreadText`, `compareChipText`, `compareChipWidth`, `compareChip`, `compareBlock`, `compareScale`, `compareTable`, `compareChart` |
 | `dashboard/web/components/gputable.js` | `gpuValueTable` |
-| `dashboard/web/components/metrics.js` | `METRIC_HELP`, `VERDICTS`, `METRIC_COLS`, `COMPARE_METRICS`, `benchNum`, `benchDist`, `benchRate`, `benchDigits`, `SPREAD_STEADY`, `benchSpreadText`, `cellLens`, `cellFlags`, `metricHead`, `cellRow`, `cellsTable`, `verdictChip` |
+| `dashboard/web/components/metrics.js` | `METRIC_HELP`, `VERDICTS`, `COMPARE_METRICS`, `benchNum`, `benchDigits`, `SPREAD_STEADY`, `cellFlags`, `verdictChip` |
 | `dashboard/web/components/timeline.js` | `TIMELINE_STATE_WORD`, `TIMELINE_MARK`, `TIMELINE_PILL`, `stepTimeline`, `stepCurrentID`, `stepRow`, `stepPill`, `stepMark`, `stepSummary`, `stepActionLabel`, `stepAction`, `stepProgressNode`, `stepBar`, `stepProblem`, `stepToggleLog` |
-| `dashboard/web/js/boot.js` | `VIEWS`, `OLD_ROUTES`, `TAB_SCRIPTS`, `TAB_CSS`, `tabReady`, `tabLoading`, `loadScript`, `loadStyle`, `openTab`, `parseHash`, `route`, `preparePanel`, `focusSection`, `tabsKey`, `pendingG`, `shortcutsKey`, `boot` |
+| `dashboard/web/js/boot.js` | `VIEWS`, `OLD_ROUTES`, `TAB_SCRIPTS`, `TAB_CSS`, `tabReady`, `tabLoading`, `loadedScripts`, `loadScript`, `loadStyle`, `openTab`, `parseHash`, `route`, `preparePanel`, `focusSection`, `tabsKey`, `pendingG`, `shortcutsKey`, `boot` |
 | `dashboard/web/js/core.js` | `h`, `add`, `put`, `$`, `GiB`, `bytes`, `num`, `ago`, `badge`, `sh`, `SVG_NS`, `chartSvg` |
 | `dashboard/web/js/data.js` | `HISTORY`, `RUN_POLL_MS`, `MAX_POLL_MS`, `STALE_MS`, `state`, `request`, `api`, `loadHW`, `runsOf`, `runURL`, `pushHist`, `slowAgeNote`, `openTelemetry`, `openRunLogs`, `openJobEvents`, `openBenchEvents`, `JOB_POLL_MS`, `watchBenchJob`, `apiText`, `frameJobs`, `frameHandle`, `frameFallback`, `FRAME_FALLBACK_MS`, `runFrameJobs`, `onFrame`, `frameSubs`, `onTabFrame`, `telemetryStream`, `pollTimer`, `pollDelay`, `pollCycle`, `presentTelemetry`, `setLivePaused`, `startTelemetry`, `pollRuns`, `pollCounts`, `schedulePoll`, `startPolling`, `refreshHost` |
 | `dashboard/web/js/shell.js` | `ADVANCED_KEY`, `toastTimer`, `toast`, `copyText`, `copy`, `copySource`, `tipPanel`, `openTip`, `tooltip`, `closeTip`, `setTabCount`, `SHORTCUT_KEY`, `SHORTCUTS`, `shortcutsOn`, `setShortcuts`, `shortcutsText`, `advancedOn`, `applyAdvanced`, `toggleAdvanced`, `setRunPill`, `setPillAge`, `phaseSentence`, `demoBanner` |
@@ -117,12 +117,15 @@ Regenerate the table rows with `scripts/check-web.sh --print-globals`.
 | `dashboard/web/views/advanced/prefs.js` | `advPrefsCard`, `prefsList`, `prefRow`, `setResolved`, `savePref` |
 | `dashboard/web/views/advanced/report.js` | `advReportCard`, `advReportText`, `advCopyReport`, `advDownloadReport` |
 | `dashboard/web/views/advanced/power.js` | `advPowerCard`, `advPaintPower`, `advPowerRow`, `advSavePower` |
-| `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchCards`, `benchCellName`, `benchBestCell`, `benchHeadline`, `benchResultBody`, `benchCopy`, `benchReceipt`, `benchStartError`, `cancelBench`, `deleteBenchResult`, `viewBenchmark` |
+| `dashboard/web/views/benchmark/benchmark.js` | `benchState`, `benchSection`, `benchFailed`, `benchResults`, `benchSuiteLine`, `benchHeadline`, `benchCopy`, `benchReceipt`, `benchStartError`, `cancelBench`, `deleteBenchResult`, `viewBenchmark` |
+| `dashboard/web/views/benchmark/report.js` | `benchCtx`, `benchCtxName`, `benchRefName`, `benchKpis`, `benchAggPrefill`, `BENCH_CHARTS`, `benchGrid`, `benchChart`, `benchCharts`, `benchCellState`, `benchServer`, `BENCH_COLS`, `benchRow`, `benchMatrix`, `benchReport` |
+| `dashboard/web/views/quality/quality.js` | `quality`, `qPct`, `qLabel`, `qSame`, `qScores`, `qRing`, `qHeat`, `qSpeed`, `qWhy`, `qCase`, `qReport`, `viewQuality` |
 | `dashboard/web/views/benchmark/suites.js` | `benchSuiteCells`, `benchSuiteEstS`, `benchMinutes`, `benchSuiteCard`, `benchSuiteCards`, `benchSentence`, `benchProgress`, `benchBest`, `benchSuiteOf`, `benchHistoryRow`, `benchHistory`, `benchAB`, `benchAdvanced` |
 | `dashboard/web/views/chat/chat.js` | `chatState`, `viewChat` |
-| `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashGroup`, `dashSection`, `dashInfo`, `dashPush`, `dashSeries`, `dashLiveRun`, `dashRunStatus`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
+| `dashboard/web/views/dashboard/dashboard.js` | `dash`, `dashGroup`, `dashAgg`, `dashPickRun`, `dashSection`, `dashInfo`, `dashPush`, `dashSeries`, `dashLiveRun`, `dashRunStatus`, `dashPhase`, `dashLoad`, `dashUpdateSimple`, `dashHistory`, `dashWindowSeries`, `viewDashboard`, `dashSample` |
 | `dashboard/web/views/dashboard/details.js` | `DASH_DETAIL_WINDOWS`, `dashDetails`, `dashLoadDetails`, `dashDetailsRead`, `dashDetailsWindow`, `dashWindowMinutes`, `dashDetailsPower`, `dashDetailsDocuments` |
 | `dashboard/web/views/dashboard/gpus.js` | `dashTile`, `dashEcc`, `dashGPUOverview`, `renderGPUs`, `dashSubscribe` |
+| `dashboard/web/views/dashboard/attach.js` | `dashAttachPanel` |
 | `dashboard/web/views/dashboard/simple.js` | `dashSimpleHero`, `dashEngineConfig`, `runRemote`, `dashStopRun`, `dashMeaning`, `dashSimpleTiles`, `dashSimpleCharts`, `dashSimpleMachine`, `dashBuildSimple`, `dashSimpleConnect` |
 | `dashboard/web/views/fleet/fleet.js` | `FLEET_STATE_WORD`, `fleetStatePill`, `fleetGPUs`, `fleetRow`, `fleetShare`, `viewFleet` |
 | `dashboard/web/views/logs/advanced.js` | `logsJsonLink`, `logsAdvanced` |
@@ -200,7 +203,7 @@ number.
 5. Show the unit and the range of every number. Show `–` when a number is
    missing.
 
-## The eight tabs
+## The nine tabs
 
 Each tab answers one question. Keep it that way.
 
@@ -209,7 +212,8 @@ Each tab answers one question. Keep it that way.
 | Setup | Is this host ready, what do I do next, and what can it serve? | `/api/onboarding`, `/api/hw`, `/api/doctor`, `/api/recipes`, `.../plan` | run a step, start a run |
 | Dashboard | Is it serving, how fast is it, and how does an app connect? | `/api/telemetry`, `/api/hw`, `/api/runs`, `/api/glossary`, `/api/gpus/history` | copy the URL, stop the run, copy a curl or Python request |
 | Chat | What will I ask the model? | `/api/chat`, `/api/runs` | send one prompt, stop the answer |
-| Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare` | start a bench, compare two results |
+| Benchmark | How fast is it, and does it read the whole prompt? | `/api/bench`, `/api/bench/suites`, `.../compare`, `/api/bench/csv` | start a bench, compare two results, download a result as CSV |
+| Quality | Does it answer right, and how do saved runs compare? | `/api/eval`, `/api/eval/{id}` | pick runs to compare, open the cases of a heatmap cell or a failing family, open the cause of a case, download the cases as CSV |
 | Topology | Can the cards copy to each other? | `/api/topo`, `/api/topo/check` | check the readiness again |
 | Fleet | What do the other hosts do? | `/api/fleet`, `/api/report` | add a host, forget a host, copy the redacted report, open that host's own dashboard |
 | Logs | What is running, and why did it fail? | `/api/runs` (state, phase sentence), `.../logs` | stop, read logs, read the findings |
@@ -311,7 +315,7 @@ blocking checks first. These labels retain the `#topology` and `#advanced`
 routes and their section links. Both tabs remain reachable in either mode.
 
 Headlines use non-italic Inter at 28–42 px; body text is 16 px and secondary
-text 14 px. Mobile keeps the mode controls and all eight tabs reachable.
+text 14 px. Mobile keeps the mode controls and all nine tabs reachable.
 
 A step that bernie can do has a Run button. The step runs in the background
 and its output goes under the step. A step that needs root has the command
@@ -325,15 +329,17 @@ model, and follows the log of that run. The Setup tab shows the same
 state in words.
 
 The Benchmark tab answers one question: how fast is the server, and does it
-read the whole prompt? It opens with the last result in one sentence, then
-the suites as radio cards with their digest, the table of the cells (the
-prefill and the decode speed, the time to the first token, the latency
-between the tokens and the output rate, each with the mean, the median and
-the 95th percentile), the curve of the prompt length, the comparison of two
-results with a verdict on every group, the receipt of that comparison and
-the history of the saved results. A number that was not measured shows `–`.
-When the server has a `/metrics` endpoint, a line under the table says what
-the server measured over the same requests. `Run the suite` starts the run
+read the whole prompt? It opens with the peak of the last result in one
+sentence, then the suites as radio cards with their digest. The result
+follows the BroodBench report: four headline cards from the `summary` of the
+result (peak output, single-stream decode, prefill at c=1, requests ok), three
+charts by context (output tok/s, aggregate prefill, TTFT p50, one line per
+in-flight level; a result of one context puts the levels along x), and the
+context × in-flight table. A failed, incomplete, skipped or flagged cell has a
+`Why` button that opens its reasons: the skip reason, the error samples, the
+lost warm-ups and the flags. Then come the comparison of two results with a
+verdict on every group, the receipt of that comparison and the history of the
+saved results. A number that was not measured shows `–`. `Run the suite` starts the run
 and the card under the suites follows it: the phase, the rate and the time.
 The A/B section measures one server, then the other, then the first again.
 
@@ -454,4 +460,4 @@ and in [../docs/design-dashboard.md §8.3](../docs/design-dashboard.md#83-perfor
 | No log-error help in the Logs tab | Show the matched rule (id, cause, fix) from the log doctor |
 | No demo mode | Serve a fixture host so people can try the UI without GPUs |
 | Mobile layout is basic | Check each tab at 390 px wide |
-| No screenshot tests | Add a headless-browser smoke test for the eight tabs |
+| No screenshot tests | Add a headless-browser smoke test for the nine tabs |

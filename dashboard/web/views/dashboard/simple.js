@@ -14,27 +14,12 @@ function dashSimpleHero() {
   const chat = h("a.btn.primary", { href: "#chat" }, "Test in Chat");
   const connect = h("a.btn", { href: "#dashboard/connect" }, "Connect an app");
   const logs = h("a.btn", { href: "#logs" }, "Open Logs");
-  const attachURL = h("input", { inputmode: "url", placeholder: "http://chardis:8000", "aria-label": "Address of the running vLLM server" });
-  const attachBtn = h("button", { type: "submit" }, "Attach");
-  const attachForm = h("form.dash-attach-form", attachURL, attachBtn);
-  const attach = h("details.dash-attach", h("summary", "Use a server that is already running"), attachForm);
-  // An attached server is named after its host: chardis for http://chardis:8000.
-  const attachName = (raw) => {
-    let host = "";
-    try { host = new URL(raw.includes("://") ? raw : "http://" + raw).hostname; } catch (e) { /* the server checks the address */ }
-    const name = /^\d+$/.test(raw.trim()) ? "" : host.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^[^a-z0-9]+/, "");
-    return !name || /^(127\.|localhost$)/.test(name) ? "attached" : name;
-  };
-  attachForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    attachBtn.disabled = true;
-    try {
-      const res = await api("/api/attach", { method: "POST", body: { url: attachURL.value.trim(), name: attachName(attachURL.value) } });
-      toast(res.note, true);
-      attachURL.value = "";
-      attach.open = false;
-      await dashLoad();
-    } catch (err) { toast("Attach failed: " + (err.message || err)); } finally { attachBtn.disabled = false; }
+  const attach = dashAttachPanel();
+  const pick = h("select.dash-pick", { "aria-label": "The server the dashboard shows" });
+  let pickKey = "";
+  pick.addEventListener("change", () => {
+    dashPickRun(pick.value);
+    dashUpdateSimple();
   });
   let shown = null;
   stop.addEventListener("click", async () => {
@@ -49,7 +34,7 @@ function dashSimpleHero() {
   const endpointCopy = copyBtn("", "Copy the model API base URL");
   const endpointNone = h("span.dash-muted");
   const metricsNote = h("p.small.muted");
-  left.append(h("div.dash-simple-top", h("span.eyebrow", "vLLM engine"), statusBadge), word,
+  left.append(h("div.dash-simple-top", h("span.dash-pick-row", h("span.eyebrow", "vLLM engine"), pick), statusBadge), word,
     h("div.dash-engine-identity", layout, technical), lede,
     h("div.dash-simple-actions", start, chat, connect, logs, stop), attach, scope,
     h("div.dash-simple-endpoint", endpointLabel, endpointCode, endpointCopy, endpointNone), metricsNote);
@@ -84,9 +69,16 @@ function dashSimpleHero() {
       const runs = !status.unknown && live && Array.isArray(live.runs) ? live.runs : runsOf(state.runs);
       const active = runs.filter((r) => r.state !== "exited");
       const ready = active.filter((r) => r.state === "running" && r.answering !== false).length;
-      scope.textContent = active.length > 1 ? active.length + " servers recorded as active. "
-        + (status.unknown ? "Live status is unavailable. " : ready + " ready, " + (active.length - ready) + " not ready. ")
-        + "Showing " + run.name + "; Chat also uses the first active server. Inspect other servers in Logs." : "";
+      scope.textContent = active.length > 1 ? active.length + " servers are active"
+        + (status.unknown ? "; live status is unavailable. " : ", " + ready + " ready. ")
+        + "Pick one above: the numbers, Chat and Connect an app use " + run.name + "." : "";
+      const names = active.map((r) => r.name);
+      pick.hidden = names.length < 2;
+      if (names.join("\n") !== pickKey) {
+        pickKey = names.join("\n");
+        pick.replaceChildren(...names.map((n) => h("option", { value: n }, n)));
+      }
+      if (run && pick.value !== run.name) pick.value = run.name;
       scope.hidden = !scope.textContent;
       const endpoint = connectEndpoint(status.active ? run : null);
       endpointCode.textContent = endpoint.url;
@@ -97,7 +89,8 @@ function dashSimpleHero() {
       stop.hidden = !status.active;
       stop.textContent = run && run.foreign ? "Detach server" : "Stop server";
       stop.title = status.active ? (run.foreign ? "Forget attached server " : "Stop ") + run.name : "";
-      start.hidden = attach.hidden = status.active || status.unknown;
+      start.hidden = status.active || status.unknown;
+      attach.hidden = status.unknown;
       chat.hidden = !status.ready;
       connect.hidden = !status.active;
       logs.hidden = !run && !status.unknown;
@@ -204,7 +197,7 @@ function dashSimpleTiles() {
     const run = dashLiveRun();
     const status = dashRunStatus(run);
     const last = dash.samples[dash.samples.length - 1];
-    const agg = status.ready && status.tele && status.tele.stats && last && last.run === run.name ? last.agg : null;
+    const agg = status.ready && status.tele && status.tele.stats && last && last.aggs ? last.aggs[run.name] || null : null;
     for (const tile of tiles) {
       const key = tile.key;
       let value = "–", max = null;

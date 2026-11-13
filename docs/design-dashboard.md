@@ -294,8 +294,8 @@ are `design/state-headline.svg`, `design/button-primary.svg`,
 The shared JavaScript keeps its parts in `dashboard/web/components/`:
 `command.js` (the command block and the copy button), `cards.js` (the card
 head, the state headline, the empty and the failed state), `charts.js` (the
-sparkline, the area chart, the ring, the meter), `metrics.js` (the metric
-table, the verdict chip, the bar comparison, the length curve) and
+sparkline, the area chart, the ring, the meter), `metrics.js` (the words
+of the metrics, the flags and the verdict chip) and
 `timeline.js` (the step row). A worker who needs a new part puts it in the
 file of its role and tells the other workers.
 
@@ -441,16 +441,16 @@ KB below means 1024 bytes. These are payload sizes, not page-load timings.
 
 | Budget | Target | Measured | Note |
 |---|---|---|---|
-| The whole page (HTML + CSS + JS, uncompressed) | ≤ 436 KB | **432.5 KB** | the whole tree; raised from 432 KB for the attach form and the grouping of chart points |
-| HTML | ≤ 12 KB | **6.6 KB** | `index.html` |
-| CSS | ≤ 80 KB | **77.9 KB** | shared styles plus lazy tab styles; obsolete dashboard rules removed |
-| JavaScript | ≤ 352 KB | **348.0 KB** | plain and unminified; raised from 348 KB for the attach form and the grouping of chart points |
-| JavaScript on the first paint | ≤ 112 KB | **103.0 KB** | the shell and Setup; chooser and path runner load on demand |
+| The whole page (HTML + CSS + JS, uncompressed) | ≤ 456 KB | **448.8 KB** | the whole tree; raised from 444 KB for the compare page of the Quality tab and the look of the Dashboard |
+| HTML | ≤ 12 KB | **6.9 KB** | `index.html` |
+| CSS | ≤ 84 KB | **80.7 KB** | shared styles plus lazy tab styles; raised from 80 KB for the Quality tab and the look of the Dashboard |
+| JavaScript | ≤ 368 KB | **361.2 KB** | plain and unminified; raised from 360 KB for the compare page of the Quality tab and the look of the Dashboard |
+| JavaScript on the first paint | ≤ 112 KB | **103.6 KB** | the shell and Setup; chooser and path runner load on demand |
 | CSS on the first paint | ≤ 40 KB | **38.6 KB** | the five initial stylesheets |
 | Fonts | ≤ 130 KB, four woff2, OFL, `font-display: swap`, `unicode-range` | **128.4 KB**, four woff2, swap ✓, range ✓ | the license texts (24.5 KB) sit next to the files; they are not loaded by the page |
 | First-paint requests | ≤ 24 | **22** (1 HTML + 5 CSS + 12 scripts + 4 fonts) | other tabs load on demand |
-| Transferred text on the first paint (gzip) | ≤ 60 KB | **47.9 KB** | initial HTML, CSS and JavaScript |
-| Text of the whole tree (gzip) | ≤ 151 KB | **150.3 KB** | 153914 bytes; raised from 149 KB, which had 11 bytes of headroom |
+| Transferred text on the first paint (gzip) | ≤ 60 KB | **48.0 KB** | initial HTML, CSS and JavaScript |
+| Text of the whole tree (gzip) | ≤ 161 KB | **157.1 KB** | 160844 bytes; raised from 157 KB for the compare page of the Quality tab and the look of the Dashboard |
 | First paint on a loopback host | ≤ 1.0 s | **unmeasured** | the binary runs on this Mac; a measurement on the reference box (par1-cs25) lands in `dashboard/README.md` when the integrator pushes |
 | The live numbers | one stream: `GET /api/telemetry` at 1 Hz drives metrics and charts | the stream | manual pause freezes metric presentation, not sampling or server health; hidden pages skip painting and pause polling |
 | The poller | one timer for the page, in `js/data.js`; no view opens its own timer | one timer | one `setTimeout` re-arms itself with a delay that grows on error (backoff, capped at 60 s) and shrinks on success |
@@ -509,7 +509,7 @@ every open page, so ten open tabs cost the same as one (spec §11).
 | Recipes (`#recipes`) | Setup | the recipe list, the fit, the plan, the settings with their reasons, the mode switch |
 | Runs (`#runs`) | Dashboard | the run card: state, phase, endpoint, uptime, stop, restart, the findings of the log doctor |
 | Runs, the log | Logs | the live tail, the filter, the findings, the download |
-| Bench (`#bench`) | Benchmark | the suites, the run, the results, the comparison, the length curve, the history |
+| Bench (`#bench`) | Benchmark | the suites, the run, the results, the comparison, the charts by context, the history |
 
 ### 9.2 The commit plan
 

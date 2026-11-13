@@ -34,17 +34,26 @@ func init() {
 		return c.Emit(rs, func(w io.Writer) { printBenchList(w, rs) })
 	}
 
-	show := &cli.Command{Name: "show", Summary: "Show a saved bench result", Usage: "<id>"}
+	show := &cli.Command{Name: "show", Summary: "Show a saved bench result", Usage: "<id> [--csv]"}
 	show.Run = func(c *cli.Context, args []string) error {
-		pos, err := cli.Parse(c.Flags(show), args)
+		fs := c.Flags(show)
+		asCSV := fs.Bool("csv", false, "print the cells as CSV, one row per cell")
+		pos, err := cli.Parse(fs, args)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
 			return cli.Usagef("bench show needs exactly one result id")
 		}
+		if *asCSV && c.JSON {
+			return cli.Usagef("--csv and --json are two formats; pick one")
+		}
 		r, err := bench.Get(pos[0])
 		if err != nil {
+			return err
+		}
+		if *asCSV {
+			_, err = c.Out.Write(bench.CSV(r))
 			return err
 		}
 		return c.Emit(r, func(w io.Writer) { printBenchResult(w, r) })
@@ -59,7 +68,7 @@ func init() {
 	ab := &cli.Command{Name: "ab", Summary: "Run a baseline and a candidate back to back and tell the verdict", Usage: "--base ARM --cand ARM [--suite NAME]"}
 	ab.Run = func(c *cli.Context, args []string) error { return runAB(c, ab, args) }
 
-	cmd.Subs = []*cli.Command{list, show, compare, suites, ab, benchDeleteCommand()}
+	cmd.Subs = []*cli.Command{list, show, compare, suites, ab, benchDeleteCommand(), benchEvalCommand()}
 	cli.Register(cmd)
 }
 
@@ -77,6 +86,7 @@ func runBench(c *cli.Context, cmd *cli.Command, args []string) error {
 	fs.Int64Var(&o.Seed, "seed", 0, "prompt seed")
 	fs.StringVar(&o.Tag, "tag", "", "free label stored with the result")
 	fs.BoolVar(&o.Recall, "recall", false, "hide a short random fact in every prompt and check the reply")
+	fs.BoolVar(&o.Probe, "probe", false, "send a prefill probe before every cell: N simultaneous max_tokens=1 requests")
 	fs.StringVar(&o.Suite, "suite", "", "run a built-in suite (bernie bench suites lists them)")
 	pos, err := cli.Parse(fs, args)
 	if err != nil {
@@ -136,6 +146,10 @@ func printBenchResult(w io.Writer, r *bench.Result) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, metricHelp)
 	for _, cl := range r.Cells {
+		if cl.Skipped != "" {
+			fmt.Fprintf(w, "cell %s skipped: %s\n", suite.CellLabel(cl.Group, cl.Concurrency), cl.Skipped)
+			continue
+		}
 		printCell(w, &cl)
 		for _, e := range cl.Errors {
 			fmt.Fprintf(w, "%s error: %s\n", suite.CellLabel(cl.Group, cl.Concurrency), e)

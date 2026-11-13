@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/opengfx1030/bernie/internal/serving/vllm"
 	"github.com/opengfx1030/bernie/internal/serving/weights"
 )
 
@@ -52,6 +53,9 @@ type Options struct {
 	// SizeTolerancePercent is the share of the prompt length a cell may
 	// miss. Zero takes the default of 2 %.
 	SizeTolerancePercent float64 `json:"size_tolerance_percent,omitempty"`
+	// Probe sends the prefill probe before every cell: as many
+	// simultaneous max_tokens=1 requests as the cell has in flight.
+	Probe bool `json:"probe,omitempty"`
 }
 
 // Measurement holds the numbers of a cell or of one repetition of it.
@@ -69,6 +73,14 @@ type Measurement struct {
 	// ServerSide is what the server measured over the same requests. It is
 	// nil when the server has no metrics.
 	ServerSide *ServerSide `json:"server_side,omitempty"`
+	// Probe is the prefill probe of the cell. It is nil when the run sent
+	// none.
+	Probe *Probe `json:"probe,omitempty"`
+	// ServerBatch is what the server's counters say about the measured
+	// requests: their prefill and decode rates per request. When the
+	// counters cannot be credited to them, ServerBatchUnavailable says why.
+	ServerBatch            *vllm.Attribution `json:"server_batch,omitempty"`
+	ServerBatchUnavailable string            `json:"server_batch_unavailable,omitempty"`
 	// TokensExact tells whether the token counts of the cell come from the
 	// server's usage. False when a request came without usage.
 	TokensExact bool    `json:"tokens_exact"`
@@ -139,6 +151,9 @@ type Cell struct {
 	// Incomplete marks a cell that lost a warm-up or a repetition. Its
 	// numbers stay visible, but no verdict is issued for it.
 	Incomplete bool `json:"incomplete,omitempty"`
+	// Skipped says why a cell was never sent: its prompt and output do
+	// not fit the context of the server (spec §10.2). It has no numbers.
+	Skipped string `json:"skipped,omitempty"`
 	// InputSizePercent is the share of the prompt length the server
 	// measured off the requested length. SizeValid tells whether the
 	// drift stays inside the tolerance of the run.
@@ -217,6 +232,9 @@ type Result struct {
 	// nil for a server bernie did not start and in older results.
 	Weights *weights.Model `json:"weights,omitempty"`
 	Cells   []Cell         `json:"cells"`
+	// Summary is the headline of the cells. Save and the readers fill it,
+	// so it is never stale.
+	Summary *Summary `json:"summary,omitempty"`
 }
 
 // Completed is the number of successful measured requests over all cells.

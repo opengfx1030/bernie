@@ -31,17 +31,6 @@ func sizeTolerance(percent float64) float64 {
 	return percent
 }
 
-// serverMetrics reads the metrics of the server. It returns nil when the
-// server has no /metrics endpoint: the cross-check with the server is
-// optional.
-func serverMetrics(ctx context.Context, c *vllm.Client) map[string]float64 {
-	m, err := c.Metrics(ctx)
-	if err != nil {
-		return nil
-	}
-	return m
-}
-
 // runPool sends n requests with at most workers in flight and returns the
 // samples in request order. from is the start of the cell: every sample
 // keeps its times relative to it.
@@ -165,6 +154,11 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 		}
 		return s
 	}
+	// A probe request has its own salt like every other request, so the
+	// prefix cache cannot share it with the measured requests.
+	sendProbe := func(ctx context.Context, from time.Time) sample {
+		return streamCompletion(ctx, hc, o.URL, o.Model, p.build(int(seq.Add(1)), words), ProbeTokens, false, from)
+	}
 
 	for i, c := range o.Concurrency {
 		n := cellPrompts(o, c)
@@ -184,17 +178,35 @@ func Run(ctx context.Context, o Options, progress io.Writer) (*Result, error) {
 				}
 			}
 		}
+		var probe *Probe
+		if o.Probe {
+			_, ps := settle(ctx, client, o.Model, nil, 0)
+			var wave []sample
+			probe, wave = runProbe(ctx, c, sendProbe)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			_, pa := settle(ctx, client, o.Model, ps, probe.Completed)
+			probe.creditProbe(ps, pa, wave)
+			if probe.Unavailable != "" {
+				fmt.Fprintf(progress, "bench: c=%d prefill probe: %s\n", c, probe.Unavailable)
+			} else {
+				fmt.Fprintf(progress, "bench: c=%d prefill probe: %.0f tok/s over %d requests\n", c, probe.AggTokS, c)
+			}
+		}
 		fmt.Fprintf(progress, "bench: c=%d running %d requests\n", c, n)
-		before := serverMetrics(ctx, client)
+		before, bs := settle(ctx, client, o.Model, nil, 0)
 		start := time.Now()
 		samples := runPool(ctx, c, n, start, send)
 		wall := time.Since(start)
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		after := serverMetrics(ctx, client)
 		cell := aggregate(c, samples, wall)
+		after, as := settle(ctx, client, o.Model, bs, cell.Completed)
 		cell.ServerSide = serverSide(before, after)
+		cell.ServerBatch, cell.ServerBatchUnavailable = attribute(bs, as, samples)
+		cell.Probe = probe
 		cell.WarmupFailed = warmFailed
 		cell.InputSizePercent = sizeDrift(float64(o.InputLen), cell.MeanPromptTokens)
 		cell.SizeValid = math.Abs(cell.InputSizePercent) <= sizeTolerance(o.SizeTolerancePercent)
